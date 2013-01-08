@@ -1,0 +1,15 @@
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/ROSBUILD_genmsg_cpp.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/ROSBUILD_genmsg_lisp.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/ROSBUILD_gensrv_cpp.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/ROSBUILD_gensrv_lisp.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/clean-test-results.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/rosbuild_precompile.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/rosbuild_premsgsrvgen.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/rospack_genmsg.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/rospack_genmsg_libexe.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/rospack_gensrv.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/test.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/test-future.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/test-results.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/test-results-run.dir
+/home/colin/fuerte_workspace/microstrain_3dmgx1/build/CMakeFiles/tests.dir

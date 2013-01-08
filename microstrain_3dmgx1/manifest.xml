@@ -1,0 +1,19 @@
+<package>
+  <description brief="microstrain_3dmgx1">
+
+     microstrain_3dmgx1
+
+  </description>
+  <author>colin</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/microstrain_3dmgx1</url>
+  <rosdep name="pyserial"/>
+  <depend package="rospy"/>
+  <depend package="std_srvs"/>
+  <depend package="sensor_msgs"/>
+  <depend package="tf"/>
+
+</package>
+
+
