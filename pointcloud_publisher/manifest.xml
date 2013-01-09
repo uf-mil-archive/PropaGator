@@ -1,0 +1,24 @@
+<package>
+  <description brief="pointcloud_publisher">
+
+     pointcloud_publisher
+
+  </description>
+  <author>Will Rolke</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/pointcloud_publisher</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+  <depend package="pcl"/>
+  <depend package="pcl_ros"/>
+  <depend package="pointcloud_to_laserscan"/>
+  <depend package="laser_tf_py"/>
+  <depend package="laser_geometry"/>
+  <depend package="tf"/>
+  <depend package="sensor_msgs"/>
+
+</package>
+
+
