@@ -1,0 +1,18 @@
+<package>
+  <description brief="laser_tf_py">
+
+     laser_tf_py
+
+  </description>
+  <author>Will Rolke</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/laser_tf_py</url>
+  <depend package="tf"/>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="LMS1xx"/>
+
+</package>
+
+
