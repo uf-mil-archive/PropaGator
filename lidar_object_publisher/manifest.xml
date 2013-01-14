@@ -1,0 +1,18 @@
+<package>
+  <description brief="lidar_object_publisher">
+
+     lidar_object_publisher
+
+  </description>
+  <author>Will Rolke</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/lidar_object_publisher</url>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+  <depend package="pointcloud_publisher"/>
+
+</package>
+
+

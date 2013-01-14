@@ -9,10 +9,10 @@ import tf
 import numpy
 
 port = '/dev/propagator_ioboard'
-lidarPivot_to_lens_x = .1	#0.01	# Distance forward from LIDAR pivot to LIDAR lens
+lidarPivot_to_lens_x = 0.1	#0.1	# Distance forward from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_y = 0 	#0	# Distance left from LIDAR pivot to LIDAR lens
-lidarPivot_to_lens_z = -.05	#-.1	# Distance up from LIDAR pivot to LIDAR lens
-pitchAngleOffset = 1	#3		# Pitch offset downwards
+lidarPivot_to_lens_z = -0.05	#-0.05	# Distance up from LIDAR pivot to LIDAR lens
+pitchAngleOffset = 0	#1		# Pitch offset downwards
 robotBase_to_lidarPivot_x = 0		# Distance forward
 robotBase_to_lidarPivot_y = 0		# Distance left
 robotBase_to_lidarPivot_z = 0.8763	# Distance up
@@ -34,8 +34,7 @@ if __name__ == '__main__':
         print "Got data:", data 
 
         try:
-#          pitch = -(((float(data))/10) - 17) + pitchAngleOffset
-          pitch = -(((float(data))/15) - 17) + pitchAngleOffset
+          pitch = -(float(data) - 138.51)/13.19 + pitchAngleOffset
         except ValueError:
           rospy.logwarn("Got bad data.")
           ser.close()
@@ -52,6 +51,78 @@ if __name__ == '__main__':
          rospy.Time.now(),
          "/laser",
          "/world")
+
+      
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.close()
+      ser.open()
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.close()
+      ser.open()
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.close()
+      ser.open()
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.write("d")
+      ser.close()
+      ser.open()
+
     except rospy.ROSInterruptException: pass
   except SerialTimeoutException:
     rospy.logerr("Could not open serial port!")
+
