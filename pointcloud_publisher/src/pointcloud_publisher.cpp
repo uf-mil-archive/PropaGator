@@ -32,7 +32,7 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
   try {
     projector_.transformLaserScanToPointCloud("/world", *scan, cloud, tfListener_);	// 1st arg was "base_link"
   } catch(tf::TransformException) {
-    ROS_ERROR("TransformException!");
+    ROS_WARN("TransformException!");
     return;
   }
   point_cloud_publisher_.publish(cloud);

@@ -5,6 +5,7 @@ CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o
  /home/will/fuerte_workspace/PropaGator/lidar_object_publisher/src/lidar_object_publisher.cpp
  /opt/ros/fuerte/include/XmlRpcDecl.h
  /opt/ros/fuerte/include/XmlRpcValue.h
+ /opt/ros/fuerte/include/pcl-1.5/pcl/ModelCoefficients.h
  /opt/ros/fuerte/include/pcl-1.5/pcl/PointIndices.h
  /opt/ros/fuerte/include/pcl-1.5/pcl/channel_properties.h
  /opt/ros/fuerte/include/pcl-1.5/pcl/cloud_properties.h
@@ -25,6 +26,11 @@ CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o
  /opt/ros/fuerte/include/pcl-1.5/pcl/point_types.h
  /opt/ros/fuerte/include/pcl-1.5/pcl/ros/conversions.h
  /opt/ros/fuerte/include/pcl-1.5/pcl/ros/register_point_struct.h
+ /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/method_types.h
+ /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/model_types.h
+ /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/sac.h
+ /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/sac_model.h
+ /opt/ros/fuerte/include/pcl-1.5/pcl/segmentation/sac_segmentation.h
  /opt/ros/fuerte/include/ros/advertise_options.h
  /opt/ros/fuerte/include/ros/advertise_service_options.h
  /opt/ros/fuerte/include/ros/assert.h

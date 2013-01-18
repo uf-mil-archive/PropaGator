@@ -4,6 +4,7 @@
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: ../src/lidar_object_publisher.cpp
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/XmlRpcDecl.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/XmlRpcValue.h
+CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/ModelCoefficients.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/PointIndices.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/channel_properties.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/cloud_properties.h
@@ -24,6 +25,11 @@ CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fue
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/point_types.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/ros/conversions.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/ros/register_point_struct.h
+CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/method_types.h
+CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/model_types.h
+CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/sac.h
+CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/sample_consensus/sac_model.h
+CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/pcl-1.5/pcl/segmentation/sac_segmentation.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/ros/advertise_options.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/ros/advertise_service_options.h
 CMakeFiles/lidar_object_publisher.dir/src/lidar_object_publisher.o: /opt/ros/fuerte/include/ros/assert.h
