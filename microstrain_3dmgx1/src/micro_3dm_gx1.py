@@ -9,7 +9,7 @@ from constants import *
 DEBUG = False
 
 class micro_3dm_gx1:
-	def __init__(self, port = 'IMU', baud = 115200):
+	def __init__(self, port = 'ttyUSB0', baud = 115200):
 		self.port = port
 		self.baud = baud	
 		self.current_command = 0
