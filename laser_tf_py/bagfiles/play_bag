@@ -1,0 +1,2 @@
+#!/bin/sh
+rosbag play -l 2013-02-05-21-54-52.bag

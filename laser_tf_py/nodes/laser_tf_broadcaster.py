@@ -8,6 +8,7 @@ from time import sleep
 import tf
 import numpy
 import select
+from std_msgs.msg import Bool
 
 ##########################
 ## LIDAR Commands:	##
@@ -34,10 +35,16 @@ robotBase_to_lidarPivot_y = 0		# Distance left
 robotBase_to_lidarPivot_z = 0.8763	# Distance up
 baseLink_yaw =  math.pi/7
 
+sweep_max = 320
+sweep_min = 0
+sweep_play = 10
+sweeping_up = True
+
 if __name__ == '__main__':
   rospy.init_node('laser_tf_broadcaster')
   pitch = 0.0
   br = tf.TransformBroadcaster()
+  pub_complete = rospy.Publisher('scan_complete', Bool)
   # A positive pitch is a downward pitch from the point of the view of the robot
   try:
     ser = serial.Serial(port, 9600, timeout=1)
@@ -52,14 +59,22 @@ if __name__ == '__main__':
           data = ser.readline()
         except (IOError, select.error):
           rospy.logwarn("Did not read from serial port.")
-#        print "Got data:", data 
 
         try:
           pitch = -(float(data) - 138.51)/13.19 + pitchAngleOffset
+          if (sweeping_up is True) and (float(data) > sweep_max-sweep_play):
+            sweeping_up = False
+            pub_complete.publish(True)
+            rospy.logdebug("Finished sweep!")
+          elif (sweeping_up is False) and (float(data) < sweep_min+sweep_play):
+            sweeping_up = True
+#            pub_complete.publish(True)
+#            rospy.logdebug("Finished sweep!")
         except ValueError:
           rospy.logwarn("Got bad data.")
           ser.close()
           ser.open()
+          ser.flushInput()
 
         T = tf.transformations.rotation_matrix((pitch/180)*math.pi, (0, 1, 0)).dot(tf.transformations.translation_matrix((lidarPivot_to_lens_x, lidarPivot_to_lens_y, lidarPivot_to_lens_z)))
         T = tf.transformations.translation_matrix((robotBase_to_lidarPivot_x, robotBase_to_lidarPivot_y, robotBase_to_lidarPivot_z)).dot(T)

@@ -1,0 +1,4 @@
+<launch>
+	<node pkg="pointcloud_publisher" name="pointcloud_publisher" type="pointcloud_publisher">
+	</node>
+</launch>
