@@ -5,12 +5,8 @@ bin/
 build/
 cfg/*cfgc
 cfg/cpp/
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
 docs/
 lib/
-Makefile
 msg_gen/
 src/*/cfg/
 src/*/__init__.py
