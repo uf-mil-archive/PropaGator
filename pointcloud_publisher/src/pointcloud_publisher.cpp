@@ -27,6 +27,7 @@ class My_Filter {
 
     pcl::PointCloud<pcl::PointXYZ> pc_comb;
     std_msgs::Header header;
+    bool first_scan;
 };
 
 My_Filter::My_Filter() {
@@ -56,18 +57,11 @@ void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
     sensor_msgs::PointCloud2 cloud_out;
     pcl::toROSMsg(pc_comb, cloud_out);
     cloud_out.header = header;
-
-
-    //********************************************************
-    // TEMPORARY FOR BAG TESTING!!
-    //********************************************************
-//    cloud_out.header.stamp = ros::Time::now();
-
-
     point_cloud_publisher_.publish(cloud_out);
     ROS_DEBUG("Got Scan_Complete! Publishing Cloud!");
     pcl::PointCloud<pcl::PointXYZ> blank_pc;
     pc_comb = blank_pc;
+    first_scan = true;
   } else {
     ROS_WARN("Got false Scan_Complete!");
   }
