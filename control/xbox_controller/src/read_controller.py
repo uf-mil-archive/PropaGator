@@ -32,7 +32,7 @@ X360_BUTTON_IDS = {
 'L_STICK': 9,
 'R_STICK': 10,
 }
-max_torque = 2
+max_torque = 2		#remember to change value in motor driver package also
 
 rospy.init_node('xbox_controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped)
@@ -50,7 +50,7 @@ def joystick_callback(msg):
 							torque = Vector3(x=0,y= 0,z= msg.axes[3]),
 							))
 							)	
-	rospy.sleep(.1)
+	rospy.sleep(.2)
 		
 
 rospy.Subscriber('joy', Joy, joystick_callback,queue_size=1)

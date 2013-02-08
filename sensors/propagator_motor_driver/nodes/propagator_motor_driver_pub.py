@@ -12,10 +12,10 @@ from tf import transformations
 from std_msgs.msg import Header
 import math
 
-MotorDriver_fr = MotorDriver.MotorDriver('ttyUSB0')
-#MotorDriver_fl = MotorDriver.MotorDriver('MotorDriver2')
-#MotorDriver_br = MotorDriver.MotorDriver('MotorDriver3')
-#MotorDriver_bl = MotorDriver.MotorDriver('MotorDriver4')
+MotorDriver_fr = MotorDriver.MotorDriver('FR')
+MotorDriver_fl = MotorDriver.MotorDriver('FL')
+MotorDriver_br = MotorDriver.MotorDriver('BR')
+MotorDriver_bl = MotorDriver.MotorDriver('BL')
 
 rospy.init_node('motor_drivers')
 
@@ -83,7 +83,7 @@ def thrusterinfo_callback(event):
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 	
-max_force = 2
+max_force = 2		#remember to change value in xbox controller package also
 min_force = 1
 def command_callback(msg):
 
@@ -107,35 +107,29 @@ def command_callback(msg):
 			)		
 	elif (msg.id == "fl"):
 		if (msg.force > 0):
-			#MotorDriver_fl.set_forward_speed(str(msg.force))
-			pass	
+			MotorDriver_fl.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
-			#MotorDriver_fl.set_reverse__speed(str(-msg.force))
-			pass
+			MotorDriver_fl.set_reverse_speed(str(int(-msg.force*200/min_force)))
 		else:
-			#MotorDriver_fl.stop()
-			pass
-	
+			MotorDriver_fl.stop()
+
 		motordriverstat_msg = motor_driver_statistics(
 			header=Header(
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
 			id="fl",
-			current 	 = MotorDriver_fr.get_current(),
+			current 	 = MotorDriver_fl.get_current(),
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
 	elif (msg.id == "br"):
 		if (msg.force > 0):
-			#MotorDriver_br.set_forward_speed(str(msg.force))
-			pass	
+			MotorDriver_br.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
-			#MotorDriver_br.set_reverse__speed(str(-msg.force))
-			pass
+			MotorDriver_br.set_reverse_speed(str(int(-msg.force*200/min_force)))
 		else:
-			#MotorDriver_br.stop()
-			pass
+			MotorDriver_br.stop()
 
 		motordriverstat_msg = motor_driver_statistics(
 			header=Header(
@@ -143,28 +137,25 @@ def command_callback(msg):
 				frame_id="/base_link",
 			),
 			id="br",
-			current 	 = "0",#MotorDriver_fr.get_current(),
+			current 	 = MotorDriver_br.get_current(),
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)
 	elif (msg.id == "bl"):
 		if (msg.force > 0):
-			#MotorDriver_bl.set_forward_speed(str(msg.force))
-			pass	
+			MotorDriver_bl.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
-			#MotorDriver_bl.set_reverse__speed(str(-msg.force))
-			pass
+			MotorDriver_bl.set_reverse_speed(str(int(-msg.force*200/min_force)))
 		else:
-			#MotorDriver_bl.stop()
-			pass
-	
+			MotorDriver_bl.stop()
+			
 		motordriverstat_msg = motor_driver_statistics(
 			header=Header(
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
 			id="bl",
-			current 	 = MotorDriver_fr.get_current(),
+			current 	 = MotorDriver_bl.get_current(),
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
