@@ -1,5 +1,5 @@
 #!/usr/bin/python
-from __future__ import print_function
+from __future__ import print_function, division
 import serial
 import sys
 import struct
@@ -42,12 +42,17 @@ class micro_3dm_gx1:
 			if(self.read_EEPROM(246) != 3):
 				self.write_EEPROM(246, 3)
 		except IOError:
-			return False		
-		return True
+			return False
 			
 		#check and make sure compensation algorithm is off address 122 = 0
 		if(self.read_EEPROM(122) != 0):
 			self.write_EEPROM(122, 0)
+
+		self.mag_scale = 2000/32768000 # self.read_EEPROM(232)/32768000
+		self.acc_scale = 8500/32768000*9.81 # self.read_EEPROM(230)/32768000*9.81
+		self.ang_scale = 10000/32768000 # self.read_EEPROM(130)/32768000
+	    
+		return True
 						
 	def open_port(self):
 		try:
@@ -76,9 +81,9 @@ class micro_3dm_gx1:
 			return False
 		return True
 		
-	def read_int(self):
+	def read_int(self, signed=True):
 		try:
-		    int_read = int(struct.unpack('>h', self.ser.read(2))[0])
+		    int_read = int(struct.unpack('>h' if signed else '>H', self.ser.read(2))[0])
 		except IOError:
 			print('could not read an integer from IMU')
 			return False
@@ -88,7 +93,7 @@ class micro_3dm_gx1:
 		try:
 			self.send_byte(read_EEPROM_cmd)
 			self.send_byte(address)
-			value_read = self.read_int()
+			value_read = self.read_int(signed=False)
 			return value_read
 		except IOError:
 			print('cannot read eeprom value from IMU')
@@ -186,7 +191,7 @@ class micro_3dm_gx1:
 		if DEBUG:
 			print('header = ' + str(computed_checksum))
 		#read only the data integers (not checmsum) from the packet. Two bytes per integer
-		for i in range((num_bytes - 1)/2):
+		for i in range((num_bytes - 1)//2):
 			#pack first two bytes of packet into a string
 			int_val = struct.pack('BB', ord(self.packet[2*i]), ord(self.packet[2*i + 1]))
 			if DEBUG:
@@ -200,6 +205,8 @@ class micro_3dm_gx1:
 		checksum = int_list.pop()
 		for ints in int_list:
 			computed_checksum += ints 
+		while computed_checksum >= 2**15: computed_checksum -= 2**16
+		while computed_checksum < -2**15: computed_checksum += 2**16
 		if(computed_checksum == checksum):
 			if DEBUG:
 				print('good packet!')
@@ -208,7 +215,7 @@ class micro_3dm_gx1:
 			#this was an incorrect packet
 			self.bad_packets += 1
 			if DEBUG:
-				print('bad packet!')
+				print('bad packet!', computed_checksum, checksum, int_list)
 			return False
 	
 	def get_inst_vectors(self):
@@ -234,7 +241,7 @@ class micro_3dm_gx1:
 			if(checksum != computed_checksum):
 				print('checksums do not match')
 				return -1
-			return (mag_x, mag_y, mag_z, acc_x, acc_y, acc_z, angrate_x, angrate_y, angrate_z, ticks, checksum)
+			return (mag_x*self.mag_scale, mag_y*self.mag_scale, mag_z*self.mag_scale, acc_x*self.acc_scale, acc_y*self.acc_scale, acc_z*self.acc_scale, angrate_x*self.angrate_scale, angrate_y*self.angrate_scale, angrate_z*self.angrate_scale, ticks)
 		except IOError:
 			print('cannot read vectors from imu')
 			return False
