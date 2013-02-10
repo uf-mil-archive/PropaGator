@@ -22,9 +22,10 @@ ros::Publisher pub;
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
  // Convert the sensor_msgs/PointCloud2 data to pcl/PointCloud
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
+  std_msgs::Header header = input->header;
   pcl::fromROSMsg (*input, *cloud);
 
-  std::cout << "PointCloud before filtering has: " << cloud->points.size () << " data points." << std::endl;
+  ROS_WARN("PointCloud before filtering has: %d data points.", cloud->points.size());
 
   // Create the filtering object: downsample the dataset using a leaf size of 1cm
   pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -32,7 +33,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   vg.setInputCloud (cloud);
   vg.setLeafSize (0.01f, 0.01f, 0.01f);
   vg.filter (*cloud_filtered);
-  std::cout << "PointCloud after filtering has: " << cloud_filtered->points.size ()  << " data points." << std::endl;
+  ROS_WARN("PointCloud after filtering has: %d data points.", cloud_filtered->points.size());
 
   // Create the segmentation object for the planar model and set all the parameters
   pcl::SACSegmentation<pcl::PointXYZ> seg;
@@ -40,11 +41,17 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_plane (new pcl::PointCloud<pcl::PointXYZ> ());
   pcl::PCDWriter writer;
-  seg.setOptimizeCoefficients (true);
-  seg.setModelType (pcl::SACMODEL_PLANE);
+  seg.setOptimizeCoefficients (true); //true
+  seg.setModelType (pcl::SACMODEL_SPHERE);
   seg.setMethodType (pcl::SAC_RANSAC);
   seg.setMaxIterations (100);
   seg.setDistanceThreshold (0.02);
+
+
+
+  seg.setRadiusLimits(.1, 0.5);
+
+
 
   int i=0, nr_points = (int) cloud_filtered->points.size ();
   while (cloud_filtered->points.size () > 0.3 * nr_points)
@@ -54,7 +61,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     seg.segment (*inliers, *coefficients);
     if (inliers->indices.size () == 0)
     {
-      std::cout << "Could not estimate a planar model for the given dataset." << std::endl;
+      ROS_WARN("Could not estimate a planar model for the given dataset.");
       break;
     }
 
@@ -66,7 +73,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
     // Write the planar inliers to disk
     extract.filter (*cloud_plane);
-    std::cout << "PointCloud representing the planar component: " << cloud_plane->points.size () << " data points." << std::endl;
+    ROS_WARN("PointCloud representing the planar component: %d data points.", cloud_plane->points.size());
 
     // Remove the planar inliers, extract the rest
     extract.setNegative (true);
@@ -80,9 +87,9 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-  ec.setClusterTolerance (0.02); // 2cm
-  ec.setMinClusterSize (100);
-  ec.setMaxClusterSize (25000);
+  ec.setClusterTolerance (0.02); //0.02 = 2cm
+  ec.setMinClusterSize (50);//100
+  ec.setMaxClusterSize (25000);//25000
   ec.setSearchMethod (tree);
   ec.setInputCloud (cloud_filtered);
   ec.extract (cluster_indices);
@@ -97,14 +104,17 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     cloud_cluster->height = 1;
     cloud_cluster->is_dense = true;
 
-    std::cout << "PointCloud representing the Cluster: " << cloud_cluster->points.size () << " data points." << std::endl;
+    ROS_WARN("PointCloud representing the Cluster: %d data points.", cloud_cluster->points.size());
 
     sensor_msgs::PointCloud2 cloud_out;
     pcl::toROSMsg(*cloud_cluster, cloud_out);
-    pub.publish (cloud_out);
+    cloud_out.header = header;
+    pub.publish(cloud_out);
+    ROS_ERROR("PUBLISHED!!");
 
     j++;
   }
+
 }
 
 int main(int argc, char** argv) {

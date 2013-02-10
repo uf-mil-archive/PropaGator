@@ -1,4 +1,7 @@
 <launch>
+	<node pkg="laser_tf_py" name="play_bag" type="play_bag">
+	</node>
+
 	<node pkg="pointcloud_publisher" name="pointcloud_publisher" type="pointcloud_publisher">
 	</node>
 </launch>
