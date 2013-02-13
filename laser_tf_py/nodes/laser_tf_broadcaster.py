@@ -25,7 +25,8 @@ from std_msgs.msg import Bool
 ##  d - User down	##
 ##########################
 
-port = '/dev/propagator_ioboard'
+#port = '/dev/propagator_ioboard'
+port = '/dev/ttyUSB0'
 lidarPivot_to_lens_x = 0.1		# Distance forward from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_y = 0 		# Distance left from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_z = -0.05		# Distance up from LIDAR pivot to LIDAR lens
@@ -35,9 +36,9 @@ robotBase_to_lidarPivot_y = 0		# Distance left
 robotBase_to_lidarPivot_z = 0.8763	# Distance up
 baseLink_yaw =  math.pi/7
 
-sweep_max = 320
-sweep_min = 0
-sweep_play = 10
+sweep_max = 255
+sweep_min = 10
+sweep_play = 3
 sweeping_up = True
 
 if __name__ == '__main__':
@@ -54,24 +55,29 @@ if __name__ == '__main__':
       while not "S" in ser.readline():
         rospy.logwarn("Resending command to I/O board.")
         ser.write("S")
+      sleep(4)
       while not rospy.is_shutdown():
         try:
           data = ser.readline()
         except (IOError, select.error):
           rospy.logwarn("Did not read from serial port.")
+          ser.close()
+          ser.open()
+          ser.flushInput()
 
         try:
-          pitch = -(float(data) - 138.51)/13.19 + pitchAngleOffset
+          pitch = (float(data) - 288)/11 + pitchAngleOffset
           if (sweeping_up is True) and (float(data) > sweep_max-sweep_play):
             sweeping_up = False
             pub_complete.publish(True)
             rospy.logdebug("Finished sweep!")
           elif (sweeping_up is False) and (float(data) < sweep_min+sweep_play):
             sweeping_up = True
-#            pub_complete.publish(True)
-#            rospy.logdebug("Finished sweep!")
+            pub_complete.publish(True)
+            rospy.logdebug("Finished sweep!")
         except ValueError:
-          rospy.logwarn("Got bad data.")
+          rospy.logwarn("Got bad data:")
+          rospy.logwarn(data)
           ser.close()
           ser.open()
           ser.flushInput()
@@ -90,6 +96,7 @@ if __name__ == '__main__':
       ser.flushInput()
       ser.write("H")
       while not "H" in ser.readline():
+        ser.flushInput()
         rospy.logwarn("Resending halt command to I/O board.")
         ser.write("H")
       ser.close()
