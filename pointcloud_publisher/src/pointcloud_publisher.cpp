@@ -11,6 +11,9 @@
 
 #include <sstream>
 
+const bool use_double_sweep = false;
+bool second_sweep = false;
+
 class My_Filter {
   public:
     My_Filter();
@@ -53,7 +56,7 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
 }
 
 void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
-  if (complete) {
+  if (complete && !use_double_sweep) {
     sensor_msgs::PointCloud2 cloud_out;
     pcl::toROSMsg(pc_comb, cloud_out);
     cloud_out.header = header;
@@ -62,6 +65,20 @@ void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
     pcl::PointCloud<pcl::PointXYZ> blank_pc;
     pc_comb = blank_pc;
     first_scan = true;
+  } else if (complete && use_double_sweep) {
+    if (second_sweep) {
+      second_sweep = false;
+      sensor_msgs::PointCloud2 cloud_out;
+      pcl::toROSMsg(pc_comb, cloud_out);
+      cloud_out.header = header;
+      point_cloud_publisher_.publish(cloud_out);
+      ROS_DEBUG("Got Scan_Complete! Publishing Cloud!");
+      pcl::PointCloud<pcl::PointXYZ> blank_pc;
+      pc_comb = blank_pc;
+      first_scan = true;
+    } else {
+      second_sweep = true;
+    }
   } else {
     ROS_WARN("Got false Scan_Complete!");
   }
