@@ -57,8 +57,8 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   seg.setModelType (pcl::SACMODEL_SPHERE);
   seg.setMethodType (pcl::SAC_RANSAC);
   seg.setMaxIterations (10000);
-  seg.setDistanceThreshold (0.02);
-  seg.setRadiusLimits(.5, 0.1);// we want our sphere to have RADIUS between x and y METERS
+  seg.setDistanceThreshold (0.2);
+  seg.setRadiusLimits(.01, .3);// we want our sphere to have RADIUS between x and y METERS
 
   int i=0, nr_points = (int) cloud_filtered->points.size ();
   while (cloud_filtered->points.size () > 0.3 * nr_points)
@@ -103,9 +103,9 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-  ec.setClusterTolerance (0.02); //0.02 = 2cm
-  ec.setMinClusterSize (50);//100
-  ec.setMaxClusterSize (25000);//25000
+  ec.setClusterTolerance (0.2); //0.02 = 2cm
+  ec.setMinClusterSize (5);//100
+  ec.setMaxClusterSize (60);//25000
   ec.setSearchMethod (tree);
   ec.setInputCloud (cloud_filtered);
   ec.extract (cluster_indices);
