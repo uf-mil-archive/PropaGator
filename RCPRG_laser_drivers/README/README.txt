@@ -2,7 +2,9 @@ How to setup LIDAR for new computers:
 
  - Add the udev file (10-propagator-io-board.rules) located in this directory to /lib/udev/rules.d/
 
- - Under Network Connections, edit wired connection (LADAR). Go to IPv4 Settings tab, in drop down menu select "Shared to other computers"
+ - Under Network Connections, edit wired connection (LADAR). Go to IPv4 Settings tab, in drop down menu select "Manual", then
+click add under Addresses, then enter "169.254.205.2" for the Address, "255.255.255.0" for the Netmask
+and leave Gateway blank.
 
  - To manually talk to I/O board, use provided script 'lidar_ioboard'
 
