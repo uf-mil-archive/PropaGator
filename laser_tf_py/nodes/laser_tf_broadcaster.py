@@ -25,8 +25,7 @@ from std_msgs.msg import Bool
 ##  d - User down	##
 ##########################
 
-#port = '/dev/propagator_ioboard'
-port = '/dev/ttyUSB0'
+port = '/dev/propagator_navid_motordriver'
 lidarPivot_to_lens_x = 0.1		# Distance forward from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_y = 0 		# Distance left from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_z = -0.05		# Distance up from LIDAR pivot to LIDAR lens
