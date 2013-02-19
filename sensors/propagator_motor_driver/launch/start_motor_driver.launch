@@ -3,8 +3,6 @@
 
    <node name="motor_driver" pkg="propagator_motor_driver" type="propagator_motor_driver_pub.py" />
    <node name="thruster_mapper" pkg="thruster_mapper" type="thruster_mapper" />
-   <node name="joy" pkg="joy" type="joy_node" />
-   <node name="xbox_controller" pkg="xbox_controller" type="read_controller.py" />
 
 </launch>
 

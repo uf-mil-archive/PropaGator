@@ -84,7 +84,7 @@ def thrusterinfo_callback(event):
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 	
 max_force = 2		#remember to change value in xbox controller package also
-min_force = 1
+min_force = 2
 def command_callback(msg):
 
 	if (msg.id == "fr"):

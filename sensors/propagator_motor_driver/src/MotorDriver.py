@@ -1,4 +1,4 @@
-import serial
+import serial,time
 
 ###########Communication Protocol##################
 #
@@ -9,7 +9,7 @@ import serial
 ####################################################
 class MotorDriver():
 	def __init__(self,usb_id):
-		self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=9600, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
+		self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
 		self.commport.write('\r')
 
 	def set_forward_speed(self,speed):
@@ -68,8 +68,7 @@ class MotorDriver():
 		return (self.commport.read(1))
 		
 if __name__ == "__main__":
-	md = MotorDriver("ttyUSB0")
-	print(md.get_current())
-	
+	md = MotorDriver("BL")
+	md.set_reverse_speed(100)
 
 
