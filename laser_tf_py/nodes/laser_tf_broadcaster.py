@@ -25,7 +25,7 @@ from std_msgs.msg import Bool
 ##  d - User down	##
 ##########################
 
-port = '/dev/propagator_ioboard'
+port = '/dev/propagator_navid_motordriver'
 lidarPivot_to_lens_x = 0.1		# Distance forward from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_y = 0 		# Distance left from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_z = -0.05		# Distance up from LIDAR pivot to LIDAR lens
@@ -33,12 +33,7 @@ pitchAngleOffset = 0			# Pitch offset downwards
 robotBase_to_lidarPivot_x = 0		# Distance forward
 robotBase_to_lidarPivot_y = 0		# Distance left
 robotBase_to_lidarPivot_z = 0.8763	# Distance up
-baseLink_yaw =  math.pi/7
-
-sweep_max = 320
-sweep_min = 0
-sweep_play = 10
-sweeping_up = True
+baseLink_yaw =  0
 
 if __name__ == '__main__':
   rospy.init_node('laser_tf_broadcaster')
@@ -54,27 +49,28 @@ if __name__ == '__main__':
       while not "S" in ser.readline():
         rospy.logwarn("Resending command to I/O board.")
         ser.write("S")
+      sleep(4)
       while not rospy.is_shutdown():
         try:
           data = ser.readline()
         except (IOError, select.error):
           rospy.logwarn("Did not read from serial port.")
-
-        try:
-          pitch = -(float(data) - 138.51)/13.19 + pitchAngleOffset
-          if (sweeping_up is True) and (float(data) > sweep_max-sweep_play):
-            sweeping_up = False
-            pub_complete.publish(True)
-            rospy.logdebug("Finished sweep!")
-          elif (sweeping_up is False) and (float(data) < sweep_min+sweep_play):
-            sweeping_up = True
-#            pub_complete.publish(True)
-#            rospy.logdebug("Finished sweep!")
-        except ValueError:
-          rospy.logwarn("Got bad data.")
           ser.close()
           ser.open()
           ser.flushInput()
+
+        try:
+          pitch = (float(data) - 288)/11 + pitchAngleOffset
+        except ValueError:
+          if ("C" in data):	# If we got a scan complete signal
+            pub_complete.publish(True)
+            rospy.logdebug("Finished sweep!")
+          else:			# Otherwise we got garbage
+            rospy.logwarn("Got bad data:")
+            rospy.logwarn(data)
+            ser.close()
+            ser.open()
+            ser.flushInput()
 
         T = tf.transformations.rotation_matrix((pitch/180)*math.pi, (0, 1, 0)).dot(tf.transformations.translation_matrix((lidarPivot_to_lens_x, lidarPivot_to_lens_y, lidarPivot_to_lens_z)))
         T = tf.transformations.translation_matrix((robotBase_to_lidarPivot_x, robotBase_to_lidarPivot_y, robotBase_to_lidarPivot_z)).dot(T)
@@ -90,6 +86,7 @@ if __name__ == '__main__':
       ser.flushInput()
       ser.write("H")
       while not "H" in ser.readline():
+        ser.flushInput()
         rospy.logwarn("Resending halt command to I/O board.")
         ser.write("H")
       ser.close()
