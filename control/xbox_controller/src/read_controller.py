@@ -4,10 +4,12 @@ import roslib
 roslib.load_manifest('xbox_controller')
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Point, Wrench
+from thruster_mapper.msg import ThrusterCommand
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Header
-#from pygame import *
 import time,math
+import os
+
 
 X360_AXIS_IDS = {
 'LEFT_X': 0,
@@ -37,7 +39,6 @@ max_torque = 2		#remember to change value in motor driver package also
 rospy.init_node('xbox_controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped)
 
-
 def joystick_callback(msg):
 	
 	controller_wrench.publish(WrenchStamped(
@@ -54,6 +55,13 @@ def joystick_callback(msg):
 		
 
 rospy.Subscriber('joy', Joy, joystick_callback,queue_size=1)
-rospy.spin()
+while not rospy.is_shutdown() :
+	pass
 
+
+rospy.logwarn("Stopping motors")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'fr', force: 0}'")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'br', force: 0}'")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'fl', force: 0}'")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'bl', force: 0}'")
 
