@@ -4,7 +4,6 @@ import roslib
 roslib.load_manifest('xbox_controller')
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Point, Wrench
-from thruster_mapper.msg import ThrusterCommand
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Header
 import time,math
@@ -48,7 +47,7 @@ def joystick_callback(msg):
 							),
 						wrench=Wrench(
 							force = Vector3(x=msg.axes[1]*max_torque,y= -msg.axes[0]*max_torque,z= 0),
-							torque = Vector3(x=0,y= 0,z= msg.axes[3]),
+							torque = Vector3(x=0,y= 0,z= -msg.axes[3]),
 							))
 							)	
 	#rospy.sleep(.3)

@@ -64,7 +64,7 @@ if __name__ == '__main__':
         except ValueError:
           if ("C" in data):	# If we got a scan complete signal
             pub_complete.publish(True)
-            rospy.logdebug("Finished sweep!")
+            rospy.logerr("Finished sweep!")
           else:			# Otherwise we got garbage
             rospy.logwarn("Got bad data:")
             rospy.logwarn(data)
