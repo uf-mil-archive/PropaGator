@@ -50,7 +50,7 @@ def joystick_callback(msg):
 							torque = Vector3(x=0,y= 0,z= -msg.axes[3]),
 							))
 							)	
-	#rospy.sleep(.3)
+	#rospy.sleep(.2)
 		
 
 rospy.Subscriber('joy', Joy, joystick_callback,queue_size=1)
