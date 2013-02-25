@@ -1,7 +1,7 @@
 Header header
 
 string id
-string current
-string out_voltage
-string batt_voltage
+float64 current
+float64 out_voltage
+float64 batt_voltage
 	

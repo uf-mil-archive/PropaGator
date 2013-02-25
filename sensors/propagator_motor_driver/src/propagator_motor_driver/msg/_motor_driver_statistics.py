@@ -7,15 +7,15 @@ import struct
 import std_msgs.msg
 
 class motor_driver_statistics(genpy.Message):
-  _md5sum = "e61bf8e9454e134c7263997cec63a13f"
+  _md5sum = "8baf432df41c7490522afc1b01f0872d"
   _type = "propagator_motor_driver/motor_driver_statistics"
   _has_header = True #flag to mark the presence of a Header object
   _full_text = """Header header
 
 string id
-string current
-string out_voltage
-string batt_voltage
+float64 current
+float64 out_voltage
+float64 batt_voltage
 	
 
 ================================================================================
@@ -38,7 +38,7 @@ string frame_id
 
 """
   __slots__ = ['header','id','current','out_voltage','batt_voltage']
-  _slot_types = ['std_msgs/Header','string','string','string','string']
+  _slot_types = ['std_msgs/Header','string','float64','float64','float64']
 
   def __init__(self, *args, **kwds):
     """
@@ -62,17 +62,17 @@ string frame_id
       if self.id is None:
         self.id = ''
       if self.current is None:
-        self.current = ''
+        self.current = 0.
       if self.out_voltage is None:
-        self.out_voltage = ''
+        self.out_voltage = 0.
       if self.batt_voltage is None:
-        self.batt_voltage = ''
+        self.batt_voltage = 0.
     else:
       self.header = std_msgs.msg.Header()
       self.id = ''
-      self.current = ''
-      self.out_voltage = ''
-      self.batt_voltage = ''
+      self.current = 0.
+      self.out_voltage = 0.
+      self.batt_voltage = 0.
 
   def _get_types(self):
     """
@@ -100,24 +100,8 @@ string frame_id
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.current
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.out_voltage
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.batt_voltage
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self
+      buff.write(_struct_3d.pack(_x.current, _x.out_voltage, _x.batt_voltage))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -152,33 +136,10 @@ string frame_id
         self.id = str[start:end].decode('utf-8')
       else:
         self.id = str[start:end]
+      _x = self
       start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.current = str[start:end].decode('utf-8')
-      else:
-        self.current = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.out_voltage = str[start:end].decode('utf-8')
-      else:
-        self.out_voltage = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.batt_voltage = str[start:end].decode('utf-8')
-      else:
-        self.batt_voltage = str[start:end]
+      end += 24
+      (_x.current, _x.out_voltage, _x.batt_voltage,) = _struct_3d.unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -205,24 +166,8 @@ string frame_id
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.current
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.out_voltage
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
-      _x = self.batt_voltage
-      length = len(_x)
-      if python3 or type(_x) == unicode:
-        _x = _x.encode('utf-8')
-        length = len(_x)
-      buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self
+      buff.write(_struct_3d.pack(_x.current, _x.out_voltage, _x.batt_voltage))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -258,36 +203,14 @@ string frame_id
         self.id = str[start:end].decode('utf-8')
       else:
         self.id = str[start:end]
+      _x = self
       start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.current = str[start:end].decode('utf-8')
-      else:
-        self.current = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.out_voltage = str[start:end].decode('utf-8')
-      else:
-        self.out_voltage = str[start:end]
-      start = end
-      end += 4
-      (length,) = _struct_I.unpack(str[start:end])
-      start = end
-      end += length
-      if python3:
-        self.batt_voltage = str[start:end].decode('utf-8')
-      else:
-        self.batt_voltage = str[start:end]
+      end += 24
+      (_x.current, _x.out_voltage, _x.batt_voltage,) = _struct_3d.unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = genpy.struct_I
 _struct_3I = struct.Struct("<3I")
+_struct_3d = struct.Struct("<3d")

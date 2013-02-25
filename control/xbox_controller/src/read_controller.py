@@ -46,8 +46,8 @@ def joystick_callback(msg):
 							frame_id="/base_link",
 							),
 						wrench=Wrench(
-							force = Vector3(x=msg.axes[1]*max_torque,y= -msg.axes[0]*max_torque,z= 0),
-							torque = Vector3(x=0,y= 0,z= -msg.axes[3]),
+							force = Vector3(x=msg.axes[1] + msg.axes[2],y= -msg.axes[0] - msg.axes[2],z= 0),
+							torque = Vector3(x=0,y= 0,z= -msg.axes[3] - msg.axes[2]),
 							))
 							)	
 	#rospy.sleep(.3)
