@@ -12,7 +12,7 @@
 #include <sstream>
 
 const bool use_double_sweep = false;
-bool second_sweep = false;
+const bool 3d = true;
 
 class My_Filter {
   public:
@@ -30,7 +30,7 @@ class My_Filter {
 
     pcl::PointCloud<pcl::PointXYZ> pc_comb;
     std_msgs::Header header;
-    bool first_scan;	// do I actually use this??...
+    bool second_sweep;
 };
 
 My_Filter::My_Filter() {
@@ -38,7 +38,7 @@ My_Filter::My_Filter() {
   complete_sub_ = node_.subscribe<std_msgs::Bool> ("/scan_complete", 100, &My_Filter::completeCallback, this);
   point_cloud_publisher_ = node_.advertise<sensor_msgs::PointCloud2> ("/cloud", 100, false);
   tfListener_.setExtrapolationLimit(ros::Duration(0.1));
-
+  second_sweep = false;
 }
 
 void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
@@ -51,21 +51,22 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
     return;
   }
   pcl::PointCloud<pcl::PointXYZ> pc;
+  if (!3d) {
+    
+  }
   pcl::fromROSMsg(cloud, pc);
   pc_comb = pc_comb + pc;
 }
 
 void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
-  ROS_ERROR("IN COMPLETECALLBACK");
   if (complete && !use_double_sweep) {
     sensor_msgs::PointCloud2 cloud_out;
     pcl::toROSMsg(pc_comb, cloud_out);
     cloud_out.header = header;
     point_cloud_publisher_.publish(cloud_out);
-    ROS_ERROR("Got Scan_Complete! Publishing Cloud!");
+    ROS_DEBUG("Got Scan_Complete! Publishing Cloud!");
     pcl::PointCloud<pcl::PointXYZ> blank_pc;
     pc_comb = blank_pc;
-    first_scan = true;
   } else if (complete && use_double_sweep) {
     if (second_sweep) {
       second_sweep = false;
@@ -73,10 +74,9 @@ void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
       pcl::toROSMsg(pc_comb, cloud_out);
       cloud_out.header = header;
       point_cloud_publisher_.publish(cloud_out);
-      ROS_ERROR("Got Scan_Complete! Publishing Cloud!");
+      ROS_DEBUG("Got Scan_Complete! Publishing Cloud!");
       pcl::PointCloud<pcl::PointXYZ> blank_pc;
       pc_comb = blank_pc;
-      first_scan = true;
     } else {
       second_sweep = true;
     }
