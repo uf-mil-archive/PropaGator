@@ -4,9 +4,9 @@ import roslib
 roslib.load_manifest('Controller')
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Point, Wrench
-from auv_msgs.msg import LinearVelocity
+#from auv_msgs.msg import LinearVelocity
 from std_msgs.msg import Header
-import numpy
+import numpy,math
 
 
 rospy.init_node('controller')
@@ -52,30 +52,31 @@ def _jacobian_inv(x):
     ]
     return J_inv
     
-current_pos = [0,0,0]
-current_orient = [0,0,0]
-#--collect state information as soon as it is posted--------------------
+
+#---------------collect state information as soon as it is posted--------------------
+current_pos = numpy.zeros((3,1))
+current_orient = numpy.zeros((3,1))
 def pose_callback(msg):
 	current_pos = msg.position
 	current_orient = tf.transformations.euler_from_transformation(msg.orientation)
 
 #rospy.Subscriber('pose', Pose, pose_callback)
 
-current_ang_vel = [0,0,0]
+current_ang_vel = numpy.zeros((3,1))
 def ang_vel_callback(msg):
 	current_ang_vel = msg.angular_velocity
 
 #rospy.Subscriber('imu', Imu, ang_vel_callback)
 
-current_lin_vel = [0,0,0]
+current_lin_vel = numpy.zeros((3,1))
 def lin_vel_callback(msg):
 	current_lin_vel = msg
 
 #rospy.Subscriber('linear_vel', LinearVelocity, lin_vel_callback)
 
-desired_state = [0,0,0,0,0,0]
-desired_state_dot = [0,0,0,0,0,0]
-previous_desired_state = []
+desired_state = numpy.zeros((6,1))
+desired_state_dot = numpy.zeros((6,1))
+previous_desired_state = numpy.zeros((6,1))
 
 def desired_state_callback(msg):
 	previous_desired_state = desired_state
@@ -83,17 +84,40 @@ def desired_state_callback(msg):
 
 #rospy.Subscriber('custom', custom, desired_state_callback)
 
+rospy.set_param('p_gain', {'x':1,'y':1,'yaw':1})
+rospy.set_param('d_gain', {'x':1,'y':1,'yaw':1})
+
 #-----------------------------------------------------------------------
 
 
 dt = .05 #sec
+K = numpy.array([[rospy.get_param('p_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('p_gain/y'),0,0,0,0,0],
+	[0,0,1,0,0,0],
+	[0,0,0,1,0,0],
+	[0,0,0,0,1,0],
+	[0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
+	
+Ks = numpy.array([[rospy.get_param('d_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('d_gain/y'),0,0,0,0,0],
+	[0,0,1,0,0,0],
+	[0,0,0,1,0,0],
+	[0,0,0,0,1,0],
+	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
+	
 def update_callback(event):
 
-	state = numpy.append(numpy.matrix(current_pos),numpy.matrix(current_orient))
-	state_dot = numpy.matrix([current_lin_vel,current_ang_vel])
+	state = numpy.append(current_pos,current_orient)
+	state_dot = numpy.append(current_lin_vel,current_ang_vel)
 
-	desired_state_dot = (numpy.matrix(desired_state) - numpy.matrix(previous_desired_state))/dt
+	desired_state_dot = numpy.subtract(desired_state,previous_desired_state)/dt
+		
 	e = desired_state - state
+	print('jacobian=',_jacobian_inv(state))
+	print('K=',K)
+	print('e=',e)      
+	print('desired_state_dot=',desired_state_dot)
+	
 	vbd = _jacobian_inv(state)*(K*e + desired_state_dot)
 	e2 = vbd- state_dot
 	
@@ -105,15 +129,13 @@ def update_callback(event):
 							frame_id="/base_link",
 							),
 						wrench=Wrench(
-							force = Vector3(x= output[0],y= output[1],z= 0),
-							torque = Vector3(x=0,y= 0,z= output[5]),
+							force = Vector3(x= output[0,0],y= output[1,1],z= 0),
+							torque = Vector3(x=0,y= 0,z= output[5,5]),
 							))
 							)	
 
 
 rospy.Timer(rospy.Duration(dt), update_callback)
-
-
 rospy.spin()
 
 
