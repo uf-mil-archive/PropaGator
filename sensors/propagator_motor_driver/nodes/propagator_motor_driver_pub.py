@@ -23,6 +23,8 @@ thrusterinfo_publisher = rospy.Publisher('thrusters/info', ThrusterInfo)
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
 thruster_angle = 30
+min_force = 1
+max_force = 1
 
 def thrusterinfo_callback(event):
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -34,8 +36,8 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(x = .729401, y = -.23495, z = -.241308),
 			direction=Vector3(x = math.cos(thruster_angle), y = math.sin(thruster_angle), z = 0),
-			min_force = -1,
-			max_force = 2,
+			min_force = -min_force,
+			max_force = max_force,
 			))	
 	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
@@ -48,8 +50,8 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(.729401,.23495,-.241308),
 			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
-			min_force = -1,
-			max_force = 2,
+			min_force = -min_force,
+			max_force = max_force,
 			))
 	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
@@ -62,8 +64,8 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(-.821269,-.23495,-.241308),
 			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
-			min_force = -1,
-			max_force = 2,
+			min_force = -min_force,
+			max_force = max_force,
 			))
 	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
@@ -76,15 +78,14 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(-.821269,.23495,-.241308),
 			direction=Vector3(math.cos(thruster_angle),math.sin(thruster_angle),0),
-			min_force = -1,
-			max_force = 2,
+			min_force = -min_force,
+			max_force = max_force,
 			))
 	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 	
-max_force = 2		#remember to change value in xbox controller package also
-min_force = 2
+
 def command_callback(msg):
 
 	if (msg.id == "fr"):
