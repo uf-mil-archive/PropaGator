@@ -1,0 +1,17 @@
+<package>
+  <description brief="xbox_controller">
+
+     xbox_controller
+
+  </description>
+  <author>Navid Shahrestani</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/xbox_controller</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="thruster_mapper"/>
+
+</package>
+
+

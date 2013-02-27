@@ -1,0 +1,17 @@
+<package>
+  <description brief="propagator_motor_driver">
+
+     propagator_motor_driver
+
+  </description>
+  <author>navid</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/propagator_motor_driver</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="thruster_handling"/>
+
+</package>
+
+

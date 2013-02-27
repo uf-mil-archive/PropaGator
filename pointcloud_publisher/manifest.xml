@@ -13,7 +13,6 @@
   <depend package="roscpp"/>
   <depend package="pcl"/>
   <depend package="pcl_ros"/>
-  <depend package="pointcloud_to_laserscan"/>
   <depend package="laser_tf_py"/>
   <depend package="laser_geometry"/>
   <depend package="tf"/>
