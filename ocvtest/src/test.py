@@ -13,23 +13,10 @@ class opencvtest:
 		self.image_pub=rospy.Publisher("image_topic_2",Image)
 		cv.NamedWindow("Test", 1)
 		self.bridge=CvBridge()
-		self.image_sub=rospy.Subscriber("/gscam/image_raw/compressed",Image,self.test)
-	def callback(self,data):
-		try:
-			image=self.bridge.imgmsg_to_cv(data, "bgr8")
-		except CvBridgeError, e:
-			print e
-		(cols, rows)=cv.GetSize(image)
-		if cols>60 and rows>60:
-			cv.Circle(image,(640,300),250,(100,200,0),10)
-		cv.ShowImage("Test",image)
-		cv.WaitKey(3)
-		try:
-			self.image_pub.publish(self.bridge.imgmsg_to_cv(image,"bgr8"))
-		except CvBridgeError, e:
-			print e
+		self.image_sub=rospy.Subscriber("camera/image_color",Image,self.test)
 	def test(self, data):
 		image=self.bridge.imgmsg_to_cv(data,"bgr8")
+		cv.ShowImage("IS THIS WORKING", image)
 		HSVimage= cv.CreateImage(cv.GetSize(image), 8, 3)
 		cv.CvtColor(image, HSVimage, cv.CV_BGR2HSV)
 		red_thresh=cv.CreateImage(cv.GetSize(image), 8, 1)
