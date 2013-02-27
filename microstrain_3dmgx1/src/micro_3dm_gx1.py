@@ -48,7 +48,7 @@ class micro_3dm_gx1:
 		if(self.read_EEPROM(122) != 0):
 			self.write_EEPROM(122, 0)
 
-		self.mag_scale = 2000/32768000 # self.read_EEPROM(232)/32768000
+		self.mag_scale = 2000/32768000*1e-4 # self.read_EEPROM(232)/32768000
 		self.acc_scale = 8500/32768000*9.81 # self.read_EEPROM(230)/32768000*9.81
 		self.ang_scale = 10000/32768000 # self.read_EEPROM(130)/32768000
 	    
