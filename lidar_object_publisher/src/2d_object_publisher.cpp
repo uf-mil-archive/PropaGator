@@ -19,7 +19,7 @@
 
 ros::Publisher pub;
 ros::Publisher filtered_pub;
-ros::Publisher buoy_pub;
+ros::Publisher filtered2_pub;
 
 const int max_objects = 1;
 
@@ -47,7 +47,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   filtered_out.header = filtered_header;
   filtered_pub.publish(filtered_out);
 
-
+/*
   // Create the segmentation object for the planar model and set all the parameters
   pcl::SACSegmentation<pcl::PointXYZ> seg;
   pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
@@ -59,8 +59,8 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   seg.setMethodType(pcl::SAC_RANSAC);
   seg.setMaxIterations(10000);//10000
   seg.setDistanceThreshold(0.02);
-  seg.setRadiusLimits(0.01, 0.12);// we want our sphere to have RADIUS between x and y METERS
-//  seg.setRadiusLimits(0.01, 0.1);
+//  seg.setRadiusLimits(0.01, 0.12);// we want our sphere to have RADIUS between x and y METERS
+  seg.setRadiusLimits(0.01, 0.1);
 
   int i=0, nr_points = (int)cloud_filtered->points.size();
   while (cloud_filtered->points.size() > 0.3 * nr_points)// 0.3
@@ -85,11 +85,11 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     ROS_WARN("PointCloud representing the spherical component: %d data points.", cloud_sphere->points.size());
 
 
-    std_msgs::Header buoy_header = cloud_sphere->header;
-    sensor_msgs::PointCloud2 buoy_out;
-    pcl::toROSMsg(*cloud_sphere, buoy_out);
-    buoy_out.header = buoy_header;
-    buoy_pub.publish(buoy_out);
+    std_msgs::Header filtered2_header = cloud_sphere->header;
+    sensor_msgs::PointCloud2 filtered2_out;
+    pcl::toROSMsg(*cloud_sphere, filtered2_out);
+    filtered2_out.header = filtered2_header;
+    filtered2_pub.publish(filtered2_out);
 
 
 
@@ -98,10 +98,12 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     extract.filter(*cloud_f);
     *cloud_filtered = *cloud_f;
   }
-
+*/
   // Creating the KdTree object for the search method of the extraction
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
   tree->setInputCloud(cloud_filtered);
+
+  ROS_ERROR("Starting Euclidean Cluster Extraction.");
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
@@ -111,7 +113,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   ec.setSearchMethod(tree);
   ec.setInputCloud(cloud_filtered);
   ec.extract(cluster_indices);
-
+/*
   int j = 0;
   for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); (it != cluster_indices.end()) && (j < max_objects); ++it)
   {
@@ -132,8 +134,8 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
     j++;
   }
+*/
 
-/*
   int j = 0;
   for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
   {
@@ -154,7 +156,6 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
     j++;
   }
-*/
 }
 
 int main(int argc, char** argv) {
@@ -163,12 +164,12 @@ int main(int argc, char** argv) {
   ros::NodeHandle nh;
 
   // Create a ROS subscriber for the input point cloud
-  ros::Subscriber sub = nh.subscribe ("/cloud_3d", 1, cloud_callback);
+  ros::Subscriber sub = nh.subscribe ("/cloud_2d", 1, cloud_callback);
 
   // Create a ROS publisher for the output point cloud
   pub = nh.advertise<sensor_msgs::PointCloud2> ("/lidar_object", 1);
   filtered_pub = nh.advertise<sensor_msgs::PointCloud2> ("/filtered_cloud1", 1);
-  buoy_pub = nh.advertise<sensor_msgs::PointCloud2> ("/buoy", 1);
+  filtered2_pub = nh.advertise<sensor_msgs::PointCloud2> ("/filtered_cloud2", 1);
 
   // Spin
   ros::spin ();
