@@ -1,0 +1,3 @@
+#!/bin/sh
+rosparam set /use_sim_time true
+rosbag play -l --clock ~/fuerte_workspace/PropaGator/sensors/lidar/laser_tf_py/bagfiles/graham_pool_buoy.bag
