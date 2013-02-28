@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <geometry_msgs/PoseArray.h>
+#include <geometry_msgs/Pose.h>
 // PCL specific includes
 #include <pcl/ros/conversions.h>
 #include <pcl/point_cloud.h>
@@ -25,7 +26,7 @@ ros::Publisher filtered_pub;
 ros::Publisher buoy_cloud_pub;
 ros::Publisher buoy_pose_pub;
 
-const int max_objects = 3;
+const int max_objects = 10;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   ROS_ERROR("NEW POINTCLOUD");
@@ -57,14 +58,15 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-  ec.setClusterTolerance(0.02); //0.02 = 2cm	//0.25 found buoy...
+  ec.setClusterTolerance(0.2); //0.02 = 2cm	//0.25 found buoy...
   ec.setMinClusterSize(5);//100
   ec.setMaxClusterSize(60);//25000
   ec.setSearchMethod(tree);
   ec.setInputCloud(cloud_filtered);
   ec.extract(cluster_indices);
 
-  geometry_msgs::PoseArray buoy_pose;
+  geometry_msgs::PoseArray buoy_pose_msg;
+  geometry_msgs::Pose buoy_pose;
 
   int j = 0;
   for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin(); (it != cluster_indices.end()) && (j < max_objects); ++it)
@@ -85,21 +87,16 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     Eigen::Vector4f centroid;
     pcl::compute3DCentroid(*cloud_cluster, centroid);
 
-    ROS_ERROR("gonna fill the pose array.");
-
     //convert to pose array
-    buoy_pose.poses[j].position.x = centroid[0];
-    buoy_pose.poses[j].position.y = centroid[1];
-    buoy_pose.poses[j].position.z = centroid[2];
-
-    ROS_ERROR("Filled pose array.");
+    buoy_pose.position.x = centroid[0];
+    buoy_pose.position.y = centroid[1];
+    buoy_pose.position.z = centroid[2];
+    buoy_pose_msg.poses.push_back(buoy_pose);
 
     j++;
   }
-  buoy_pose.header = header;
-  buoy_pose_pub.publish(buoy_pose);
-  ROS_ERROR("Published PoseArray!!");
-
+  buoy_pose_msg.header = header;
+  buoy_pose_pub.publish(buoy_pose_msg);
 }
 
 int main(int argc, char** argv) {

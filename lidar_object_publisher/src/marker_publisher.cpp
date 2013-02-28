@@ -4,17 +4,16 @@
 
 ros::Publisher buoy_marker_pub;
 
-const int max_objects = 3;
-
 void pose_callback(const geometry_msgs::PoseArrayConstPtr& pose) {
-  ROS_ERROR("Got new pose array!");
 
   for (int i = 0; i < pose->poses.size(); i++) {
     visualization_msgs::Marker marker;
     marker.header.frame_id = "/world";
     marker.header.stamp = ros::Time::now();
+
      // marker.ns = "my_namespace";
-     // marker.id = 0;
+    marker.id = i;
+
     marker.type = visualization_msgs::Marker::SPHERE;
     marker.action = visualization_msgs::Marker::ADD;
     marker.pose.position.x = pose->poses[i].position.x;
@@ -32,7 +31,6 @@ void pose_callback(const geometry_msgs::PoseArrayConstPtr& pose) {
     marker.color.g = 0.0;
     marker.color.b = 0.0;
     buoy_marker_pub.publish(marker);
-    ROS_ERROR("Published marker %d!", i);
   }
 }
 
