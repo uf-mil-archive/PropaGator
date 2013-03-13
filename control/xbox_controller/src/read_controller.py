@@ -6,8 +6,9 @@ import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Point, Wrench
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Header
-#from pygame import *
 import time,math
+import os
+
 
 X360_AXIS_IDS = {
 'LEFT_X': 0,
@@ -32,11 +33,10 @@ X360_BUTTON_IDS = {
 'L_STICK': 9,
 'R_STICK': 10,
 }
-max_torque = 2		#remember to change value in motor driver package also
+max_torque = 1		#remember to change value in motor driver package also
 
 rospy.init_node('xbox_controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped)
-
 
 def joystick_callback(msg):
 	
@@ -46,14 +46,20 @@ def joystick_callback(msg):
 							frame_id="/base_link",
 							),
 						wrench=Wrench(
-							force = Vector3(x=msg.axes[1]*max_torque,y= -msg.axes[0]*max_torque,z= 0),
-							torque = Vector3(x=0,y= 0,z= msg.axes[3]),
+							force = Vector3(x=(msg.axes[1]/2 + msg.buttons[3]*msg.axes[1]/2),y= (-msg.axes[0]/2  - msg.buttons[3]*msg.axes[0]/2),z= 0),
+							torque = Vector3(x=0,y= 0,z= (-msg.axes[3]/2 - msg.buttons[3]*msg.axes[3]/2)),
 							))
-							)	
-	#rospy.sleep(.3)
-		
-
+							)
+	#rospy.sleep(.2)
+		 
 rospy.Subscriber('joy', Joy, joystick_callback,queue_size=1)
-rospy.spin()
+while not rospy.is_shutdown() :
+	pass
 
+
+rospy.logwarn("Stopping motors")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'fr', force: 0}'")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'br', force: 0}'")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'fl', force: 0}'")
+os.system("rostopic pub -1 /thrusters/command thruster_mapper/ThrusterCommand '{header: {stamp: now, frame_id: base_link}, id: 'bl', force: 0}'")
 

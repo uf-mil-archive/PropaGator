@@ -4,7 +4,7 @@ import roslib
 import rospy
 roslib.load_manifest('propagator_motor_driver')
 from propagator_motor_driver.msg import motor_driver_statistics
-from thruster_mapper.msg import ThrusterInfo, ThrusterCommand
+from thruster_handling.msg import ThrusterInfo, ThrusterCommand
 from geometry_msgs.msg import WrenchStamped, Wrench, Vector3, Point
 import MotorDriver
 import tf
@@ -37,7 +37,6 @@ def thrusterinfo_callback(event):
 			min_force = -1,
 			max_force = 2,
 			))	
-	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(	
 			header=Header(
@@ -51,7 +50,6 @@ def thrusterinfo_callback(event):
 			min_force = -1,
 			max_force = 2,
 			))
-	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(
 			header=Header(
@@ -65,7 +63,6 @@ def thrusterinfo_callback(event):
 			min_force = -1,
 			max_force = 2,
 			))
-	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(
 			header=Header(
@@ -79,7 +76,6 @@ def thrusterinfo_callback(event):
 			min_force = -1,
 			max_force = 2,
 			))
-	#thrusterinfo_publisher.publish(thrusterinfo_msg)
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 	

@@ -1,3 +1,0 @@
-#!/bin/sh
-rosparam set /use_sim_time true
-rosbag play -l --clock ~/fuerte_workspace/PropaGator/laser_tf_py/bagfiles/testable_pool.bag
