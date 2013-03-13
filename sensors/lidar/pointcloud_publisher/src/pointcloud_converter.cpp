@@ -37,7 +37,7 @@ bool save(pointcloud_publisher::SavePCLData::Request &req,
 		char filename [50];
 		/*save file so its format matches what the cmu calibration
 		toolbox is expecting*/
-		sprintf(filename, "..//..//camera_lidar_packets//laser_box%d.xyz", fileIterator);
+		sprintf(filename, "..//cloudxyz_data//laser_board%d.xyz", fileIterator);
 		fileIterator++;
 		pcldatafile.open(filename);
 		size_t i;
