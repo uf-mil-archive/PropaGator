@@ -25,6 +25,8 @@ from std_msgs.msg import Bool
 ##  d - User down	##
 ##########################
 
+OFFBOARD_TESTING = true;
+
 port = '/dev/propagator_navid_motordriver'
 lidarPivot_to_lens_x = 0.1		# Distance forward from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_y = 0 		# Distance left from LIDAR pivot to LIDAR lens
@@ -33,7 +35,7 @@ pitchAngleOffset = 0			# Pitch offset downwards
 robotBase_to_lidarPivot_x = 0		# Distance forward
 robotBase_to_lidarPivot_y = 0		# Distance left
 robotBase_to_lidarPivot_z = 0.8763	# Distance up
-baseLink_yaw =  0
+baseLink_yaw = 0
 
 if __name__ == '__main__':
   rospy.init_node('laser_tf_broadcaster')
@@ -77,11 +79,19 @@ if __name__ == '__main__':
         T = tf.transformations.rotation_matrix((baseLink_yaw), (0, 0, 1)).dot(T)
         T = tf.transformations.translation_from_matrix(T)
 
-        br.sendTransform(T,
-         tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi, baseLink_yaw),
-         rospy.Time.now(),
-         "/laser",
-         "/world")
+        if (OFFBOARD_TESTING):
+          br.sendTransform(T,
+           tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi, baseLink_yaw),
+           rospy.Time.now(),
+           "/laser",
+           "/world")
+        else:	# otherwise we're on the boat
+          br.sendTransform(T,
+           tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi, baseLink_yaw),
+           rospy.Time.now(),
+           "/laser",
+           "/base_link")
+
 
       ser.flushInput()
       ser.write("H")
