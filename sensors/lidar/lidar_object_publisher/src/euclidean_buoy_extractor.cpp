@@ -26,7 +26,7 @@ ros::Publisher filtered_pub;
 ros::Publisher buoy_cloud_pub;
 ros::Publisher buoy_pose_pub;
 
-const int max_objects = 10;
+const int max_objects = 100;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   ROS_ERROR("NEW POINTCLOUD");
@@ -34,6 +34,12 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
   std_msgs::Header header = input->header;
   pcl::fromROSMsg(*input, *cloud);
+/*
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(*input, *cloud_filtered);
+*/
+
 
   ROS_DEBUG("PointCloud before filtering has: %d data points.", cloud->points.size());
 
@@ -41,7 +47,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   pcl::VoxelGrid<pcl::PointXYZ> vg;
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
   vg.setInputCloud(cloud);
-  vg.setLeafSize(0.01f, 0.01f, 0.01f);//adjusts the voxel size (0.1 = .1 meter voxel) this gives us 1cm voxels
+  vg.setLeafSize(0.001f, 0.001f, 0.001f);//adjusts the voxel size (0.1 = .1 meter voxel) this gives us 1cm voxels
   vg.filter(*cloud_filtered);
   ROS_DEBUG("PointCloud after filtering has: %d data points.", cloud_filtered->points.size());
 
@@ -111,7 +117,7 @@ int main(int argc, char** argv) {
   pub = nh.advertise<sensor_msgs::PointCloud2> ("/lidar_object", 1);
   filtered_pub = nh.advertise<sensor_msgs::PointCloud2> ("/filtered_cloud1", 1);
   buoy_cloud_pub = nh.advertise<sensor_msgs::PointCloud2> ("/buoy_cloud", 1);
-  buoy_pose_pub = nh.advertise<geometry_msgs::PoseArray>("/buoy_pose", 0);
+  buoy_pose_pub = nh.advertise<geometry_msgs::PoseArray>("/buoy_pose", 1);
 
   // Spin
   ros::spin ();
