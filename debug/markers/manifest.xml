@@ -1,0 +1,17 @@
+<package>
+  <description brief="markers">
+
+     markers
+
+  </description>
+  <author>Will</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/markers</url>
+  <depend package="std_msgs"/>
+  <depend package="rospy"/>
+  <depend package="roscpp"/>
+
+</package>
+
+
