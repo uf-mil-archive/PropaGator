@@ -20,13 +20,9 @@ rospy.init_node('motor_drivers')
 thrusterinfo_publisher = rospy.Publisher('thrusters/info', ThrusterInfo)
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
-<<<<<<< HEAD
-thruster_angle = 30
 min_force = 1
 max_force = 1
-=======
 thruster_angle = math.radians(30)
->>>>>>> 78642cab6bc70dec4f9a28624a1815a4cff5a458
 
 def thrusterinfo_callback(event):
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -38,14 +34,9 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(x = .729401, y = -.23495, z = -.241308),
 			direction=Vector3(x = math.cos(thruster_angle), y = math.sin(thruster_angle), z = 0),
-<<<<<<< HEAD
 			min_force = -min_force,
 			max_force = max_force,
-=======
-			min_force = -1,
-			max_force = 2,
 			active=True,
->>>>>>> 78642cab6bc70dec4f9a28624a1815a4cff5a458
 			))	
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(	
@@ -57,14 +48,9 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(.729401,.23495,-.241308),
 			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
-<<<<<<< HEAD
 			min_force = -min_force,
 			max_force = max_force,
-=======
-			min_force = -1,
-			max_force = 2,
 			active=True,
->>>>>>> 78642cab6bc70dec4f9a28624a1815a4cff5a458
 			))
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -76,14 +62,9 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(-.821269,-.23495,-.241308),
 			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
-<<<<<<< HEAD
 			min_force = -min_force,
 			max_force = max_force,
-=======
-			min_force = -1,
-			max_force = 2,
 			active=True,
->>>>>>> 78642cab6bc70dec4f9a28624a1815a4cff5a458
 			))
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -95,14 +76,9 @@ def thrusterinfo_callback(event):
 			lifetime = rospy.Duration(2),
 			position=Point(-.821269,.23495,-.241308),
 			direction=Vector3(math.cos(thruster_angle),math.sin(thruster_angle),0),
-<<<<<<< HEAD
 			min_force = -min_force,
 			max_force = max_force,
-=======
-			min_force = -1,
-			max_force = 2,
 			active=True,
->>>>>>> 78642cab6bc70dec4f9a28624a1815a4cff5a458
 			))
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
