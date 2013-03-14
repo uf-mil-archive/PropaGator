@@ -25,6 +25,7 @@ max_force = 1
 thruster_angle = math.radians(30)
 
 def thrusterinfo_callback(event):
+	global message_received
 	thrusterinfo_publisher.publish(ThrusterInfo(
 			header=Header(
 				stamp=rospy.Time.now(),
@@ -80,12 +81,20 @@ def thrusterinfo_callback(event):
 			max_force = max_force,
 			active=True,
 			))
+	if (not message_received):
+		MotorDriver_fr.stop()
+		MotorDriver_fl.stop()
+		MotorDriver_br.stop()
+		MotorDriver_bl.stop()
+	else:
+		message_received = False
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 	
 
 def command_callback(msg):
-
+	global message_received
+	message_received = True
 	if (msg.id == "fr"):
 		if (msg.force > 0):
 			MotorDriver_fr.set_forward_speed(str(int(msg.force*200/max_force)))
