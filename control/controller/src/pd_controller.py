@@ -8,7 +8,11 @@ import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Vector3Stamped, Point, Wrench, PoseStamped
 from std_msgs.msg import Header
 from sensor_msgs.msg import Imu
+from nav_msgs.msg import Odometry
 import numpy,math,tf
+from tf import transformations
+from uf_common.orientation_helpers import xyz_array, xyzw_array
+from uf_common.msg import PoseTwistStamped
 
 
 rospy.init_node('controller')
@@ -51,45 +55,20 @@ def _jacobian_inv(x):
         [0, -sphi, cphi * ctheta],]
     return J_inv
     
-    
-#---------------collect state information as soon as it is posted--------------------
+#---------------collect desired state information as soon as it is posted--------------------
 
-current_pos = numpy.zeros((3,1))
-current_orient = numpy.zeros((3,1))
-state = numpy.zeros((6,1))
-current_ang_vel = numpy.zeros((3,1))
-current_lin_vel = numpy.zeros((3,1))
-desired_state = numpy.zeros((6,1))
-desired_state_dot = numpy.zeros((6,1))
-previous_desired_state = numpy.zeros((6,1))
+desired_state = numpy.zeros(6)
+desired_state_dot = numpy.zeros(6)
 
-def pose_callback(msg):
-	global current_pos,current_orient,state
-	current_pos = [msg.position.x,msg.position.y,msg.position.z]
-	current_orient = tf.transformations.euler_from_quaternion([msg.orientation.x,msg.orientation.y,msg.orientation.z,msg.orientation.w])
-	state = numpy.append(current_pos,current_orient)
-
-def ang_vel_callback(msg):
-	global current_ang_vel
-	current_ang_vel = [msg.angular_velocity.x,msg.angular_velocity.y,msg.angular_velocity.z]
-
-def lin_vel_callback(msg):
-	global curren_lin_vel
-	current_lin_vel = msg
-
-def desired_state_callback(msg):
-	global previous_desired_state,desired_state
+def desired_state_callback(desired_posetwist):
+    global desired_state,desired_state_dot
 	
-	previous_desired_state = desired_state
-	desired_pos = [msg.position.x,msg.position.y,msg.position.z]
-	desired_orient = tf.transformations.euler_from_quaternion([msg.orientation.x,msg.orientation.y,msg.orientation.z,msg.orientation.w])
-	desired_state = numpy.append(desired_pos,desired_orient)
+    desired_state = numpy.concatenate([xyz_array(desired_posetwist.posetwist.pose.position), transformations.euler_from_quaternion(xyzw_array(desired_posetwist.posetwist.pose.orientation))])
+    desired_state_dot = _jacobian(desired_state).dot(numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)]))
 
+rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 
-rospy.Subscriber('/current_pose', PoseStamped, pose_callback)
-rospy.Subscriber('/imu', Imu, ang_vel_callback)
-rospy.Subscriber('/linear_vel', Vector3Stamped, lin_vel_callback)
-rospy.Subscriber('/desired_pose', PoseStamped, desired_state_callback)
+#----------------------------------------------------------------------------------
 
 #set controller gains
 rospy.set_param('p_gain', {'x':1.0,'y':1.0,'yaw':1.0})
@@ -97,7 +76,6 @@ rospy.set_param('d_gain', {'x':1.0,'y':1.0,'yaw':1.0})
 
 #----------------------------------------------------------------------------------
 
-dt = .05 #sec
 K = numpy.array([
 	[rospy.get_param('p_gain/x'),0,0,0,0,0],
 	[0,rospy.get_param('p_gain/y'),0,0,0,0],
@@ -114,17 +92,21 @@ Ks = numpy.array([
 	[0,0,0,0,1,0],
 	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
 	
-def update_callback(event):
-	global desired_state,previous_desired_state,current_lin_vel,current_ang_vel,state
+def update_callback(current_posetwist):
+	global desired_state,desired_state_dot
 
-	state_dot = numpy.append(current_lin_vel,current_ang_vel)
-	desired_state_dot = numpy.subtract(desired_state,previous_desired_state)/dt
+	state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
+	state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
+	state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
 		
-	e = desired_state - state
-	vbd = _jacobian_inv(state)*(K*e + desired_state_dot)
-	e2 = vbd - state_dot
+		
+	def smallest_coterminal_angle(x):
+		return (x + math.pi) % (2*math.pi) - math.pi
+	e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
+	vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
+	e2 = vbd - state_dot_body
 	
-	output = Ks*e2
+	output = Ks.dot(e2)
 
 	controller_wrench.publish(WrenchStamped(
 						header = Header(
@@ -132,12 +114,12 @@ def update_callback(event):
 							frame_id="/base_link",
 							),
 						wrench=Wrench(
-							force = Vector3(x= output[0,0],y= output[1,1],z= 0),
-							torque = Vector3(x=0,y= 0,z= output[5,5]),
+							force = Vector3(x= output[0],y= output[1],z= 0),
+							torque = Vector3(x=0,y= 0,z= output[5]),
 							))
 							)	
 
-rospy.Timer(rospy.Duration(dt), update_callback)
+rospy.Subscriber('/sim_odom', Odometry, update_callback)
 rospy.spin()
 
 

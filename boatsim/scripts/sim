@@ -1,0 +1,273 @@
+#!/usr/bin/env python
+
+from __future__ import division
+
+import math
+import random
+import traceback
+
+import ode
+import pygame
+from OpenGL.GL import *
+from OpenGL.GLU import *
+from twisted.internet import protocol, reactor, task
+
+import roslib
+roslib.load_manifest('boatsim')
+
+from sim import threed, vector, util
+from sim.vector import v, V
+
+from subsim import devices
+
+
+imu_listeners = set()
+thrusters = [0]*4
+
+def send_imu_update(**update):
+    for imu_listener in imu_listeners:
+        imu_listener.sendUpdate(**update)
+
+
+clip = lambda x, (low, high): min(max(x, low), high)
+
+def buoyancy_force(depth, r):    
+    inf = 1e1000
+    assert math.isinf(inf)
+    sphere_antiderivative = lambda h: -h**3*math.pi/3 + h*math.pi*r**2
+    sphere_true_antiderivative = lambda h: sphere_antiderivative(clip(h, (-r, r)))
+    vol_submerged = sphere_true_antiderivative(depth) - sphere_true_antiderivative(-inf)
+    return 1000 * 9.81 * vol_submerged
+
+world, world_time = ode.World(), reactor.seconds()
+world.setGravity((0, 0, 9.81))
+
+body = ode.Body(world)
+M = ode.Mass()
+M.setBoxTotal(47, 1.27, .46, .46)
+body.setMass(M)
+body.setPosition((3, 3, 0))
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi/2))
+
+space = ode.HashSpace()
+
+body_geom = ode.GeomBox(space, (1.27, .46, .46))
+body_geom.setBody(body)
+
+pool_mesh = threed.mesh_from_obj(open(roslib.packages.resource_file('subsim', 'scene', 'pool6_Scene.obj')))
+pool_geom = ode.GeomTriMesh(pool_mesh.ode_trimeshdata, space)
+
+def get_water_vel(pos):
+    return  v(0, 0, 0)
+    return (pos % v(0, 0, 1))*math.e**(-pos.mag()/3)
+
+imu_pos = v(0.43115992, 0.0, -0.00165058)
+
+killed = False
+locked = False
+
+def world_tick():
+    global world_time
+    
+    water_vel = get_water_vel(V(body.getPosition()))
+    
+    body.addForceAtRelPos((0, 0, -buoyancy_force(body.getPosition()[2], 0.22728849402137372)), (0, 0, -.1))
+    body.addForce(-(40 if body.getPosition()[2] >= 0 else 10) * (V(body.getLinearVel())-water_vel))
+    #body.addForce([random.gauss(0, 1) for i in xrange(3)])
+    #body.addTorque([random.gauss(0, 10) for i in xrange(3)])
+    body.addTorque(-(20 if body.getPosition()[2] >= 0 else 5) * V(body.getAngularVel()))
+    
+    #print thrusters
+    
+    sub_model.vectors = []
+    thruster_angle = math.radians(30)
+    print thrusters
+    for i, (reldir, relpos, fwdforce, revforce) in enumerate([
+        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(.729401, .23495, .241308), 100, 100), # FR
+        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(.729401,-.23495,.241308), 100, 100), # FL
+        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,.241308), 100, 100), # BR
+        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,.241308), 100, 100), # BL
+    ]):
+        body.addRelForceAtRelPos(reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce), relpos)
+        sub_model.vectors.append((relpos, relpos - .02*reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce)))
+    
+    keys = pygame.key.get_pressed()
+    for keycode, force in [
+        (pygame.K_k, v(-50, 0, 0)),
+        (pygame.K_i, v(+50, 0, 0)),
+        (pygame.K_j, v(0, -50, 0)),
+        (pygame.K_l, v(0, +50, 0)),
+        (pygame.K_o, v(0, 0, -50)),
+        (pygame.K_m, v(0, 0, +50)),
+    ]:
+        if keys[keycode]:
+            body.addRelForce(force*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
+    for keycode, torque in [
+        (pygame.K_COMMA, v(-20,
+         0, 0)),
+        (pygame.K_u, v(+20, 0, 0)),
+        (pygame.K_h, v(0, -20, 0)),
+        (pygame.K_SEMICOLON, v(0, +20, 0)),
+        (pygame.K_0, v(0, 0, -20)),
+        (pygame.K_n, v(0, 0, +20)),
+    ]:
+        if keys[keycode]:
+            body.addRelTorque(torque*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
+    
+    global killed
+    if keys[pygame.K_1]:
+        killed = True
+    if keys[pygame.K_2]:
+        killed = False
+    global locked
+    if keys[pygame.K_3]:
+        locked = True
+    if keys[pygame.K_4]:
+        locked = False
+    
+    last_vel = V(body.getRelPointVel(imu_pos))
+    last_angvel = V(body.vectorFromWorld(body.getAngularVel()))
+    
+    contactgroup = ode.JointGroup()
+    
+    if locked:
+        j = ode.FixedJoint(world, contactgroup)
+        j.attach(body, None)
+        j.setFixed()
+    
+    near_pairs = []
+    space.collide(None, lambda _, geom1, geom2: near_pairs.append((geom1, geom2)))
+    for geom1, geom2 in near_pairs:
+        for contact in ode.collide(geom1, geom2):
+            contact.setBounce(0.2)
+            contact.setMu(5000)
+            j = ode.ContactJoint(world, contactgroup, contact)
+            j.attach(geom1.getBody(), geom2.getBody())
+    
+    dt = 1/30
+    world.step(dt)
+    world_time += dt
+    
+    contactgroup.empty()
+    
+    a = (V(body.vectorFromWorld(body.getRelPointVel(imu_pos) - last_vel)))/dt - V(body.vectorFromWorld(world.getGravity()))
+    
+    imu_to_sub = v(0.012621022547474, 0.002181321593961, -0.004522523520991, 0.999907744947984)
+    #imu_to_sub = vector.axisangle_to_quat(v(1,0,0),math.pi)
+    imu_gyro = imu_to_sub.conj().quat_rot((last_angvel + body.vectorFromWorld(body.getAngularVel()))/2)
+    imu_acc = imu_to_sub.conj().quat_rot(-a)
+    #print imu_acc
+    
+    north = v(0.241510e-4, -0.022442e-4, 0.405728e-4)
+    magCorrection = v(0.7409404225119256, 0.16518505729708194, 0.41635135769064785, -0.5003725952555389)
+    magShift = v(1.972505436535728e-05, -2.630949101201508e-06, 6.149054775740445e-05)
+    magScale = v(0.9824591199601406, 0.991700915163004, 1.0263720042299143)
+    
+    imu_mag_prescale = imu_to_sub.conj().quat_rot(body.vectorFromWorld(north))
+    imu_mag = magCorrection.conj().quat_rot(magCorrection.quat_rot(imu_mag_prescale).scale(magScale)) + magShift
+    try:
+        send_imu_update(
+            flags=0,
+            supply_voltage=random.gauss(12, .1),
+            ang_rate=imu_gyro,
+            acceleration=imu_acc,
+            mag_field=imu_mag,
+            temperature=random.gauss(25, .1),
+            timestamp=world_time,
+        )
+    except:
+        traceback.print_exc()
+    
+    reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
+
+
+reactor.listenTCP(10025, util.AutoServerFactory(devices.IMUProtocol, imu_listeners))
+for i in xrange(4):
+    reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
+
+
+
+class Sub(object):
+    is_base_link = True
+    
+    def __init__(self, body, is_killed_func):
+        self.body = body
+        self.is_killed_func = is_killed_func
+        self.vectors = []
+    
+    def draw(self):
+        glBegin(GL_LINES)
+        glColor3f(1, 1, 1)
+        glVertex3f(*self.body.getPosition())
+        glVertex3f(*self.body.getPosition() + 20*v(0.241510, -0.022442, 0.405728))
+        glEnd()
+        with threed.GLMatrix:
+            threed.rotate_to_body(self.body)
+            
+            q = gluNewQuadric()
+            with threed.GLMatrix:
+                glTranslate(+.2, 0, 0)
+                glColor3f(0, 1, 0)
+                gluSphere(q, 0.5, 40, 20)
+            with threed.GLMatrix:
+                glTranslate(-.2, 0, 0)
+                glColor3f(1, 0, 0)
+                gluSphere(q, 0.5, 40, 20)
+            with threed.GLMatrix:
+                glTranslate(+.4, +.2, -.3)
+                glColor3f(0, 0, 0)
+                gluSphere(q, 0.1, 40, 20)
+            with threed.GLMatrix:
+                glTranslate(+.4, -.2, -.3)
+                glColor3f(0, 0, 0)
+                gluSphere(q, 0.1, 40, 20)
+            with threed.GLMatrix:
+                glTranslate(0, 0, -.5)
+                if self.is_killed_func():
+                    glColor3f(1, 0, 0)
+                else:
+                    glColor3f(0, 1, 0)
+                gluSphere(q, 0.1, 20, 10)
+            
+            glDisable(GL_DEPTH_TEST)
+            glBegin(GL_LINES)
+            for start, end in self.vectors:
+                glColor3f(0, 0, 0)
+                glVertex3f(*start)
+                glColor3f(1, 1, 1)
+                glVertex3f(*end)
+            glEnd()
+            glEnable(GL_DEPTH_TEST)
+
+class Buoys(object):
+    def __init__(self, pos):
+        self.buoys = [(pos + [random.gauss(0, 1) for i in xrange(3)], color) for color in [(1, 0, 0), (0, 1, 0), (1, 1, 0)]]
+    
+    def draw(self):
+        q = gluNewQuadric()
+        for pos, color in self.buoys:
+            with threed.GLMatrix:
+                glTranslate(*pos)
+                glColor3f(*color)
+                gluSphere(q, .2, 30, 15)
+
+i = threed.Interface()
+i.init()
+i.objs.append(threed.MeshDrawer(pool_mesh, (.4, .4, .4)))
+sub_model = Sub(body, lambda: killed)
+i.objs.append(sub_model)
+i.objs.append(threed.VectorField(get_water_vel))
+i.objs.append(Buoys(v(10, 3, 4)))
+def _():
+    try:
+        i.step()
+    except:
+        traceback.print_exc()
+        reactor.stop()
+reactor.callWhenRunning(task.LoopingCall(_).start, 1/24)
+
+
+
+reactor.callWhenRunning(world_tick)
+
+reactor.run()

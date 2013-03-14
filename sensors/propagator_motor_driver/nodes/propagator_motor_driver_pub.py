@@ -7,8 +7,6 @@ from propagator_motor_driver.msg import motor_driver_statistics
 from thruster_handling.msg import ThrusterInfo, ThrusterCommand
 from geometry_msgs.msg import WrenchStamped, Wrench, Vector3, Point
 import MotorDriver
-import tf
-from tf import transformations
 from std_msgs.msg import Header
 import math
 
@@ -22,7 +20,7 @@ rospy.init_node('motor_drivers')
 thrusterinfo_publisher = rospy.Publisher('thrusters/info', ThrusterInfo)
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
-thruster_angle = 30
+thruster_angle = math.radians(30)
 
 def thrusterinfo_callback(event):
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -36,6 +34,7 @@ def thrusterinfo_callback(event):
 			direction=Vector3(x = math.cos(thruster_angle), y = math.sin(thruster_angle), z = 0),
 			min_force = -1,
 			max_force = 2,
+			active=True,
 			))	
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(	
@@ -49,6 +48,7 @@ def thrusterinfo_callback(event):
 			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
 			min_force = -1,
 			max_force = 2,
+			active=True,
 			))
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -62,6 +62,7 @@ def thrusterinfo_callback(event):
 			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
 			min_force = -1,
 			max_force = 2,
+			active=True,
 			))
 	
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -75,6 +76,7 @@ def thrusterinfo_callback(event):
 			direction=Vector3(math.cos(thruster_angle),math.sin(thruster_angle),0),
 			min_force = -1,
 			max_force = 2,
+			active=True,
 			))
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
