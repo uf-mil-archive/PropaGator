@@ -6,6 +6,8 @@ ros::Publisher buoy_marker_pub;
 
 void pose_callback(const geometry_msgs::PoseArrayConstPtr& pose) {
 
+  ROS_ERROR("Got new PoseArray.");
+
   for (int i = 0; i < pose->poses.size(); i++) {
     visualization_msgs::Marker marker;
     marker.header.frame_id = "/world";
@@ -26,7 +28,7 @@ void pose_callback(const geometry_msgs::PoseArrayConstPtr& pose) {
     marker.scale.x = 0.3;
     marker.scale.y = 0.3;
     marker.scale.z = 0.32;
-    marker.color.a = 1.0;
+    marker.color.a = 0.5;//1.0
     marker.color.r = 1.0;
     marker.color.g = 0.0;
     marker.color.b = 0.0;

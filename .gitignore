@@ -11,3 +11,4 @@ msg_gen/
 src/*/cfg/
 src/*/__init__.py
 src/*/msg/
+doc/
