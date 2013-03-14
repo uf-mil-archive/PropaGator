@@ -16,7 +16,6 @@ class opencvtest:
 		self.image_sub=rospy.Subscriber("camera/image_color",Image,self.test)
 	def test(self, data):
 		image=self.bridge.imgmsg_to_cv(data,"bgr8")
-		cv.ShowImage("IS THIS WORKING", image)
 		HSVimage= cv.CreateImage(cv.GetSize(image), 8, 3)
 		cv.CvtColor(image, HSVimage, cv.CV_BGR2HSV)
 		red_thresh=cv.CreateImage(cv.GetSize(image), 8, 1)
