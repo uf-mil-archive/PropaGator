@@ -9,7 +9,7 @@ import serial,time
 ####################################################
 class MotorDriver():
 	def __init__(self,usb_id):
-		self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
+		self.commport = serial.Serial(port = "/tmp/thruster_"+usb_id,baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
 		self.commport.write('\r')
 
 	def set_forward_speed(self,speed):
@@ -56,15 +56,15 @@ class MotorDriver():
 			check = self.commport.read(1)
 		
 	def get_current(self):
-		self.commport.write('4')
+		self.commport.write('4\r')
 		return (self.commport.read(1))
 		
 	def get_out_voltage(self):
-		self.commport.write('5')
+		self.commport.write('5\r')
 		return (self.commport.read(1))
 		
 	def get_batt_voltage(self):
-		self.commport.write('6')
+		self.commport.write('6\r')
 		return (self.commport.read(1))
 		
 if __name__ == "__main__":

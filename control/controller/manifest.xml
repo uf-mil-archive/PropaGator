@@ -12,6 +12,7 @@
   <depend package="rospy"/>
   <depend package="tf"/>
   <depend package="auv_msgs"/>
+  <depend package="uf_common"/>
 
 </package>
 
