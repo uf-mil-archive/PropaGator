@@ -10,10 +10,6 @@ import MotorDriver
 from std_msgs.msg import Header
 import math
 
-MotorDriver_fr = MotorDriver.MotorDriver('FR')
-MotorDriver_fl = MotorDriver.MotorDriver('FL')
-MotorDriver_br = MotorDriver.MotorDriver('BR')
-MotorDriver_bl = MotorDriver.MotorDriver('BL')
 
 rospy.init_node('motor_drivers')
 
@@ -24,63 +20,35 @@ min_force = 1
 max_force = 1
 thruster_angle = math.radians(30)
 message_received = False
+thrusterinfo = {
+'FR': [.729401, -.23495, -.241308, math.cos(thruster_angle), math.sin(thruster_angle), 0],
+'FL': [.729401, .23495, -.241308, math.cos(thruster_angle), -math.sin(thruster_angle), 0],
+'BR': [-.821269, -.23495, -.241308, math.cos(thruster_angle),-math.sin(thruster_angle),0],
+'BR': [-.821269, .23495, -.241308, math.cos(thruster_angle), math.sin(thruster_angle), 0],
+}
+
+MotorDriver_fr = MotorDriver.MotorDriver('FR')
+MotorDriver_fl = MotorDriver.MotorDriver('FL')
+MotorDriver_br = MotorDriver.MotorDriver('BR')
+MotorDriver_bl = MotorDriver.MotorDriver('BL')
+
 def thrusterinfo_callback(event):
 	global message_received
-	thrusterinfo_publisher.publish(ThrusterInfo(
+	
+	for key,value in thrusterinfo.iteritems():
+		thrusterinfo_publisher.publish(ThrusterInfo(
 			header=Header(
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
-			id="fr",
+			id=key,
 			lifetime = rospy.Duration(2),
-			position=Point(x = .729401, y = -.23495, z = -.241308),
-			direction=Vector3(x = math.cos(thruster_angle), y = math.sin(thruster_angle), z = 0),
+			position=Point(value[0],value[1],value[2]),
+			direction=Vector3(value[3],value[4],value[5]),
 			min_force = -min_force,
 			max_force = max_force,
 			active=True,
 			))	
-	
-	thrusterinfo_publisher.publish(ThrusterInfo(	
-			header=Header(
-				stamp=rospy.Time.now(),
-				frame_id="/base_link",
-			),
-			id="fl",
-			lifetime = rospy.Duration(2),
-			position=Point(.729401,.23495,-.241308),
-			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
-			min_force = -min_force,
-			max_force = max_force,
-			active=True,
-			))
-	
-	thrusterinfo_publisher.publish(ThrusterInfo(
-			header=Header(
-				stamp=rospy.Time.now(),
-				frame_id="/base_link",
-			),
-			id="br",
-			lifetime = rospy.Duration(2),
-			position=Point(-.821269,-.23495,-.241308),
-			direction=Vector3(math.cos(thruster_angle),-math.sin(thruster_angle),0),
-			min_force = -min_force,
-			max_force = max_force,
-			active=True,
-			))
-	
-	thrusterinfo_publisher.publish(ThrusterInfo(
-			header=Header(
-				stamp=rospy.Time.now(),
-				frame_id="/base_link",
-			),
-			id="bl",
-			lifetime = rospy.Duration(2),
-			position=Point(-.821269,.23495,-.241308),
-			direction=Vector3(math.cos(thruster_angle),math.sin(thruster_angle),0),
-			min_force = -min_force,
-			max_force = max_force,
-			active=True,
-			))
 	if (not message_received):
 		MotorDriver_fr.stop()
 		MotorDriver_fl.stop()
@@ -95,7 +63,8 @@ rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 def command_callback(msg):
 	global message_received
 	message_received = True
-	if (msg.id == "fr"):
+
+	if (msg.id == "FR"):
 		if (msg.force > 0):
 			MotorDriver_fr.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
@@ -108,12 +77,12 @@ def command_callback(msg):
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
-			id="fr",
+			id=msg.id,
 			current 	 = MotorDriver_fr.get_current(),
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)		
-	elif (msg.id == "fl"):
+	elif (msg.id == "FL"):
 		if (msg.force > 0):
 			MotorDriver_fl.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
@@ -126,12 +95,12 @@ def command_callback(msg):
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
-			id="fl",
+			id=msg.id,
 			current 	 = MotorDriver_fl.get_current(),
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
-	elif (msg.id == "br"):
+	elif (msg.id == "BR"):
 		if (msg.force > 0):
 			MotorDriver_br.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
@@ -144,12 +113,12 @@ def command_callback(msg):
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
-			id="br",
+			id=msg.id,
 			current 	 = MotorDriver_br.get_current(),
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)
-	elif (msg.id == "bl"):
+	elif (msg.id == "BL"):
 		if (msg.force > 0):
 			MotorDriver_bl.set_forward_speed(str(int(msg.force*200/max_force)))
 		elif (msg.force < 0):
@@ -162,13 +131,14 @@ def command_callback(msg):
 				stamp=rospy.Time.now(),
 				frame_id="/base_link",
 			),
-			id="bl",
+			id=msg.id,
 			current 	 = MotorDriver_bl.get_current(), 
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
+	
+	motor_driver_statistics_publisher.publish(motordriverstat_msg)	
 		
-	motor_driver_statistics_publisher.publish(motordriverstat_msg)					
 			
 rospy.Subscriber('thrusters/command', ThrusterCommand, command_callback)
 rospy.spin()
