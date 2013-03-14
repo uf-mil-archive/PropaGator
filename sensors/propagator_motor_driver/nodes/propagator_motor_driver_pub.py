@@ -23,7 +23,7 @@ motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', m
 min_force = 1
 max_force = 1
 thruster_angle = math.radians(30)
-
+message_received = False
 def thrusterinfo_callback(event):
 	global message_received
 	thrusterinfo_publisher.publish(ThrusterInfo(
@@ -163,7 +163,7 @@ def command_callback(msg):
 				frame_id="/base_link",
 			),
 			id="bl",
-			current 	 = MotorDriver_bl.get_current(),
+			current 	 = MotorDriver_bl.get_current(), 
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
