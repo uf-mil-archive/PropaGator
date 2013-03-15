@@ -12,3 +12,5 @@ src/*/cfg/
 src/*/__init__.py
 src/*/msg/
 doc/
+srv_gen/
+sensors/lidar/pointcloud_publisher/src/pointcloud_publisher/
