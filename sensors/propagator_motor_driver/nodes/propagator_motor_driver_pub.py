@@ -24,7 +24,7 @@ thrusterinfo = {
 'FR': [.729401, -.23495, -.241308, math.cos(thruster_angle), math.sin(thruster_angle), 0],
 'FL': [.729401, .23495, -.241308, math.cos(thruster_angle), -math.sin(thruster_angle), 0],
 'BR': [-.821269, -.23495, -.241308, math.cos(thruster_angle),-math.sin(thruster_angle),0],
-'BR': [-.821269, .23495, -.241308, math.cos(thruster_angle), math.sin(thruster_angle), 0],
+'BL': [-.821269, .23495, -.241308, math.cos(thruster_angle), math.sin(thruster_angle), 0],
 }
 
 MotorDriver_fr = MotorDriver.MotorDriver('FR')
@@ -34,7 +34,8 @@ MotorDriver_bl = MotorDriver.MotorDriver('BL')
 
 def thrusterinfo_callback(event):
 	global message_received
-	
+
+	print ('sending thruster info')	
 	for key,value in thrusterinfo.iteritems():
 		thrusterinfo_publisher.publish(ThrusterInfo(
 			header=Header(
@@ -58,7 +59,7 @@ def thrusterinfo_callback(event):
 		message_received = False
 	
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
-	
+
 
 def command_callback(msg):
 	global message_received
@@ -136,7 +137,7 @@ def command_callback(msg):
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
-	
+	print('xbox')
 	motor_driver_statistics_publisher.publish(motordriverstat_msg)	
 		
 			
