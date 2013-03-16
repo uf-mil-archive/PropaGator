@@ -1,0 +1,1 @@
+KERNEL=="ttyUSB?", SUBSYSTEM=="tty", ATTRS{idProduct}=="0003", NAME="GPS"
