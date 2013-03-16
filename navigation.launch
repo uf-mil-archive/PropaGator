@@ -1,0 +1,28 @@
+<launch>
+<!--use triad algorithm to get the quaternion(last four numbers) use triad(x,y,x,y)
+where the first x,y is the body frame of robot and last two x,y is the imu frame -->
+<node pkg="tf" type="static_transform_publisher" name="imu_broadcaster"
+    args="-0.127121 0.129228 0.281336  0.5 -0.5 0.5 -0.5 base_link imu 100" />
+
+<node pkg="legacy_ukf" type="legacy_ukf" name="legacy_ukf"><rosparam>
+    fixed_frame: /map
+    localMagneticVector: [-2244.2, 24151.0, -40572.8]
+    latitudeDeg: 29.651388889
+    vel_sigma: [0.02, 0.02, 0.02]
+    att_sigma: [0.5, 0.5, 0.5]
+    </rosparam>
+    <remap from="worldvel" to="gps_vel"/>
+    <remap from="odom" to="odom"/>
+</node>
+<!-- <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
+    frame_id: /map
+    child_frame_id: /base_link
+  </rosparam>
+    <remap from="orig_odom" to="imu_odom"/>
+</node> -->
+<node pkg="odometry_utils" type="odometry_to_tf" name="odometry_to_tf"/>
+<node pkg="kalman_6dof" type="gps_to_odom" name="gps_to_odom"/>
+<node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>
+
+
+</launch>
