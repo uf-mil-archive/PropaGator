@@ -34,8 +34,7 @@ MotorDriver_bl = MotorDriver.MotorDriver('BL')
 
 def thrusterinfo_callback(event):
 	global message_received
-
-	print ('sending thruster info')	
+	
 	for key,value in thrusterinfo.iteritems():
 		thrusterinfo_publisher.publish(ThrusterInfo(
 			header=Header(
@@ -56,8 +55,8 @@ def thrusterinfo_callback(event):
 		MotorDriver_br.stop()
 		MotorDriver_bl.stop()
 	else:
-		message_received = False
-	
+		message_received = False    
+
 rospy.Timer(rospy.Duration(.5), thrusterinfo_callback)
 
 
@@ -144,4 +143,8 @@ def command_callback(msg):
 rospy.Subscriber('thrusters/command', ThrusterCommand, command_callback)
 rospy.spin()
 	
+MotorDriver_fr.stop()
+MotorDriver_fl.stop()
+MotorDriver_br.stop()
+MotorDriver_bl.stop()
 

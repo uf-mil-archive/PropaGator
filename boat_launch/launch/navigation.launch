@@ -1,4 +1,12 @@
 <launch>
+<node pkg="microstrain_3dmgx1" type="gx1_publisher.py" name="imu_driver">
+  <remap from="/imu/mag_raw" to="/imu/mag"/>
+</node>
+
+<node pkg="gpsd_client" type="gpsd_client" name="gps_driver">
+  <param name="use_gps_time" value="false"/>
+</node>
+
 <!--use triad algorithm to get the quaternion(last four numbers) use triad(x,y,x,y)
 where the first x,y is the body frame of robot and last two x,y is the imu frame -->
 <node pkg="tf" type="static_transform_publisher" name="imu_broadcaster"

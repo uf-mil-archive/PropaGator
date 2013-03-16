@@ -119,7 +119,7 @@ def update_callback(current_posetwist):
 							))
 							)	
 
-rospy.Subscriber('/sim_odom', Odometry, update_callback)
+rospy.Subscriber('/odom', Odometry, update_callback)
 rospy.spin()
 
 
