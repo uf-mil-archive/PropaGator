@@ -5,6 +5,8 @@
 
 <node pkg="gpsd_client" type="gpsd_client" name="gps_driver">
   <param name="use_gps_time" value="false"/>
+  <param name="port" value="/dev/USB0"/> 
+  <param name="baud" value="19200"/>
 </node>
 
 <!--use triad algorithm to get the quaternion(last four numbers) use triad(x,y,x,y)
@@ -20,14 +22,14 @@ where the first x,y is the body frame of robot and last two x,y is the imu frame
     att_sigma: [0.5, 0.5, 0.5]
     </rosparam>
     <remap from="worldvel" to="gps_vel"/>
-    <remap from="odom" to="imu_odom"/>
+    <remap from="odom" to="odom"/>
 </node>
-<node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
+<!-- <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
     frame_id: /map
     child_frame_id: /base_link
   </rosparam>
     <remap from="orig_odom" to="imu_odom"/>
-</node>
+</node> -->
 <node pkg="odometry_utils" type="odometry_to_tf" name="odometry_to_tf"/>
 <node pkg="kalman_6dof" type="gps_to_odom" name="gps_to_odom"/>
 <node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>

@@ -136,7 +136,6 @@ def command_callback(msg):
 			out_voltage  = "0",#MotorDriver_fr.get_out_voltage(),
 			batt_voltage = "0",#MotorDriver_fr.get_batt_voltage(),
 			)	
-	print('xbox')
 	motor_driver_statistics_publisher.publish(motordriverstat_msg)	
 		
 			

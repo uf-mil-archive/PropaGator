@@ -59,6 +59,9 @@ def _jacobian_inv(x):
 
 desired_state = numpy.zeros(6)
 desired_state_dot = numpy.zeros(6)
+state = numpy.zeros(6)
+state_dot = numpy.zeros(6)
+state_dot_body = numpy.zeros(6)
 
 def desired_state_callback(desired_posetwist):
     global desired_state,desired_state_dot
@@ -79,35 +82,46 @@ rospy.set_param('d_gain', {'x':1.0,'y':1.0,'yaw':1.0})
 K = numpy.array([
 	[rospy.get_param('p_gain/x'),0,0,0,0,0],
 	[0,rospy.get_param('p_gain/y'),0,0,0,0],
-	[0,0,1,0,0,0],
-	[0,0,0,1,0,0],
-	[0,0,0,0,1,0],
+	[0,0,0,0,0,0],
+	[0,0,0,0,0,0],
+	[0,0,0,0,0,0],
 	[0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
 
 Ks = numpy.array([
 	[rospy.get_param('d_gain/x'),0,0,0,0,0],
 	[0,rospy.get_param('d_gain/y'),0,0,0,0],
-	[0,0,1,0,0,0],
-	[0,0,0,1,0,0],
-	[0,0,0,0,1,0],
+	[0,0,0,0,0,0],
+	[0,0,0,0,0,0],
+	[0,0,0,0,0,0],
 	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
+def odom_callback(current_posetwist):
+        global desired_state,desired_state_dot,state,stat_dot,state_dot_body
 	
-def update_callback(current_posetwist):
-	global desired_state,desired_state_dot
-
-	state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
+        state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
 	state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
 	state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
+
+	
+def update_callback(event):
+	
+	global desired_state,desired_state_dot,state,stat_dot,state_dot_body
+
+	#state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
+	#state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
+	#state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
 		
 		
 	def smallest_coterminal_angle(x):
 		return (x + math.pi) % (2*math.pi) - math.pi
 	e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
+ #       print "yaw_error", e[5]
 	vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
 	e2 = vbd - state_dot_body
 	
 	output = Ks.dot(e2)
-
+	#print "vbd",vbd
+        #print "state_dot_body",state_dot_body
+#	print 'output_z_torque',output[5]
 	controller_wrench.publish(WrenchStamped(
 						header = Header(
 							stamp=rospy.Time.now(),
@@ -118,8 +132,8 @@ def update_callback(current_posetwist):
 							torque = Vector3(x=0,y= 0,z= output[5]),
 							))
 							)	
-
-rospy.Subscriber('/odom', Odometry, update_callback)
+rospy.Timer(rospy.Duration(.1),update_callback)
+rospy.Subscriber('/odom', Odometry, odom_callback)
 rospy.spin()
 
 
