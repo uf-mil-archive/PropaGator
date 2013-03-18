@@ -1,17 +1,25 @@
-1.https://github.com/ccny-ros-pkg/ccny_camera_drivers/blob/master/README.md\
+Instructions for a 64 bit computer.
 
-2.add the package to rosws(rosws set)
+1. Run:
+	git clone https://github.com/ccny-ros-pkg/ccny_camera_drivers.git
 
-3.download the mvVirtualDevice drivers for the bluefox camera
+2. Add the package to rosws(rosws set):
+	rosws set ccny_camera_drivers/
+
+3. Download the 64 bit mvVirtualDevice drivers for the bluefox camera
 	http://www.matrix-vision.com/mvvirtualdevice-442.html
 	(current one is mvVirtualDevicex86_64_ABI2-2.4.2.tgz
-4.get the Makefile from the boat out of fuerte_workspace/ccny_mvVirtualDevice	
 
-4.place the tgz in the ccny_mvVirtualDevice/build folder and type
-	md5sum mvVirtualDevicex86_64_ABI2.tgz > ../mvVirtualDevicex86_64_ABI2.tgz.md5sum
+4. Place the tgz in ccny_mvVirtualDevice/build/
+	(make the build folder if it does not exist)
 
-5.put this md5sum file in the ccny_mvVirtualDevice directory
+5. Get the Makefile out of documentation/install_bluefox/
+	and place into: fuerte_workspace/ccny_mvVirtualDevice/
 
-6. rosmake ccny_mvVirtualDevice
-7. rosmake mv_bluefox_driver
+6. Go to the /ccny_mvVirtualDevice/build/ directory and run:
+	md5sum mvVirtualDevice-x86_64_ABI2-2.4.2.tgz > ../mvVirtualDevice-x86_64_ABI2-2.4.2.tgz.md5sum
+
+7. rosmake ccny_mvVirtualDevice
+
+8. rosmake mv_bluefox_driver
 
