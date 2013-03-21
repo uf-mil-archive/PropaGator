@@ -4,4 +4,7 @@
 
 	<node pkg="pointcloud_publisher" name="pointcloud_publisher" type="pointcloud_publisher">
 	</node>
+
+	<node pkg="lidar_object_publisher" name="euclidean_buoy_extractor" type="euclidean_buoy_extractor">
+        </node>
 </launch>
