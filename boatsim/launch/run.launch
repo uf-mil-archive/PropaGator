@@ -1,7 +1,20 @@
 <launch>
+
+  <node pkg="boatsim" type="sim" name="simulator"/>
+  <node pkg="controller" type="pd_controller.py" name="controller"/>
+  <node pkg="c3_trajectory_generator" type="c3_trajectory_generator" name="trajectory_generator">
+    <param name="fixed_frame" value="/simmap"/>
+    <param name="body_frame" value="/base_link"/>
+    <remap from="odom" to="sim_odom"/>
+  </node>
   <node pkg="boatsim" type="thruster_conn" name="thruster_conn_fr" args="FR 10030" respawn="true"/>
   <node pkg="boatsim" type="thruster_conn" name="thruster_conn_fl" args="FL 10031" respawn="true"/>
   <node pkg="boatsim" type="thruster_conn" name="thruster_conn_br" args="BR 10032" respawn="true"/>
   <node pkg="boatsim" type="thruster_conn" name="thruster_conn_bl" args="BL 10033" respawn="true"/>
+  <include file="$(find xbox_controller)/launch/start_xbox_controller.launch"/>
+  <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
+  <node pkg ="path_planner" type="bouy_generator.py" name="bouy_generator"/>
+  <node pkg ="path_planner" type="path_planner.py" name="path_planner"/>
+ 
 
 </launch>
