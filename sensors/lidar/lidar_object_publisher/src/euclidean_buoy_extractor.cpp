@@ -184,9 +184,9 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     small_cloud_pub.publish(small_cloud_out);
   }
 
-/***************************************************
- **  Now extract remaining clusters of buoy size  **
- ***************************************************/
+  /***************************************************
+   **  Now extract remaining clusters of buoy size  **
+   ***************************************************/
 
   // Creating the KdTree object for the search method of the extraction
   pcl::search::KdTree<pcl::PointXYZ>::Ptr buoy_tree (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -270,7 +270,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
 int main(int argc, char** argv) {
   // Initialize ROS
-  ros::init(argc, argv, "my_pcl_tutorial");
+  ros::init(argc, argv, "euclidean_buoy_extractor");
   ros::NodeHandle nh;
 
   // Create a ROS subscriber for the input point cloud
