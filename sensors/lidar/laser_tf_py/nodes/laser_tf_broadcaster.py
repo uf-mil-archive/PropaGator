@@ -25,7 +25,7 @@ from std_msgs.msg import Bool
 ##  d - User down	##
 ##########################
 
-OFFBOARD_TESTING = true;
+OFFBOARD_TESTING = True;
 
 port = '/dev/propagator_navid_motordriver'
 lidarPivot_to_lens_x = 0.1		# Distance forward from LIDAR pivot to LIDAR lens
@@ -34,8 +34,9 @@ lidarPivot_to_lens_z = -0.05		# Distance up from LIDAR pivot to LIDAR lens
 pitchAngleOffset = 0			# Pitch offset downwards
 robotBase_to_lidarPivot_x = 0		# Distance forward
 robotBase_to_lidarPivot_y = 0		# Distance left
-robotBase_to_lidarPivot_z = 0.8763	# Distance up
+robotBase_to_lidarPivot_z = 0.15	# Distance up
 baseLink_yaw = 0
+baseLink_pitch = (0.1)*math.pi		# Pitch of lidar scan unit
 
 if __name__ == '__main__':
   rospy.init_node('laser_tf_broadcaster')
@@ -66,7 +67,7 @@ if __name__ == '__main__':
         except ValueError:
           if ("C" in data):	# If we got a scan complete signal
             pub_complete.publish(True)
-            rospy.logerr("Finished sweep!")
+            rospy.logdebug("Finished sweep!")
           else:			# Otherwise we got garbage
             rospy.logwarn("Got bad data:")
             rospy.logwarn(data)
@@ -76,18 +77,19 @@ if __name__ == '__main__':
 
         T = tf.transformations.rotation_matrix((pitch/180)*math.pi, (0, 1, 0)).dot(tf.transformations.translation_matrix((lidarPivot_to_lens_x, lidarPivot_to_lens_y, lidarPivot_to_lens_z)))
         T = tf.transformations.translation_matrix((robotBase_to_lidarPivot_x, robotBase_to_lidarPivot_y, robotBase_to_lidarPivot_z)).dot(T)
+        T = tf.transformations.rotation_matrix((baseLink_pitch), (0, 1, 0)).dot(T)
         T = tf.transformations.rotation_matrix((baseLink_yaw), (0, 0, 1)).dot(T)
         T = tf.transformations.translation_from_matrix(T)
 
         if (OFFBOARD_TESTING):
           br.sendTransform(T,
-           tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi, baseLink_yaw),
+           tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi + baseLink_pitch, baseLink_yaw),
            rospy.Time.now(),
            "/laser",
            "/world")
         else:	# otherwise we're on the boat
           br.sendTransform(T,
-           tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi, baseLink_yaw),
+           tf.transformations.quaternion_from_euler(math.pi, (pitch/180)*math.pi + baseLink_pitch, baseLink_yaw),
            rospy.Time.now(),
            "/laser",
            "/base_link")
@@ -102,5 +104,5 @@ if __name__ == '__main__':
       ser.close()
     except rospy.ROSInterruptException: pass
   except serial.SerialTimeoutException:
-    rospy.logerr("Could not open serial port!")
+    rospy.logdebug("Could not open serial port!")
 
