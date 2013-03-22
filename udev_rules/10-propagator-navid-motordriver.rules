@@ -1,1 +1,1 @@
-SUBSYSTEM=="tty", ATTRS{serial}=="AH01O1XS", NAME="propagator_navid_motordriver"
+SUBSYSTEM=="tty", ATTRS{serial}=="AH01O1XS", ATTRS{idProduct}=="6001", NAME="propagator_navid_motordriver"
