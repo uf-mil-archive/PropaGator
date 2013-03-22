@@ -24,7 +24,7 @@ int main(int argc, char **argv)
   ros::NodeHandle n("~");
   ros::Publisher scan_pub = nh.advertise<sensor_msgs::LaserScan>("scan", 1);
 
-  n.param<std::string>("host", host, "169.254.205.244");
+  n.param<std::string>("host", host, "192.168.0.200");
   n.param<std::string>("frame_id", frame_id, "/laser");
 
   ROS_INFO("connecting to laser at : %s", host.c_str());
