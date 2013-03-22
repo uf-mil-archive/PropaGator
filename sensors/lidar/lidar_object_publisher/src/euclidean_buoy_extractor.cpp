@@ -20,7 +20,6 @@
 #include <Eigen/Core>
 #include <Eigen/LU>
 
-ros::Publisher pub;
 ros::Publisher filtered_pub;
 ros::Publisher large_cloud_pub;
 ros::Publisher large_filtered_pub;
@@ -277,7 +276,6 @@ int main(int argc, char** argv) {
   ros::Subscriber sub = nh.subscribe("/cloud_3d", 1, cloud_callback);
 
   // Create a ROS publisher for the output point cloud
-  pub = nh.advertise<sensor_msgs::PointCloud2>("/lidar_object", 1);
   filtered_pub = nh.advertise<sensor_msgs::PointCloud2>("/filtered_cloud", 1);
   large_cloud_pub = nh.advertise<sensor_msgs::PointCloud2>("/large_cloud", 1);
   large_filtered_pub = nh.advertise<sensor_msgs::PointCloud2>("/large_filtered_cloud", 1);
