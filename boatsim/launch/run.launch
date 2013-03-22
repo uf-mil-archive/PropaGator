@@ -13,8 +13,9 @@
   <node pkg="boatsim" type="thruster_conn" name="thruster_conn_bl" args="BL 10033" respawn="true"/>
   <include file="$(find xbox_controller)/launch/start_xbox_controller.launch"/>
   <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
-  <node pkg ="path_planner" type="bouy_generator.py" name="bouy_generator"/>
+  <node pkg ="path_planner" type="bouy_generator.py" name="buoy_generator"/>
   <node pkg ="path_planner" type="path_planner.py" name="path_planner"/>
+  <node pkg ="path_planner" type="buoy_repulsor.py" name="buoy_repulsor"/>
  
 
 </launch>
