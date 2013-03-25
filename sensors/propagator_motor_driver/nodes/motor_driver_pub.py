@@ -17,11 +17,11 @@ rospy.init_node('motor_driver')
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
 message_received = False
-min_force = rospy.get_param('thruster/min_force')
-max_force = rospy.get_param('thruster/max_force')
-thruster_id = rospy.get_param('thruster/id')
-thruster_position = rospy.get_param('thruster/position')
-thruster_direction = rospy.get_param('thruster/direction')
+min_force = rospy.get_param('min_force')
+max_force = rospy.get_param('max_force')
+thruster_id = rospy.get_param('id')
+thruster_position = rospy.get_param('position')
+thruster_direction = rospy.get_param('direction')
 
 while True:
 	try:

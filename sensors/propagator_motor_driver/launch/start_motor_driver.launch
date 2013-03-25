@@ -1,7 +1,37 @@
 <launch>
 
-
-   <node name="motor_driver" pkg="propagator_motor_driver" type="propagator_motor_driver_pub.py" />
+   <node name="motor_driver_FR" pkg="motor_driver" type="motor_driver_pub.py" >
+      <param name="id" value="FR" />
+      <param name="min_force" value="1" />
+      <param name="max_force" value="1" />
+      <param name="position" value="[.729401, -.23495, -.241308]" />
+      <param name="direction" value="[0.86602540378, .5, 0]" />
+   <\node>
+      
+   <node name="motor_driver_FL" pkg="motor_driver" type="motor_driver_pub.py" >
+      <param name="id" value="FL" />
+      <param name="min_force" value="1" />
+      <param name="max_force" value="1" />
+      <param name="position" value="[.729401, .23495, -.241308]" />
+      <param name="direction" value="[0.86602540378, -.5, 0]" />
+   <\node>
+   
+   <node name="motor_driver_BR" pkg="motor_driver" type="motor_driver_pub.py" >
+      <param name="id" value="BR" />
+      <param name="min_force" value="1" />
+      <param name="max_force" value="1" />
+      <param name="position" value="[-.821269, -.23495, -.241308]" />
+      <param name="direction" value="[0.86602540378,-.5, 0]" />
+   <\node>
+   
+   <node name="motor_driver_BL" pkg="motor_driver" type="motor_driver_pub.py" >
+      <param name="id" value="BL" />
+      <param name="min_force" value="1" />
+      <param name="max_force" value="1" />
+      <param name="position" value="[-.821269, .23495, -.241308]" />
+      <param name="direction" value="[0.86602540378, .5, 0]" />
+   <\node>
+   
    <node name="thruster_mapper" pkg="thruster_mapper" type="thruster_mapper" />
 
 </launch>
