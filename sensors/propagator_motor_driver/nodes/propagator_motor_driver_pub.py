@@ -16,8 +16,8 @@ rospy.init_node('motor_drivers')
 
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
-min_force = 100
-max_force = 100
+min_force = 1
+max_force = 1
 thruster_angle = math.radians(30)
 message_received = False
 

@@ -15,6 +15,7 @@ class MotorDriver():
 	def set_forward_speed(self,speed):
 		self.commport.write('1')
 		self.commport.write(str(speed) + '\r')
+		'''
 		check = self.commport.read(1)
 		tries = 0
 		while (check != '1'):
@@ -26,11 +27,12 @@ class MotorDriver():
 			check = self.commport.read(1)
 			if (tries > 5):
 				self.commport.write('R')
-				check = 2
-			
+				check = 1
+		'''	
 	def set_reverse_speed(self,speed):
 		self.commport.write('3')
 		self.commport.write(str(speed) + '\r')
+		'''
 		check = self.commport.read(1)
 		tries = 0
 		while (check != '3'):
@@ -42,10 +44,11 @@ class MotorDriver():
 			check = self.commport.read(1)
 			if (tries > 5):
 				self.commport.write('R')
-				check = 2
-		
+				check = 3
+			'''
 	def stop(self):
 		self.commport.write('2')
+		'''
 		check = self.commport.read(1)
 		tries = 0
 		while (check != '2'):
@@ -56,7 +59,8 @@ class MotorDriver():
 			check = self.commport.read(1)
 			if (tries > 5):
 				self.commport.write('R')
-				check = 2		
+				check = 2
+		'''		
 	def get_current(self):
 		self.commport.write('4\r')
 		return (self.commport.read(1))

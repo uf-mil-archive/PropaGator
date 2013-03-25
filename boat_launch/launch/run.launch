@@ -1,12 +1,22 @@
 <launch>
 
   <include file="$(find boat_launch)/launch/navigation.launch"/>
+
   <node pkg="controller" type="pd_controller.py" name="controller"/>
+
   <node pkg="propagator_motor_driver" type="propagator_motor_driver_pub.py" name="motor_driver"/>
+
   <node pkg="thruster_mapper" type="thruster_mapper" name="thruster_mapper"/>
-  <node pkg="c3_trajectory_generator" type="c3_trajectory_generator" name="trajectory_generator">
-    <param name="fixed_frame" value="/map"/>
-    <param name="body_frame" value="/base_link"/>
-  </node>
+
+  <node pkg="c3_trajectory_generator" type="c3_trajectory_generator" name="trajectory_generator"><rosparam>
+    fixed_frame: /map
+    body_frame: /base_link
+    vmin_b: [-0.2,  -0.5,  -0.4,   -0.75, -0.5, -1]
+    vmax_b: [ 0.75,  0.5,   0.4,    0.75,  0.5,  1]
+    amin_b: [-0.1,  -0.05, -0.1,   -1.5,  -0.2, -0.15]
+    amax_b: [ 0.18,  0.05,  0.125,  1.5,   0.2,  0.15]
+    arevoffset_b: [0.05, 0, 0]
+    umax_b: [ 0.25,  0.25,  0.25,   0.1,   0.1,  0.1]
+  </rosparam></node>
  
 </launch>

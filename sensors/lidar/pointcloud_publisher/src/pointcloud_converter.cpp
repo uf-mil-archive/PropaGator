@@ -7,7 +7,7 @@
 #include "std_msgs/Bool.h"
 #include <pcl/point_types.h>
 #include <pcl_ros/point_cloud.h>
-#include <pcl/io/pcd_io.h> 
+#include <pcl/io/pcd_io.h>
 #include "pointcloud_publisher/SavePCLData.h"
 #include <iostream>
 #include <fstream>
@@ -19,7 +19,7 @@
 using namespace std;
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
- 
+
 PointCloud pclmsg;// (new PointCloud);
 bool publish_ok = false;
 int fileIterator = 0;
@@ -43,7 +43,7 @@ bool save(pointcloud_publisher::SavePCLData::Request &req,
 		size_t i;
 		for (i = 0; i < pclmsg.points.size(); ++i){
 			pcldatafile << " " << pclmsg.points[i].x << " " << pclmsg.points[i].y << " " << pclmsg.points[i].z << "\n";
-		}	
+		}
 		pcldatafile.close();
 		return true;
 	}
@@ -54,11 +54,12 @@ bool save(pointcloud_publisher::SavePCLData::Request &req,
 int main(int argc, char** argv) {
 	ros::init(argc, argv, "covert_PCL2_to_PCL");
 	ros::NodeHandle node_;
-	
+
 	ros::Subscriber pcl2_sub_ = node_.subscribe<sensor_msgs::PointCloud2> ("/cloud", 100, pclCallback);
 	ros::Publisher pcl_pub_ = node_.advertise<PointCloud> ("/pcl_pointcloud", 100);
 	ros::ServiceServer service = node_.advertiseService("/save_cloudxyz", &save);
-	
-	while(node_.ok()){ros::spinOnce();}	
+
+	while(node_.ok()){ros::spinOnce();}
 	return 0;
 }
+

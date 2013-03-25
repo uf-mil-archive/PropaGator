@@ -159,7 +159,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
 int main(int argc, char** argv) {
   // Initialize ROS
-  ros::init (argc, argv, "my_pcl_tutorial");
+  ros::init (argc, argv, "lidar_object_publisher");
   ros::NodeHandle nh;
 
   // Create a ROS subscriber for the input point cloud

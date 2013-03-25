@@ -1,0 +1,2 @@
+#!/bin/sh
+minicom -b 9600 -o -D /dev/propagator_navid_motordriver

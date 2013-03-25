@@ -110,7 +110,7 @@ void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
 }
 
 int main(int argc, char** argv) {
-  ros::init(argc, argv, "my_filter");
+  ros::init(argc, argv, "pointcloud_publisher");
 
   My_Filter filter;
 

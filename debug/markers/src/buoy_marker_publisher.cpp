@@ -6,7 +6,7 @@ ros::Publisher buoy_marker_pub;
 
 void pose_callback(const geometry_msgs::PoseArrayConstPtr& pose) {
 
-  ROS_ERROR("Got new PoseArray.");
+  ROS_ERROR("Got new PoseArray with: %d buoys.", pose->poses.size());
 
   for (int i = 0; i < pose->poses.size(); i++) {
     visualization_msgs::Marker marker;
