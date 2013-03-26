@@ -17,26 +17,30 @@ rospy.init_node('motor_driver')
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
 message_received = False
-min_force = rospy.get_param('min_force')
-max_force = rospy.get_param('max_force')
-thruster_id = rospy.get_param('id')
-thruster_position = rospy.get_param('position')
-thruster_direction = rospy.get_param('direction')
+thruster_id = rospy.get_param('~id')
+min_force = rospy.get_param('~min_force')
+max_force = rospy.get_param('~max_force')
+thruster_position = rospy.get_param('~position')
+thruster_direction = rospy.get_param('~direction')
 
 while True:
 	try:
-	   motor_driver = MotorDriver.MotorDriver(thruster_id),
+	   motordriver = MotorDriver.MotorDriver(thruster_id)
 	except serial.SerialException:
 		rospy.logerr("Could not open all thruster ports, will keep trying to reconnect")
 		time.sleep(1)
 		continue
+	except :
+		break
 	break
+	
+
 
 def apply_command(force):
 	
 	global message_received
 	message_received = True
-	
+	print 'motor driver ',str(int(force*200/max_force)),' set to: ',force
 	if (force > 0):
 		motordriver.set_forward_speed(str(int(force*200/max_force)))
 	elif (force < 0):
@@ -56,20 +60,16 @@ def apply_command(force):
 		)	
 	motor_driver_statistics_publisher.publish(motordriverstat_msg)
 	
-lifetime = rospy.Duration(1.)
-thrusterbroadcasters = [
-	ThrusterBroadcaster('/base_link', 'FR', lifetime, [.729401, -.23495, -.241308], [math.cos(thruster_angle), math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('FR', force)),
-	ThrusterBroadcaster('/base_link', 'FL', lifetime, [.729401, .23495, -.241308], [math.cos(thruster_angle), -math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('FL', force)),
-	ThrusterBroadcaster('/base_link', 'BR', lifetime, [-.821269, -.23495, -.241308], [math.cos(thruster_angle), -math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('BR', force)),
-	ThrusterBroadcaster('/base_link', 'BL', lifetime, [-.821269, .23495, -.241308], [math.cos(thruster_angle), math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('BL', force)),
-]
+
+	
+lifetime = rospy.Duration(1.)	
+print (thruster_id, lifetime, thruster_position, thruster_direction, -min_force, max_force,apply_command)
+thruster_broadcaster = ThrusterBroadcaster('/base_link', thruster_id, lifetime, thruster_position, thruster_direction, -min_force, max_force,apply_command)
 
 def thrusterinfo_callback(event):
 	global message_received
 	
-	ThrusterBroadcaster('/base_link', thruster_id, lifetime, thruster_position, thruster_direction, -min_force, max_force,apply_command(force)),
-	
-	ThrusterBroadcaster.send()
+	thruster_broadcaster.send()
 	
 	if not message_received:
 		motordriver.stop()
@@ -79,6 +79,4 @@ def thrusterinfo_callback(event):
 rospy.Timer(lifetime/2., thrusterinfo_callback)
 
 rospy.spin()
-
-for motordriver in motordrivers.values():
-	motordriver.stop()
+motordriver.stop()

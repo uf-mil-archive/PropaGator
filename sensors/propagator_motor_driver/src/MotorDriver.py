@@ -13,65 +13,95 @@ class MotorDriver():
 		self.commport.write('\r')
 	
 	def set_forward_speed(self,speed):
-		self.commport.write('1')
-		self.commport.write(str(speed) + '\r')
-		'''
-		check = self.commport.read(1)
-		tries = 0
-		while (check != '1'):
-			self.commport.flushInput()
-			tries = tries + 1
-			self.commport.write('\r')
-			self.commport.write('1')
-			self.commport.write(str(speed) + '\r')
-			check = self.commport.read(1)
-			if (tries > 5):
-				self.commport.write('R')
-				check = 1
-		'''	
-	def set_reverse_speed(self,speed):
-		self.commport.write('3')
-		self.commport.write(str(speed) + '\r')
-		'''
-		check = self.commport.read(1)
-		tries = 0
-		while (check != '3'):
-			self.commport.flushInput()
-			tries = tries + 1
-			self.commport.write('\r')
-			self.commport.write('3')
-			self.commport.write(str(speed) + '\r')
-			check = self.commport.read(1)
-			if (tries > 5):
-				self.commport.write('R')
-				check = 3
-			'''
-	def stop(self):
-		self.commport.write('2')
-		'''
-		check = self.commport.read(1)
-		tries = 0
-		while (check != '2'):
-			self.commport.flushInput()
-			tries = tries + 1
-			self.commport.write('\r')
-			self.commport.write('2')
-			check = self.commport.read(1)
-			if (tries > 5):
-				self.commport.write('R')
-				check = 2
-		'''		
-	def get_current(self):
-		self.commport.write('4\r')
-		return (self.commport.read(1))
+		while True:
+			try:
+				self.commport.open()
+				self.commport.write('1')
+				self.commport.write(str(speed) + '\r')
+			except serial.SerialException:
+				print('cannot communicate with motor driver, will keep trying to reconnect')
+				self.commport.close()
+				time.sleep(1)
+				continue
+			except KeyboardInterrupt:
+				break
+			break
 
-	def get_out_voltage(self):
-		self.commport.write('5\r')
-		return (self.commport.read(1))
+	def set_reverse_speed(self,speed):
+		while True:
+			try:
+				self.commport.open()
+				self.commport.write('3')
+				self.commport.write(str(speed) + '\r')
+			except serial.SerialException:
+				print('cannot communicate with motor driver, will keep trying to reconnect')
+				self.commport.close()
+				time.sleep(1)
+				continue
+			except KeyboardInterrupt:
+				break
+			break
+
+	def stop(self):
+		while True:
+			try:
+				self.commport.open()
+				self.commport.write('2')
+			except serial.SerialException:
+				print('cannot communicate with motor driver, will keep trying to reconnect')
+				self.commport.close()
+				time.sleep(1)
+				continue
+			except KeyboardInterrupt:
+				break
+			break
+
+	def get_current(self):
+		while True:
+			try:
+				self.commport.open()
+				self.commport.write('4')
+				return (self.commport.read(1))
+			except serial.SerialException:
+				print('cannot communicate with motor driver, will keep trying to reconnect')
+				self.commport.close()
+				time.sleep(1)
+				continue
+			except KeyboardInterrupt:
+				break
+			break
+
 		
+	def get_out_voltage(self):
+		while True:
+			try:
+				self.commport.open()
+				self.commport.write('5')
+				return (self.commport.read(1))
+			except serial.SerialException:
+				print('cannot communicate with motor driver, will keep trying to reconnect')
+				self.commport.close()
+				time.sleep(1)
+				continue
+			except KeyboardInterrupt:
+				break
+			break
+
 	def get_batt_voltage(self):
-		self.commport.write('6\r')
-		return (self.commport.read(1))
+		while True:
+			try:
+				self.commport.open()
+				self.commport.write('6')
+				return (self.commport.read(1))
+			except serial.SerialException:
+				print('cannot communicate with motor driver, will keep trying to reconnect')
+				self.commport.close()
+				time.sleep(1)
+				continue
+			except KeyboardInterrupt:
+				break
+			break
+
 
 if __name__ == "__main__":
 	md = MotorDriver("BL")
