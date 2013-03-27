@@ -11,6 +11,8 @@
 
 #include <sstream>
 
+const bool OFFBOARD_TESTING = false;
+
 // counted in half sweeps (up to down = 1)
 const int num_sweeps_2d = 1;
 const int num_sweeps_3d = 2;
@@ -44,18 +46,24 @@ My_Filter::My_Filter() {
   complete_sub = node.subscribe<std_msgs::Bool> ("/scan_complete", 100, &My_Filter::completeCallback, this);
   point_cloud_publisher_3d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_3d", 100, false);
   point_cloud_publisher_2d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_2d", 100, false);
-  tfListener.setExtrapolationLimit(ros::Duration(0.1));
+  tfListener.setExtrapolationLimit(ros::Duration(2));
   sweep_count_3d = 0;
   sweep_count_2d = 0;
 }
 
 void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
   sensor_msgs::PointCloud2 cloud;
+//  scan->header.stamp += ros::Duration(0.5)
   try {
-    projector.transformLaserScanToPointCloud("/world", *scan, cloud, tfListener);	// 1st arg was "base_link"
+    if (OFFBOARD_TESTING) {
+      projector.transformLaserScanToPointCloud("/world", *scan, cloud, tfListener);	// 1st arg was "base_link"
+    } else {
+      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);	// 1st arg was "base_link"
+    }
     header = cloud.header;
-  } catch(tf::TransformException) {
+  } catch(tf::TransformException ex) {
     ROS_WARN("TransformException!");
+    ROS_ERROR("%s", ex.what());
     return;
   }
   if (b_2d) {

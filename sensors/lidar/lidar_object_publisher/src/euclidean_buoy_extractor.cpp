@@ -30,17 +30,17 @@ ros::Publisher buoy_marker_pub;
 const bool filter_small = false;	// Should we run an EC on smaller objects than the buoy?
 const bool filter_large = true;
 
-const int MIN_PTS = 10;			// When should we toss out a pcl when too small
+const int MIN_PTS = 5;			// When should we toss out a pcl when too small
 
-const float MAX_BUOY_HEIGHT = 0.5;//1.5 for old bag
-const float MIN_BUOY_HEIGHT = -0.5;//0 old bag
+const float MAX_BUOY_HEIGHT = 0.2;//1.5 for old bag
+const float MIN_BUOY_HEIGHT = -0.2;//0 old bag
 
-const int MAX_PCL = 1000000;
-const int MAX_BUOY_PCL = 60;
+const int MAX_PCL = 1000000000;
+const int MAX_BUOY_PCL = 200;
 const int MIN_BUOY_PCL = 5;
 const int MIN_PCL = 1;
 
-const float LARGE_CLUSTER_TOLERANCE = 1.0;
+const float LARGE_CLUSTER_TOLERANCE = 0.3;
 const float BUOY_CLUSTER_TOLERANCE = 0.2;
 const float SMALL_CLUSTER_TOLERANCE = 0.2;
 
@@ -211,6 +211,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     pcl::PointCloud<pcl::PointXYZ> buoy_cloud;
 
     j = 0;
+    int buoy_count = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = buoy_cluster_indices.begin(); (it != buoy_cluster_indices.end()); ++it) {
       pcl::PointCloud<pcl::PointXYZ>::Ptr buoy_cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
       *buoy_cluster_point_indices = buoy_cluster_indices[j];
@@ -234,7 +235,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
       //convert to marker array
       if (centroid[2] < MAX_BUOY_HEIGHT && centroid[2] > MIN_BUOY_HEIGHT) {
-        buoy_marker.header.frame_id = "/world";
+        buoy_marker.header.frame_id = "/map";
         buoy_marker.header.stamp = ros::Time::now();
         //buoy_marker.ns = "basic_shapes";
         buoy_marker.id = j;
@@ -247,15 +248,16 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
         buoy_marker.pose.orientation.y = 0.0;
         buoy_marker.pose.orientation.z = 0.0;
         buoy_marker.pose.orientation.w = 1.0;
-        buoy_marker.scale.x = 0.3;
-        buoy_marker.scale.y = 0.3;
-        buoy_marker.scale.z = 0.4;
+        buoy_marker.scale.x = 0.1;
+        buoy_marker.scale.y = 0.1;
+        buoy_marker.scale.z = 0.1;
         buoy_marker.color.r = 1.0f;
         buoy_marker.color.g = 0.0f;
         buoy_marker.color.b = 0.0f;
         buoy_marker.color.a = 1.0;
-        buoy_marker.lifetime = ros::Duration();
+        buoy_marker.lifetime = ros::Duration(4);
         buoy_marker_array.markers.push_back(buoy_marker);
+        buoy_count++;
       }
 
       j++;
@@ -267,6 +269,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     pcl::toROSMsg(buoy_cloud, buoy_cloud_out);
     buoy_cloud_out.header = header;
     buoy_cloud_pub.publish(buoy_cloud_out);
+    ROS_ERROR("Buoys found: %d", buoy_count);
   }
 }
 

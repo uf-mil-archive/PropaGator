@@ -56,7 +56,8 @@ def _jacobian_inv(x):
     return J_inv
     
 #---------------collect desired state information as soon as it is posted--------------------
-
+global desired_state_set
+desired_state_set = False
 desired_state = numpy.zeros(6)
 desired_state_dot = numpy.zeros(6)
 state = numpy.zeros(6)
@@ -64,8 +65,8 @@ state_dot = numpy.zeros(6)
 state_dot_body = numpy.zeros(6)
 
 def desired_state_callback(desired_posetwist):
-    global desired_state,desired_state_dot
-	
+    global desired_state,desired_state_dot,desired_state_set
+    desired_state_set = True	
     desired_state = numpy.concatenate([xyz_array(desired_posetwist.posetwist.pose.position), transformations.euler_from_quaternion(xyzw_array(desired_posetwist.posetwist.pose.orientation))])
     desired_state_dot = _jacobian(desired_state).dot(numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)]))
 
@@ -75,32 +76,34 @@ rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 
 #set controller gains
 rospy.set_param('p_gain', {'x':1.0,'y':1.0,'yaw':1.0})
-rospy.set_param('d_gain', {'x':1.0,'y':1.0,'yaw':1.0})
+rospy.set_param('d_gain', {'x':3.0,'y':3.0,'yaw':10.0})
 
 #----------------------------------------------------------------------------------
 
 K = numpy.array([
-	[rospy.get_param('p_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('p_gain/y'),0,0,0,0],
+	[rospy.get_param('~p_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('~p_gain/y'),0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
-	[0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
+	[0,0,0,0,0,rospy.get_param('~p_gain/yaw')]])
 
 Ks = numpy.array([
-	[rospy.get_param('d_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('d_gain/y'),0,0,0,0],
+	[rospy.get_param('~d_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('~d_gain/y'),0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
 def odom_callback(current_posetwist):
-        global desired_state,desired_state_dot,state,stat_dot,state_dot_body
+        global desired_state,desired_state_dot,state,stat_dot,state_dot_body,desired_state_set
 	
         state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
 	state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
 	state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
-
+	if (not desired_state_set):
+           desired_state = state
+           desired_state_set = True
 	
 def update_callback(event):
 	
@@ -110,7 +113,8 @@ def update_callback(event):
 	#state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
 	#state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
 		
-		
+	print 'desired state', desired_state
+        print 'current_state', state		
 	def smallest_coterminal_angle(x):
 		return (x + math.pi) % (2*math.pi) - math.pi
 	e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper

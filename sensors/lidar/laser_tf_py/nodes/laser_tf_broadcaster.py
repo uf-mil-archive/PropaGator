@@ -25,16 +25,16 @@ from std_msgs.msg import Bool
 ##  d - User down	##
 ##########################
 
-OFFBOARD_TESTING = True;
+OFFBOARD_TESTING = False;
 
 port = '/dev/propagator_navid_motordriver'
 lidarPivot_to_lens_x = 0.1		# Distance forward from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_y = 0 		# Distance left from LIDAR pivot to LIDAR lens
 lidarPivot_to_lens_z = -0.05		# Distance up from LIDAR pivot to LIDAR lens
 pitchAngleOffset = 0			# Pitch offset downwards
-robotBase_to_lidarPivot_x = 0		# Distance forward
+robotBase_to_lidarPivot_x = 0.5		# Distance forward
 robotBase_to_lidarPivot_y = 0		# Distance left
-robotBase_to_lidarPivot_z = 0.15	# Distance up
+robotBase_to_lidarPivot_z = 0.4#0.15	# Distance up
 baseLink_yaw = 0
 baseLink_pitch = (0.1)*math.pi		# Pitch of lidar scan unit
 
