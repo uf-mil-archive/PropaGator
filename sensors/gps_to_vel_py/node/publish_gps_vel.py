@@ -13,7 +13,7 @@ from std_msgs.msg import Header
 rospy.init_node('gps_to_vel_publisher')
 
 mag_heading = 0
-vel_pub = rospy.Publisher('/gps_vel', Vector3Stamped)
+vel_pub = rospy.Publisher('bodyvel', Vector3Stamped)
 
 def get_gps_vel(data):
     speed = data.speed
