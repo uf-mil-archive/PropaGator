@@ -61,23 +61,25 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     //filter our NaNs
     pass.setInputCloud (cloud);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (0, 1.5);    
+    pass.setFilterLimits (0, 2.0);    
     pass.filter (*cloud_filtered);
     ROS_DEBUG("PointCloud after filtering has: %i data points." , (int)cloud_filtered->points.size());
     
+    *cloud_filtered = *cloud;//remove the pass through filter basically
     //estimate normal points
     ne.setSearchMethod (tree);
     ne.setInputCloud (cloud_filtered);
-    ne.setKSearch (50);
+    //ne.setKSearch(10);
+    ne.setRadiusSearch(0.025);
     ne.compute (*cloud_normals);
 
     // Create the segmentation object for the planar model and set all the parameters
     seg.setOptimizeCoefficients (true);
     seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
-    seg.setNormalDistanceWeight (0.1);
+    seg.setNormalDistanceWeight (0.05);
     seg.setMethodType (pcl::SAC_RANSAC);
     seg.setMaxIterations (100);
-    seg.setDistanceThreshold (0.03);
+    seg.setDistanceThreshold (5.0);
     seg.setInputCloud (cloud_filtered);
     seg.setInputNormals (cloud_normals);
     // Obtain the plane inliers and coefficients
@@ -101,9 +103,9 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     seg.setModelType (pcl::SACMODEL_SPHERE);
     seg.setMethodType (pcl::SAC_RANSAC);
     seg.setNormalDistanceWeight (0.1);
-    seg.setMaxIterations (10000);
-    seg.setDistanceThreshold (0.05);
-    seg.setRadiusLimits (0, 0.1);
+    seg.setMaxIterations (100);
+    seg.setDistanceThreshold (5.0);
+    seg.setRadiusLimits (0, 1.0);
     seg.setInputCloud (cloud_filtered2);
     seg.setInputNormals (cloud_normals2);
     
@@ -114,10 +116,10 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     extract.filter(*sphere_cloud);
     
     pcl::PointCloud<pcl::PointXYZ> sphere_cloud_in = *sphere_cloud;
-    sensor_msgs::PointCloud2 buoy_cloud_out;
-    pcl::toROSMsg(sphere_cloud_in, buoy_cloud_out);
-    buoy_cloud_out.header = header;
-    buoy_cloud_pub.publish(buoy_cloud_out);
+    sensor_msgs::PointCloud2 sphere_cloud_out;
+    pcl::toROSMsg(sphere_cloud_in, sphere_cloud_out);
+    sphere_cloud_out.header = header;
+    buoy_cloud_pub.publish(sphere_cloud_out);
 
 }
 
