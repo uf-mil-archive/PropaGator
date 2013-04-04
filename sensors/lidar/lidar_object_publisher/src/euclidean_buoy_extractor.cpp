@@ -30,15 +30,17 @@ ros::Publisher buoy_marker_pub;
 const bool filter_small = false;	// Should we run an EC on smaller objects than the buoy?
 const bool filter_large = true;
 
-const float MAX_BUOY_HEIGHT = 1.5;
-const float MIN_BUOY_HEIGHT = 0;
+const int MIN_PTS = 5;			// When should we toss out a pcl when too small
 
-const int MAX_PCL = 1000000;
-const int MAX_BUOY_PCL = 60;
+const float MAX_BUOY_HEIGHT = 0.2;//1.5 for old bag
+const float MIN_BUOY_HEIGHT = -0.2;//0 old bag
+
+const int MAX_PCL = 1000000000;
+const int MAX_BUOY_PCL = 200;
 const int MIN_BUOY_PCL = 5;
 const int MIN_PCL = 1;
 
-const float LARGE_CLUSTER_TOLERANCE = 1.0;
+const float LARGE_CLUSTER_TOLERANCE = 0.3;
 const float BUOY_CLUSTER_TOLERANCE = 0.2;
 const float SMALL_CLUSTER_TOLERANCE = 0.2;
 
@@ -49,7 +51,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   std_msgs::Header header = input->header;
   pcl::fromROSMsg(*input, *cloud);
 
-  ROS_DEBUG("PointCloud before filtering has: %d data points.", cloud->points.size());
+  ROS_DEBUG("PointCloud before filtering has: %f data points.", cloud->points.size());
 
   // Create the filtering object: downsample the dataset using a leaf size of 1cm
   pcl::VoxelGrid<pcl::PointXYZ> vg;
@@ -57,7 +59,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
   vg.setInputCloud(cloud);
   vg.setLeafSize(0.04f, 0.04f, 0.04f);//adjusts the voxel size (0.1 = .1 meter voxel) this gives us 4cm voxels
   vg.filter(*cloud_filtered);
-  ROS_DEBUG("PointCloud after filtering has: %d data points.", cloud_filtered->points.size());
+  ROS_DEBUG("PointCloud after filtering has: %f data points.", cloud_filtered->points.size());
 
   std_msgs::Header filtered_header = cloud_filtered->header;
   sensor_msgs::PointCloud2 filtered_out;
@@ -71,7 +73,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
    **  Start by removing clusters that are too large to be buoys  **
    *****************************************************************/
 
-  if (filter_large) {
+  if (filter_large && cloud_filtered->points.size() > MIN_PTS) {
     // Creating the KdTree object for the search method of the extraction
     pcl::search::KdTree<pcl::PointXYZ>::Ptr large_tree (new pcl::search::KdTree<pcl::PointXYZ>);
     large_tree->setInputCloud(cloud_filtered);
@@ -103,7 +105,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
       large_cloud_cluster->height = 1;
       large_cloud_cluster->is_dense = true;
 
-      ROS_DEBUG("PointCloud cluster too large to be buoy: %d data points.", large_cloud_cluster->points.size());
+      ROS_DEBUG("PointCloud cluster too large to be buoy: %f data points.", large_cloud_cluster->points.size());
       large_cloud = large_cloud + *large_cloud_cluster;
 
       // Extract the planar inliers from the input cloud
@@ -132,7 +134,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
    **  Next remove clusters too small to be buoys (maybe optional)  **
    *******************************************************************/
 
-  if (filter_small) {
+  if (filter_small && cloud_filtered->points.size() > MIN_PTS) {
     // Creating the KdTree object for the search method of the extraction
     pcl::search::KdTree<pcl::PointXYZ>::Ptr small_tree (new pcl::search::KdTree<pcl::PointXYZ>);
     small_tree->setInputCloud(cloud_filtered);
@@ -162,7 +164,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
       small_cloud_cluster->height = 1;
       small_cloud_cluster->is_dense = true;
 
-      ROS_DEBUG("PointCloud cluster too small to be buoy: %d data points.", small_cloud_cluster->points.size());
+      ROS_DEBUG("PointCloud cluster too small to be buoy: %f data points.", small_cloud_cluster->points.size());
 
       small_cloud = small_cloud + *small_cloud_cluster;
 
@@ -187,84 +189,88 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
    **  Now extract remaining clusters of buoy size  **
    ***************************************************/
 
-  // Creating the KdTree object for the search method of the extraction
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr buoy_tree (new pcl::search::KdTree<pcl::PointXYZ>);
-  buoy_tree->setInputCloud(cloud_filtered);
+  if (cloud_filtered->points.size() > MIN_PTS) {
+    // Creating the KdTree object for the search method of the extraction
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr buoy_tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    buoy_tree->setInputCloud(cloud_filtered);
 
-  std::vector<pcl::PointIndices> buoy_cluster_indices;
-  pcl::PointIndices::Ptr buoy_cluster_point_indices (new pcl::PointIndices);
+    std::vector<pcl::PointIndices> buoy_cluster_indices;
+    pcl::PointIndices::Ptr buoy_cluster_point_indices (new pcl::PointIndices);
 
-  pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-  ec.setClusterTolerance(BUOY_CLUSTER_TOLERANCE);
-  ec.setMinClusterSize(MIN_BUOY_PCL);
-  ec.setMaxClusterSize(MAX_BUOY_PCL);
-  ec.setSearchMethod(buoy_tree);
-  ec.setInputCloud(cloud_filtered);
-  ec.extract(buoy_cluster_indices);
+    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+    ec.setClusterTolerance(BUOY_CLUSTER_TOLERANCE);
+    ec.setMinClusterSize(MIN_BUOY_PCL);
+    ec.setMaxClusterSize(MAX_BUOY_PCL);
+    ec.setSearchMethod(buoy_tree);
+    ec.setInputCloud(cloud_filtered);
+    ec.extract(buoy_cluster_indices);
 
-  visualization_msgs::MarkerArray buoy_marker_array;
-  visualization_msgs::Marker buoy_marker;
+    visualization_msgs::MarkerArray buoy_marker_array;
+    visualization_msgs::Marker buoy_marker;
 
-  pcl::PointCloud<pcl::PointXYZ> buoy_cloud;
+    pcl::PointCloud<pcl::PointXYZ> buoy_cloud;
 
-  j = 0;
-  for (std::vector<pcl::PointIndices>::const_iterator it = buoy_cluster_indices.begin(); (it != buoy_cluster_indices.end()); ++it) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr buoy_cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
-    *buoy_cluster_point_indices = buoy_cluster_indices[j];
+    j = 0;
+    int buoy_count = 0;
+    for (std::vector<pcl::PointIndices>::const_iterator it = buoy_cluster_indices.begin(); (it != buoy_cluster_indices.end()); ++it) {
+      pcl::PointCloud<pcl::PointXYZ>::Ptr buoy_cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+      *buoy_cluster_point_indices = buoy_cluster_indices[j];
 
-    for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
-      buoy_cloud_cluster->points.push_back(cloud_filtered->points[*pit]);
+      for (std::vector<int>::const_iterator pit = it->indices.begin(); pit != it->indices.end(); pit++) {
+        buoy_cloud_cluster->points.push_back(cloud_filtered->points[*pit]);
+      }
+      buoy_cloud_cluster->width = buoy_cloud_cluster->points.size();
+      buoy_cloud_cluster->height = 1;
+      buoy_cloud_cluster->is_dense = true;
+
+      ROS_DEBUG("PointCloud representing the buoy Cluster: %f data points.", buoy_cloud_cluster->points.size());
+      buoy_cloud = buoy_cloud + *buoy_cloud_cluster;
+
+      sensor_msgs::PointCloud2 cloud_out;
+      pcl::toROSMsg(*buoy_cloud_cluster, cloud_out);
+      cloud_out.header = header;
+      buoy_cloud_pub.publish(cloud_out);
+      Eigen::Vector4f centroid;
+      pcl::compute3DCentroid(*buoy_cloud_cluster, centroid);
+
+      //convert to marker array
+      if (centroid[2] < MAX_BUOY_HEIGHT && centroid[2] > MIN_BUOY_HEIGHT) {
+        buoy_marker.header.frame_id = "/map";
+        buoy_marker.header.stamp = ros::Time::now();
+        //buoy_marker.ns = "basic_shapes";
+        buoy_marker.id = j;
+        buoy_marker.type = visualization_msgs::Marker::SPHERE;
+        buoy_marker.action = visualization_msgs::Marker::ADD;
+        buoy_marker.pose.position.x = centroid[0];
+        buoy_marker.pose.position.y = centroid[1];
+        buoy_marker.pose.position.z = centroid[2];
+        buoy_marker.pose.orientation.x = 0.0;
+        buoy_marker.pose.orientation.y = 0.0;
+        buoy_marker.pose.orientation.z = 0.0;
+        buoy_marker.pose.orientation.w = 1.0;
+        buoy_marker.scale.x = 0.1;
+        buoy_marker.scale.y = 0.1;
+        buoy_marker.scale.z = 0.1;
+        buoy_marker.color.r = 1.0f;
+        buoy_marker.color.g = 0.0f;
+        buoy_marker.color.b = 0.0f;
+        buoy_marker.color.a = 1.0;
+        buoy_marker.lifetime = ros::Duration(4);
+        buoy_marker_array.markers.push_back(buoy_marker);
+        buoy_count++;
+      }
+
+      j++;
     }
-    buoy_cloud_cluster->width = buoy_cloud_cluster->points.size();
-    buoy_cloud_cluster->height = 1;
-    buoy_cloud_cluster->is_dense = true;
+  //  buoy_marker_array.header = header;
+    buoy_marker_pub.publish(buoy_marker_array);
 
-    ROS_DEBUG("PointCloud representing the buoy Cluster: %d data points.", buoy_cloud_cluster->points.size());
-    buoy_cloud = buoy_cloud + *buoy_cloud_cluster;
-
-    sensor_msgs::PointCloud2 cloud_out;
-    pcl::toROSMsg(*buoy_cloud_cluster, cloud_out);
-    cloud_out.header = header;
-    buoy_cloud_pub.publish(cloud_out);
-    Eigen::Vector4f centroid;
-    pcl::compute3DCentroid(*buoy_cloud_cluster, centroid);
-
-    //convert to marker array
-    if (centroid[2] < MAX_BUOY_HEIGHT && centroid[2] > MIN_BUOY_HEIGHT) {
-      buoy_marker.header.frame_id = "/world";
-      buoy_marker.header.stamp = ros::Time::now();
-      //buoy_marker.ns = "basic_shapes";
-      buoy_marker.id = j;
-      buoy_marker.type = visualization_msgs::Marker::SPHERE;
-      buoy_marker.action = visualization_msgs::Marker::ADD;
-      buoy_marker.pose.position.x = centroid[0];
-      buoy_marker.pose.position.y = centroid[1];
-      buoy_marker.pose.position.z = centroid[2];
-      buoy_marker.pose.orientation.x = 0.0;
-      buoy_marker.pose.orientation.y = 0.0;
-      buoy_marker.pose.orientation.z = 0.0;
-      buoy_marker.pose.orientation.w = 1.0;
-      buoy_marker.scale.x = 0.3;
-      buoy_marker.scale.y = 0.3;
-      buoy_marker.scale.z = 0.4;
-      buoy_marker.color.r = 1.0f;
-      buoy_marker.color.g = 0.0f;
-      buoy_marker.color.b = 0.0f;
-      buoy_marker.color.a = 1.0;
-      buoy_marker.lifetime = ros::Duration();
-      buoy_marker_array.markers.push_back(buoy_marker);
-    }
-
-    j++;
+    sensor_msgs::PointCloud2 buoy_cloud_out;
+    pcl::toROSMsg(buoy_cloud, buoy_cloud_out);
+    buoy_cloud_out.header = header;
+    buoy_cloud_pub.publish(buoy_cloud_out);
+    ROS_ERROR("Buoys found: %d", buoy_count);
   }
-//  buoy_marker_array.header = header;
-  buoy_marker_pub.publish(buoy_marker_array);
-
-  sensor_msgs::PointCloud2 buoy_cloud_out;
-  pcl::toROSMsg(buoy_cloud, buoy_cloud_out);
-  buoy_cloud_out.header = header;
-  buoy_cloud_pub.publish(buoy_cloud_out);
-
 }
 
 int main(int argc, char** argv) {

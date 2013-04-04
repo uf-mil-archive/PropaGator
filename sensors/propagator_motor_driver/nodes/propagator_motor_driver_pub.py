@@ -30,6 +30,8 @@ while True:
 		'BL': MotorDriver.MotorDriver('BL'),
 	   }
 	except :
+                import traceback
+                traceback.print_exc()
 		rospy.logerr("Could not open all thruster ports, will keep trying to reconnect to")
 		time.sleep(1)
 		continue
@@ -72,11 +74,14 @@ def thrusterinfo_callback(event):
 	global message_received
 	
 	for thrusterbroadcaster in thrusterbroadcasters:
+                print 'hello'
 		thrusterbroadcaster.send()
 	
 	if not message_received:
 		for motordriver in motordrivers.values():
+                        print 1
 			motordriver.stop()
+                        print 2
 	else:
 		message_received = False
 rospy.Timer(lifetime/2., thrusterinfo_callback)

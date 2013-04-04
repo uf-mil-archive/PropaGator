@@ -244,20 +244,31 @@ class Sub(object):
                 glVertex3f(*end)
             glEnd()
             glEnable(GL_DEPTH_TEST)
+            
 
+def generate_bouy_pair(pos,angle):
+    
+    channel_gap = 2
+    green_pos = (pos[0] + math.cos(math.radians(angle))*(channel_gap/2.),pos[1] + math.sin(math.radians(angle))*(channel_gap/2.))
+    red_pos = (pos[0] - math.cos(math.radians(angle))*(channel_gap/2.),pos[1] - math.sin(math.radians(angle))*(channel_gap/2.))
+    
+    i.objs.append(Buoys(v(green_pos[0], green_pos[1], 0),(0,1,0)))
+    i.objs.append(Buoys(v(red_pos[0], red_pos[1], 0),(1,0,0)))
+   
 class Buoys(object):
-    def __init__(self, pos):
+    def __init__(self, pos,color):
        global bouy_array
        #self.buoys = [(pos + [random.gauss(0, 5), random.gauss(0, 5), 0], color) for i in xrange(10) for color in [(1, 0, 0), (0, 1, 0),(0,0,1)]]
-       self.buoys = [(pos + [i*3,0,0],(i,1-i,0)) for i in xrange(2)]
+       #self.buoys = [(pos + [i*3,0,0],(i,1-i,0)) for i in xrange(2)]
+       self.bouys = [pos,color]
             
     def draw(self):
         q = gluNewQuadric()
-        for pos, color in self.buoys:
-            with threed.GLMatrix:
-                glTranslate(*pos)
-                glColor3f(*color)
-                gluSphere(q, .2, 30, 15)
+        #for pos, color in self.buoys:
+        with threed.GLMatrix:
+            glTranslate(*self.bouys[0])
+            glColor3f(*self.bouys[1])
+            gluSphere(q, .2, 30, 15)
 
 i = threed.Interface()
 i.init()
@@ -265,9 +276,15 @@ i.objs.append(threed.MeshDrawer(pool_mesh, (.4, .4, .4)))
 sub_model = Sub(body, lambda: killed)
 i.objs.append(sub_model)
 i.objs.append(threed.VectorField(get_water_vel))
+generate_bouy_pair((2,1),0)
+generate_bouy_pair((10,5),15)
+generate_bouy_pair((15,10),60)
+
+'''
 i.objs.append(Buoys(v(-1, 5, 0)))
 i.objs.append(Buoys(v(-5, 10, 0)))
 i.objs.append(Buoys(v(-2, 15, 0)))
+'''
 
 def _():
     try:
@@ -276,8 +293,6 @@ def _():
         traceback.print_exc()
         reactor.stop()
 reactor.callWhenRunning(task.LoopingCall(_).start, 1/24)
-
-
 
 reactor.callWhenRunning(world_tick)
 

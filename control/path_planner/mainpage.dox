@@ -2,7 +2,7 @@
 \mainpage
 \htmlinclude manifest.html
 
-\b ocvtest 
+\b path_planner 
 
 <!-- 
 Provide an overview of your package.
