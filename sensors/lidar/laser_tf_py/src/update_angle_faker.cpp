@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include "laser_tf_py/ScanAngle.h"
 #include <sstream>
+#include <iostream>
 
 class My_Filter {
   public:
@@ -23,7 +24,11 @@ int main(int argc, char** argv) {
   My_Filter filter;
 
   while (ros::ok()) {
-    
+    std::cout << "Set new min angle: " << std::endl;
+    std::cin >> filter.min_angle;
+
+    std::cout << "Set new max angle: " << std::endl;
+    std::cin >> filter.max_angle;
     laser_tf_py::ScanAngle scan_angle;
     scan_angle.header.stamp = ros::Time::now();
     scan_angle.header.frame_id = "/laser";

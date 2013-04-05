@@ -68,6 +68,13 @@ def scan_angle_callback(angle_msg):
   max_angle = angle_msg.max_angle
 
   ser.flushInput()
+  ser.write("H")
+  while not "H" in ser.readline():
+    ser.flushInput()
+    rospy.logwarn("Resending halt command to I/O board.")
+    ser.write("H")
+
+  ser.flushInput()
   ser.write("l")
   while not "l" in ser.readline():
     rospy.logwarn("Retrying to init angle set min state.")
@@ -92,6 +99,13 @@ def scan_angle_callback(angle_msg):
     rospy.logwarn("Retrying to send max angle.")
     ser.write(str(max_angle))
   rospy.logdebug("Max angle updated to "+str(max_angle))
+
+  ser.flushInput()
+  ser.write("S")
+  while not "S" in ser.readline():
+    rospy.logwarn("Resending command to I/O board.")
+    ser.write("S")
+  sleep(4)
 
 
 if __name__ == '__main__':
