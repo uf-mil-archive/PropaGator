@@ -11,11 +11,11 @@
 
 #include <sstream>
 
-const bool OFFBOARD_TESTING = true;
+const bool OFFBOARD_TESTING = false;
 
 // counted in half sweeps (up to down = 1)
 const int num_sweeps_2d = 1;
-const int num_sweeps_3d = 2;
+const int num_sweeps_3d = 4;//2
 const bool b_2d = false;
 const bool b_3d = true;
 
@@ -61,6 +61,7 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
       projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);
     }
     header = cloud.header;
+    ROS_ERROR("GOT GOOD TF");
   } catch(tf::TransformException ex) {
     ROS_WARN("TransformException!");
     ROS_ERROR("%s", ex.what());

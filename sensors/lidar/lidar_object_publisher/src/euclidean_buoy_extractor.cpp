@@ -30,10 +30,10 @@ ros::Publisher buoy_marker_pub;
 const bool filter_small = false;	// Should we run an EC on smaller objects than the buoy?
 const bool filter_large = true;
 
-const int MIN_PTS = 5;			// When should we toss out a pcl when too small
+const int MIN_PTS = 2;			// When should we toss out a pcl when too small
 
-const float MAX_BUOY_HEIGHT = 0.2;//1.5 for old bag
-const float MIN_BUOY_HEIGHT = -0.2;//0 old bag
+const float MAX_BUOY_HEIGHT = 0.2;//0.2
+const float MIN_BUOY_HEIGHT = -0.2;//-0.2
 
 const int MAX_PCL = 1000000000;
 const int MAX_BUOY_PCL = 200;

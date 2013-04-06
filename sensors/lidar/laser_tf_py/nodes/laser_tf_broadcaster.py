@@ -23,7 +23,7 @@ from laser_tf_py.msg import ScanAngle
 ##  d - User down	##
 ##########################
 
-OFFBOARD_TESTING = True		# T = Boat is not in water
+OFFBOARD_TESTING = False	# T = Boat is not in water
 LIDAR_UPSIDE_DOWN = False	# T = LIDAR mounted with lense on bottom (upside down)
 
 global IN_CALLBACK
@@ -78,14 +78,14 @@ def scan_angle_callback(angle_msg):
   global IN_CALLBACK
   IN_CALLBACK = True
   sleep(2)
-  rospy.logerr("start of callback")
+#  rospy.logerr("start of callback")
   # update angles
   min_angle = angle_msg.min_angle
   max_angle = angle_msg.max_angle
 
   min_angle = int((min_angle - b)/m)
   max_angle = int((max_angle - b)/m)
-  rospy.logerr("new angles: "+str(min_angle)+" and "+str(max_angle))
+#  rospy.logerr("new angles: "+str(min_angle)+" and "+str(max_angle))
 
   ser.flushInput()
   ser.write("H")
@@ -126,7 +126,7 @@ def scan_angle_callback(angle_msg):
     msg = ser.readline()
 #  sleep(4)
 
-  rospy.logerr("end of callback")
+#  rospy.logerr("end of callback")
   IN_CALLBACK = False
 
 if __name__ == '__main__':
@@ -204,7 +204,7 @@ if __name__ == '__main__':
 
       ser.flushInput()
       ser.write("H")
-      rospy.logerr("leaving node")
+#      rospy.logerr("leaving node")
       msg = ser.readline()
       while not "H" in msg:
  #       sleep(0.5)
