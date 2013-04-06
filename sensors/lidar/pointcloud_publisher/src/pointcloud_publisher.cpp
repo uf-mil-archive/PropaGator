@@ -11,7 +11,7 @@
 
 #include <sstream>
 
-const bool OFFBOARD_TESTING = false;
+const bool OFFBOARD_TESTING = true;
 
 // counted in half sweeps (up to down = 1)
 const int num_sweeps_2d = 1;

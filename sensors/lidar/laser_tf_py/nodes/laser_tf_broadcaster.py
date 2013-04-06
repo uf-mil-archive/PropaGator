@@ -23,16 +23,22 @@ from laser_tf_py.msg import ScanAngle
 ##  d - User down	##
 ##########################
 
-OFFBOARD_TESTING = True;	# T = Boat is not in water
-LIDAR_UPSIDE_DOWN = False;	# T = LIDAR mounted with lense on bottom (upside down)
+OFFBOARD_TESTING = True		# T = Boat is not in water
+LIDAR_UPSIDE_DOWN = False	# T = LIDAR mounted with lense on bottom (upside down)
+
+global IN_CALLBACK
+IN_CALLBACK = False
+
+m = -1.55172	# y is angle (degrees)
+b = 170.689655	# x is ticks of encoder
 
 port = '/dev/propagator_navid_motordriver'
 
 # IN RADIANS, NOT DEGREES!!
 if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
-  bl_lu_x	= 0		# Distance forward, BaseLink to Lidar Unit
+  bl_lu_x	= 0.787		# Distance forward, BaseLink to Lidar Unit
   bl_lu_y	= 0		# Distance left, BaseLink to Lidar Unit
-  bl_lu_z	= 1		# Distance up, BaseLink to Lidar Unit
+  bl_lu_z	= 0.457		# Distance up, BaseLink to Lidar Unit
   lu_r		= 0		# Roll of Lidar Unit
   lu_p		= 0		# Pitch of Lidar Unit
   lu_y		= 0		# Yaw of Lidar Unit
@@ -42,13 +48,13 @@ if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
   lp_r		= 0		# Roll of Lidar Pivot
   lp_p		= 0		# Pitch of Lidar Pivot
   lp_y		= 0		# Yaw of Lidar Pivot
-  lp_lm_x	= 0.1016	# Distance forward, Lidar Pivot to Lidar Mirror
-  lp_lm_y	= 0#!		# Distance left, Lidar Pivot to Lidar Mirror
-  lp_lm_z	= -0.0508	# Distance up, Lidar Pivot to Lidar Mirror
+  lp_lm_x	= 0.00635	# Distance forward, Lidar Pivot to Lidar Mirror
+  lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
+  lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
 else:
-  bl_lu_x	= 0.5588	# Distance forward, BaseLink to Lidar Unit
+  bl_lu_x	= 0.787		# Distance forward, BaseLink to Lidar Unit
   bl_lu_y	= 0		# Distance left, BaseLink to Lidar Unit
-  bl_lu_z	= 0.1524	# Distance up, BaseLink to Lidar Unit
+  bl_lu_z	= 0.457		# Distance up, BaseLink to Lidar Unit
   lu_r		= 0		# Roll of Lidar Unit
   lu_p		= 0		# Pitch of Lidar Unit
   lu_y		= 0		# Yaw of Lidar Unit
@@ -58,55 +64,70 @@ else:
   lp_r		= 0		# Roll of Lidar Pivot
   lp_p		= 0		# Pitch of Lidar Pivot
   lp_y		= 0		# Yaw of Lidar Pivot
-  lp_lm_x	= 0.1016	# Distance forward, Lidar Pivot to Lidar Mirror
-  lp_lm_y	= 0#!		# Distance left, Lidar Pivot to Lidar Mirror
-  lp_lm_z	= -0.0508	# Distance up, Lidar Pivot to Lidar Mirror
+  lp_lm_x	= 0.00635	# Distance forward, Lidar Pivot to Lidar Mirror
+  lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
+  lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
+
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#!! min_angle is bottom (most positive) !!
+#!! angle. max_angle is top		!!
+#!! most negative angle			!!
+#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 def scan_angle_callback(angle_msg):
+  global IN_CALLBACK
+  IN_CALLBACK = True
+  sleep(2)
+  rospy.logerr("start of callback")
   # update angles
   min_angle = angle_msg.min_angle
   max_angle = angle_msg.max_angle
 
+  min_angle = int((min_angle - b)/m)
+  max_angle = int((max_angle - b)/m)
+  rospy.logerr("new angles: "+str(min_angle)+" and "+str(max_angle))
+
   ser.flushInput()
   ser.write("H")
-  while not "H" in ser.readline():
-    ser.flushInput()
-    rospy.logwarn("Resending halt command to I/O board.")
+  msg = ser.readline()
+  while not "H" in msg:
+#    sleep(0.5)
+    rospy.logwarn("Resending halt command to I/O board. Got "+msg+" not H")
     ser.write("H")
+    msg = ser.readline()
 
   ser.flushInput()
-  ser.write("l")
-  while not "l" in ser.readline():
-    rospy.logwarn("Retrying to init angle set min state.")
-    ser.write("l")
-
-  ser.flushInput()
-  ser.write(str(min_angle))
-  while not "l"+str(min_angle) in ser.readline():
-    rospy.logwarn("Retrying to send min angle.")
-    ser.write(str(min_angle))
+  ser.write("l"+str(min_angle)+"\r")
+  msg = ser.readline()
+  while not "l"+str(min_angle) in msg:
+ #   sleep(0.5)
+    rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_angle))
+    ser.write("l"+str(min_angle)+"\r")
+    msg = ser.readline()
   rospy.logdebug("Min angle updated to "+str(min_angle))
 
   ser.flushInput()
-  ser.write("h")
-  while not "h" in ser.readline():
-    rospy.logwarn("Retrying to init angle set max state.")
-    ser.write("h")
-
-  ser.flushInput()
-  ser.write(str(max_angle))
-  while not "h"+str(max_angle) in ser.readline():
-    rospy.logwarn("Retrying to send max angle.")
-    ser.write(str(max_angle))
+  ser.write("h"+str(max_angle)+"\r")
+  msg = ser.readline()
+  while not "h"+str(max_angle) in msg:
+  #  sleep(0.5)
+    rospy.logwarn("Retrying to send max angle. Got "+msg+" not "+"h"+str(min_angle))
+    ser.write("h"+str(max_angle)+"\r")
+    msg = ser.readline()
   rospy.logdebug("Max angle updated to "+str(max_angle))
 
   ser.flushInput()
   ser.write("S")
-  while not "S" in ser.readline():
-    rospy.logwarn("Resending command to I/O board.")
+  msg = ser.readline()
+  while not "S" in msg:
+  #  sleep(0.5)
+    rospy.logwarn("Resending command to I/O board. Got "+msg+" not S")
     ser.write("S")
-  sleep(4)
+    msg = ser.readline()
+#  sleep(4)
 
+  rospy.logerr("end of callback")
+  IN_CALLBACK = False
 
 if __name__ == '__main__':
   rospy.init_node('laser_tf_broadcaster')
@@ -119,71 +140,81 @@ if __name__ == '__main__':
     ser = serial.Serial(port, 9600, timeout=1)
     try:
       ser.flushInput()
+      ser.write("R")
       ser.write("S")
       while not "S" in ser.readline():
-        rospy.logwarn("Resending command to I/O board.")
+#        sleep(0.5)
+        rospy.logdebug("Resending command to I/O board.")
         ser.write("S")
       sleep(4)
       while not rospy.is_shutdown():
-        try:
-          data = ser.readline()
-        except (IOError, select.error):
-          rospy.logwarn("Did not read from serial port.")
-          ser.close()
-          ser.open()
-          ser.flushInput()
-
-        try:
-          pitch = (float(data) - 288)/11 + pitchAngleOffset
-          lp_p = (pitch/180)*math.pi
-        except ValueError:
-          if ("C" in data):	# If we got a scan complete signal
-            pub_complete.publish(True)
-            rospy.logdebug("Finished sweep!")
-          else:			# Otherwise we got garbage
-            rospy.logwarn("Got bad data:")
-            rospy.logwarn(data)
+        if (not IN_CALLBACK):
+#          rospy.logerr("in main")
+          try:
+            data = ser.readline()
+          except (IOError, select.error):
+            rospy.logwarn("Did not read from serial port.")
             ser.close()
             ser.open()
             ser.flushInput()
 
-        T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
-        T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
-        T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
-        T = tf.transformations.rotation_matrix((lp_r), (1, 0, 0)).dot(T)
-        T = tf.transformations.translation_matrix((lu_lp_x, lu_lp_y, lu_lp_z)).dot(T)
-        T = tf.transformations.rotation_matrix((lu_y), (0, 0, 1)).dot(T)
-        T = tf.transformations.rotation_matrix((lu_p), (0, 1, 0)).dot(T)
-        T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
-        T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
-        T = tf.transformations.translation_from_matrix(T)
+          try:
+  #          pitch = (float(data) - 288)/11 + pitchAngleOffset
+            pitch = (m*float(data)) + b
+            lp_p = (pitch/180)*math.pi
+          except ValueError:
+            if ("C" in data):	# If we got a scan complete signal
+              pub_complete.publish(True)
+              rospy.logdebug("Finished sweep!")
+            else:			# Otherwise we got garbage
+              rospy.logwarn("Got bad data:")
+              rospy.logwarn(data)
+              ser.close()
+              ser.open()
+              ser.flushInput()
 
-        total_roll = lu_r + lp_r
-        total_pitch = lu_p + lp_p
-        total_yaw = lu_y + lp_y
+          T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
+          T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
+          T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
+          T = tf.transformations.rotation_matrix((lp_r), (1, 0, 0)).dot(T)
+          T = tf.transformations.translation_matrix((lu_lp_x, lu_lp_y, lu_lp_z)).dot(T)
+          T = tf.transformations.rotation_matrix((lu_y), (0, 0, 1)).dot(T)
+          T = tf.transformations.rotation_matrix((lu_p), (0, 1, 0)).dot(T)
+          T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
+          T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
+          T = tf.transformations.translation_from_matrix(T)
 
-        if (LIDAR_UPSIDE_DOWN):
-          total_roll = total_roll + math.pi	# compensates for Lidar being mounted upside down
+          total_roll = lu_r + lp_r
+          total_pitch = lu_p + lp_p
+          total_yaw = lu_y + lp_y
 
-        if (OFFBOARD_TESTING):
-          fframe = "/world"
-        else:	# otherwise we're on the boat
-          fframe = "/base_link"
+          if (LIDAR_UPSIDE_DOWN):
+            total_roll = total_roll + math.pi	# compensates for Lidar being mounted upside down
 
-        br.sendTransform(T,
-         tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
-         rospy.Time.now(),
-         "/laser",
-         fframe)
+          if (OFFBOARD_TESTING):
+            fframe = "/world"
+          else:	# otherwise we're on the boat
+            fframe = "/base_link"
+
+          br.sendTransform(T,
+           tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
+           rospy.Time.now(),
+           "/laser",
+           fframe)
 
       ser.flushInput()
       ser.write("H")
-      while not "H" in ser.readline():
+      rospy.logerr("leaving node")
+      msg = ser.readline()
+      while not "H" in msg:
+ #       sleep(0.5)
         ser.flushInput()
-        rospy.logwarn("Resending halt command to I/O board.")
+        rospy.logwarn("Resending halt command to I/O board to end process. "+msg)
         ser.write("H")
+        msg = ser.readline()
       ser.close()
-    except rospy.ROSInterruptException: pass
+    except rospy.ROSInterruptException:
+      rospy.logerr("interruptException")
   except serial.SerialTimeoutException:
     rospy.logdebug("Could not open serial port!")
 

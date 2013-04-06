@@ -1,3 +1,3 @@
 Header header
-float32 min_angle
-float32 max_angle
+int32 min_angle
+int32 max_angle

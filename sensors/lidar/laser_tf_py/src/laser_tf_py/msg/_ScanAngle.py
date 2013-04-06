@@ -7,12 +7,12 @@ import struct
 import std_msgs.msg
 
 class ScanAngle(genpy.Message):
-  _md5sum = "926e52a04e833bda381026a150b2cac5"
+  _md5sum = "acc41e229ef35c8e65f2138c5400a8dc"
   _type = "laser_tf_py/ScanAngle"
   _has_header = True #flag to mark the presence of a Header object
   _full_text = """Header header
-float32 min_angle
-float32 max_angle
+int32 min_angle
+int32 max_angle
 
 ================================================================================
 MSG: std_msgs/Header

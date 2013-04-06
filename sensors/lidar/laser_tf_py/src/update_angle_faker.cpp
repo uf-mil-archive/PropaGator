@@ -7,8 +7,8 @@ class My_Filter {
   public:
     My_Filter();
     std_msgs::Header header;
-    float min_angle;
-    float max_angle;
+    int min_angle;
+    int max_angle;
 
     ros::NodeHandle node;
     ros::Publisher scan_angle_pub;
