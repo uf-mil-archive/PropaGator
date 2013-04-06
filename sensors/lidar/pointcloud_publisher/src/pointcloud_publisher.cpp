@@ -56,9 +56,9 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
 //  scan->header.stamp += ros::Duration(0.5)
   try {
     if (OFFBOARD_TESTING) {
-      projector.transformLaserScanToPointCloud("/world", *scan, cloud, tfListener);	// 1st arg was "base_link"
+      projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// not world
     } else {
-      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);	// 1st arg was "base_link"
+      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);
     }
     header = cloud.header;
   } catch(tf::TransformException ex) {

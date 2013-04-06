@@ -191,10 +191,10 @@ if __name__ == '__main__':
           if (LIDAR_UPSIDE_DOWN):
             total_roll = total_roll + math.pi	# compensates for Lidar being mounted upside down
 
-          if (OFFBOARD_TESTING):
-            fframe = "/world"
-          else:	# otherwise we're on the boat
-            fframe = "/base_link"
+         # if (OFFBOARD_TESTING):
+          #  fframe = "/world"	
+         # else:	# otherwise we're on the boat
+          fframe = "/base_link"
 
           br.sendTransform(T,
            tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),

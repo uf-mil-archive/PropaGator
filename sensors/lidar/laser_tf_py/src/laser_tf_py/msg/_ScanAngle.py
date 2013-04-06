@@ -34,7 +34,7 @@ string frame_id
 
 """
   __slots__ = ['header','min_angle','max_angle']
-  _slot_types = ['std_msgs/Header','float32','float32']
+  _slot_types = ['std_msgs/Header','int32','int32']
 
   def __init__(self, *args, **kwds):
     """
@@ -56,13 +56,13 @@ string frame_id
       if self.header is None:
         self.header = std_msgs.msg.Header()
       if self.min_angle is None:
-        self.min_angle = 0.
+        self.min_angle = 0
       if self.max_angle is None:
-        self.max_angle = 0.
+        self.max_angle = 0
     else:
       self.header = std_msgs.msg.Header()
-      self.min_angle = 0.
-      self.max_angle = 0.
+      self.min_angle = 0
+      self.max_angle = 0
 
   def _get_types(self):
     """
@@ -85,7 +85,7 @@ string frame_id
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self
-      buff.write(_struct_2f.pack(_x.min_angle, _x.max_angle))
+      buff.write(_struct_2i.pack(_x.min_angle, _x.max_angle))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -114,7 +114,7 @@ string frame_id
       _x = self
       start = end
       end += 8
-      (_x.min_angle, _x.max_angle,) = _struct_2f.unpack(str[start:end])
+      (_x.min_angle, _x.max_angle,) = _struct_2i.unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -136,7 +136,7 @@ string frame_id
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self
-      buff.write(_struct_2f.pack(_x.min_angle, _x.max_angle))
+      buff.write(_struct_2i.pack(_x.min_angle, _x.max_angle))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -166,11 +166,11 @@ string frame_id
       _x = self
       start = end
       end += 8
-      (_x.min_angle, _x.max_angle,) = _struct_2f.unpack(str[start:end])
+      (_x.min_angle, _x.max_angle,) = _struct_2i.unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = genpy.struct_I
 _struct_3I = struct.Struct("<3I")
-_struct_2f = struct.Struct("<2f")
+_struct_2i = struct.Struct("<2i")
