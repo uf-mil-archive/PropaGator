@@ -3,8 +3,8 @@
    <node name="motor_driver_FR" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
    <rosparam>
       id: FR
-      min_force: 1
-      max_force: 1
+      min_force: 15
+      max_force: 27
       position: [.729401, -0.23495, -0.241308]
       direction: [0.86602540378, 0.5, 0]
    </rosparam>
@@ -13,8 +13,8 @@
    <node name="motor_driver_FL" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
    <rosparam>
       id: FL
-      min_force: 1
-      max_force: 1
+      min_force: 15
+      max_force: 27
       position: [.729401, 0.23495, -0.241308]
       direction: [0.86602540378,-0.5, 0]
    </rosparam>
@@ -23,8 +23,8 @@
    <node name="motor_driver_BR" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
    <rosparam>
       id: BR
-      min_force: 1
-      max_force: 1
+      min_force: 15
+      max_force: 27
       position: [-0.821269, -0.23495, -0.241308]
       direction: [0.86602540378, -0.5, 0]
    </rosparam>
@@ -33,8 +33,8 @@
    <node name="motor_driver_BL" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
    <rosparam>
       id: BL
-      min_force: 1
-      max_force: 1
+      min_force: 15
+      max_force: 27
       position:  [-0.821269, 0.23495, -0.241308]
       direction: [0.86602540378, 0.5, 0]
    </rosparam>

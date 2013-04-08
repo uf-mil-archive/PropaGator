@@ -81,16 +81,16 @@ rospy.set_param('d_gain', {'x':3.0,'y':3.0,'yaw':10.0})
 #----------------------------------------------------------------------------------
 
 K = numpy.array([
-	[rospy.get_param('~p_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('~p_gain/y'),0,0,0,0],
+	[rospy.get_param('p_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('p_gain/y'),0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
-	[0,0,0,0,0,rospy.get_param('~p_gain/yaw')]])
+	[0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
 
 Ks = numpy.array([
-	[rospy.get_param('~d_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('~d_gain/y'),0,0,0,0],
+	[rospy.get_param('d_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('d_gain/y'),0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],

@@ -1,6 +1,6 @@
 <launch>
 
-  <include file="$(find boat_launch)/launch/navigation.launch"/>
+  <!-- <include file="$(find boat_launch)/launch/navigation.launch"/> -->
 
   <node pkg="controller" type="pd_controller.py" name="controller"/>
 

@@ -23,9 +23,11 @@ max_force = rospy.get_param('~max_force')
 thruster_position = rospy.get_param('~position')
 thruster_direction = rospy.get_param('~direction')
 
+motordriver = MotorDriver.MotorDriver(thruster_id)
+'''
 while True:
 	try:
-	   motordriver = MotorDriver.MotorDriver(thruster_id)
+		motordriver = MotorDriver.MotorDriver(thruster_id)
 	except serial.SerialException:
 		rospy.logerr("Could not open all thruster ports, will keep trying to reconnect")
 		time.sleep(1)
@@ -34,20 +36,20 @@ while True:
 		break
 	break
 	
-
+'''
 
 def apply_command(force):
 	
 	global message_received
 	message_received = True
-	print 'motor driver ',str(int(force*200/max_force)),' set to: ',force
+	print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
 	if (force > 0):
 		motordriver.set_forward_speed(str(int(force*200/max_force)))
 	elif (force < 0):
 		motordriver.set_reverse_speed(str(int(-force*200/min_force)))
 	else:
 		motordriver.stop()
-	
+	'''	
 	motordriverstat_msg = motor_driver_statistics(
 		header=Header(
 			stamp=rospy.Time.now(),
@@ -59,7 +61,7 @@ def apply_command(force):
 		batt_voltage = "0",#motordriver.get_batt_voltage(),
 		)	
 	motor_driver_statistics_publisher.publish(motordriverstat_msg)
-	
+	'''
 
 	
 lifetime = rospy.Duration(1.)	
