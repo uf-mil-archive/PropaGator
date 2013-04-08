@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import roslib
-roslib.load_manifest('sandbox_opencv')
+roslib.load_manifest('rings')
 import rospy
 import numpy
 import cv,cv2,math
@@ -106,7 +106,7 @@ def image_callback(data):
         cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
         
         
-        cv.AdaptiveThreshold(h_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,5)      #use hue channel to filter for red
+        cv.AdaptiveThreshold(h_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,16)      #use hue channel to filter for red
 
        
         cv.Erode(red_adaptive,red_eroded_image,None,1)                        #erode and dilate the thresholded images
