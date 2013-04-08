@@ -108,11 +108,10 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
       ROS_DEBUG("PointCloud cluster too large to be buoy: %f data points.", large_cloud_cluster->points.size());
       large_cloud = large_cloud + *large_cloud_cluster;
 
-      // Extract the planar inliers from the input cloud
+      // Extract the points from main cloud
       pcl::ExtractIndices<pcl::PointXYZ> large_extract;
       large_extract.setInputCloud(cloud_filtered);
       large_extract.setIndices(large_cluster_point_indices);
-      // Remove the planar inliers, extract the rest
       large_extract.setNegative(true);
       large_extract.filter(*cloud_f);
       *cloud_filtered = *cloud_f;
@@ -172,7 +171,6 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
       pcl::ExtractIndices<pcl::PointXYZ> small_extract;
       small_extract.setInputCloud(cloud_filtered);
       small_extract.setIndices(small_cluster_point_indices);
-      // Remove the planar inliers, extract the rest
       small_extract.setNegative(true);
       small_extract.filter(*cloud_f);
       *cloud_filtered = *cloud_f;
