@@ -16,15 +16,15 @@ def talker():
     
     rospy.init_node('imu_node')
     
-    #frame_id = rospy.get_param("~frameid", "base_footprint")
-    #port = rospy.get_param("~port", "IMU")
+    frame_id = rospy.get_param("~frame_id", "/imu")
+    port = rospy.get_param("~port", "/dev/IMU")
     #baud = rospy.get_param("~baud", 115200)
     
     pub = rospy.Publisher('/imu/data_raw', Imu)
     mag_pub = rospy.Publisher('/imu/mag_raw', Vector3Stamped)
     
     #imu = micro_3dm_gx1(port, baud)
-    imu = micro_3dm_gx1()
+    imu = micro_3dm_gx1(port)
     
     while(not imu.open_port()):
         rospy.logerr('failed to open imu serial port')
@@ -44,13 +44,15 @@ def talker():
         
         if not values:
             rospy.logwarn("packet receiving timed out")
+            while(not imu.set_continuous_command(inst_vectors)):
+                rospy.logwarn('failed to set imu to stream inst. vectors')
             continue
         
         try:
             pub.publish(Imu(
                 header=Header(
                     stamp=now,
-                    frame_id='/imu',
+                    frame_id=frame_id,
                 ),
                 orientation=Quaternion(0, 0, 0, 0),
                 orientation_covariance=[-1] + [0]*8,
@@ -63,7 +65,7 @@ def talker():
             mag_pub.publish(Vector3Stamped(
                 header=Header(
                     stamp=now,
-                    frame_id='/imu',
+                    frame_id=frame_id,
                 ),
                 vector=Vector3(values[0]*imu.mag_scale, values[1]*imu.mag_scale, values[2]*imu.mag_scale),
             ))
