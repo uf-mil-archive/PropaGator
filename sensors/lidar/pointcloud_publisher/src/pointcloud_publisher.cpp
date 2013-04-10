@@ -58,7 +58,7 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
     if (OFFBOARD_TESTING) {
       projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// not world
     } else {
-      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);
+      projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);
     }
     header = cloud.header;
     ROS_ERROR("GOT GOOD TF");
