@@ -17,7 +17,6 @@
   <depend package="laser_geometry"/>
   <depend package="tf"/>
   <depend package="sensor_msgs"/>
-
 </package>
 
 

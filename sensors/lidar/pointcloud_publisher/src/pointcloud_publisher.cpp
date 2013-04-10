@@ -2,6 +2,8 @@
 #include <tf/transform_listener.h>
 #include <laser_geometry/laser_geometry.h>
 
+#include "message_filters/subscriber.h"
+#include "tf/message_filter.h"
 #include "std_msgs/String.h"
 #include "sensor_msgs/LaserScan.h"
 #include "pcl/point_cloud.h"
@@ -28,6 +30,8 @@ class My_Filter {
     ros::NodeHandle node;
     laser_geometry::LaserProjection projector;
     tf::TransformListener tfListener;
+    message_filters::Subscriber<sensor_msgs::LaserScan> scan_sub_;
+    tf::MessageFilter<sensor_msgs::LaserScan> * tfFilter;
 
     ros::Publisher point_cloud_publisher_3d;
     ros::Publisher point_cloud_publisher_2d;
@@ -42,6 +46,10 @@ class My_Filter {
 };
 
 My_Filter::My_Filter() {
+  scan_sub_.subscribe(node, "/scan", 10);
+  tfFilter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub_, tfListener, "base_link", 10);
+  tfFilter->registerCallback(boost::bind(&My_Filter::scanCallback, this, _1) );
+  tfFilter->setTolerance(ros::Duration(0.01));
   scan_sub = node.subscribe<sensor_msgs::LaserScan> ("/scan", 100, &My_Filter::scanCallback, this);
   complete_sub = node.subscribe<std_msgs::Bool> ("/scan_complete", 100, &My_Filter::completeCallback, this);
   point_cloud_publisher_3d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_3d", 100, false);
@@ -56,9 +64,9 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
 //  scan->header.stamp += ros::Duration(0.5)
   try {
     if (OFFBOARD_TESTING) {
-      projector.transformLaserScanToPointCloud("/world", *scan, cloud, tfListener);	// 1st arg was "base_link"
+      projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
     } else {
-      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);	// 1st arg was "base_link"
+      projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
     }
     header = cloud.header;
   } catch(tf::TransformException ex) {
