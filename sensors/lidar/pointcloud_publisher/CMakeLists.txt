@@ -31,3 +31,6 @@ rosbuild_gensrv()
 
 rosbuild_add_executable(pointcloud_publisher src/pointcloud_publisher.cpp)
 rosbuild_add_executable(pointcloud_converter src/pointcloud_converter.cpp)
+
+rosbuild_add_boost_directories()
+rosbuild_link_boost(pointcloud_publisher signals)
