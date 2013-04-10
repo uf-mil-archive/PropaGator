@@ -91,7 +91,6 @@ def scan_angle_callback(angle_msg):
   ser.write("H")
   msg = ser.readline()
   while not "H" in msg:
-#    sleep(0.5)
     rospy.logwarn("Resending halt command to I/O board. Got "+msg+" not H")
     ser.write("H")
     msg = ser.readline()
@@ -100,7 +99,6 @@ def scan_angle_callback(angle_msg):
   ser.write("l"+str(min_angle)+"\r")
   msg = ser.readline()
   while not "l"+str(min_angle) in msg:
- #   sleep(0.5)
     rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_angle))
     ser.write("l"+str(min_angle)+"\r")
     msg = ser.readline()
@@ -110,7 +108,6 @@ def scan_angle_callback(angle_msg):
   ser.write("h"+str(max_angle)+"\r")
   msg = ser.readline()
   while not "h"+str(max_angle) in msg:
-  #  sleep(0.5)
     rospy.logwarn("Retrying to send max angle. Got "+msg+" not "+"h"+str(min_angle))
     ser.write("h"+str(max_angle)+"\r")
     msg = ser.readline()
@@ -120,11 +117,9 @@ def scan_angle_callback(angle_msg):
   ser.write("S")
   msg = ser.readline()
   while not "S" in msg:
-  #  sleep(0.5)
     rospy.logwarn("Resending command to I/O board. Got "+msg+" not S")
     ser.write("S")
     msg = ser.readline()
-#  sleep(4)
 
   rospy.logerr("end of callback")
   IN_CALLBACK = False
@@ -143,13 +138,11 @@ if __name__ == '__main__':
       ser.write("R")
       ser.write("S")
       while not "S" in ser.readline():
-#        sleep(0.5)
         rospy.logdebug("Resending command to I/O board.")
         ser.write("S")
       sleep(4)
       while not rospy.is_shutdown():
         if (not IN_CALLBACK):
-#          rospy.logerr("in main")
           try:
             data = ser.readline()
           except (IOError, select.error):
@@ -159,7 +152,6 @@ if __name__ == '__main__':
             ser.flushInput()
 
           try:
-  #          pitch = (float(data) - 288)/11 + pitchAngleOffset
             pitch = (m*float(data)) + b
             lp_p = (pitch/180)*math.pi
           except ValueError:
@@ -192,7 +184,7 @@ if __name__ == '__main__':
             total_roll = total_roll + math.pi	# compensates for Lidar being mounted upside down
 
           if (OFFBOARD_TESTING):
-            fframe = "/world"
+            fframe = "/map"	#"/world"
           else:	# otherwise we're on the boat
             fframe = "/base_link"
 

@@ -21,7 +21,7 @@ signal.signal(signal.SIGALRM, timeout_handler)
 #IMU driver code
 
 class micro_3dm_gx1:
-	def __init__(self, port = 'IMU', baud = 115200):
+	def __init__(self, port, baud = 115200):
 		self.port = port
 		self.baud = baud	
 		self.current_command = 0
@@ -56,7 +56,7 @@ class micro_3dm_gx1:
 						
 	def open_port(self):
 		try:
-			self.ser = serial.Serial('/dev/' + self.port, self.baud)
+			self.ser = serial.Serial(self.port, self.baud)
 			self.send_byte(0x0)
 			self.ser.flushInput()
 			self.ser.flushOutput()

@@ -1,5 +1,7 @@
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
+#include "tf/message_filter.h"
+#include "message_filters/subscriber.h"
 #include <laser_geometry/laser_geometry.h>
 
 #include "message_filters/subscriber.h"
@@ -35,28 +37,47 @@ class My_Filter {
 
     ros::Publisher point_cloud_publisher_3d;
     ros::Publisher point_cloud_publisher_2d;
-    ros::Subscriber scan_sub;
+//    ros::Subscriber scan_sub;
     ros::Subscriber complete_sub;
+
+    message_filters::Subscriber<sensor_msgs::LaserScan> scan_sub;
 
     pcl::PointCloud<pcl::PointXYZ> pc_comb_3d;
     pcl::PointCloud<pcl::PointXYZ> pc_comb_2d;
     std_msgs::Header header;
     int sweep_count_3d;
     int sweep_count_2d;
+
+
+    tf::MessageFilter<sensor_msgs::LaserScan>* tf_filter;
+    std::string target_frame;
 };
 
 My_Filter::My_Filter() {
+<<<<<<< HEAD
   scan_sub_.subscribe(node, "/scan", 10);
   tfFilter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub_, tfListener, "base_link", 10);
   tfFilter->registerCallback(boost::bind(&My_Filter::scanCallback, this, _1) );
   tfFilter->setTolerance(ros::Duration(0.01));
   scan_sub = node.subscribe<sensor_msgs::LaserScan> ("/scan", 100, &My_Filter::scanCallback, this);
+=======
+//  scan_sub = node.subscribe<sensor_msgs::LaserScan> ("/scan", 100, &My_Filter::scanCallback, this);
+  scan_sub.subscribe(node, "/scan", 10);
+
+>>>>>>> 881df249aedec17a94e886351e5f09ad614fb93e
   complete_sub = node.subscribe<std_msgs::Bool> ("/scan_complete", 100, &My_Filter::completeCallback, this);
   point_cloud_publisher_3d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_3d", 100, false);
   point_cloud_publisher_2d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_2d", 100, false);
   tfListener.setExtrapolationLimit(ros::Duration(2));
+  tf_filter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub, tfListener, target_frame, 10);
+  tf_filter->registerCallback( boost::bind(&My_Filter::scanCallback, this, _1));
   sweep_count_3d = 0;
   sweep_count_2d = 0;
+  if (OFFBOARD_TESTING) {
+    target_frame = "/map";	// /world
+  } else {
+    target_frame = "/map";
+  }
 }
 
 void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
@@ -64,9 +85,15 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
 //  scan->header.stamp += ros::Duration(0.5)
   try {
     if (OFFBOARD_TESTING) {
+<<<<<<< HEAD
       projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
     } else {
       projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
+=======
+      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);	// /world
+    } else {
+      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);
+>>>>>>> 881df249aedec17a94e886351e5f09ad614fb93e
     }
     header = cloud.header;
   } catch(tf::TransformException ex) {
