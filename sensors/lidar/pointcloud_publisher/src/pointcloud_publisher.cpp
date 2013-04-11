@@ -58,7 +58,11 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
     if (OFFBOARD_TESTING) {
       projector.transformLaserScanToPointCloud("/world", *scan, cloud, tfListener);	// 1st arg was "base_link"
     } else {
+<<<<<<< HEAD
       projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);	// 1st arg was "base_link"
+=======
+      projector.transformLaserScanToPointCloud("/map", *scan, cloud, tfListener);
+>>>>>>> parent of 030cd8c... added lidar buoy bag...sorry forrest
     }
     header = cloud.header;
   } catch(tf::TransformException ex) {
