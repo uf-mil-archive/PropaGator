@@ -1,26 +1,29 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <visualization_msgs/MarkerArray.h>
-// PCL specific includes
-#include <pcl/ros/conversions.h>
-#include <pcl/point_cloud.h>
-#include <pcl/point_types.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
+// pcl16 specific includes
+#include <pcl16/ros/conversions.h>
+#include <pcl16/point_cloud.h>
+#include <pcl16/point_types.h>
+#include <pcl16/filters/voxel_grid.h>
+#include <pcl16/sample_consensus/model_types.h>
+#include <pcl16/sample_consensus/method_types.h>
+#include <pcl16/segmentation/sac_segmentation.h>
 
-#include <pcl/ModelCoefficients.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/ModelCoefficients.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/filters/extract_indices.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/sample_consensus/method_types.h>
-#include <pcl/sample_consensus/model_types.h>
-#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl16/ModelCoefficients.h>
+#include <pcl16/io/pcd_io.h>
+#include <pcl16/ModelCoefficients.h>
+#include <pcl16/io/pcd_io.h>
+#include <pcl16/point_types.h>
+#include <pcl16/filters/extract_indices.h>
+#include <pcl16/filters/passthrough.h>
+#include <pcl16/features/normal_3d.h>
+#include <pcl16/sample_consensus/method_types.h>
+#include <pcl16/sample_consensus/model_types.h>
+#include <pcl16/segmentation/sac_segmentation.h>
+
+#include <pcl16/kdtree/kdtree_flann.h>
+#include <pcl16/surface/mls.h>
 
 #include <Eigen/Core>
 #include <Eigen/LU>
@@ -32,59 +35,58 @@ ros::Publisher small_cloud_pub;
 ros::Publisher buoy_cloud_pub;
 ros::Publisher buoy_marker_pub;
 
-typedef pcl::PointXYZ PointT;
+typedef pcl16::PointXYZ PointT;
 
 void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     ROS_DEBUG("Got new pointcloud.");
-    // Convert the sensor_msgs/PointCloud2 data to pcl/PointCloud
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>), cloud_f (new pcl::PointCloud<pcl::PointXYZ>);
+    // Convert the sensor_msgs/PointCloud2 data to pcl16/PointCloud
+    pcl16::PointCloud<pcl16::PointXYZ>::Ptr cloud (new pcl16::PointCloud<pcl16::PointXYZ>), cloud_f (new pcl16::PointCloud<pcl16::PointXYZ>);
     std_msgs::Header header = input->header;
-    pcl::fromROSMsg(*input, *cloud);
+    pcl16::fromROSMsg(*input, *cloud);
     //all the objects needed
-    pcl::PCDReader reader;
-    pcl::PassThrough<PointT> pass;
-    pcl::NormalEstimation<PointT, pcl::Normal> ne;
-    pcl::SACSegmentationFromNormals<PointT, pcl::Normal> seg; 
-    pcl::PCDWriter writer;
-    pcl::ExtractIndices<PointT> extract;
-    pcl::ExtractIndices<pcl::Normal> extract_normals;
-    pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT> ());
+    pcl16::PCDReader reader;
+    pcl16::PassThrough<PointT> pass;
+    pcl16::NormalEstimation<PointT, pcl16::Normal> ne;
+    pcl16::SACSegmentationFromNormals<PointT, pcl16::Normal> seg; 
+    pcl16::PCDWriter writer;
+    pcl16::ExtractIndices<PointT> extract;
+    pcl16::ExtractIndices<pcl16::Normal> extract_normals;
+    pcl16::search::KdTree<PointT>::Ptr tree (new pcl16::search::KdTree<PointT> ());
+
     //data sets
-    pcl::PointCloud<PointT>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals (new pcl::PointCloud<pcl::Normal>);
-    pcl::PointCloud<PointT>::Ptr cloud_filtered2 (new pcl::PointCloud<pcl::PointXYZ>);
-    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals2 (new pcl::PointCloud<pcl::Normal>);
-    pcl::ModelCoefficients::Ptr coefficients_plane (new pcl::ModelCoefficients), coefficients_sphere (new pcl::ModelCoefficients);
-    pcl::PointIndices::Ptr inliers_plane (new pcl::PointIndices), inliers_sphere (new pcl::PointIndices);
+   // pcl16::PointCloud<PointT>::Ptr cloud (new pcl16::PointCloud<PointT>);
+    pcl16::PointCloud<PointT>::Ptr cloud_filtered (new pcl16::PointCloud<PointT>);
+    pcl16::PointCloud<pcl16::Normal>::Ptr cloud_normals (new pcl16::PointCloud<pcl16::Normal>);
+    pcl16::PointCloud<PointT>::Ptr cloud_filtered2 (new pcl16::PointCloud<PointT>);
+    pcl16::PointCloud<pcl16::Normal>::Ptr cloud_normals2 (new pcl16::PointCloud<pcl16::Normal>);
+    pcl16::ModelCoefficients::Ptr coefficients_plane (new pcl16::ModelCoefficients), coefficients_sphere (new pcl16::ModelCoefficients);
+    pcl16::PointIndices::Ptr inliers_plane (new pcl16::PointIndices), inliers_sphere (new pcl16::PointIndices);
     ROS_DEBUG("PointCloud before filtering has: %i data points.", (int)cloud->points.size());
     
     //filter our NaNs
     pass.setInputCloud (cloud);
     pass.setFilterFieldName ("z");
-    pass.setFilterLimits (0, 2.0);    
+    pass.setFilterLimits (0, 1.5);
     pass.filter (*cloud_filtered);
     ROS_DEBUG("PointCloud after filtering has: %i data points." , (int)cloud_filtered->points.size());
-    
-    *cloud_filtered = *cloud;//remove the pass through filter basically
+
+    *cloud_filtered = *cloud;//remove the pass through filter
     //estimate normal points
     ne.setSearchMethod (tree);
     ne.setInputCloud (cloud_filtered);
-    //ne.setKSearch(10);
-    ne.setRadiusSearch(0.025);
+    ne.setKSearch(20);
+    //ne.setRadiusSearch(0.025);
     ne.compute (*cloud_normals);
-
+    
     // Create the segmentation object for the planar model and set all the parameters
     seg.setOptimizeCoefficients (true);
-    seg.setModelType (pcl::SACMODEL_NORMAL_PLANE);
-    seg.setNormalDistanceWeight (0.05);
-    seg.setMethodType (pcl::SAC_RANSAC);
+    seg.setModelType (pcl16::SACMODEL_NORMAL_PLANE);
+    seg.setNormalDistanceWeight (0.01);
+    seg.setMethodType (pcl16::SAC_RANSAC);
     seg.setMaxIterations (100);
-    seg.setDistanceThreshold (5.0);
+    seg.setDistanceThreshold (10);
     seg.setInputCloud (cloud_filtered);
-    seg.setInputNormals (cloud_normals);
-    // Obtain the plane inliers and coefficients
-    seg.segment (*inliers_plane, *coefficients_plane);
-    std::cerr << "Plane coefficients: " << *coefficients_plane << std::endl;
+    seg.setInputNormals(cloud_normals);
 
     // Extract the planar inliers from the input cloud
     extract.setInputCloud (cloud_filtered);
@@ -99,25 +101,28 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
     extract_normals.setIndices (inliers_plane);
     extract_normals.filter (*cloud_normals2);
     
+    *cloud_filtered2 = *cloud;//just test the segmenter, remove filters
+    *cloud_normals2 = *cloud_normals;//just test the segmenter, remove filters
     seg.setOptimizeCoefficients (true);
-    seg.setModelType (pcl::SACMODEL_SPHERE);
-    seg.setMethodType (pcl::SAC_RANSAC);
-    seg.setNormalDistanceWeight (0.1);
-    seg.setMaxIterations (100);
-    seg.setDistanceThreshold (5.0);
-    seg.setRadiusLimits (0, 1.0);
+    seg.setModelType(pcl16::SACMODEL_NORMAL_SPHERE);
+    seg.setMethodType (pcl16::SAC_MSAC);
+    seg.setNormalDistanceWeight (0.01);
+    seg.setMaxIterations(100000);
+    seg.setDistanceThreshold (0.01);
+    seg.setRadiusLimits (0, 10.0);
     seg.setInputCloud (cloud_filtered2);
     seg.setInputNormals (cloud_normals2);
+    seg.segment(*inliers_sphere, *coefficients_sphere);
     
     extract.setInputCloud (cloud_filtered2);
     extract.setIndices (inliers_sphere);
     extract.setNegative (false);
-    pcl::PointCloud<PointT>::Ptr sphere_cloud (new pcl::PointCloud<PointT> ());
+    pcl16::PointCloud<PointT>::Ptr sphere_cloud (new pcl16::PointCloud<PointT> ());
     extract.filter(*sphere_cloud);
     
-    pcl::PointCloud<pcl::PointXYZ> sphere_cloud_in = *sphere_cloud;
+    pcl16::PointCloud<pcl16::PointXYZ> sphere_cloud_in = *sphere_cloud;
     sensor_msgs::PointCloud2 sphere_cloud_out;
-    pcl::toROSMsg(sphere_cloud_in, sphere_cloud_out);
+    pcl16::toROSMsg(sphere_cloud_in, sphere_cloud_out);
     sphere_cloud_out.header = header;
     buoy_cloud_pub.publish(sphere_cloud_out);
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import roslib
-roslib.load_manifest('sandbox_opencv')
+roslib.load_manifest('buoys')
 import rospy
 import numpy
 import cv,cv2,math
@@ -15,11 +15,11 @@ bridge = CvBridge()
 
 #-----------------------------------------------------------------------------------
 
-cv.NamedWindow("camera feed",1)
+#cv.NamedWindow("camera feed",1)
 #cv.NamedWindow("H channel",1)
 #cv.NamedWindow("S channel",1)
 #cv.NamedWindow("V channel",1)
-cv.NamedWindow("red threshold",1)
+#cv.NamedWindow("red threshold",1)
 #cv.NamedWindow("green threshold",1)
 
 #-----------------------------------------------------------------------------------
@@ -30,7 +30,11 @@ RED_MAX = cv.fromarray(numpy.array([15, 255, 60],numpy.uint8),allowND = True)
 
 GREEN_MIN = cv.fromarray(numpy.array([30, 160, 50],numpy.uint8),allowND = True)
 GREEN_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True)
-OBJECT_AREA = 10000
+
+YELLOW_MIN = cv.fromarray(numpy.array([10, 190, 220],numpy.uint8),allowND = True)
+YELLOW_MAX = cv.fromarray(numpy.array([35, 210, 255],numpy.uint8),allowND = True)
+
+OBJECT_AREA = 100
 IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
@@ -42,17 +46,26 @@ blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
 h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
 v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+s_inv = cv.CreateImage(IMAGE_SIZE,8,1)
+h_inv = cv.CreateImage(IMAGE_SIZE,8,1)
+h_s_not = cv.CreateImage(IMAGE_SIZE,8,1)
+h_not_s = cv.CreateImage(IMAGE_SIZE,8,1)
+s_v = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
 red_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1) 
 green_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
+yellow_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
 
 red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+yellow_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 green_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 green_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 green_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+yellow_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 #-----------------------------------------------------------------------------------
 
@@ -101,23 +114,33 @@ def image_callback(data):
                                                                               # the kernel size
  
         cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold_image)         #--threshold color based on HSV range
-        cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_threshold_image)  
+        cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_threshold_image) 
+        cv.InRange(blurred_image,YELLOW_MIN,YELLOW_MAX,yellow_threshold_image)  
        
         cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
         
-        
-        cv.AdaptiveThreshold(h_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,5)      #use hue channel to filter for red
-
+        cv.Not(s_channel,s_inv)
+        cv.Not(h_channel,h_inv)
+        cv.Mul(h_channel,s_inv,h_s_not)
+        cv.Mul(h_inv,s_channel,h_not_s)
+        cv.Mul(s_channel,v_channel,s_v)
+        cv.AdaptiveThreshold(h_s_not,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,5)      #use hue channel to filter for red
+        cv.AdaptiveThreshold(s_v,yellow_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,303,-15)      #use hue channel to filter for red
+        #cv.ShowImage("yellow",h_not_s)    
        
-        cv.Erode(red_adaptive,red_eroded_image,None,1)                        #erode and dilate the thresholded images
+        cv.Erode(red_adaptive,red_eroded_image,None,15)                        #erode and dilate the thresholded images
         cv.Erode(green_threshold_image,green_eroded_image,None,1)
+        cv.Erode(yellow_adaptive,yellow_eroded_image,None,5)
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)
         cv.Dilate(green_eroded_image,green_dilated_image,None,5)
+        cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,7)
 
-        cv.ShowImage("red threshold",red_dilated_image)                       #show image here because findContours effects memory location
-        
+        #cv.ShowImage("red threshold",red_dilated_image)                       #show image here because findContours effects memory location
+        cv.ShowImage("yellow threshold",yellow_dilated_image)                       #show image here because findContours effects memory location
+    
         red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         green_contours,_ = cv2.findContours(image=numpy.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
+        yellow_contours,_ = cv2.findContours(image=numpy.asarray(yellow_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         #cv2.drawContours(numpy.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3) 
         #cv2.drawContours(numpy.asarray(cv_image[:,:]),green_contours,-1,(0,255,0),3)     
         
@@ -142,13 +165,23 @@ def image_callback(data):
                                 cv.Circle(cv_image,(x,y),radius,(0,255,0),3)
                                 append_marker((x,y),(0,1.0,0))
 
+        if (yellow_contours):
+                for i in yellow_contours:
+                        moments = cv.Moments(cv.fromarray(i), binary = 1)             
+                        area = cv.GetCentralMoment(moments, 0, 0)
+                        if area > OBJECT_AREA:
+                                x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
+                                y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
+                                radius = int(math.sqrt(area/math.pi))
+                                cv.Circle(cv_image,(x,y),radius,(0,255,255),3)
+                                append_marker((x,y),(0,1.0,0))
+
                       
                         
          
                  
         cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-        #cv.ShowImage("test",dist_image)             
-        cv.ShowImage("H channel",red_adaptive)
+        #cv.ShowImage("H channel",h_channel)
         #cv.ShowImage("S channel",s_channel)
         #cv.ShowImage("V channel",v_channel)
         cv.ShowImage("camera feed",cv_image)
