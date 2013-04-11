@@ -49,7 +49,7 @@ class My_Filter {
 
 My_Filter::My_Filter() {
  // scan_sub = node.subscribe<sensor_msgs::LaserScan> ("/scan", 100, &My_Filter::scanCallback, this);
-  scan_sub_.subscribe(node, "/scan", 10);
+  scan_sub_.subscribe(node, "/scan", 0);
   tfFilter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub_, tfListener, "laser", 10);
   tfFilter->registerCallback(boost::bind(&My_Filter::scanCallback, this, _1));
   tfFilter->setTolerance(ros::Duration(0.01));

@@ -30,7 +30,7 @@ rosbuild_add_boost_directories()
 #target_link_libraries(example ${PROJECT_NAME})
 
 rosbuild_add_executable(pointcloud_publisher src/pointcloud_publisher.cpp)
-#rosbuild_add_executable(pointcloud_converter src/pointcloud_converter.cpp)
+rosbuild_add_executable(pointcloud_converter src/pointcloud_converter.cpp)
 
 rosbuild_link_boost(pointcloud_publisher signals)
 
