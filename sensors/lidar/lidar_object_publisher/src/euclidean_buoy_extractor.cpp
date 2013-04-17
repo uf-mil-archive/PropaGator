@@ -233,7 +233,7 @@ void cloud_callback(const sensor_msgs::PointCloud2ConstPtr& input) {
 
       //convert to marker array
       if (centroid[2] < MAX_BUOY_HEIGHT && centroid[2] > MIN_BUOY_HEIGHT) {
-        buoy_marker.header.frame_id = "/map";
+        buoy_marker.header.frame_id = "/base_link";
         buoy_marker.header.stamp = ros::Time::now();
         //buoy_marker.ns = "basic_shapes";
         buoy_marker.id = j;

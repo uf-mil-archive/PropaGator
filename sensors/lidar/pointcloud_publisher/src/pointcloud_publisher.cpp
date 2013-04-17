@@ -14,8 +14,6 @@
 
 #include <sstream>
 
-const bool OFFBOARD_TESTING = true;
-
 // counted in half sweeps (up to down = 1)
 const int num_sweeps_2d = 1;
 const int num_sweeps_3d = 2;
@@ -31,13 +29,12 @@ class My_Filter {
     ros::NodeHandle node;
     laser_geometry::LaserProjection projector;
     tf::TransformListener tfListener;
-    
-    message_filters::Subscriber<sensor_msgs::LaserScan> scan_sub_;
+
+    message_filters::Subscriber<sensor_msgs::LaserScan> scan_sub;
     tf::MessageFilter<sensor_msgs::LaserScan> * tfFilter;
 
     ros::Publisher point_cloud_publisher_3d;
     ros::Publisher point_cloud_publisher_2d;
-    ros::Subscriber scan_sub;
     ros::Subscriber complete_sub;
 
     pcl::PointCloud<pcl::PointXYZ> pc_comb_3d;
@@ -47,17 +44,18 @@ class My_Filter {
     int sweep_count_2d;
 };
 
-My_Filter::My_Filter() {
- // scan_sub = node.subscribe<sensor_msgs::LaserScan> ("/scan", 100, &My_Filter::scanCallback, this);
-  scan_sub_.subscribe(node, "/scan", 0);
-  tfFilter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub_, tfListener, "laser", 10);
+My_Filter::My_Filter() :
+  scan_sub(node, "/scan", 0) {
+//  scan_sub = node.subscribe<sensor_msgs::LaserScan> ("/scan", 100, &My_Filter::scanCallback, this);
+//  scan_sub.subscribe(node, "/scan", 0);
+  tfFilter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub, tfListener, "/base_link", 10);
   tfFilter->registerCallback(boost::bind(&My_Filter::scanCallback, this, _1));
   tfFilter->setTolerance(ros::Duration(0.01));
-  
+
   complete_sub = node.subscribe<std_msgs::Bool> ("/scan_complete", 100, &My_Filter::completeCallback, this);
   point_cloud_publisher_3d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_3d", 100, false);
   point_cloud_publisher_2d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_2d", 100, false);
-  tfListener.setExtrapolationLimit(ros::Duration(2));
+//  tfListener.setExtrapolationLimit(ros::Duration(2));
   sweep_count_3d = 0;
   sweep_count_2d = 0;
 }
@@ -66,11 +64,7 @@ void My_Filter::scanCallback(const sensor_msgs::LaserScan::ConstPtr& scan) {
   sensor_msgs::PointCloud2 cloud;
 //  scan->header.stamp += ros::Duration(0.5)
   try {
-    if (OFFBOARD_TESTING) {
-      projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
-    } else {
-      projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
-    }
+    projector.transformLaserScanToPointCloud("/base_link", *scan, cloud, tfListener);	// 1st arg was "base_link"
     header = cloud.header;
   } catch(tf::TransformException ex) {
     ROS_WARN("TransformException!");
