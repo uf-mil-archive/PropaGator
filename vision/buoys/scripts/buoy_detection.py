@@ -71,11 +71,11 @@ yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 #publish marker array of objects found
 global bouy_array
-bouy_publisher=rospy.Publisher('buoys',MarkerArray)
+bouy_publisher=rospy.Publisher('camera_buoys',MarkerArray)
 bouy_array=MarkerArray()
 def append_marker(pos,color):
 	marker = Marker()
-	marker.header.frame_id = "/camera_frame"
+	marker.header.frame_id = "/camera"
 	marker.type = marker.SPHERE
 	marker.id = pos[0]*pos[1]
 	marker.lifetime = rospy.Duration(.5)
