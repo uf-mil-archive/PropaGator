@@ -15,11 +15,18 @@ from twisted.internet import protocol, reactor, task
 
 import roslib
 roslib.load_manifest('boatsim')
+import rospy
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, Vector3, Quaternion
+
 
 from sim import threed, vector, util
 from sim.vector import v, V
 
-from subsim import devices
+from boatsim import devices
+
+rospy.init_node('boatsim')
+
 '''
 from visualization_msgs.msg import MarkerArray,Marker
 global bouy_array
@@ -60,7 +67,7 @@ space = ode.HashSpace()
 body_geom = ode.GeomBox(space, (1.27, .46, .46))
 body_geom.setBody(body)
 
-pool_mesh = threed.mesh_from_obj(open(roslib.packages.resource_file('subsim', 'scene', 'pool6_Scene.obj')))
+pool_mesh = threed.mesh_from_obj(open(roslib.packages.resource_file('boatsim', 'scene', 'pool6.obj')))
 pool_geom = ode.GeomTriMesh(pool_mesh.ode_trimeshdata, space)
 
 def get_water_vel(pos):
@@ -71,6 +78,8 @@ imu_pos = v(0.43115992, 0.0, -0.00165058)
 
 killed = False
 locked = False
+
+odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
 def world_tick():
     global world_time
@@ -184,6 +193,21 @@ def world_tick():
     except:
         traceback.print_exc()
     
+    ENU_from_NED = lambda (e, n, u): (n, e, -u)
+    msg = Odometry()
+    msg.header.stamp = rospy.Time(world_time)
+    msg.header.frame_id = '/simmap'
+    msg.child_frame_id = '/base_link'
+    msg.pose.pose.position = Point(*ENU_from_NED(body.getPosition()))
+    ENU_from_NED_q = v(0, 1, 1, 0).unit()
+    FRD_from_FLU_q = v(0, 1, 0, 0).unit()
+    q = ENU_from_NED_q % V(body.getQuaternion()) % FRD_from_FLU_q
+    msg.pose.pose.orientation = Quaternion(q[1], q[2], q[3], q[0])
+    msg.twist.twist.linear = Vector3(*q.conj().quat_rot(ENU_from_NED(body.getLinearVel())))
+    msg.twist.twist.angular = Vector3(*q.conj().quat_rot(ENU_from_NED(body.getAngularVel())))
+    odom_pub.publish(msg)
+
+    
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
 
 
@@ -246,14 +270,14 @@ class Sub(object):
             glEnable(GL_DEPTH_TEST)
             
 
-def generate_bouy_pair(pos,angle):
+def generate_bouy_pair(world, pos,angle):
     
     channel_gap = 2
     green_pos = (pos[0] + math.cos(math.radians(angle))*(channel_gap/2.),pos[1] + math.sin(math.radians(angle))*(channel_gap/2.))
     red_pos = (pos[0] - math.cos(math.radians(angle))*(channel_gap/2.),pos[1] - math.sin(math.radians(angle))*(channel_gap/2.))
     
-    i.objs.append(Buoys(v(green_pos[0], green_pos[1], 0),(0,1,0)))
-    i.objs.append(Buoys(v(red_pos[0], red_pos[1], 0),(1,0,0)))
+    world.objs.append(Buoys(v(green_pos[0], green_pos[1], 0),(0,1,0)))
+    world.objs.append(Buoys(v(red_pos[0], red_pos[1], 0),(1,0,0)))
    
 class Buoys(object):
     def __init__(self, pos,color):
@@ -270,15 +294,15 @@ class Buoys(object):
             glColor3f(*self.bouys[1])
             gluSphere(q, .2, 30, 15)
 
-i = threed.Interface()
-i.init()
-i.objs.append(threed.MeshDrawer(pool_mesh, (.4, .4, .4)))
+w = threed.World()
+
+w.objs.append(threed.MeshDrawer(pool_mesh, (.4, .4, .4)))
 sub_model = Sub(body, lambda: killed)
-i.objs.append(sub_model)
-i.objs.append(threed.VectorField(get_water_vel))
-generate_bouy_pair((2,1),0)
-generate_bouy_pair((10,5),15)
-generate_bouy_pair((15,10),60)
+w.objs.append(sub_model)
+w.objs.append(threed.VectorField(get_water_vel))
+generate_bouy_pair(w, (2,1),0)
+generate_bouy_pair(w, (10,5),15)
+generate_bouy_pair(w, (15,10),60)
 
 '''
 i.objs.append(Buoys(v(-1, 5, 0)))
@@ -286,6 +310,8 @@ i.objs.append(Buoys(v(-5, 10, 0)))
 i.objs.append(Buoys(v(-2, 15, 0)))
 '''
 
+i = threed.Interface()
+i.init(w)
 def _():
     try:
         i.step()
@@ -296,4 +322,5 @@ reactor.callWhenRunning(task.LoopingCall(_).start, 1/24)
 
 reactor.callWhenRunning(world_tick)
 
+reactor.callWhenRunning(lambda: rospy.core.add_client_shutdown_hook(lambda reason=None: reactor.callFromThread(reactor.stop)))
 reactor.run()

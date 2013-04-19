@@ -8,7 +8,7 @@ import signal
 from constants import *
 
 DEBUG = False
-TIMEOUT_SECS = 3
+TIMEOUT_SECS = 1
 #code for handling timeouts on recieving packets
 class Timeout(Exception):
 	pass
