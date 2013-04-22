@@ -23,6 +23,12 @@ from laser_tf_py.msg import ScanAngle
 ##  d - User down	##
 ##########################
 
+
+
+
+#!!!!!!!!!! get rid of on/offboard, recal lidar pitch. too positive?
+
+
 OFFBOARD_TESTING = True		# T = Boat is not in water
 LIDAR_UPSIDE_DOWN = False	# T = LIDAR mounted with lense on bottom (upside down)
 

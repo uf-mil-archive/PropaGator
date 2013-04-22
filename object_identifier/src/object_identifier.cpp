@@ -7,23 +7,20 @@
 
 ros::Publisher identified_buoy_pub;
 
-const float LC_X_TRANSLATION = 0;
-const float LC_Y_TRANSLATION = 0;
-const float LC_Z_TRANSLATION = 0;
+visualization_msgs::MarkerArray camera_buoys;
 
-const float LC_R_ROTATION = 0;
-const float LC_P_ROTATION = 0;
-const float LC_Y_ROTATION = 0;
-
-void lidar_callback(const visualization_msgs::MarkerArrayConstPtr& input) {
+void lidar_callback(const visualization_msgs::MarkerArrayConstPtr& lidar_buoys) {
   ROS_DEBUG("Got new lidar buoy_marker.");
-
-
+  // Do work
+  
 }
 
-void camera_callback(const /*whatever camera objects are published as*/ input) {
+void camera_callback(const visualization_msgs::MarkerArrayConstPrt& input) {
   ROS_DEBUG("Got new camera object.");
-
+  // Store
+  for (int i = 0; i < input->markers.size(); i++) {
+    camera_buoys.pushback(input->markers[i]);
+  }
 }
 
 int main(int argc, char** argv) {
