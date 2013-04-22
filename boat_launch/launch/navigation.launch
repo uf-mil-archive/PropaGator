@@ -1,46 +1,52 @@
 <launch>
-<node pkg="microstrain_3dmgx1" type="gx1_publisher.py" name="imu_driver">
-  <remap from="/imu/mag_raw" to="/imu/mag"/>
-  <param name="port" value="serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"/>
-</node>
-<node pkg="tf" type="static_transform_publisher" name="imu_broadcaster"
-    args="0.267 0.292 0.178  0 1 0 0  base_link imu 100" />
 
+  <node pkg="microstrain_3dmgx1" type="gx1_publisher.py" name="imu_driver">
+    <param name="port" value="/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"/>
+    <param name="frame_id" value="/imu"/>
+  </node>
+  <node pkg="tf" type="static_transform_publisher" name="imu_broadcaster"
+    args="-0.229 -0.279 0.178  1 0 0 0  base_link imu 100" /> <!-- -9" -11" 7" -->
+  <node pkg="nodelet" type="nodelet" name="magnetic_hardsoft_compensation" args="standalone magnetic_hardsoft_compensation/nodelet">
+    <param name="frame_id" type="string" value="/imu"/>
+    <rosparam>
+correction: [0.20592528023585158, 0.37316490540490893, 0.7955994945154374, -0.4305394019839666]
+scale: [0.997670134182744, 1.000332666374125, 1.0020019744049764]
+shift: [5.224191093415433e-06, 5.777738027626039e-07, -8.053846943961303e-08]
+    </rosparam>
+  </node>
 
-<node pkg="skytraq_driver" type="skytraq_driver" name="gps_driver">
+  <node pkg="skytraq_driver" type="skytraq_driver" name="gps_driver">
     <param name="port" value="/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DA0032VC-if00-port0"/>
-</node>
-<node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
-    args="-0.279 0.292 0.178  0 0 0 1  base_link gps 100" />
+    <param name="frame_id" value="/gps"/>
+  </node>
+  <node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
+    args="0.56 0 0  0 0 0 1  /imu /gps 100" />
 
-
+<!--
 <node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>
 
 
-<node pkg="legacy_ukf" type="legacy_ukf" name="legacy_ukf"><rosparam>
+<node pkg="legacy_ukf" type="legacy_ukf" name="legacy_ukf" respawn="true"><rosparam>
     fixed_frame: /map
     localMagneticVector: [-2244.2, 24151.0, -40572.8]
     latitudeDeg: 29.651388889
     vel_sigma: [0.4, 0.4, 0.4]
     att_sigma: [0.5, 0.5, 0.5]
-    </rosparam>
+</rosparam>
     <remap from="worldvel" to="gps_vel"/>
     <remap from="odom" to="imu_odom"/>
 </node>
-<node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
-    frame_id: /map
-    child_frame_id: /base_link
-  </rosparam>
-  <remap from="orig_odom" to="imu_odom"/>
-</node>
-<node pkg="odometry_utils" type="odometry_to_tf" name="odometry_to_tf"/>
-
-
-<!--
-<node pkg="kalman_6dof" type="kalman_6dof" name="kalman_6dof">
-    <param name="hack_down_ref" value="true"/>
-    <remap from="ins" to="odom2"/>
-</node>
 -->
+  <node pkg="kalman_6dof" type="kalman_6dof" name="kalman_6dof" respawn="true">
+    <param name="hack_down_ref" value="false"/>
+    <remap from="ins" to="imu_odom"/>
+  </node>
+  <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
+      frame_id: /map
+      child_frame_id: /base_link
+    </rosparam>
+    <remap from="orig_odom" to="imu_odom"/>
+  </node>
+  <node pkg="odometry_utils" type="odometry_to_tf" name="odometry_to_tf"/>
 
 </launch>

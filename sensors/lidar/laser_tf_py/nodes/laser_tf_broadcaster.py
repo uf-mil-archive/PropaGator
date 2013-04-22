@@ -24,16 +24,14 @@ from laser_tf_py.msg import ScanAngle
 ##########################
 
 
-
-
-#!!!!!!!!!! get rid of on/offboard, recal lidar pitch. too positive?
-
-
-OFFBOARD_TESTING = True		# T = Boat is not in water
+OFFBOARD_TESTING = False
 LIDAR_UPSIDE_DOWN = False	# T = LIDAR mounted with lense on bottom (upside down)
 
 global IN_CALLBACK
 IN_CALLBACK = False
+
+min_start = 40
+max_start = -10
 
 m = -1.55172	# y is angle (degrees)
 b = 170.689655	# x is ticks of encoder
@@ -97,7 +95,6 @@ def scan_angle_callback(angle_msg):
   ser.write("H")
   msg = ser.readline()
   while not "H" in msg:
-#    sleep(0.5)
     rospy.logwarn("Resending halt command to I/O board. Got "+msg+" not H")
     ser.write("H")
     msg = ser.readline()
@@ -106,7 +103,6 @@ def scan_angle_callback(angle_msg):
   ser.write("l"+str(min_angle)+"\r")
   msg = ser.readline()
   while not "l"+str(min_angle) in msg:
- #   sleep(0.5)
     rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_angle))
     ser.write("l"+str(min_angle)+"\r")
     msg = ser.readline()
@@ -116,7 +112,6 @@ def scan_angle_callback(angle_msg):
   ser.write("h"+str(max_angle)+"\r")
   msg = ser.readline()
   while not "h"+str(max_angle) in msg:
-  #  sleep(0.5)
     rospy.logwarn("Retrying to send max angle. Got "+msg+" not "+"h"+str(min_angle))
     ser.write("h"+str(max_angle)+"\r")
     msg = ser.readline()
@@ -126,11 +121,9 @@ def scan_angle_callback(angle_msg):
   ser.write("S")
   msg = ser.readline()
   while not "S" in msg:
-  #  sleep(0.5)
     rospy.logwarn("Resending command to I/O board. Got "+msg+" not S")
     ser.write("S")
     msg = ser.readline()
-#  sleep(4)
 
   rospy.logerr("end of callback")
   IN_CALLBACK = False
@@ -143,29 +136,50 @@ if __name__ == '__main__':
   rospy.Subscriber("/lidar_angle", ScanAngle, scan_angle_callback)
   # A positive pitch is a downward pitch from the point of the view of the robot
   try:
-    ser = serial.Serial(port, 115200, timeout=1)
+    ser = serial.Serial(port, 9600, timeout=1)
     try:
       ser.flushInput()
       ser.write("R")
+
+      min_start = int((min_start - b)/m)
+      max_start = int((max_start - b)/m)
+      rospy.logerr("new angles: "+str(min_start)+" and "+str(max_start))
+
+      ser.flushInput()
+      ser.write("l"+str(min_start)+"\r")
+      msg = ser.readline()
+      while not "l"+str(min_start) in msg:
+        rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_start))
+        ser.write("l"+str(min_start)+"\r")
+        msg = ser.readline()
+      rospy.logdebug("Min angle updated to "+str(min_start))
+
+      ser.flushInput()
+      ser.write("h"+str(max_start)+"\r")
+      msg = ser.readline()
+      while not "h"+str(max_start) in msg:
+        rospy.logwarn("Retrying to send max angle. Got "+msg+" not "+"h"+str(min_start))
+        ser.write("h"+str(max_start)+"\r")
+        msg = ser.readline()
+      rospy.logdebug("Max angle updated to "+str(max_start))
+
       ser.write("S")
       while not "S" in ser.readline():
-#        sleep(0.5)
         rospy.logdebug("Resending command to I/O board.")
         ser.write("S")
       sleep(4)
       while not rospy.is_shutdown():
         if (not IN_CALLBACK):
-#          rospy.logerr("in main")
           try:
             data = ser.readline()
-          except (IOError, select.error):
+            time = rospy.Time.now()
+	  except (IOError, select.error):
             rospy.logwarn("Did not read from serial port.")
             ser.close()
             ser.open()
             ser.flushInput()
 
           try:
-  #          pitch = (float(data) - 288)/11 + pitchAngleOffset
             pitch = (m*float(data)) + b
             lp_p = (pitch/180)*math.pi
           except ValueError:
@@ -197,23 +211,19 @@ if __name__ == '__main__':
           if (LIDAR_UPSIDE_DOWN):
             total_roll = total_roll + math.pi	# compensates for Lidar being mounted upside down
 
-          if (OFFBOARD_TESTING):
-            fframe = "/world"
-          else:	# otherwise we're on the boat
-            fframe = "/base_link"
-
           br.sendTransform(T,
            tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
+#           time,
            rospy.Time.now(),
            "/laser",
-           fframe)
+           "/base_link")
+#          rospy.logerr("published new laser tf")
 
       ser.flushInput()
       ser.write("H")
       rospy.logerr("leaving node")
       msg = ser.readline()
       while not "H" in msg:
- #       sleep(0.5)
         ser.flushInput()
         rospy.logwarn("Resending halt command to I/O board to end process. "+msg)
         ser.write("H")
