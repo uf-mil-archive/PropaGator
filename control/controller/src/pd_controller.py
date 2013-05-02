@@ -75,9 +75,9 @@ rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 #----------------------------------------------------------------------------------
 
 #set controller gains
-rospy.set_param('p_gain', {'x':0.25,'y':0.25,'yaw':0.5})
-rospy.set_param('d_gain', {'x':400.0,'y':400.0,'yaw':500.0})
-
+rospy.set_param('p_gain', {'x':2.6,'y':2.6,'yaw':5.0})
+rospy.set_param('d_gain', {'x':0.3,'y':0.3,'yaw':1.0})
+#.25,400
 #----------------------------------------------------------------------------------
 
 K = numpy.array([

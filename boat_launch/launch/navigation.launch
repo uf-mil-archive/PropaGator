@@ -5,7 +5,7 @@
     <param name="frame_id" value="/imu"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="imu_broadcaster"
-    args="-0.229 -0.279 0.178  1 0 0 0  base_link imu 100" /> <!-- -9" -11" 7" -->
+    args=".076 .356 .102  .5 -.5 -.5 -.5  base_link imu 100" /> <!-- -9" -11" 7" -->
   <node pkg="nodelet" type="nodelet" name="magnetic_hardsoft_compensation" args="standalone magnetic_hardsoft_compensation/nodelet">
     <param name="frame_id" type="string" value="/imu"/>
     <rosparam>
@@ -20,7 +20,7 @@ shift: [5.224191093415433e-06, 5.777738027626039e-07, -8.053846943961303e-08]
     <param name="frame_id" value="/gps"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
-    args="0.56 0 0  0 0 0 1  /imu /gps 100" />
+    args="0.559 .267 -.051 0 0 0 1  /base_link /gps 100" />
 
 <!--
 <node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>

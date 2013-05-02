@@ -5,8 +5,9 @@ roslib.load_manifest('rings')
 import rospy
 import numpy
 import cv,cv2,math
-from std_msgs.msg import String
+from std_msgs.msg import String,Header
 from sensor_msgs.msg import Image
+from geometry_msgs.msg import WrenchStamped,Wrench,Vector3
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker,MarkerArray
 
@@ -18,19 +19,20 @@ wrench_publisher = rospy.Publisher('wrench',WrenchStamped)
 
 #parameters to set
 CENTER = True
-global error,previous_error,desired_state,p,d
-error = [0,0]
-previous_error = [0,0]
-desired_state = [320,140]
+global error,previous_error,desired_state,p,d,red_center
+error = numpy.array((0,0))
+previous_error = (0,0)
+desired_state = (140,320)
+red_center = desired_state
 p = 1
 d = 0
 
-RED_MIN = cv.fromarray(numpy.array([0, 125, 0],numpy.uint8),allowND = True)
-RED_MAX = cv.fromarray(numpy.array([15, 255, 60],numpy.uint8),allowND = True)
+RED_MIN = cv.fromarray(numpy.array([4, 210, 0],numpy.uint8),allowND = True)
+RED_MAX = cv.fromarray(numpy.array([12, 240, 160],numpy.uint8),allowND = True)
 
 ORANGE_MIN = cv.fromarray(numpy.array([30, 160, 50],numpy.uint8),allowND = True)
 ORANGE_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True)
-OBJECT_AREA = 1000
+OBJECT_AREA = 5000
 IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
@@ -104,6 +106,8 @@ def mouse_callback(event,x,y,flags,image):
 
 def image_callback(data):
       
+	global error,previous_error,desired_state,p,d,red_center
+
         cv_image = bridge.imgmsg_to_cv(data,"bgr8")
         cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
 
@@ -122,9 +126,9 @@ def image_callback(data):
         
         
         #red
-        cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,103,-55)      
-        cv.Erode(red_adaptive,red_eroded_image,None,2)                        
-        cv.Dilate(red_eroded_image,red_dilated_image,None,9)
+        cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,103,-15)      
+        cv.Erode(red_adaptive,red_eroded_image,None,3)                        
+        cv.Dilate(red_eroded_image,red_dilated_image,None,12)
         #purple
         cv.AdaptiveThreshold(h_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,103,25)     
         cv.Erode(purple_adaptive,purple_eroded_image,None,3)
@@ -135,8 +139,8 @@ def image_callback(data):
         cv.ShowImage("S channel",s_channel)
         cv.ShowImage("V channel",v_channel)
         cv.ShowImage("red",red_dilated_image)                             
-        cv.ShowImage("purple",purple_dilated_image)                       #show image here because findContours affects memory location
-        
+        #cv.ShowImage("purple",purple_dilated_image)                       #show image here because findContours affects memory location
+        '''
         red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         #cv2.drawContours(numpy.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3) 
@@ -149,7 +153,7 @@ def image_callback(data):
                         if area > OBJECT_AREA:
                                 x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                                 y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                                red_center = [x,y]
+                                red_center = (x,y)
                                 radius = int(math.sqrt(area/math.pi))
                                 cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
                                 append_marker((x,y),(1.0,0,0))
@@ -163,13 +167,20 @@ def image_callback(data):
                                 radius = int(math.sqrt(area/math.pi))
                                 cv.Circle(cv_image,(x,y),radius,(128,0,128),3)
                                 append_marker((x,y),(0,1.0,0))
-
+	'''
+	moments = cv.Moments(red_dilated_image,binary = 1)
+	area = cv.GetCentralMoment(moments, 0, 0)
+ 	x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
+        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
+	radius = int(math.sqrt(area/math.pi))
+        cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
+		
         if (CENTER == True):
-                error = desired_state - red_center
+                error = numpy.array(desired_state) - numpy.array(red_center)
                 p_term = p*error
                 d_term = d*(error-previous_error)
-                output = p_term + d_term
-                
+                output = p_term + d_term	
+		#print output                
                 wrench_publisher.publish(WrenchStamped(
 						header = Header(
 							stamp=rospy.Time.now(),
