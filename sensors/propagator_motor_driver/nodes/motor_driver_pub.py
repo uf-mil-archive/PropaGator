@@ -37,16 +37,26 @@ while True:
 	break
 	
 '''
+def map_thruster_curve(direction,force):
+        if direction="forward":
+                return (.0266171798*np.exp(.0311079805*force))
+                         
+        else:
+                return (.0328061857*force - 1.8306035094) 
 
 def apply_command(force):
 	
 	global message_received
 	message_received = True
-	print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
+	#print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
 	if (force > 0):
-		motordriver.set_forward_speed(str(int(force*200/max_force)))
+                thrust = map_thruster_curve("forward",force)
+                motordriver.set_forward_speed(str(int(thrust)))
+      		#motordriver.set_forward_speed(str(int(force*200/max_force)))
 	elif (force < 0):
-		motordriver.set_reverse_speed(str(int(-force*200/min_force)))
+                thrust = map_thruster_curve("reverse",force)
+                motordriver.set_reverse_speed(str(int(thrust)))
+		#motordriver.set_reverse_speed(str(int(-force*200/min_force)))
 	else:
 		motordriver.stop()
 	'''	
