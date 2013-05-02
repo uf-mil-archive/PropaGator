@@ -34,12 +34,7 @@ bouy_publisher=rospy.Publisher('bouys',MarkerArray)
 bouy_array=MarkerArray()
 '''
 
-imu_listeners = set()
 thrusters = [0]*4
-
-def send_imu_update(**update):
-    for imu_listener in imu_listeners:
-        imu_listener.sendUpdate(**update)
 
 
 clip = lambda x, (low, high): min(max(x, low), high)
@@ -53,7 +48,7 @@ def buoyancy_force(depth, r):
     return 1000 * 9.81 * vol_submerged
 
 world, world_time = ode.World(), reactor.seconds()
-world.setGravity((0, 0, 9.81))
+world.setGravity((0, 0, -9.81))
 
 body = ode.Body(world)
 M = ode.Mass()
@@ -71,10 +66,8 @@ pool_mesh = threed.mesh_from_obj(open(roslib.packages.resource_file('boatsim', '
 pool_geom = ode.GeomTriMesh(pool_mesh.ode_trimeshdata, space)
 
 def get_water_vel(pos):
-    return  v(0, 0, 0)
+    return v(0, 0, 0)
     return (pos % v(0, 0, 1))*math.e**(-pos.mag()/3)
-
-imu_pos = v(0.43115992, 0.0, -0.00165058)
 
 killed = False
 locked = False
@@ -86,7 +79,7 @@ def world_tick():
     
     water_vel = get_water_vel(V(body.getPosition()))
     
-    body.addForceAtRelPos((0, 0, -buoyancy_force(body.getPosition()[2], 0.22728849402137372)), (0, 0, -.1))
+    body.addForceAtRelPos((0, 0, buoyancy_force(-body.getPosition()[2], 0.22728849402137372)), (0, 0, .1))
     body.addForce(-(40 if body.getPosition()[2] >= 0 else 10) * (V(body.getLinearVel())-water_vel))
     #body.addForce([random.gauss(0, 1) for i in xrange(3)])
     #body.addTorque([random.gauss(0, 10) for i in xrange(3)])
@@ -98,10 +91,10 @@ def world_tick():
     thruster_angle = math.radians(30)
     #print thrusters
     for i, (reldir, relpos, fwdforce, revforce) in enumerate([
-        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(.729401, .23495, .241308), 100, 100), # FR
-        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(.729401,-.23495,.241308), 100, 100), # FL
-        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,.241308), 100, 100), # BR
-        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,.241308), 100, 100), # BL
+        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(.729401, -.23495, -.241308), 100, 100), # FR
+        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(.729401,.23495,-.241308), 100, 100), # FL
+        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,-.241308), 100, 100), # BR
+        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,-.241308), 100, 100), # BL
     ]):
         body.addRelForceAtRelPos(reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce), relpos)
         sub_model.vectors.append((relpos, relpos - .02*reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce)))
@@ -110,21 +103,20 @@ def world_tick():
     for keycode, force in [
         (pygame.K_k, v(-50, 0, 0)),
         (pygame.K_i, v(+50, 0, 0)),
-        (pygame.K_j, v(0, -50, 0)),
-        (pygame.K_l, v(0, +50, 0)),
-        (pygame.K_o, v(0, 0, -50)),
-        (pygame.K_m, v(0, 0, +50)),
+        (pygame.K_j, v(0, +50, 0)),
+        (pygame.K_l, v(0, -50, 0)),
+        (pygame.K_o, v(0, 0, +50)),
+        (pygame.K_m, v(0, 0, -50)),
     ]:
         if keys[keycode]:
             body.addRelForce(force*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
     for keycode, torque in [
-        (pygame.K_COMMA, v(-20,
-         0, 0)),
+        (pygame.K_COMMA, v(-20, 0, 0)),
         (pygame.K_u, v(+20, 0, 0)),
-        (pygame.K_h, v(0, -20, 0)),
-        (pygame.K_SEMICOLON, v(0, +20, 0)),
-        (pygame.K_0, v(0, 0, -20)),
-        (pygame.K_n, v(0, 0, +20)),
+        (pygame.K_h, v(0, +20, 0)),
+        (pygame.K_SEMICOLON, v(0, -20, 0)),
+        (pygame.K_0, v(0, 0, +20)),
+        (pygame.K_n, v(0, 0, -20)),
     ]:
         if keys[keycode]:
             body.addRelTorque(torque*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
@@ -139,9 +131,6 @@ def world_tick():
         locked = True
     if keys[pygame.K_4]:
         locked = False
-    
-    last_vel = V(body.getRelPointVel(imu_pos))
-    last_angvel = V(body.vectorFromWorld(body.getAngularVel()))
     
     contactgroup = ode.JointGroup()
     
@@ -165,59 +154,26 @@ def world_tick():
     
     contactgroup.empty()
     
-    a = (V(body.vectorFromWorld(body.getRelPointVel(imu_pos) - last_vel)))/dt - V(body.vectorFromWorld(world.getGravity()))
-    
-    imu_to_sub = v(0.012621022547474, 0.002181321593961, -0.004522523520991, 0.999907744947984)
-    #imu_to_sub = vector.axisangle_to_quat(v(1,0,0),math.pi)
-    imu_gyro = imu_to_sub.conj().quat_rot((last_angvel + body.vectorFromWorld(body.getAngularVel()))/2)
-    imu_acc = imu_to_sub.conj().quat_rot(-a)
-    #print imu_acc
-    
-    north = v(0.241510e-4, -0.022442e-4, 0.405728e-4)
-    magCorrection = v(0.7409404225119256, 0.16518505729708194, 0.41635135769064785, -0.5003725952555389)
-    magShift = v(1.972505436535728e-05, -2.630949101201508e-06, 6.149054775740445e-05)
-    magScale = v(0.9824591199601406, 0.991700915163004, 1.0263720042299143)
-    
-    imu_mag_prescale = imu_to_sub.conj().quat_rot(body.vectorFromWorld(north))
-    imu_mag = magCorrection.conj().quat_rot(magCorrection.quat_rot(imu_mag_prescale).scale(magScale)) + magShift
-    try:
-        send_imu_update(
-            flags=0,
-            supply_voltage=random.gauss(12, .1),
-            ang_rate=imu_gyro,
-            acceleration=imu_acc,
-            mag_field=imu_mag,
-            temperature=random.gauss(25, .1),
-            timestamp=world_time,
-        )
-    except:
-        traceback.print_exc()
-    
-    ENU_from_NED = lambda (e, n, u): (n, e, -u)
     msg = Odometry()
     msg.header.stamp = rospy.Time(world_time)
     msg.header.frame_id = '/simmap'
     msg.child_frame_id = '/base_link'
-    msg.pose.pose.position = Point(*ENU_from_NED(body.getPosition()))
-    ENU_from_NED_q = v(0, 1, 1, 0).unit()
-    FRD_from_FLU_q = v(0, 1, 0, 0).unit()
-    q = ENU_from_NED_q % V(body.getQuaternion()) % FRD_from_FLU_q
+    msg.pose.pose.position = Point(*body.getPosition())
+    q = V(body.getQuaternion())
     msg.pose.pose.orientation = Quaternion(q[1], q[2], q[3], q[0])
-    msg.twist.twist.linear = Vector3(*q.conj().quat_rot(ENU_from_NED(body.getLinearVel())))
-    msg.twist.twist.angular = Vector3(*q.conj().quat_rot(ENU_from_NED(body.getAngularVel())))
+    msg.twist.twist.linear = Vector3(*q.conj().quat_rot(body.getLinearVel()))
+    msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
     odom_pub.publish(msg)
-
+    
     
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
 
-
-reactor.listenTCP(10025, util.AutoServerFactory(devices.IMUProtocol, imu_listeners))
 for i in xrange(4):
     reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
 
 
 
-class Sub(object):
+class Boat(object):
     is_base_link = True
     
     def __init__(self, body, is_killed_func):
@@ -226,11 +182,6 @@ class Sub(object):
         self.vectors = []
     
     def draw(self):
-        glBegin(GL_LINES)
-        glColor3f(1, 1, 1)
-        glVertex3f(*self.body.getPosition())
-        glVertex3f(*self.body.getPosition() + 20*v(0.241510, -0.022442, 0.405728))
-        glEnd()
         with threed.GLMatrix:
             threed.rotate_to_body(self.body)
             
@@ -244,15 +195,15 @@ class Sub(object):
                 glColor3f(1, 0, 0)
                 gluSphere(q, 0.5, 40, 20)
             with threed.GLMatrix:
-                glTranslate(+.4, +.2, -.3)
+                glTranslate(+.4, -.2, +.3)
                 glColor3f(0, 0, 0)
                 gluSphere(q, 0.1, 40, 20)
             with threed.GLMatrix:
-                glTranslate(+.4, -.2, -.3)
+                glTranslate(+.4, +.2, +.3)
                 glColor3f(0, 0, 0)
                 gluSphere(q, 0.1, 40, 20)
             with threed.GLMatrix:
-                glTranslate(0, 0, -.5)
+                glTranslate(0, 0, +.5)
                 if self.is_killed_func():
                     glColor3f(1, 0, 0)
                 else:
@@ -285,7 +236,7 @@ class Buoys(object):
        #self.buoys = [(pos + [random.gauss(0, 5), random.gauss(0, 5), 0], color) for i in xrange(10) for color in [(1, 0, 0), (0, 1, 0),(0,0,1)]]
        #self.buoys = [(pos + [i*3,0,0],(i,1-i,0)) for i in xrange(2)]
        self.bouys = [pos,color]
-            
+    
     def draw(self):
         q = gluNewQuadric()
         #for pos, color in self.buoys:
@@ -297,7 +248,7 @@ class Buoys(object):
 w = threed.World()
 
 w.objs.append(threed.MeshDrawer(pool_mesh, (.4, .4, .4)))
-sub_model = Sub(body, lambda: killed)
+sub_model = Boat(body, lambda: killed)
 w.objs.append(sub_model)
 w.objs.append(threed.VectorField(get_water_vel))
 generate_bouy_pair(w, (2,1),0)
