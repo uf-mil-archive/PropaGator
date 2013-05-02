@@ -56,11 +56,12 @@ def _jacobian_inv(x):
     return J_inv
     
 #---------------collect desired state information as soon as it is posted--------------------
-global desired_state_set
+global desired_state_set,previous_error
 desired_state_set = False
 desired_state = numpy.zeros(6)
 desired_state_dot = numpy.zeros(6)
 state = numpy.zeros(6)
+previous_error = numpy.zeros(6)
 state_dot = numpy.zeros(6)
 state_dot_body = numpy.zeros(6)
 
@@ -107,7 +108,7 @@ def odom_callback(current_posetwist):
 	
 def update_callback(event):
 	
-	global desired_state,desired_state_dot,state,stat_dot,state_dot_body
+	global desired_state,desired_state_dot,state,stat_dot,state_dot_body,previous_error
 
 	#state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
 	#state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
@@ -117,15 +118,22 @@ def update_callback(event):
         print 'current_state', state		
 	def smallest_coterminal_angle(x):
 		return (x + math.pi) % (2*math.pi) - math.pi
+
+        '''       
+        # sub pd-controller sans rise
 	e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
- #       print "yaw_error", e[5]
 	vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
 	e2 = vbd - state_dot_body
-	
 	output = Ks.dot(e2)
-	#print "vbd",vbd
-        #print "state_dot_body",state_dot_body
-#	print 'output_z_torque',output[5]
+        '''
+        
+        # normal pd_controller
+        error = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])])
+        d = (error - previous_error)*10
+        output =K*error + Ks*d 
+        previous_error = error
+        print 'output',output
+
 	controller_wrench.publish(WrenchStamped(
 						header = Header(
 							stamp=rospy.Time.now(),
