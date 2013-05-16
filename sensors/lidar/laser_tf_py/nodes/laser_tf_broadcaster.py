@@ -33,6 +33,8 @@ IN_CALLBACK = False
 min_start = 40
 max_start = -10
 
+time_fudge = 0	# adjust this number to calibrate offset in time laser_scan is received vs time tf received
+
 m = -1.55172	# y is angle (degrees)
 b = 170.689655	# x is ticks of encoder
 
@@ -214,7 +216,7 @@ if __name__ == '__main__':
           br.sendTransform(T,
            tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
 #           time,
-           rospy.Time.now(),
+           rospy.Time.now() + rospy.Duration(time_fudge),
            "/laser",
            "/base_link")
 #          rospy.logerr("published new laser tf")
