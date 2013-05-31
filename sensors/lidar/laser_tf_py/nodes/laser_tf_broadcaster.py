@@ -30,11 +30,19 @@ LIDAR_UPSIDE_DOWN = False	# T = LIDAR mounted with lense on bottom (upside down)
 global IN_CALLBACK
 IN_CALLBACK = False
 
-min_start = 40
-max_start = -10
+#initial sweeping range
+min_start = 30	#40
+max_start = 10	#-10
 
-m = -1.55172	# y is angle (degrees)
-b = 170.689655	# x is ticks of encoder
+#calibration points for angles
+point1 = [1817,-9]	#point = [encoder value,angle]
+point2 = [1000,65]
+
+m = (float(point2[1]-point1[1]))/(point2[0]-point1[0])
+b = -(m*point1[0]-point1[1])
+
+#m = -0.0862588	# y is angle (degrees)
+#b = 158.661986	# x is ticks of encoder
 
 port = '/dev/propagator_navid_motordriver'
 
@@ -182,6 +190,7 @@ if __name__ == '__main__':
           try:
             pitch = (m*float(data)) + b
             lp_p = (pitch/180)*math.pi
+           # rospy.logerr(lp_p)
           except ValueError:
             if ("C" in data):	# If we got a scan complete signal
               pub_complete.publish(True)
