@@ -10,7 +10,7 @@ from geometry_msgs.msg import WrenchStamped, Wrench, Vector3, Point
 import MotorDriver
 from std_msgs.msg import Header
 import math,time,serial
-
+import numpy as np
 
 rospy.init_node('motor_driver')
 
@@ -37,16 +37,30 @@ while True:
 	break
 	
 '''
+def map_thruster_curve(direction,force):
+        if (direction == "forward"):
+                output = (30.6055096679*np.log(force) + 116.055999)
+        else:
+		output = (29.1115487*force + 57.60797)
+	if (output > 200):
+		output = 200 
+        return output 
 
 def apply_command(force):
 	
 	global message_received
 	message_received = True
-	print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
+	#print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
 	if (force > 0):
-		motordriver.set_forward_speed(str(int(force*200/max_force)))
+               	thrust = map_thruster_curve("forward",force)
+		print "forward force = ",force,"forward thrust = ",thrust
+                motordriver.set_forward_speed(str(int(thrust)))
+#      		motordriver.set_forward_speed(str(int(force*200/max_force)))
 	elif (force < 0):
-		motordriver.set_reverse_speed(str(int(-force*200/min_force)))
+                thrust = map_thruster_curve("reverse",-force)
+		print "reverse force = ",force,"reverse thrust = ",thrust		
+                motordriver.set_reverse_speed(str(int(thrust)))
+	#	motordriver.set_reverse_speed(str(int(-force*200/min_force)))
 	else:
 		motordriver.stop()
 	'''	
