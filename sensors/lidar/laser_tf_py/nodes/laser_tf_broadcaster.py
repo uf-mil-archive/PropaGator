@@ -31,15 +31,18 @@ global IN_CALLBACK
 IN_CALLBACK = False
 
 #initial sweeping range
-min_start = 30	#40
-max_start = 10	#-10
+min_start = 25	#40
+max_start = -5
+	#-10
 
 #calibration points for angles
 point1 = [1817,-9]	#point = [encoder value,angle]
-point2 = [1000,65]
+point2 = [1000,35]
 
 m = (float(point2[1]-point1[1]))/(point2[0]-point1[0])
 b = -(m*point1[0]-point1[1])
+
+time_fudge = -.05	# adjust this number to calibrate offset in time laser_scan is received vs time tf received
 
 #m = -0.0862588	# y is angle (degrees)
 #b = 158.661986	# x is ticks of encoder
@@ -48,8 +51,8 @@ port = '/dev/propagator_navid_motordriver'
 
 # IN RADIANS, NOT DEGREES!!
 if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
-  bl_lu_x	= 0.787		# Distance forward, BaseLink to Lidar Unit
-  bl_lu_y	= 0		# Distance left, BaseLink to Lidar Unit
+  bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
+  bl_lu_y	= -.0254	# Distance left, BaseLink to Lidar Unit
   bl_lu_z	= 0.457		# Distance up, BaseLink to Lidar Unit
   lu_r		= 0		# Roll of Lidar Unit
   lu_p		= 0		# Pitch of Lidar Unit
@@ -60,12 +63,12 @@ if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
   lp_r		= 0		# Roll of Lidar Pivot
   lp_p		= 0		# Pitch of Lidar Pivot
   lp_y		= 0		# Yaw of Lidar Pivot
-  lp_lm_x	= 0.00635	# Distance forward, Lidar Pivot to Lidar Mirror
+  lp_lm_x	= 0.0127	# Distance forward, Lidar Pivot to Lidar Mirror
   lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
   lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
 else:
-  bl_lu_x	= 0.787		# Distance forward, BaseLink to Lidar Unit
-  bl_lu_y	= 0		# Distance left, BaseLink to Lidar Unit
+  bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
+  bl_lu_y	= -.0254	# Distance left, BaseLink to Lidar Unit
   bl_lu_z	= 0.457		# Distance up, BaseLink to Lidar Unit
   lu_r		= 0		# Roll of Lidar Unit
   lu_p		= 0		# Pitch of Lidar Unit
@@ -76,7 +79,7 @@ else:
   lp_r		= 0		# Roll of Lidar Pivot
   lp_p		= 0		# Pitch of Lidar Pivot
   lp_y		= 0		# Yaw of Lidar Pivot
-  lp_lm_x	= 0.00635	# Distance forward, Lidar Pivot to Lidar Mirror
+  lp_lm_x	= 0.0127	# Distance forward, Lidar Pivot to Lidar Mirror
   lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
   lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
 
@@ -223,7 +226,7 @@ if __name__ == '__main__':
           br.sendTransform(T,
            tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
 #           time,
-           rospy.Time.now(),
+           rospy.Time.now(), #+ rospy.Duration(time_fudge),
            "/laser",
            "/base_link")
 #          rospy.logerr("published new laser tf")
