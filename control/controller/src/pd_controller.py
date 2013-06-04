@@ -76,8 +76,8 @@ rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 #----------------------------------------------------------------------------------
 
 #set controller gains
-rospy.set_param('p_gain', {'x':2.6,'y':2.6,'yaw':5.0})
-rospy.set_param('d_gain', {'x':0.3,'y':0.3,'yaw':1.0})
+rospy.set_param('p_gain', {'x':2.6,'y':2.6,'yaw':4.0})#2.6,.3
+rospy.set_param('d_gain', {'x':0.3,'y':0.3,'yaw':.8})
 #.25,400
 #----------------------------------------------------------------------------------
 
@@ -119,20 +119,21 @@ def update_callback(event):
 	def smallest_coterminal_angle(x):
 		return (x + math.pi) % (2*math.pi) - math.pi
 
-        '''       
+               
         # sub pd-controller sans rise
 	e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
 	vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
 	e2 = vbd - state_dot_body
 	output = Ks.dot(e2)
+       
         '''
-        
         # normal pd_controller
         error = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])])
         d = (error - previous_error)*10
         output =K*error + Ks*d 
         previous_error = error
-        print 'output',output
+	'''
+	print 'output',output
 
 	controller_wrench.publish(WrenchStamped(
 						header = Header(

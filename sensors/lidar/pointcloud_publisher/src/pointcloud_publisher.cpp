@@ -50,7 +50,7 @@ My_Filter::My_Filter() :
 //  scan_sub.subscribe(node, "/scan", 0);
   tfFilter = new tf::MessageFilter<sensor_msgs::LaserScan>(scan_sub, tfListener, "/base_link", 10);
   tfFilter->registerCallback(boost::bind(&My_Filter::scanCallback, this, _1));
-  tfFilter->setTolerance(ros::Duration(0.01));
+  tfFilter->setTolerance(ros::Duration(0.1));
 
   complete_sub = node.subscribe<std_msgs::Bool> ("/scan_complete", 100, &My_Filter::completeCallback, this);
   point_cloud_publisher_3d = node.advertise<sensor_msgs::PointCloud2> ("/cloud_3d", 100, false);
@@ -93,7 +93,10 @@ void My_Filter::completeCallback(const std_msgs::Bool::ConstPtr& complete) {
       sensor_msgs::PointCloud2 cloud_out_3d;
       pcl::toROSMsg(pc_comb_3d, cloud_out_3d);
       cloud_out_3d.header = header;
+      //ROS_WARN("before %c",&cloud_out_3d.header.frame_id);
+      //cloud_out_3d.header.frame_id = "/base_link";
       point_cloud_publisher_3d.publish(cloud_out_3d);
+      //ROS_WARN("after %c",&cloud_out_3d.header.frame_id);
       ROS_DEBUG("Got Scan_Complete! Publishing Cloud!");
       pcl::PointCloud<pcl::PointXYZ> blank_pc;
       pc_comb_3d = blank_pc;

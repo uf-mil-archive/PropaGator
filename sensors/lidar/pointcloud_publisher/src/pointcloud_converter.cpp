@@ -3,6 +3,8 @@
 #include <laser_geometry/laser_geometry.h>
 #include "std_msgs/String.h"
 #include "sensor_msgs/LaserScan.h"
+#include "sensor_msgs/PointCloud.h"
+#include "geometry_msgs/Point32.h"
 #include "pcl/point_cloud.h"
 #include "std_msgs/Bool.h"
 #include <pcl/point_types.h>
@@ -13,21 +15,42 @@
 #include <fstream>
 #include <sstream>
 
+
 /*creates a service called save_cloudxyz. to use it, run this node and
- * then rosservice call /save_cloudxyz*/
+  then rosservice call /save_cloudxyz*/
 
 using namespace std;
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 
 PointCloud pclmsg;// (new PointCloud);
+sensor_msgs::PointCloud cloud;
 bool publish_ok = false;
+bool new_data = false;
 int fileIterator = 0;
 
 void pclCallback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 	//convert the point cloud2 msg to a pointcloud msg
-	pcl::fromROSMsg(*msg, pclmsg);
+	//pcl::fromROSMsg(*msg, pclmsg);
+//	sensor_msgs::convertPointCloud2ToPointCloud (*msg,cloud);
+        new_data = true;
+        /*
+        ofstream pcldatafile;
+	char filename [50];
+	/*save file so its format matches what the cmu calibration
+	toolbox is expecting
+	//sprintf(filename, "..//cloudxyz_data//laser_board%d.xyz", fileIterator);
+        //sprintf(filename, "~//laser_board%d.xyz", fileIterator);
+	fileIterator++;
+	pcldatafile.open("laser_board0.xyz");
+	size_t i;
+	for (i = 0; i < pclmsg.points.size(); ++i){
+		pcldatafile << " " << pclmsg.points[i].x << " " << pclmsg.points[i].y << " " << pclmsg.points[i].z << "\n";
+	}
+        pcldatafile.close();
+        ROS_WARN("DONE");
 	publish_ok = true;
+        */
 }
 
 bool save(pointcloud_publisher::SavePCLData::Request &req,
@@ -52,14 +75,23 @@ bool save(pointcloud_publisher::SavePCLData::Request &req,
 
 
 int main(int argc, char** argv) {
-	ros::init(argc, argv, "covert_PCL2_to_PCL");
+
+	ros::init(argc, argv, "convert_PCL2_to_PCL");
 	ros::NodeHandle node_;
 
-	ros::Subscriber pcl2_sub_ = node_.subscribe<sensor_msgs::PointCloud2> ("/cloud", 100, pclCallback);
-	ros::Publisher pcl_pub_ = node_.advertise<PointCloud> ("/pcl_pointcloud", 100);
-	ros::ServiceServer service = node_.advertiseService("/save_cloudxyz", &save);
+	ros::Subscriber pcl2_sub_ = node_.subscribe<sensor_msgs::PointCloud2> ("/cloud_3d", 100, pclCallback);
+	ros::Publisher pcl_pub_ = node_.advertise<sensor_msgs::PointCloud> ("/pcl_pointcloud", 100);
+	//ros::ServiceServer service = node_.advertiseService("/save_cloudxyz", &save);
 
-	while(node_.ok()){ros::spinOnce();}
+
+	while(ros::ok()){
+                if (new_data == true){
+                        pcl_pub_.publish(cloud);
+			ROS_WARN("%i",pclmsg.points[0].x);
+			new_data = false;
+                   }
+                ros::spinOnce();
+        }
 	return 0;
 }
 
