@@ -5,34 +5,32 @@ roslib.load_manifest('rings')
 import rospy
 import numpy
 import cv,cv2,math
-from std_msgs.msg import String,Header
+from std_msgs.msg import String
 from sensor_msgs.msg import Image
-from geometry_msgs.msg import WrenchStamped,Wrench,Vector3
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker,MarkerArray
 
 rospy.init_node('ring_detection')
 bridge = CvBridge()
-wrench_publisher = rospy.Publisher('wrench',WrenchStamped)
+
+#-----------------------------------------------------------------------------------
+
+cv.NamedWindow("camera feed",1)
+#cv.NamedWindow("H channel",1)
+#cv.NamedWindow("S channel",1)
+#cv.NamedWindow("V channel",1)
+cv.NamedWindow("red threshold",1)
+#cv.NamedWindow("green threshold",1)
 
 #-----------------------------------------------------------------------------------
 
 #parameters to set
-CENTER = True
-global error,previous_error,desired_state,p,d,red_center
-error = numpy.array((0,0))
-previous_error = (0,0)
-desired_state = (140,320)
-red_center = desired_state
-p = 1
-d = 0
+RED_MIN = cv.fromarray(numpy.array([0, 125, 0],numpy.uint8),allowND = True)
+RED_MAX = cv.fromarray(numpy.array([15, 255, 60],numpy.uint8),allowND = True)
 
-RED_MIN = cv.fromarray(numpy.array([4, 210, 0],numpy.uint8),allowND = True)
-RED_MAX = cv.fromarray(numpy.array([12, 240, 160],numpy.uint8),allowND = True)
-
-ORANGE_MIN = cv.fromarray(numpy.array([30, 160, 50],numpy.uint8),allowND = True)
-ORANGE_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True)
-OBJECT_AREA = 5000
+GREEN_MIN = cv.fromarray(numpy.array([30, 160, 50],numpy.uint8),allowND = True)
+GREEN_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True)
+OBJECT_AREA = 10000
 IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
@@ -46,53 +44,26 @@ s_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
-s_not = cv.CreateImage(IMAGE_SIZE,8,1) 
-h_not = cv.CreateImage(IMAGE_SIZE,8,1) 
-h_s_not = cv.CreateImage(IMAGE_SIZE,8,1) 
-h_not_s = cv.CreateImage(IMAGE_SIZE,8,1) 
-
 red_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1) 
-purple_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
-orange_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
+green_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
 
 red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
-purple_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
-orange_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
-
+green_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-
-orange_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-orange_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-
-purple_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-purple_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+green_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+green_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 #-----------------------------------------------------------------------------------
 
 #publish marker array of objects found
-global bouy_array
-bouy_publisher=rospy.Publisher('buoys',MarkerArray)
-bouy_array=MarkerArray()
-def append_marker(pos,color):
-	marker = Marker()
-	marker.header.frame_id = "/camera_frame"
-	marker.type = marker.SPHERE
-	marker.id = pos[0]*pos[1]
-	marker.lifetime = rospy.Duration(.5)
-	marker.action = marker.ADD
-	marker.scale.x = 0.5
-	marker.scale.y = 0.5
-	marker.scale.z = 0.5
-	marker.color.a = 1.0
-	marker.color.r = color[0]
-	marker.color.g = color[1]
-	marker.color.b = color[2]
-	marker.pose.orientation.w = 1.0
-	marker.pose.position.x = pos[0]
-	marker.pose.position.y = pos[1]
-	marker.pose.position.z = 0
-	bouy_array.markers.append(marker)
+global red_ring_pos
+global green_ring_pos
+global purple_ring_pos
+
+red_ring_pos = (0,0)
+green_ring_pos = (0,0)
+purple_ring_pos = (0,0)
 
 #-----------------------------------------------------------------------------------
 
@@ -106,8 +77,6 @@ def mouse_callback(event,x,y,flags,image):
 
 def image_callback(data):
       
-	global error,previous_error,desired_state,p,d,red_center
-
         cv_image = bridge.imgmsg_to_cv(data,"bgr8")
         cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
 
@@ -117,34 +86,25 @@ def image_callback(data):
                                                                               # the kernel size
  
         cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold_image)         #--threshold color based on HSV range
-        cv.InRange(blurred_image,ORANGE_MIN,ORANGE_MAX,purple_threshold_image)  
+        cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_threshold_image)  
        
         cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
         
-        cv.Not(h_channel,h_not)
-        cv.Mul(h_not,s_channel,h_not_s)
         
-        
-        #red
-        cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,103,-15)      
-        cv.Erode(red_adaptive,red_eroded_image,None,3)                        
-        cv.Dilate(red_eroded_image,red_dilated_image,None,12)
-        #purple
-        cv.AdaptiveThreshold(h_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,103,25)     
-        cv.Erode(purple_adaptive,purple_eroded_image,None,3)
-        cv.Dilate(purple_eroded_image,purple_dilated_image,None,9)
-        
+        cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-26)      #use hue channel to filter for red
 
-        cv.ShowImage("H channel",h_channel)
-        cv.ShowImage("S channel",s_channel)
-        cv.ShowImage("V channel",v_channel)
-        cv.ShowImage("red",red_dilated_image)                             
-        #cv.ShowImage("purple",purple_dilated_image)                       #show image here because findContours affects memory location
-        '''
+       
+        cv.Erode(red_adaptive,red_eroded_image,None,2)                        #erode and dilate the thresholded images
+        cv.Erode(green_threshold_image,green_eroded_image,None,15)
+        cv.Dilate(red_eroded_image,red_dilated_image,None,10)
+        cv.Dilate(green_eroded_image,green_dilated_image,None,9)
+
+        cv.ShowImage("red threshold",red_dilated_image)                       #show image here because findContours effects memory location
+        
         red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-        purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
+        green_contours,_ = cv2.findContours(image=numpy.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         #cv2.drawContours(numpy.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3) 
-        #cv2.drawContours(numpy.asarray(cv_image[:,:]),purple_contours,-1,(0,255,0),3)     
+        #cv2.drawContours(numpy.asarray(cv_image[:,:]),green_contours,-1,(0,255,0),3)     
         
         if (red_contours):
                 for i in red_contours:
@@ -153,64 +113,38 @@ def image_callback(data):
                         if area > OBJECT_AREA:
                                 x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                                 y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                                red_center = (x,y)
                                 radius = int(math.sqrt(area/math.pi))
                                 cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
-                                append_marker((x,y),(1.0,0,0))
-        if (purple_contours):
-                for i in purple_contours:
+                                red_ring_pos = (x,y)
+                                
+        if (green_contours):
+                for i in green_contours:
                         moments = cv.Moments(cv.fromarray(i), binary = 1)             
                         area = cv.GetCentralMoment(moments, 0, 0)
                         if area > OBJECT_AREA:
                                 x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                                 y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
                                 radius = int(math.sqrt(area/math.pi))
-                                cv.Circle(cv_image,(x,y),radius,(128,0,128),3)
-                                append_marker((x,y),(0,1.0,0))
-	'''
-	moments = cv.Moments(red_dilated_image,binary = 1)
-	area = cv.GetCentralMoment(moments, 0, 0)
- 	x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
-        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-	radius = int(math.sqrt(area/math.pi))
-        cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
-		
-        if (CENTER == True):
-                error = numpy.array(desired_state) - numpy.array(red_center)
-                p_term = p*error
-                d_term = d*(error-previous_error)
-                output = p_term + d_term	
-		#print output                
-                wrench_publisher.publish(WrenchStamped(
-						header = Header(
-							stamp=rospy.Time.now(),
-							frame_id="/base_link",
-							),
-						wrench=Wrench(
-							force = Vector3(x=output[0],y= output[1],z= 0),
-							torque = Vector3(x=0,y= 0,z= 0),
-							))
-							)	
+                                cv.Circle(cv_image,(x,y),radius,(0,255,0),3)
+                                green_ring_pos = (x,y)
 
-                
+                      
+                        
+         
+
+
                  
         cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-      
+        #cv.ShowImage("test",dist_image)             
+        cv.ShowImage("H channel",h_channel)
+        cv.ShowImage("S channel",s_channel)
+        cv.ShowImage("V channel",v_channel)
         cv.ShowImage("camera feed",cv_image)
        
         cv.WaitKey(3)
 
-#-----------------------------------------------------------------------------------
-
-def bouy_callback(event):
-    global bouy_array
-    bouy_publisher.publish(bouy_array)
 
 #-----------------------------------------------------------------------------------
-
-  
-
-rospy.Timer(rospy.Duration(.1), bouy_callback)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 rospy.spin()
 
