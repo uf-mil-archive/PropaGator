@@ -9,12 +9,10 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image,PointCloud2,PointField
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker,MarkerArray
-import tf
 import matplotlib.pyplot as plt
 
 rospy.init_node('buoy_detection')
 bridge = CvBridge()
-listener =  tf.TransformListener()
 
 #-----------------------------------------------------------------------------------
 
@@ -58,14 +56,14 @@ distortion_coeffs[0,0] = -0.224485262763680
 distortion_coeffs[0,1] =  0.149920901726708 
 distortion_coeffs[0,2] = 0.002369076650198 
 distortion_coeffs[0,3] = -0.001989320823012 
+      
+rotation_vector[0,0] = 1.14111
+rotation_vector[0,1] =  -0.98959
+rotation_vector[0,2] =  1.32332 
 
-rotation_vector[0,0] = 1.878265e-02
-rotation_vector[0,1] = 1.439149e-02
-rotation_vector[0,2] = 2.956135e-02 
-
-translation_vector[0,0] = 5.577149e+01
-translation_vector[0,1] = 4.702323e+01 
-translation_vector[0,2] = 5.110702e+01
+translation_vector[0,0] = -0.060589
+translation_vector[0,1] = 0.297001
+translation_vector[0,2] = -1.042495 
 
 #-----------------------------------------------------------------------------------
 
@@ -99,9 +97,9 @@ green_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 yellow_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
-
-global cloud
-cloud = [1]
+global cloud1,cloud2
+cloud1 = []
+cloud2 = []
 
 
 #-----------------------------------------------------------------------------------
@@ -326,13 +324,6 @@ def pointcloud2_to_xyz_array(cloud_msg, remove_nans=True):
 #-----------------------------------------------------------------------------------
 
 def image_callback(data):
-        try :
-                cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
-                projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
-        except:
-                cloud_mat = cv.CreateMat(4,1,cv.CV_32FC3)
-                projection = cv.CreateMat(4,1,cv.CV_32FC2)
-                print "no pointcloud"
       
         cv_image = bridge.imgmsg_to_cv(data,"bgr8")
         cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
@@ -388,7 +379,7 @@ def image_callback(data):
                                 #append_marker((x,y),(1.0,0,0))
         '''
        
-        cv.ShowImage("lidar",cv.fromarray(cloud1))
+       
 
         if (green_contours):
                 for i in green_contours:
@@ -404,9 +395,16 @@ def image_callback(data):
                                 cv.Circle(cv_image,(x,y),radius,(0,255,0),3)
                                 #append_marker((x,y),(0,1.0,0))
                                 #check_lidar((x,y))
-        #cv.ShowImage("final",green_dilated_image)                      
-
-        '''
+        #cv.ShowImage("final",green_dilated_image)     
+        global cloud1   
+         
+            
+        if (len(cloud1) > 0):
+                for i,j in zip(cloud1,cloud2):
+                        if (i < 700 and j < 700 and i > 0 and j > 0):
+                                print "i",i,"j",j
+                                cv.Circle(cv_image,(int(i),int(j)),1,(0,255,0),3)
+        '''      
         if (yellow_contours):
                 for i in yellow_contours:
                         moments = cv.Moments(cv.fromarray(i), binary = 1)             
@@ -437,19 +435,22 @@ def bouy_callback(event):
 #-----------------------------------------------------------------------------------
 
 def pointcloud_callback(msg):
-        global cloud
+        global cloud1,cloud2
         cloud = pointcloud2_to_xyz_array(msg)
-        cloud_mat = cv.CreateMat(len(cloud),3,cv.CV_32FC3)
-        projection = cv.CreateMat(len(cloud),3,cv.CV_32FC2)
+        cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
+        projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
         cloud_mat = cloud
-
-        cv.ProjectPoints2(cloud_mat,rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
+     
+        cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
+       
         (cloud1,cloud2) = cv2.split(np.asarray(projection))
-        cv.ShowImage("lidar",cv.fromarray(cloud1))
-        
+        print "pointcloud",cloud1,cloud2
+        #cv.ShowImage("lidar",cv.fromarray(cloud1))
+        '''
         if  (len(np.asarray(projection)) > 10):
                 plt.scatter(cloud1,cloud2)
                 plt.show()
+        '''
         
 #-----------------------------------------------------------------------------------
 
