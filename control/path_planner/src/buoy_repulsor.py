@@ -18,40 +18,32 @@ from sim.vector import v, V
 
 rospy.init_node('buoy_repulsor')
 
-global current_position 
+global current_position,buoy 
 current_position = [0,0]
+buoy = []
 
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 print 'connecting to action client'
 waypoint.wait_for_server()
 
 	
-def find_closest_buoys(msg):
-	global current_position,green_buoy,red_buoy,traversed_buoys
+def find_closest_buoy(msg):
+	global current_position,green_buoy,red_buoy,traversed_buoys,buoy
 	red = ColorRGBA(1.0,0,0,1.0)
 	green = ColorRGBA(0,1.0,0,1.0)
 	
 	for marker in msg.markers:
-		if (not ((marker.pose.position.x,marker.pose.position.y) in traversed_buoys)):
-			if ((not red_buoy) and (marker.color == red)):
-				red_buoy = (marker.pose.position.x,marker.pose.position.y)
-			elif (marker.color == red):
-				if (distance((marker.pose.position.x,marker.pose.position.y),current_position) < distance(red_buoy,current_position)):
-					red_buoy = (marker.pose.position.x,marker.pose.position.y)
-				
-			if ((not green_buoy) and (marker.color == green)):
-				green_buoy = (marker.pose.position.x,marker.pose.position.y)
-			elif (marker.color == green):
-				if (distance((marker.pose.position.x,marker.pose.position.y),current_position) < distance(green_buoy,current_position)):
-					green_buoy = (marker.pose.position.x,marker.pose.position.y)
-					
-	if ((not red_buoy) or (not green_buoy)):	
+			if ((not buoy)):
+				buoy = (marker.pose.position.x,marker.pose.position.y)
+			else:
+				if (distance((marker.pose.position.x,marker.pose.position.y),current_position) < distance(buoy,current_position)):
+					buoy = (marker.pose.position.x,marker.pose.position.y)
+			
+	if (not buoy):	
 		return [],[]
 	else: 
-		if (distance(red_buoy,green_buoy) < .7):
-			return red_buoy,green_buoy
-		else:
-			return [],[]
+	        return buoy
+		
 
 def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
@@ -80,16 +72,12 @@ def send_waypoint(point,orientation):
 def buoy_callback(msg):
 	global current_position
 	yellow = ColorRGBA(1.0,1.0,0,1.0)
-	for marker in msg.markers:
-		if (distance(current_position,(marker.pose.position.x,marker.pose.position.y)) < 1):
-			#waypoint.cancel_goal()
-			print 'goal canceled due to collision'
-			#[p1,p2] = find_closest_buoys(msg)
-			#goal = center_of_points((p1,p2))
-			pos = three_d((marker.pose.position.x,marker.pose.position.y)) +(2,2,2)
-			print 'correcting trajectory'
-			send_waypoint(pos,lookat(three_d(pos)))
-			time.sleep(.05)
+	pos = find_closest_buoy(msg)
+	#waypoint.cancel_goal()
+	#pos = three_d((marker.pose.position.x,marker.pose.position.y)) +(2,2,2)
+	print 'going to: ',pos
+	send_waypoint(pos,lookat(three_d(pos)))
+
 
 rospy.Subscriber('buoys',MarkerArray,buoy_callback)
 
@@ -97,6 +85,6 @@ rospy.Subscriber('buoys',MarkerArray,buoy_callback)
 def pose_callback(msg):
 	global current_position
 	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
-rospy.Subscriber('/sim_odom', Odometry, pose_callback)
+rospy.Subscriber('/odom', Odometry, pose_callback)
 rospy.spin()
 
