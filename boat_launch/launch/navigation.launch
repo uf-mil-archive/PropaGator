@@ -24,25 +24,7 @@ shift: [3.940740301160063e-06, 3.889613985839648e-06, -1.4399265951226065e-06]
   <node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
     args="0.559 .267 -.051 0 0 0 1  /base_link /gps 100" />
 
-<node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>
-
-<!--
-
-
-<node pkg="legacy_ukf" type="legacy_ukf" name="legacy_ukf" respawn="true"><rosparam>
-    fixed_frame: /map
-    localMagneticVector: [-2244.2, 24151.0, -40572.8]
-    latitudeDeg: 29.651388889
-    vel_sigma: [0.4, 0.4, 0.4]
-    att_sigma: [0.5, 0.5, 0.5]
-</rosparam>
-    <remap from="worldvel" to="gps_vel"/>
-    <remap from="odom" to="imu_odom"/>
-</node>
--->
-  <node pkg="kalman_6dof" type="kalman_6dof" name="kalman_6dof" respawn="true">
-    <param name="hack_down_ref" value="false"/>
-    <remap from="ins" to="imu_odom"/>
+  <node pkg="nodelet" type="nodelet" args="standalone odom_estimator" name="odom_estimator" respawn="true">
   </node>
   <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
       frame_id: /map
