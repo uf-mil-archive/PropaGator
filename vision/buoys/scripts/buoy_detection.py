@@ -91,15 +91,21 @@ cloudy = []
 #-----------------------------------------------------------------------------------
 
 #publish marker array of objects found
-global bouy_array
-bouy_publisher=rospy.Publisher('buoy_markers',MarkerArray)
-bouy_array=MarkerArray()
+global bouy_array,marker_id
+bouy_publisher=rospy.Publisher('buoy_markers',Marker)
+#bouy_array=MarkerArray()
+marker_id = 0
 def append_marker(pos,color):
+        global marker_id        
+        if (marker_id > 20):
+                marker_id = 0
+        else:
+                marker_id = marker_id + 1
 	marker = Marker()
 	marker.header.frame_id = "/base_link"
 	marker.type = marker.SPHERE
-	marker.id = pos[0]*pos[1]
-	marker.lifetime = rospy.Duration(1.0)
+	marker.id = marker_id
+	marker.lifetime = rospy.Duration.from_sec(1)
 	marker.action = marker.ADD
 	marker.scale.x = 0.5
 	marker.scale.y = 0.5
@@ -108,11 +114,12 @@ def append_marker(pos,color):
 	marker.color.r = color[0]
 	marker.color.g = color[1]
 	marker.color.b = color[2]
-	#marker.pose.orientation.w = 1.0
+	marker.pose.orientation.w = 1.0
 	marker.pose.position.x = pos[0]
 	marker.pose.position.y = pos[1]
 	marker.pose.position.z = pos[2]
-	bouy_array.markers.append(marker)
+	#bouy_array.markers.append(marker)
+        bouy_publisher.publish(marker)
 
 #-----------------------------------------------------------------------------------
 #--print HSV of pixel clicked on in image (used to find threshold values)
@@ -264,11 +271,12 @@ def image_callback(data):
                
 
 #-----------------------------------------------------------------------------------
-
+'''
 def bouy_callback(event):
         if (running):
                 global bouy_array
                 bouy_publisher.publish(bouy_array)
+'''
 #-----------------------------------------------------------------------------------
 
 def action_callback(event):
@@ -305,7 +313,7 @@ server = FindBuoysServer()
 rospy.spin()
 '''
 
-rospy.Timer(rospy.Duration(.1), bouy_callback)
+#rospy.Timer(rospy.Duration(.1), bouy_callback)
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 rospy.spin()
