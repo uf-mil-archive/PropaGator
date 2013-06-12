@@ -96,10 +96,10 @@ bouy_publisher=rospy.Publisher('buoy_markers',MarkerArray)
 bouy_array=MarkerArray()
 def append_marker(pos,color):
 	marker = Marker()
-	marker.header.frame_id = "/bluefox"
+	marker.header.frame_id = "/base_link"
 	marker.type = marker.SPHERE
 	marker.id = pos[0]*pos[1]
-	marker.lifetime = rospy.Duration(1)
+	marker.lifetime = rospy.Duration(1.0)
 	marker.action = marker.ADD
 	marker.scale.x = 0.5
 	marker.scale.y = 0.5
@@ -108,10 +108,10 @@ def append_marker(pos,color):
 	marker.color.r = color[0]
 	marker.color.g = color[1]
 	marker.color.b = color[2]
-	marker.pose.orientation.w = 1.0
-	marker.pose.position.x = pos[2]
+	#marker.pose.orientation.w = 1.0
+	marker.pose.position.x = pos[0]
 	marker.pose.position.y = pos[1]
-	marker.pose.position.z = pos[0]
+	marker.pose.position.z = pos[2]
 	bouy_array.markers.append(marker)
 
 #-----------------------------------------------------------------------------------
@@ -126,19 +126,19 @@ def distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
 def check_lidar((x,y),radius):
-        error = 200
+        min_dist = 200
         coi = False
         index = 0
         for i,j in zip(cloudx,cloudy):        
                 dist = distance((i,j),(x,y))
-                if (dist < radius*1.5):          
+                if (dist < radius and dist < min_dist ):          
                         coi = index
-                        error = dist
+                        min_dist = dist
                 index = index + 1
 
         if (coi):  
                 try:    
-                        if (all(cloud[coi]) < 10): 
+                        if ((math.fabs(cloud[coi,2]) < 5) and (math.fabs(cloud[coi,1]) < 5) and (math.fabs(cloud[coi,0]) < 5)): 
                                 return (cloud[coi])
                         else:
                                 return [1000,0,0]
@@ -195,15 +195,14 @@ def image_callback(data):
                 yellow_contours,_ = cv2.findContours(image=np.asarray(yellow_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 #cv2.drawContours(np.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3)   
              
-                '''
+                
                 
                 if (len(cloudx) > 0):
                         for i,j in zip(cloudx,cloudy):
                                 if (i < 700 and j < 700 and i > 0 and j > 0):
                                        cv.Circle(cv_image,(int(i),int(j)),1,(0,255,0),3)
                
-                
-             
+                '''
                 
                 if (green_contours):
                         for i in green_contours:
@@ -222,21 +221,6 @@ def image_callback(data):
                                         if (point[0] != 1000):
                                                 print "got hit",point
                                                 append_marker(point,(0,1.0,0))    
-                ''' 
-                if (red_contours):
-                        for i in red_contours:
-                                moments = cv.Moments(cv.fromarray(i), binary = 1)              
-                                area = cv.GetCentralMoment(moments, 0, 0)
-                                if area > OBJECT_AREA:
-                                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
-                                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                                        radius = int(math.sqrt(area/math.pi))
-                                        
-                                        cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
-                                       #point = check_lidar((x,y),radius)
-                                        #if (point[0] != 1000):
-                                                #append_marker(point,(1.0,0,0))  
-                 
                 if (yellow_contours):
                         for i in yellow_contours:
                                 moments = cv.Moments(cv.fromarray(i), binary = 1)             
@@ -251,6 +235,24 @@ def image_callback(data):
                                         #if (point[0] != 1000):
                                                 #append_marker(point,(0,0,1.0))  
                 
+                ''' 
+                if (red_contours):
+                        for i in red_contours:
+                                moments = cv.Moments(cv.fromarray(i), binary = 1)              
+                                area = cv.GetCentralMoment(moments, 0, 0)
+                                if area > OBJECT_AREA:
+                                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
+                                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
+                                        radius = int(math.sqrt(area/math.pi))
+                                        
+                                        
+                                        point = check_lidar((x,y),radius)
+                                        if (point[0] != 1000):
+                                                print point
+                                                append_marker(point,(1.0,0,0))
+                                                cv.Circle(cv_image,(x,y),radius,(0,0,255),3) 
+                 
+               
                         
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
                 #cv.ShowImage("H channel",h_channel)
