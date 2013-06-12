@@ -34,19 +34,7 @@ purple_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True
 OBJECT_AREA = 15000
 IMAGE_SIZE = (640,480)
 
-#-----------------------------------------------------------------------------------
-
-#memory allocation
-hsv_image = cv.CreateImage(IMAGE_SIZE,8,3)
-blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
-
-h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
-v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-h_not = cv.CreateImage(IMAGE_SIZE,8,1)
-blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
-
-red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+#-----------------------------------------------------------------------------------roscd
 purple_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)

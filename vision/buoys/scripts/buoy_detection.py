@@ -92,8 +92,8 @@ cloudy = []
 
 #publish marker array of objects found
 global bouy_array,marker_id
-bouy_publisher=rospy.Publisher('buoy_markers',Marker)
-#bouy_array=MarkerArray()
+bouy_publisher=rospy.Publisher('buoy_markers',MarkerArray)
+bouy_array=MarkerArray()
 marker_id = 0
 def append_marker(pos,color):
         global marker_id        
@@ -118,8 +118,8 @@ def append_marker(pos,color):
 	marker.pose.position.x = pos[0]
 	marker.pose.position.y = pos[1]
 	marker.pose.position.z = pos[2]
-	#bouy_array.markers.append(marker)
-        bouy_publisher.publish(marker)
+	bouy_array.markers.append(marker)
+        #bouy_publisher.publish(marker)
 
 #-----------------------------------------------------------------------------------
 #--print HSV of pixel clicked on in image (used to find threshold values)
@@ -271,12 +271,12 @@ def image_callback(data):
                
 
 #-----------------------------------------------------------------------------------
-'''
 def bouy_callback(event):
         if (running):
                 global bouy_array
                 bouy_publisher.publish(bouy_array)
-'''
+                bouy_array=MarkerArray()
+          
 #-----------------------------------------------------------------------------------
 
 def action_callback(event):
@@ -313,7 +313,7 @@ server = FindBuoysServer()
 rospy.spin()
 '''
 
-#rospy.Timer(rospy.Duration(.1), bouy_callback)
+rospy.Timer(rospy.Duration(.1), bouy_callback)
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 rospy.spin()
