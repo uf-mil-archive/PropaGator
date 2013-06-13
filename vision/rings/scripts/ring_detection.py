@@ -77,14 +77,16 @@ def image_callback(data):
                 cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
                 
                 #cv.Not(h_channel,h_not)
-                cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-20)      #use hue channel to filter for red
-                cv.AdaptiveThreshold(s_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,26)
+                 cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-26)      #use hue channel to filter for red
+        #cv.AdaptiveThreshold(s_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
+                cv.AdaptiveThreshold(h_s,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,21,-2)
                 cv.ShowImage("red threshold",red_adaptive)
                
-                cv.Erode(red_adaptive,red_eroded_image,None,3)                        #erode and dilate the thresholded images
-                cv.Erode(purple_adaptive,purple_eroded_image,None,15)
+                cv.Erode(red_adaptive,red_eroded_image,None,2)                        #erode and dilate the thresholded images
+                cv.Erode(purple_adaptive,purple_eroded_image,None,1)
                 cv.Dilate(red_eroded_image,red_dilated_image,None,10)
-                cv.Dilate(purple_eroded_image,purple_dilated_image,None,9)
+                cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
+
 
                 cv.ShowImage("red threshold",red_dilated_image)                       #show image here because findContours effects memory location
                 

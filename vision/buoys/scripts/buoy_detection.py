@@ -68,10 +68,11 @@ h_not_s = cv.CreateImage(IMAGE_SIZE,8,1)
 s_v = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
-red_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1) 
 green_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
 yellow_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
+blue_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
 
+blue_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 yellow_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 green_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
@@ -81,6 +82,8 @@ green_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 green_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 yellow_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+blue_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+blue_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 global cloudx,cloudy,cloud,running
 running = True
@@ -184,16 +187,19 @@ def image_callback(data):
                 cv.AdaptiveThreshold(v_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,33,-40) 
                 cv.AdaptiveThreshold(s_v,yellow_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,303,-15)
                 cv.AdaptiveThreshold(s_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,73,-35)
+                cv.AdaptiveThreshold(h_channel,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,131,-20)
                 #cv.AdaptiveThreshold(h_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,303,30)
                
                 
                 
-                cv.Erode(red_adaptive,red_eroded_image,None,5   )                        #erode and dilate the thresholded images
+                cv.Erode(red_adaptive,red_eroded_image,None,5)                        #erode and dilate the thresholded images
                 cv.Erode(green_adaptive,green_eroded_image,None,4) #9
                 cv.Erode(yellow_adaptive,yellow_eroded_image,None,5)
+                cv.Erode(blue_adaptive,blue_eroded_image,None,10)
                 cv.Dilate(red_eroded_image,red_dilated_image,None,9)
                 cv.Dilate(green_eroded_image,green_dilated_image,None,7)#27
                 cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,7) 
+                cv.Dilate(blue_eroded_image,blue_dilated_image,None,10) 
 
                 cv.ShowImage("adaptive",red_adaptive)
 
