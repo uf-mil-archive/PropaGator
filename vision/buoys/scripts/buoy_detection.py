@@ -148,7 +148,7 @@ def check_lidar((x,y),radius):
 
         if (coi):  
                 try:    
-                        if ((math.fabs(cloud[coi,2]) < 5) and (math.fabs(cloud[coi,1]) < 5) and (math.fabs(cloud[coi,0]) < 5)): 
+                        if all(math.fabs(i) < 5 for i in cloud[coi]):
                                 return (cloud[coi])
                         else:
                                 return [1000,0,0]
