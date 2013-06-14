@@ -39,18 +39,18 @@ intrinsic_mat[1,1] = 972.448983311633
 intrinsic_mat[1,2] = 204.387221594527
 intrinsic_mat[2,2] = 1.0
 
-distortion_coeffs[0,0] = -0.224485262763680 
-distortion_coeffs[0,1] =  0.149920901726708 
-distortion_coeffs[0,2] = 0.002369076650198 
-distortion_coeffs[0,3] = -0.001989320823012 
-      
-rotation_vector[0,0] = 1.14111
-rotation_vector[0,1] =  -0.98959
-rotation_vector[0,2] =  1.32332 
+distortion_coeffs[0,0] = -0.216569744368694
+distortion_coeffs[0,1] =  0.150298190916304 
+distortion_coeffs[0,2] = 0.000482115806222 
+distortion_coeffs[0,3] = -0.000462572155571 
 
-translation_vector[0,0] = -0.060589
-translation_vector[0,1] = 0.297001
-translation_vector[0,2] = -1.042495 
+rotation_vector[0,0] = 1.4543
+rotation_vector[0,1] = -1.4134
+rotation_vector[0,2] = 1.1324
+
+translation_vector[0,0] = 0.247682 
+translation_vector[0,1] = 0.437529
+translation_vector[0,2] = -0.728413 
 
 #-----------------------------------------------------------------------------------
 
@@ -174,7 +174,7 @@ def image_callback(data):
                                                                                       # calculated from the kernel size 
                                                                                     
          
-                cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold_image)         #--threshold color based on HSV range
+                #cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold_image)         #--threshold color based on HSV range
                
                 cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
                 
