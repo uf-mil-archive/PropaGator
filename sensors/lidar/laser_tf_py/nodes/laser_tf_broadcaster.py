@@ -31,13 +31,13 @@ global IN_CALLBACK
 IN_CALLBACK = False
 
 #initial sweeping range
-min_start = 25	#40
-max_start = -5
+min_start = 30	#40
+max_start = 0
 	#-10
 
 #calibration points for angles
-point1 = [1817,-9]	#point = [encoder value,angle]
-point2 = [1000,35]
+point1 = [2030,59]	#point = [encoder value,angle]
+point2 = [3160,-56]
 
 m = (float(point2[1]-point1[1]))/(point2[0]-point1[0])
 b = -(m*point1[0]-point1[1])
@@ -52,8 +52,8 @@ port = '/dev/propagator_navid_motordriver'
 # IN RADIANS, NOT DEGREES!!
 if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
   bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
-  bl_lu_y	= -.0254	# Distance left, BaseLink to Lidar Unit
-  bl_lu_z	= 0.457		# Distance up, BaseLink to Lidar Unit
+  bl_lu_y	= 0	# Distance left, BaseLink to Lidar Unit
+  bl_lu_z	= 0.254		# Distance up, BaseLink to Lidar Unit
   lu_r		= 0		# Roll of Lidar Unit
   lu_p		= 0		# Pitch of Lidar Unit
   lu_y		= 0		# Yaw of Lidar Unit
@@ -68,8 +68,8 @@ if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
   lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
 else:
   bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
-  bl_lu_y	= -.0254	# Distance left, BaseLink to Lidar Unit
-  bl_lu_z	= 0.457		# Distance up, BaseLink to Lidar Unit
+  bl_lu_y	= 0	# Distance left, BaseLink to Lidar Unit
+  bl_lu_z	= 0.254		# Distance up, BaseLink to Lidar Unit
   lu_r		= 0		# Roll of Lidar Unit
   lu_p		= 0		# Pitch of Lidar Unit
   lu_y		= 0		# Yaw of Lidar Unit
@@ -113,6 +113,7 @@ def scan_angle_callback(angle_msg):
   ser.flushInput()
   ser.write("l"+str(min_angle)+"\r")
   msg = ser.readline()
+
   while not "l"+str(min_angle) in msg:
     rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_angle))
     ser.write("l"+str(min_angle)+"\r")
@@ -159,6 +160,8 @@ if __name__ == '__main__':
       ser.flushInput()
       ser.write("l"+str(min_start)+"\r")
       msg = ser.readline()
+
+
       while not "l"+str(min_start) in msg:
         rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_start))
         ser.write("l"+str(min_start)+"\r")
@@ -173,7 +176,8 @@ if __name__ == '__main__':
         ser.write("h"+str(max_start)+"\r")
         msg = ser.readline()
       rospy.logdebug("Max angle updated to "+str(max_start))
-
+      ser.write("s900\r")
+      print "got back",ser.readline()
       ser.write("S")
       while not "S" in ser.readline():
         rospy.logdebug("Resending command to I/O board.")
