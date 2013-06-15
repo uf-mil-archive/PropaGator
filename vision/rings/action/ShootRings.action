@@ -1,0 +1,8 @@
+# goal
+uint32 attempts
+---
+# result
+#not used
+---
+# feedback
+uint32 darts_shot

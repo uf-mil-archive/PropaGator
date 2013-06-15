@@ -57,7 +57,7 @@ def three_d(x):
 def send_waypoint(point,orientation):
 	waypoint.send_goal_and_wait(MoveToGoal(
 			header=Header(
-				frame_id='/simmap',
+				frame_id='/world',
 			),
 			pose=Pose(
 				position=Point(
