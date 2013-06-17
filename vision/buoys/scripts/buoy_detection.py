@@ -19,8 +19,11 @@ bridge = CvBridge()
 #-----------------------------------------------------------------------------------
 
 #parameters to set
-RED_MIN = cv.fromarray(np.array([0, 125, 0],np.uint8),allowND = True)
-RED_MAX = cv.fromarray(np.array([15, 255, 60],np.uint8),allowND = True)
+GREEN_MIN = cv.fromarray(np.array([50, 150, 200],np.uint8),allowND = True)
+GREEN_MAX = cv.fromarray(np.array([90, 180, 255],np.uint8),allowND = True)
+
+YELLOW_MIN = cv.fromarray(np.array([20, 130, 200],np.uint8),allowND = True)
+YELLOW_MAX = cv.fromarray(np.array([40, 180, 255],np.uint8),allowND = True)
 
 OBJECT_AREA = 50
 IMAGE_SIZE = (640,480)
@@ -44,13 +47,13 @@ distortion_coeffs[0,1] =  0.150298190916304
 distortion_coeffs[0,2] = 0.000482115806222 
 distortion_coeffs[0,3] = -0.000462572155571 
 
-rotation_vector[0,0] = 1.4543
-rotation_vector[0,1] = -1.4134
-rotation_vector[0,2] = 1.1324
+rotation_vector[0,0] = 1.3051
+rotation_vector[0,1] = -1.1712
+rotation_vector[0,2] = 1.3035
 
-translation_vector[0,0] = 0.247682 
-translation_vector[0,1] = 0.437529
-translation_vector[0,2] = -0.728413 
+translation_vector[0,0] =   0.183424
+translation_vector[0,1] =-0.030571
+translation_vector[0,2] = -0.813576 
 
 #-----------------------------------------------------------------------------------
 
@@ -64,8 +67,8 @@ v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 s_inv = cv.CreateImage(IMAGE_SIZE,8,1)
 h_inv = cv.CreateImage(IMAGE_SIZE,8,1)
 h_s_not = cv.CreateImage(IMAGE_SIZE,8,1)
-h_not_s = cv.CreateImage(IMAGE_SIZE,8,1)
-s_v = cv.CreateImage(IMAGE_SIZE,8,1)
+yellow_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
+red_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
 green_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
@@ -141,7 +144,7 @@ def check_lidar((x,y),radius):
         index = 0
         for i,j in zip(cloudx,cloudy):        
                 dist = distance((i,j),(x,y))
-                if (dist < radius and dist < min_dist ):          
+                if (dist < radius*2 and dist < min_dist ):          
                         coi = index
                         min_dist = dist
                 index = index + 1
@@ -157,7 +160,27 @@ def check_lidar((x,y),radius):
                         return [1000,0,0]
         else:
                 return [1000,0,0]
-              
+
+def extract_circles(contours):
+        circles = []
+        for i in contours:
+                moments = cv.Moments(cv.fromarray(i), binary = 1)             
+                area = cv.GetCentralMoment(moments, 0, 0)
+
+                if area > OBJECT_AREA:
+                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
+                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
+                        radius = int(math.sqrt(area/math.pi))
+                        circles.append((x,y,radius))
+                        '''
+                        point = check_lidar((x,y),radius)
+                        if (point[0] != 1000):
+                                #print point
+                                append_marker(point,(0,1.0,0))
+                        '''
+        return circles
+                        
+
 #-----------------------------------------------------------------------------------
 
 def image_callback(data):
@@ -172,105 +195,83 @@ def image_callback(data):
                                                                                       # (aperture_width,aperture_height,gaussian std_dev)
                                                                                       # must  be an odd number, std_dev of 0 means that it is
                                                                                       # calculated from the kernel size 
-                                                                                    
-         
-                #cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold_image)         #--threshold color based on HSV range
-               
-                cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
-                
-                cv.Not(s_channel,s_inv)
-                cv.Not(h_channel,h_inv)
-                cv.Mul(h_channel,s_inv,h_s_not)
-                cv.Mul(h_inv,s_channel,h_not_s)
-                cv.Mul(s_channel,v_channel,s_v)
 
-                cv.AdaptiveThreshold(v_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,33,-40) 
-                cv.AdaptiveThreshold(s_v,yellow_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,303,-15)
-                cv.AdaptiveThreshold(s_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,73,-35)
-                cv.AdaptiveThreshold(h_channel,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,131,-20)
-                #cv.AdaptiveThreshold(h_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,303,30)
+           
                
+                cv.Split(blurred_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
                 
+                #cv.Not(s_channel,s_inv)
+                #cv.Not(h_channel,h_inv)
+                #cv.Mul(h_channel,s_inv,h_s_not)
+                #cv.Mul(h_inv,s_channel,h_not_s)
+                #cv.Mul(s_channel,h_channel,s_h)
                 
-                cv.Erode(red_adaptive,red_eroded_image,None,5)                        #erode and dilate the thresholded images
-                cv.Erode(green_adaptive,green_eroded_image,None,4) #9
-                cv.Erode(yellow_adaptive,yellow_eroded_image,None,5)
-                cv.Erode(blue_adaptive,blue_eroded_image,None,10)
-                cv.Dilate(red_eroded_image,red_dilated_image,None,9)
-                cv.Dilate(green_eroded_image,green_dilated_image,None,7)#27
-                cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,7) 
+                #cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold
+                cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-75) 
+                cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                  #RED
+                cv.Dilate(red_eroded_image,red_dilated_image,None,8)    
+
+                cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
+                #cv.AdaptiveThreshold(h_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,73,-15)
+                cv.Erode(green_adaptive,green_eroded_image,None,2) #9                                                           #GREEN
+                cv.Dilate(green_eroded_image,green_dilated_image,None,9)#27
+                
+                cv.InRange(blurred_image,YELLOW_MIN,YELLOW_MAX,yellow_adaptive)
+                #cv.AdaptiveThreshold(v_channel,yellow_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,103,-15)
+                cv.Erode(yellow_adaptive,yellow_eroded_image,None,5)                                                                            
+                cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,9)                                                 #YELLOW              
+                
+                cv.AdaptiveThreshold(h_channel,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,131,-20)
+                cv.Erode(blue_adaptive,blue_eroded_image,None,15)                                                              #BLUE
                 cv.Dilate(blue_eroded_image,blue_dilated_image,None,10) 
 
-                cv.ShowImage("adaptive",red_adaptive)
+                #cv.ShowImage("red",red_adaptive)
+                cv.ShowImage("yellow",yellow_adaptive)
+                #cv.ShowImage("blue",blue_dilated_image)
+                #cv.ShowImage("green",green_adaptive)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 yellow_contours,_ = cv2.findContours(image=np.asarray(yellow_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 #cv2.drawContours(np.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3)   
-             
-                
-                
+                blue_contours,_ = cv2.findContours(image=np.asarray(blue_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
+              
                 if (len(cloudx) > 0):
                         for i,j in zip(cloudx,cloudy):
                                 if (i < 700 and j < 700 and i > 0 and j > 0):
                                        cv.Circle(cv_image,(int(i),int(j)),1,(0,255,0),3)
                
-                '''
+               
                 
                 if (green_contours):
-                        for i in green_contours:
-                                #ellipse = cv2.fitEllipse(i)
-                                #cv2.ellipse(np.asarray(cv_image[:,:]),ellipse,(255,0,0),2)
+                        #ellipse = cv2.fitEllipse(i)
+                        #cv2.ellipse(np.asarray(cv_image[:,:]),ellipse,(255,0,0),2)
+                        circles = extract_circles(green_contours)
+                        for x,y,radius in circles:
+                            cv.Circle(cv_image,(x,y),radius,(0,255,0),3)    
 
-                                moments = cv.Moments(cv.fromarray(i), binary = 1)             
-                                area = cv.GetCentralMoment(moments, 0, 0)
-
-                                if area > OBJECT_AREA:
-                                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
-                                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                                        radius = int(math.sqrt(area/math.pi))
-                                        cv.Circle(cv_image,(x,y),radius,(0,255,0),3)
-                                        point = check_lidar((x,y),radius)
-                                        if (point[0] != 1000):
-                                                print "got hit",point
-                                                append_marker(point,(0,1.0,0))    
                 if (yellow_contours):
-                        for i in yellow_contours:
-                                moments = cv.Moments(cv.fromarray(i), binary = 1)             
-                                area = cv.GetCentralMoment(moments, 0, 0)
-                                if area > OBJECT_AREA:
-                                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
-                                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                                        radius = int(math.sqrt(area/math.pi))
-                                        cv.Circle(cv_image,(x,y),radius,(0,255,255),3)
-
-                                        #point = check_lidar((x,y),radius)
-                                        #if (point[0] != 1000):
-                                                #append_marker(point,(0,0,1.0))  
+                        circles = extract_circles(yellow_contours)
+                        for x,y,radius in circles:
+                            cv.Circle(cv_image,(x,y),radius,(0,255,255),3)
                 
-                ''' 
-                if (red_contours):
-                        for i in red_contours:
-                                moments = cv.Moments(cv.fromarray(i), binary = 1)              
-                                area = cv.GetCentralMoment(moments, 0, 0)
-                                if area > OBJECT_AREA:
-                                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
-                                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                                        radius = int(math.sqrt(area/math.pi))
-                                        
-                                        
-                                        point = check_lidar((x,y),radius)
-                                        if (point[0] != 1000):
-                                                print point
-                                                append_marker(point,(1.0,0,0))
-                                                cv.Circle(cv_image,(x,y),radius,(0,0,255),3) 
-                 
                
+                if (red_contours):
+                        circles = extract_circles(red_contours)
+                        for x,y,radius in circles:
+                                cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
+
+                if (blue_contours):
+                        circles = extract_circles(blue_contours)
+                        for x,y,radius in circles:
+                                cv.Circle(cv_image,(x,y),radius,(255,0,0),3)  
+                 
+                
                         
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                #cv.ShowImage("H channel",h_channel)
-                #cv.ShowImage("S channel",s_channel)
-                #cv.ShowImage("V channel",v_channel)
+                cv.ShowImage("H channel",h_channel)
+                cv.ShowImage("S channel",s_channel)
+                cv.ShowImage("V channel",v_channel)
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)

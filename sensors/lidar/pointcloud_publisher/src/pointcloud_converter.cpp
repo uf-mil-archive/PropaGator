@@ -56,7 +56,7 @@ void pclCallback(const sensor_msgs::PointCloud2::ConstPtr& msg){
 	        pcldatafile.open("laser_board0.xyz");
 	        size_t i;
 	        for (i = 0; i < pclmsg.points.size(); ++i){
-                        if (!(pclmsg.points[i].z < -1) && !(pclmsg.points[i].x < 0)){
+                        if (!(pclmsg.points[i].z < -1) && !(pclmsg.points[i].x < 0) && !(pclmsg.points[i].y > 2)){
 		                pcldatafile << " " << pclmsg.points[i].x << " " << pclmsg.points[i].y << " " << pclmsg.points[i].z << "\n";
                         }	        
                 }
