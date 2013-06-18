@@ -77,8 +77,8 @@ def image_callback(data):
                 cv.Split(hsv_image,h_channel,s_channel,v_channel,None)                #split HSV image into three seperate images
                 
                 #cv.Not(h_channel,h_not)
-                 cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-26)      #use hue channel to filter for red
-        #cv.AdaptiveThreshold(s_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
+                #cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-26)      #use hue channel to filter for red
+                cv.AdaptiveThreshold(s_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
                 cv.AdaptiveThreshold(h_s,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,21,-2)
                 cv.ShowImage("red threshold",red_adaptive)
                
@@ -141,16 +141,21 @@ class ShootRingsServer:
 
  def execute(self,goal):
         global shots,running
-        while(shots < goal.attempts):
+        while(shots < goal.attempts and not(self.server.is_preempt_requested())):
                 running = True
                 self._feedback.darts_shot = shots
                 self.server.publish_feedback(self._feedback)
-                #shots = shots + 1
-                #rospy.sleep(1)
+                shots = shots + 1
+                rospy.sleep(1)
 
         running = False
-        shots = 0
-        self.server.set_succeeded()
+        if (shots == goal.attempts):
+                self.server.set_succeeded()
+                shots = 0
+        else:
+                self.server.set_preempted()
+                shots = 0
+
 
 server = ShootRingsServer()
 rospy.spin()
