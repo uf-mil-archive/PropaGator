@@ -34,7 +34,14 @@ purple_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True
 OBJECT_AREA = 15000
 IMAGE_SIZE = (640,480)
 
-#-----------------------------------------------------------------------------------roscd
+#-----------------------------------------------------------------------------------
+hsv_image = cv.CreateImage(IMAGE_SIZE,8,3)
+blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
+h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
+v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+h_s = cv.CreateImage(IMAGE_SIZE,8,1)
+red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 purple_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
@@ -79,16 +86,16 @@ def image_callback(data):
                 #cv.Not(h_channel,h_not)
                 #cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-26)      #use hue channel to filter for red
                 cv.AdaptiveThreshold(s_channel,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
-                cv.AdaptiveThreshold(h_s,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,21,-2)
+                cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,201,-40)
                 cv.ShowImage("red threshold",red_adaptive)
                
-                cv.Erode(red_adaptive,red_eroded_image,None,2)                        #erode and dilate the thresholded images
+                cv.Erode(red_adaptive,red_eroded_image,None,1)                        #erode and dilate the thresholded images
                 cv.Erode(purple_adaptive,purple_eroded_image,None,1)
                 cv.Dilate(red_eroded_image,red_dilated_image,None,10)
                 cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
 
 
-                cv.ShowImage("red threshold",red_dilated_image)                       #show image here because findContours effects memory location
+                #cv.ShowImage("red final",red_eroded_image)                       #show image here because findContours effects memory location
                 
                 red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -121,9 +128,9 @@ def image_callback(data):
 
                               
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                #cv.ShowImage("H channel",h_channel)
-                #cv.ShowImage("S channel",s_channel)
-                #cv.ShowImage("V channel",v_channel)
+                cv.ShowImage("H channel",h_channel)
+                cv.ShowImage("S channel",s_channel)
+                cv.ShowImage("V channel",v_channel)
                 cv.ShowImage("camera feed",cv_image)
                
                 cv.WaitKey(3)
@@ -145,7 +152,7 @@ class ShootRingsServer:
                 running = True
                 self._feedback.darts_shot = shots
                 self.server.publish_feedback(self._feedback)
-                shots = shots + 1
+                #shots = shots + 1
                 rospy.sleep(1)
 
         running = False

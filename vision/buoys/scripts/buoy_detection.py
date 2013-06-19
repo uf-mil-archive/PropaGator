@@ -227,7 +227,7 @@ def image_callback(data):
 
                 cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
                 #cv.AdaptiveThreshold(h_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,73,-15)
-                cv.Erode(green_adaptive,green_eroded_image,None,2) #9                                                           #GREEN
+                cv.Erode(green_adaptive,green_eroded_image,None,5) #9                                                           #GREEN
                 cv.Dilate(green_eroded_image,green_dilated_image,None,9)#27
                 
                 cv.InRange(blurred_image,YELLOW_MIN,YELLOW_MAX,yellow_adaptive)
@@ -235,14 +235,14 @@ def image_callback(data):
                 cv.Erode(yellow_adaptive,yellow_eroded_image,None,5)                                                                            
                 cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,9)                                                 #YELLOW              
                 
-                cv.AdaptiveThreshold(h_channel,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,131,-20)
-                cv.Erode(blue_adaptive,blue_eroded_image,None,15)                                                              #BLUE
-                cv.Dilate(blue_eroded_image,blue_dilated_image,None,10) 
+                cv.AdaptiveThreshold(v_channel,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,131,60)
+                cv.Erode(blue_adaptive,blue_eroded_image,None,6)                                                              #BLUE
+                cv.Dilate(blue_eroded_image,blue_dilated_image,None,9) 
 
-                cv.ShowImage("red",red_dilated_image)
+                #cv.ShowImage("red",red_dilated_image)
                 #cv.ShowImage("yellow",yellow_adaptive)
-                #cv.ShowImage("blue",blue_dilated_image)
-                #cv.ShowImage("green",green_adaptive)
+                cv.ShowImage("blue",blue_dilated_image)
+                #cv.ShowImage("green",green_dilated_image)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -276,19 +276,19 @@ def image_callback(data):
                         circles = extract_circles(red_contours,(1,0,0))
                         for x,y,radius in circles:
                                 cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
-                '''
+                
                 if (blue_contours):
-                        circles = extract_circles(blue_contours)
+                        circles = extract_circles(blue_contours,(0,0,1))
                         for x,y,radius in circles:
                                 cv.Circle(cv_image,(x,y),radius,(255,0,0),3)  
-                '''
+               
                  
                 
                         
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                #cv.ShowImage("H channel",h_channel)
-                #cv.ShowImage("S channel",s_channel)
-                #cv.ShowImage("V channel",v_channel)
+                cv.ShowImage("H channel",h_channel)
+                cv.ShowImage("S channel",s_channel)
+                cv.ShowImage("V channel",v_channel)
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
