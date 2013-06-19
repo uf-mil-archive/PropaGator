@@ -47,6 +47,15 @@ distortion_coeffs[0,1] =  0.150298190916304
 distortion_coeffs[0,2] = 0.000482115806222 
 distortion_coeffs[0,3] = -0.000462572155571 
 
+rotation_vector[0,0] = 1.1647
+rotation_vector[0,1] = -1.2071
+rotation_vector[0,2] = 1.2281
+
+translation_vector[0,0] =    0.235459
+translation_vector[0,1] =    0.145470
+translation_vector[0,2] = -0.818359
+
+'''
 rotation_vector[0,0] = 1.3051
 rotation_vector[0,1] = -1.1712
 rotation_vector[0,2] = 1.3035
@@ -54,6 +63,7 @@ rotation_vector[0,2] = 1.3035
 translation_vector[0,0] =   0.183424
 translation_vector[0,1] =-0.030571
 translation_vector[0,2] = -0.813576 
+'''
 
 #-----------------------------------------------------------------------------------
 
@@ -88,7 +98,8 @@ yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 blue_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 blue_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
-global cloudx,cloudy,cloud,running
+global cloudx,cloudy,cloud,running,new_buoy
+new_buoy = False
 running = True
 cloud = []
 cloudx = []
@@ -144,7 +155,7 @@ def check_lidar((x,y),radius):
         index = 0
         for i,j in zip(cloudx,cloudy):        
                 dist = distance((i,j),(x,y))
-                if (dist < radius*2 and dist < min_dist ):          
+                if (dist < radius*1.5 and dist < min_dist ):          
                         coi = index
                         min_dist = dist
                 index = index + 1
@@ -161,7 +172,7 @@ def check_lidar((x,y),radius):
         else:
                 return [1000,0,0]
 
-def extract_circles(contours):
+def extract_circles(contours,rgb):
         circles = []
         for i in contours:
                 moments = cv.Moments(cv.fromarray(i), binary = 1)             
@@ -171,13 +182,16 @@ def extract_circles(contours):
                         x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                         y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
                         radius = int(math.sqrt(area/math.pi))
-                        circles.append((x,y,radius))
-                        '''
+
                         point = check_lidar((x,y),radius)
+                        
                         if (point[0] != 1000):
                                 #print point
-                                append_marker(point,(0,1.0,0))
-                        '''
+                                circles.append((x,y,int(radius*1.5)))
+                                append_marker(point,rgb)
+                                global new_buoy
+                                new_buoy = True
+                       
         return circles
                         
 
@@ -207,9 +221,9 @@ def image_callback(data):
                 #cv.Mul(s_channel,h_channel,s_h)
                 
                 #cv.InRange(blurred_image,RED_MIN,RED_MAX,red_threshold
-                cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-75) 
-                cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                  #RED
-                cv.Dilate(red_eroded_image,red_dilated_image,None,8)    
+                cv.AdaptiveThreshold(s_channel,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-55) 
+                cv.Erode(red_adaptive,red_eroded_image,None,4)                                                                  #RED
+                cv.Dilate(red_eroded_image,red_dilated_image,None,15)    
 
                 cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
                 #cv.AdaptiveThreshold(h_channel,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,73,-15)
@@ -225,8 +239,8 @@ def image_callback(data):
                 cv.Erode(blue_adaptive,blue_eroded_image,None,15)                                                              #BLUE
                 cv.Dilate(blue_eroded_image,blue_dilated_image,None,10) 
 
-                #cv.ShowImage("red",red_adaptive)
-                cv.ShowImage("yellow",yellow_adaptive)
+                cv.ShowImage("red",red_dilated_image)
+                #cv.ShowImage("yellow",yellow_adaptive)
                 #cv.ShowImage("blue",blue_dilated_image)
                 #cv.ShowImage("green",green_adaptive)
 
@@ -236,42 +250,45 @@ def image_callback(data):
                 #cv2.drawContours(np.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3)   
                 blue_contours,_ = cv2.findContours(image=np.asarray(blue_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
               
+                index = 0
                 if (len(cloudx) > 0):
                         for i,j in zip(cloudx,cloudy):
-                                if (i < 700 and j < 700 and i > 0 and j > 0):
-                                       cv.Circle(cv_image,(int(i),int(j)),1,(0,255,0),3)
+                                try:
+                                        if (i < 700 and j < 700 and i > 0 and j > 0 and all(math.fabs(i) < 5 for i in cloud[index])):   
+                                                cv.Circle(cv_image,(int(i),int(j)),1,(0,255,0),3)
+                                        index = index + 1
+                                except:
+                                        print "index error"
                
-               
-                
                 if (green_contours):
                         #ellipse = cv2.fitEllipse(i)
                         #cv2.ellipse(np.asarray(cv_image[:,:]),ellipse,(255,0,0),2)
-                        circles = extract_circles(green_contours)
+                        circles = extract_circles(green_contours,(0,1,0))
                         for x,y,radius in circles:
-                            cv.Circle(cv_image,(x,y),radius,(0,255,0),3)    
+                            cv.Circle(cv_image,(x,y),radius,(0,255,0),3)  
 
                 if (yellow_contours):
-                        circles = extract_circles(yellow_contours)
+                        circles = extract_circles(yellow_contours,(0,1,1))
                         for x,y,radius in circles:
                             cv.Circle(cv_image,(x,y),radius,(0,255,255),3)
-                
-               
+                       
                 if (red_contours):
-                        circles = extract_circles(red_contours)
+                        circles = extract_circles(red_contours,(1,0,0))
                         for x,y,radius in circles:
                                 cv.Circle(cv_image,(x,y),radius,(0,0,255),3)
-
+                '''
                 if (blue_contours):
                         circles = extract_circles(blue_contours)
                         for x,y,radius in circles:
                                 cv.Circle(cv_image,(x,y),radius,(255,0,0),3)  
+                '''
                  
                 
                         
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                cv.ShowImage("H channel",h_channel)
-                cv.ShowImage("S channel",s_channel)
-                cv.ShowImage("V channel",v_channel)
+                #cv.ShowImage("H channel",h_channel)
+                #cv.ShowImage("S channel",s_channel)
+                #cv.ShowImage("V channel",v_channel)
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
@@ -279,10 +296,12 @@ def image_callback(data):
 
 #-----------------------------------------------------------------------------------
 def bouy_callback(event):
-        if (running):
+        global new_buoy
+        if (running and new_buoy):
                 global bouy_array
                 bouy_publisher.publish(bouy_array)
                 bouy_array=MarkerArray()
+                new_buoy = False
           
 #-----------------------------------------------------------------------------------
 

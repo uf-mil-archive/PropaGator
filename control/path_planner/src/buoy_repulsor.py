@@ -57,7 +57,7 @@ def three_d(x):
 def send_waypoint(point,orientation):
 	waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .1))
 	'''
-	waypoint.send_goal_and_wait(MoveToGoal(
+	waypoint.send_goal(MoveToGoal(
 			header=Header(
 				frame_id='/world',
 			),
@@ -73,7 +73,7 @@ def send_waypoint(point,orientation):
 	'''	
 def buoy_callback(msg):
 	global current_position
-	yellow = ColorRGBA(1.0,1.0,0,1.0)
+	yellow = ColorRGBA(1.0,1.0,0,1.0)	
 	pos = find_closest_buoy(msg)
 	#waypoint.cancel_goal()
 	#pos = three_d((marker.pose.position.x,marker.pose.position.y)) +(2,2,2)
