@@ -11,10 +11,10 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Pose,Quaternion,Point
 import random,numpy
 import actionlib
-from c3_trajectory_generator.msg import MoveToAction, MoveToGoal
-from uf_common.orientation_helpers import lookat, get_perpendicular
+from uf_common.msg import MoveToAction, MoveToGoal
+from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 
-from sim.vector import v, V
+#from sim.vector import v, V
 
 rospy.init_node('buoy_repulsor')
 
@@ -40,7 +40,7 @@ def find_closest_buoy(msg):
 					buoy = (marker.pose.position.x,marker.pose.position.y)
 			
 	if (not buoy):	
-		return [],[]
+		return [100,100]
 	else: 
 	        return buoy
 		
@@ -55,6 +55,8 @@ def three_d(x):
 	return numpy.array([x[0], x[1], 0])
 
 def send_waypoint(point,orientation):
+	waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .1))
+	'''
 	waypoint.send_goal_and_wait(MoveToGoal(
 			header=Header(
 				frame_id='/world',
@@ -68,22 +70,24 @@ def send_waypoint(point,orientation):
 				orientation=Quaternion(*orientation),
 			),
 	))
-	
+	'''	
 def buoy_callback(msg):
 	global current_position
 	yellow = ColorRGBA(1.0,1.0,0,1.0)
 	pos = find_closest_buoy(msg)
 	#waypoint.cancel_goal()
 	#pos = three_d((marker.pose.position.x,marker.pose.position.y)) +(2,2,2)
-	print 'going to: ',pos
-	send_waypoint(pos,lookat(three_d(pos)))
+	if (pos[0] != 100):
+		print 'going to: ',pos
+		send_waypoint(pos,lookat(three_d(pos)))
 
 
-rospy.Subscriber('buoys',MarkerArray,buoy_callback)
+rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
 
 
 def pose_callback(msg):
-	global current_position
+	global current_position,current_pose_editor
+	current_pose_editor = PoseEditor.from_Odometry(msg)
 	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
 rospy.Subscriber('/odom', Odometry, pose_callback)
 rospy.spin()
