@@ -4,6 +4,17 @@ import cv,cv2,math
 
 from sensor_msgs.msg import Image,PointCloud2,PointField
 
+def pointcloud_callback(msg):
+        if (running):
+                global cloudx,cloudy,cloud
+                cloud = pointcloud2_to_xyz_array(msg)
+                cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
+                projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
+                cloud_mat = cloud
+             
+                cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
+                (cloudx,cloudy) = cv2.split(np.asarray(projection))
+
 #-----------------------------------------------------------------------------------
 DUMMY_FIELD_PREFIX = '__'
 
