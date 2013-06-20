@@ -148,7 +148,7 @@ if __name__ == '__main__':
   rospy.Subscriber("/lidar_angle", ScanAngle, scan_angle_callback)
   # A positive pitch is a downward pitch from the point of the view of the robot
   try:
-    ser = serial.Serial(port, 9600, timeout=1)
+    ser = serial.Serial(port, 115200, timeout=1)
     try:
       ser.flushInput()
       ser.write("R")
