@@ -31,12 +31,13 @@ def find_closest_buoy(msg):
 	global current_position,green_buoy,red_buoy,traversed_buoys,buoy
 	red = ColorRGBA(1.0,0,0,1.0)
 	green = ColorRGBA(0,1.0,0,1.0)
+        yellow = ColorRGBA(1.0,1.0,0,1.0)
 	
 	for marker in msg.markers:
-			if ((not buoy)):
+			if ((not buoy) and (marker.color == yellow)):
 				buoy = (marker.pose.position.x,marker.pose.position.y)
 			else:
-				if (distance((marker.pose.position.x,marker.pose.position.y),current_position) < distance(buoy,current_position)):
+				if (distance((marker.pose.position.x,marker.pose.position.y),current_position) < distance(buoy,current_position) and (marker.color == yellow)):
 					buoy = (marker.pose.position.x,marker.pose.position.y)
 			
 	if (not buoy):	
@@ -55,7 +56,7 @@ def three_d(x):
 	return numpy.array([x[0], x[1], 0])
 
 def send_waypoint(point,orientation):
-	waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .1))
+	waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .8))
 	'''
 	waypoint.send_goal(MoveToGoal(
 			header=Header(

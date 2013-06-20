@@ -31,12 +31,12 @@ global IN_CALLBACK
 IN_CALLBACK = False
 
 #initial sweeping range
-min_start = 30	#40
-max_start = 0
+min_start = 20	#40
+max_start =0
 	#-10
 
 #calibration points for angles
-point1 = [2030,35]#45	#point = [encoder value,angle]
+point1 = [2030,25]#35	#point = [encoder value,angle]
 point2 = [3160,-20]#-20
 
 m = (float(point2[1]-point1[1]))/(point2[0]-point1[0])
@@ -176,7 +176,7 @@ if __name__ == '__main__':
         ser.write("h"+str(max_start)+"\r")
         msg = ser.readline()
       rospy.logdebug("Max angle updated to "+str(max_start))
-      ser.write("s900\r")
+      ser.write("s800\r")
       print "got back",ser.readline()
       ser.write("S")
       while not "S" in ser.readline():
