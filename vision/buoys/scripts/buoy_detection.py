@@ -4,7 +4,7 @@ import roslib
 roslib.load_manifest('buoys')
 import rospy
 import numpy as np
-import cv,cv2,math
+import cv,cv2,math,threading
 from pointcloud2xyz import *
 from std_msgs.msg import String
 from sensor_msgs.msg import Image,PointCloud2,PointField
@@ -20,7 +20,7 @@ bridge = CvBridge()
 
 #parameters to set
 GREEN_MIN = cv.fromarray(np.array([50, 150, 200],np.uint8),allowND = True)
-GREEN_MAX = cv.fromarray(np.array([90, 180, 255],np.uint8),allowND = True)
+GREEN_MAX = cv.fromarray(np.array([90, 210, 255],np.uint8),allowND = True)
 
 YELLOW_MIN = cv.fromarray(np.array([20, 130, 200],np.uint8),allowND = True)
 YELLOW_MAX = cv.fromarray(np.array([40, 180, 255],np.uint8),allowND = True)
@@ -53,7 +53,7 @@ rotation_vector[0,2] =   1.2281
 
 translation_vector[0,0] =  0.235459  #-0.25#
 translation_vector[0,1] =  0.145470
-translation_vector[0,2] = .5 #-0.818359   # 2.5#
+translation_vector[0,2] =  0.818359   # .5#
 
 
 #-----------------------------------------------------------------------------------
@@ -65,9 +65,9 @@ blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
 h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
 v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-s_inv = cv.CreateImage(IMAGE_SIZE,8,1)
-h_inv = cv.CreateImage(IMAGE_SIZE,8,1)
-h_s_not = cv.CreateImage(IMAGE_SIZE,8,1)
+sminv = cv.CreateImage(IMAGE_SIZE,8,1)
+vminh = cv.CreateImage(IMAGE_SIZE,8,1)
+sminh = cv.CreateImage(IMAGE_SIZE,8,1)
 yellow_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 red_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
@@ -89,13 +89,15 @@ yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 blue_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 blue_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
-global cloudx,cloudy,cloud,running,new_buoy,max_distance
+lock = threading.Lock()
+
+global running,new_buoy,max_distance,master_cloud
+
+master_cloud = []
 max_distance = 5
 new_buoy = False
 running = True
-cloud = []
-cloudx = []
-cloudy = []
+
 
 #-----------------------------------------------------------------------------------
 
@@ -143,25 +145,21 @@ def distance(p0, p1):
 
 def check_lidar((x,y),radius):
         min_dist = 200
-        coi = False
-        index = 0
-        global max_distance
-        print 'cloud size',len(cloud)
-        print 'projection size', len(cloudx)
-        for i,j in zip(cloudx,cloudy):        
-                dist = distance((i,j),(x,y))
+        object_found = False
+        
+        lock.acquire()
+        for i in master_cloud:
+                dist = distance((i[0],i[1]),(x,y))
                 if (dist < radius*1.5 and dist < min_dist ):          
-                        coi = index
+                        object_center = i[2]
+                        object_found = True 
                         min_dist = dist
-                index = index + 1
 
-        if (coi):  
-                try:    
-                        if all(math.fabs(i) < max_distance for i in cloud[coi]):
-                                return (True,cloud[coi])
-                except:
-                        print "bad index: ",coi
-        return (False,[0,0,0])
+        lock.release()
+        if (object_found):         
+                return (True,object_center)
+        else:
+                return (False,[0,0,0])
 
 
 def extract_circles(contours,rgb):
@@ -176,7 +174,6 @@ def extract_circles(contours,rgb):
                         radius = int(math.sqrt(area/math.pi))
 
                         point = check_lidar((x,y),radius)
-                        
                         if (point[0]):
                                 circles.append((x,y,int(radius*1.5)))
                                 append_marker(point[1],rgb)
@@ -187,13 +184,13 @@ def extract_circles(contours,rgb):
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,301,40)  
-        cv.Erode(red_adaptive,red_eroded_image,None,4)                                                                
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,31,-35)  
+        cv.Erode(red_adaptive,red_eroded_image,None,6)                                                                
         cv.Dilate(red_eroded_image,red_dilated_image,None,15)    
 
 def threshold_green(image):
-        #cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
-        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,101,-55)
+        cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
+        #cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,101,-55)
         cv.Erode(green_adaptive,green_eroded_image,None,5) #9                                                      
         cv.Dilate(green_eroded_image,green_dilated_image,None,9)#27
 
@@ -204,21 +201,16 @@ def threshold_yellow(image):
         cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,9)     
 
 def threshold_blue(image):
-        cv.AdaptiveThreshold(image,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,131,60)
-        cv.Erode(blue_adaptive,blue_eroded_image,None,6)                                                        
+        cv.AdaptiveThreshold(image,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,71,-20)
+        cv.Erode(blue_adaptive,blue_eroded_image,None,9)                                                        
         cv.Dilate(blue_eroded_image,blue_dilated_image,None,9) 
 
 def print_lidar_projections(image):
-        index = 0
-        global max_distance
-        if (len(cloudx) > 0):
-                for i,j in zip(cloudx,cloudy):
-                        try:
-                                if (i < 700 and j < 700 and i > 0 and j > 0 and all(math.fabs(i) < max_distance for i in cloud[index])):   
-                                        cv.Circle(image,(int(i),int(j)),1,(0,255,0),3)
-                        except:
-                                print "bad index: ",index
-                        index = index + 1
+        if (len(master_cloud) > 0):
+                lock.acquire()
+                for i in master_cloud:
+                        cv.Circle(image,(int(i[0]),int(i[1])),1,(0,255,0),3)
+                lock.release()
 #-----------------------------------------------------------------------------------
 
 def image_callback(data):
@@ -230,17 +222,22 @@ def image_callback(data):
 
                 cv.Smooth(cv_image,blurred_bgr_image,cv.CV_GAUSSIAN,9,9)  
                 cv.Smooth(hsv_image,blurred_image,cv.CV_GAUSSIAN,5,5)                
-                cv.Split(blurred_image,h_channel,s_channel,v_channel,None)               
-                
-                threshold_red(h_channel)
-                threshold_green(s_channel)
-                threshold_yellow(blurred_image)
-                threshold_blue(v_channel)        
+                cv.Split(blurred_image,h_channel,s_channel,v_channel,None)  
 
+                cv.Sub(s_channel,h_channel,sminh)
+                cv.Sub(v_channel,h_channel,vminh)
+                cv.Sub(s_channel,v_channel,sminv) #maybe use for blue            
+                
+                threshold_red(sminh)
+                threshold_green(blurred_image)
+                threshold_yellow(blurred_image)
+                threshold_blue(h_channel) 
+       
+                #cv.ShowImage("test",sminv)
                 #cv.ShowImage("red",red_dilated_image)
                 #cv.ShowImage("yellow",yellow_adaptive)
                 #cv.ShowImage("blue",blue_dilated_image)
-                cv.ShowImage("green",green_eroded_image)
+                cv.ShowImage("green",green_adaptive)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -250,7 +247,7 @@ def image_callback(data):
             
                 print_lidar_projections(cv_image)
 
-                for i in [(green_contours,[0,1,0]) , (yellow_contours,[0,1,1]) , (red_contours,[1,0,0]) , (blue_contours,[0,0,1])]:
+                for i in [(green_contours,[0,1,0]) , (yellow_contours,[1,1,0]) , (red_contours,[1,0,0]) , (blue_contours,[0,0,1])]:
                         circles = extract_circles(i[0],i[1])
                         rgb = i[1]
                         bgr = (255*np.array(rgb[::-1])).tolist()        #invert list and multiply by 255 for cv.Circle color argument
@@ -259,9 +256,9 @@ def image_callback(data):
     
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                #cv.ShowImage("H channel",h_channel)
-                #cv.ShowImage("S channel",s_channel)
-                #cv.ShowImage("V channel",v_channel)
+                cv.ShowImage("H channel",h_channel)
+                cv.ShowImage("S channel",s_channel)
+                cv.ShowImage("V channel",v_channel)
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
@@ -281,17 +278,30 @@ def bouy_callback(event):
 def action_callback(event):
         running = False
 #-----------------------------------------------------------------------------------
+def in_frame(x):
+        if (x[0] < 600 and x[0] > 0 and x[1] < 600 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2])):
+                return True
+        else:
+                return False
 
 def pointcloud_callback(msg):
         if (running):
-                global cloudx,cloudy,cloud
+                lock.acquire()
+                global master_cloud
                 cloud = pointcloud2_to_xyz_array(msg)
                 cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
                 projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
                 cloud_mat = cloud
              
                 cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
-                (cloudx,cloudy) = cv2.split(np.asarray(projection))
+                (x,y) = cv2.split(np.asarray(projection))
+                index = 0
+                master_cloud = []
+                for i,j in zip(x,y):
+                        master_cloud.append([i[0],j[0],cloud[index]])
+                        index = index + 1 
+                master_cloud = filter(in_frame,master_cloud)
+                lock.release()
                 
 #-----------------------------------------------------------------------------------
 '''
