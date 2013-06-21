@@ -9,7 +9,7 @@ from geometry_msgs.msg import WrenchStamped, Vector3, Vector3Stamped, Point, Wre
 from std_msgs.msg import Header
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
-import numpy,math,tf
+import numpy,math,tf,threading
 from tf import transformations
 from uf_common.orientation_helpers import xyz_array, xyzw_array
 from uf_common.msg import PoseTwistStamped
@@ -17,7 +17,7 @@ from uf_common.msg import PoseTwistStamped
 
 rospy.init_node('controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped)
-
+lock = threading.lock()
 #----------------------------------------------------------------------------------
 
 def _jacobian(x):
@@ -68,9 +68,11 @@ state_dot_body = numpy.zeros(6)
 
 def desired_state_callback(desired_posetwist):
     global desired_state,desired_state_dot,desired_state_set
+    lock.acquire()
     desired_state_set = True	
     desired_state = numpy.concatenate([xyz_array(desired_posetwist.posetwist.pose.position), transformations.euler_from_quaternion(xyzw_array(desired_posetwist.posetwist.pose.orientation))])
     desired_state_dot = _jacobian(desired_state).dot(numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)]))
+    lock.release()
 
 rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 
@@ -99,6 +101,7 @@ Ks = numpy.array([
 	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
 def odom_callback(current_posetwist):
         global desired_state,desired_state_dot,state,stat_dot,state_dot_body,desired_state_set,odom_active
+        lock.acquire()
 	odom_active = True 
         state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
 	state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
@@ -106,15 +109,13 @@ def odom_callback(current_posetwist):
 	if (not desired_state_set):
            desired_state = state
            desired_state_set = True
+        lock.release()
 	
 def update_callback(event):
 	
 	global desired_state,desired_state_dot,state,stat_dot,state_dot_body,previous_error
 
-	#state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
-	#state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
-	#state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
-		
+	lock.acquire()	
 	print 'desired state', desired_state
         print 'current_state', state		
 	def smallest_coterminal_angle(x):
@@ -127,40 +128,23 @@ def update_callback(event):
 	e2 = vbd - state_dot_body
 	output = Ks.dot(e2)
        
-        '''
-        # normal pd_controller
-        error = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])])
-        d = (error - previous_error)*10
-        output =K*error + Ks*d 
-        previous_error = error
-	'''
 	print 'output',output
+        lock.release()
 
-	if (odom_active):
-			controller_wrench.publish(WrenchStamped(
-						header = Header(
-							stamp=rospy.Time.now(),
-							frame_id="/base_link",
-							),
-						wrench=Wrench(
-							force = Vector3(x= output[0],y= output[1],z= 0),
-							torque = Vector3(x=0,y= 0,z= output[5]),
-							))
+        if (not(odom_active)):
+                output = [0,0,0,0,0,0]
+	
+	controller_wrench.publish(WrenchStamped(
+				header = Header(
+					stamp=rospy.Time.now(),
+					frame_id="/base_link",
+					),
+				wrench=Wrench(
+					force = Vector3(x= output[0],y= output[1],z= 0),
+					torque = Vector3(x=0,y= 0,z= output[5]),
+					))
 
-							)	
-	else:
-			controller_wrench.publish(WrenchStamped(
-						header = Header(
-							stamp=rospy.Time.now(),
-							frame_id="/base_link",
-							),
-						wrench=Wrench(
-							force = Vector3(x= 0,y= 0,z= 0),
-							torque = Vector3(x=0,y= 0,z= 0),
-							))
-
-							)	
-
+					)	
 	
 def timeout_callback(event):
 	global odom_active 
