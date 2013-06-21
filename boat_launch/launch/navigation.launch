@@ -4,8 +4,7 @@
     <param name="port" value="/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"/>
     <param name="frame_id" value="/imu"/>
   </node>
-  <node pkg="tf" type="static_transform_publisher" name="imu_broadcaster"
-    args=".076 .356 .102  .5 -.5 -.5 -.5  base_link imu 100" /> <!-- -9" -11" 7" -->
+  <node pkg="tf" type="static_transform_publisher" name="imu_broadcaster" args="-.7366 .1778 .1778  .5 -.5 .5 -.5  base_link imu 100" /> 
   <node pkg="nodelet" type="nodelet" name="magnetic_hardsoft_compensation" args="standalone magnetic_hardsoft_compensation/nodelet">
     <param name="frame_id" type="string" value="/imu"/>
     <rosparam>
