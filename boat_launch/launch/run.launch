@@ -18,5 +18,12 @@
     arevoffset_b: [0.05, 0, 0]
     umax_b: [ 0.25,  0.25,  0.25,   0.1,   0.1,  0.1]
   </rosparam></node>
- 
+
+  <node pkg="gps_common" type="utm_odometry_node" name="gps_waypoint_to_odom">
+        <remap from="/fix" to="/gps_waypoint"/>
+        <remap from="/odom" to="/gps_odom_waypoint"/>  
+  </node>
+
+  <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
+
 </launch>
