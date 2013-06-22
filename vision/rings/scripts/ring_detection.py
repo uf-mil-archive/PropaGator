@@ -154,7 +154,7 @@ class ShootRingsServer:
                 self.server.publish_feedback(self._feedback)
                 #shots = shots + 1
                 rospy.sleep(1)
-
+             
         running = False
         if (shots == goal.attempts):
                 self.server.set_succeeded()
