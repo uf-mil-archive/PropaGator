@@ -17,22 +17,25 @@ waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 print 'connecting to action client'
 waypoint.wait_for_server()
 
-global pos
-pos = []
+global pos,origin
+pos = [0,0,0]
+origin = []
 
 def waypoint_callback(msg):
-        #waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .1))
-        global pos
+        global pos,origin
 
         ecef = ecef_from_latlongheight(msg.latitude, msg.longitude, msg.altitude)
         diff = ecef - pos
 
-        goal = enu_from_ecef(diff)
+        goal = enu_from_ecef(diff,origin)
         waypoint.send_goal_and_wait('world',goal)
 
 
 def pos_callback(msg):
-        global pos
+        global pos,origin
+
+        if (not origin):
+                origin = [msg.x,msg.y,msg.z]
         pos = [msg.x,msg.y,msg.z]
 
 rospy.Subscriber('/gps_latlong_waypoint',NavSatFix,waypoint_callback)

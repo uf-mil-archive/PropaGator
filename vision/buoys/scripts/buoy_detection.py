@@ -25,7 +25,7 @@ GREEN_MAX = cv.fromarray(np.array([90, 210, 255],np.uint8),allowND = True)
 YELLOW_MIN = cv.fromarray(np.array([20, 130, 200],np.uint8),allowND = True)
 YELLOW_MAX = cv.fromarray(np.array([40, 180, 255],np.uint8),allowND = True)
 
-OBJECT_AREA = 50
+OBJECT_AREA = 20
 IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
@@ -51,8 +51,8 @@ rotation_vector[0,0] =   1.1647
 rotation_vector[0,1] =  -1.2071
 rotation_vector[0,2] =   1.2281
 
-translation_vector[0,0] =  0.235459  #-0.25#
-translation_vector[0,1] =  0.145470
+translation_vector[0,0] =  -0.135459  #-0.25#
+translation_vector[0,1] =  0.545470#0.145470
 translation_vector[0,2] =  0.818359   # .5#
 
 
@@ -65,11 +65,17 @@ blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
 h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
 v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-sminv = cv.CreateImage(IMAGE_SIZE,8,1)
-vminh = cv.CreateImage(IMAGE_SIZE,8,1)
+
+lab_image_ = cv.CreateImage(IMAGE_SIZE,8,3)
+l_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+a_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
+b_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+
+#sminv = cv.CreateImage(IMAGE_SIZE,8,1)
+#vminh = cv.CreateImage(IMAGE_SIZE,8,1)
 sminh = cv.CreateImage(IMAGE_SIZE,8,1)
-yellow_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
-red_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
+#yellow_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
+#red_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
 green_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
@@ -94,7 +100,7 @@ lock = threading.Lock()
 global running,new_buoy,max_distance,master_cloud
 
 master_cloud = []
-max_distance = 5
+max_distance = 7
 new_buoy = False
 running = True
 
@@ -102,12 +108,12 @@ running = True
 #-----------------------------------------------------------------------------------
 
 #publish marker array of objects found
-global bouy_array,marker_id
-bouy_publisher=rospy.Publisher('buoy_markers',MarkerArray)
-bouy_array=MarkerArray()
+global buoy_array,marker_id
+buoy_publisher=rospy.Publisher('buoy_markers',MarkerArray)
+buoy_array=MarkerArray()
 marker_id = 0
 def append_marker(pos,color):
-        global marker_id        
+        global marker_id     
         if (marker_id > 20):
                 marker_id = 0
         else:
@@ -116,7 +122,7 @@ def append_marker(pos,color):
 	marker.header.frame_id = "/base_link"
 	marker.type = marker.SPHERE
 	marker.id = marker_id
-	marker.lifetime = rospy.Duration.from_sec(1)
+	marker.lifetime = rospy.Duration.from_sec(2)
 	marker.action = marker.ADD
 	marker.scale.x = 0.5
 	marker.scale.y = 0.5
@@ -129,7 +135,7 @@ def append_marker(pos,color):
 	marker.pose.position.x = pos[0]
 	marker.pose.position.y = pos[1]
 	marker.pose.position.z = pos[2]
-	bouy_array.markers.append(marker)
+	buoy_array.markers.append(marker)
         #bouy_publisher.publish(marker)
 
 #-----------------------------------------------------------------------------------
@@ -150,7 +156,7 @@ def check_lidar((x,y),radius):
         lock.acquire()
         for i in master_cloud:
                 dist = distance((i[0],i[1]),(x,y))
-                if (dist < radius*1.5 and dist < min_dist ):          
+                if (dist < radius*2.0 and dist < min_dist ):          
                         object_center = i[2]
                         object_found = True 
                         min_dist = dist
@@ -184,15 +190,15 @@ def extract_circles(contours,rgb):
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,31,-35)  
-        cv.Erode(red_adaptive,red_eroded_image,None,6)                                                                
-        cv.Dilate(red_eroded_image,red_dilated_image,None,15)    
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-45)  
+        cv.Erode(red_adaptive,red_eroded_image,None,8)                                                                
+        cv.Dilate(red_eroded_image,red_dilated_image,None,9)    
 
 def threshold_green(image):
-        cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
-        #cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,101,-55)
-        cv.Erode(green_adaptive,green_eroded_image,None,5) #9                                                      
-        cv.Dilate(green_eroded_image,green_dilated_image,None,9)#27
+        #cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
+        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,25)
+        cv.Erode(green_adaptive,green_eroded_image,None,2) #9                                                      
+        cv.Dilate(green_eroded_image,green_dilated_image,None,6)#27
 
 def threshold_yellow(image):
         cv.InRange(image,YELLOW_MIN,YELLOW_MAX,yellow_adaptive)
@@ -219,25 +225,27 @@ def image_callback(data):
       
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
                 cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
+                cv.CvtColor(cv_image,lab_image_,cv.CV_BGR2Lab)
 
                 cv.Smooth(cv_image,blurred_bgr_image,cv.CV_GAUSSIAN,9,9)  
                 cv.Smooth(hsv_image,blurred_image,cv.CV_GAUSSIAN,5,5)                
-                cv.Split(blurred_image,h_channel,s_channel,v_channel,None)  
+                cv.Split(blurred_image,h_channel,s_channel,v_channel,None) 
+                cv.Split(lab_image_,l_channel,a_channel,b_channel,None)   
 
                 cv.Sub(s_channel,h_channel,sminh)
-                cv.Sub(v_channel,h_channel,vminh)
-                cv.Sub(s_channel,v_channel,sminv) #maybe use for blue            
+                #v.Sub(v_channel,h_channel,vminh)
+                #cv.Sub(s_channel,v_channel,sminv) #maybe use for blue            
                 
                 threshold_red(sminh)
-                threshold_green(blurred_image)
+                threshold_green(a_channel)
                 threshold_yellow(blurred_image)
                 threshold_blue(h_channel) 
        
                 #cv.ShowImage("test",sminv)
-                #cv.ShowImage("red",red_dilated_image)
-                #cv.ShowImage("yellow",yellow_adaptive)
+                cv.ShowImage("red",red_dilated_image)
+                cv.ShowImage("yellow",yellow_adaptive)
                 #cv.ShowImage("blue",blue_dilated_image)
-                cv.ShowImage("green",green_adaptive)
+                cv.ShowImage("green",green_dilated_image)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -247,7 +255,7 @@ def image_callback(data):
             
                 print_lidar_projections(cv_image)
 
-                for i in [(green_contours,[0,1,0]) , (yellow_contours,[1,1,0]) , (red_contours,[1,0,0]) , (blue_contours,[0,0,1])]:
+                for i in [(green_contours,[0,1,0]) , (yellow_contours,[1,1,0]) , (red_contours,[1,0,0])]:# , (blue_contours,[0,0,1])]:
                         circles = extract_circles(i[0],i[1])
                         rgb = i[1]
                         bgr = (255*np.array(rgb[::-1])).tolist()        #invert list and multiply by 255 for cv.Circle color argument
@@ -256,21 +264,21 @@ def image_callback(data):
     
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                cv.ShowImage("H channel",h_channel)
-                cv.ShowImage("S channel",s_channel)
-                cv.ShowImage("V channel",v_channel)
+                #cv.ShowImage("l channel",l_channel)
+                #cv.ShowImage("a channel",a_channel)
+                #cv.ShowImage("b channel",b_channel)
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
                
 
 #-----------------------------------------------------------------------------------
-def bouy_callback(event):
+def buoy_callback(event):
         global new_buoy
         if (running and new_buoy):
-                global bouy_array
-                bouy_publisher.publish(bouy_array)
-                bouy_array=MarkerArray()
+                global buoy_array
+                buoy_publisher.publish(buoy_array)
+                buoy_array=MarkerArray()
                 new_buoy = False
           
 #-----------------------------------------------------------------------------------
@@ -289,18 +297,20 @@ def pointcloud_callback(msg):
                 lock.acquire()
                 global master_cloud
                 cloud = pointcloud2_to_xyz_array(msg)
-                cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
-                projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
-                cloud_mat = cloud
-             
-                cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
-                (x,y) = cv2.split(np.asarray(projection))
-                index = 0
-                master_cloud = []
-                for i,j in zip(x,y):
-                        master_cloud.append([i[0],j[0],cloud[index]])
-                        index = index + 1 
-                master_cloud = filter(in_frame,master_cloud)
+                print len(cloud)
+                if (len(cloud) > 0):
+                        cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
+                        projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
+                        cloud_mat = cloud
+                     
+                        cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
+                        (x,y) = cv2.split(np.asarray(projection))
+                        index = 0
+                        master_cloud = []
+                        for i,j in zip(x,y):
+                                master_cloud.append([i[0],j[0],cloud[index]])
+                                index = index + 1 
+                        master_cloud = filter(in_frame,master_cloud)
                 lock.release()
                 
 #-----------------------------------------------------------------------------------
@@ -322,7 +332,7 @@ server = FindBuoysServer()
 rospy.spin()
 '''
 
-rospy.Timer(rospy.Duration(.1), bouy_callback)
+rospy.Timer(rospy.Duration(.1), buoy_callback)
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 rospy.spin()
