@@ -16,6 +16,7 @@ rospy.init_node('motor_driver')
 
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
 
+
 message_received = False
 thruster_id = rospy.get_param('~id')
 min_force = rospy.get_param('~min_force')
@@ -63,7 +64,7 @@ def apply_command(force):
 	#	motordriver.set_reverse_speed(str(int(-force*200/min_force)))
 	else:
 		motordriver.stop()
-	'''	
+		
 	motordriverstat_msg = motor_driver_statistics(
 		header=Header(
 			stamp=rospy.Time.now(),
@@ -75,7 +76,7 @@ def apply_command(force):
 		batt_voltage = "0",#motordriver.get_batt_voltage(),
 		)	
 	motor_driver_statistics_publisher.publish(motordriverstat_msg)
-	'''
+
 
 	
 lifetime = rospy.Duration(1.)	
