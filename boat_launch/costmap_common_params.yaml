@@ -1,0 +1,10 @@
+obstacle_range: 10.0
+raytrace_range: 10.0
+footprint: [[0.9144, 0.381], [0.9144, -0.381], [-0.9144, -0.381],[-0.9144, 0.381]]
+inflation_radius: 0.55
+
+observation_sources: laser_scan_sensor point_cloud_sensor
+
+laser_scan_sensor: {sensor_frame: laser, data_type: LaserScan, topic: scan, marking: true, clearing: true}
+
+

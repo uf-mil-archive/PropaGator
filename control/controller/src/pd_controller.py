@@ -17,7 +17,14 @@ from uf_common.msg import PoseTwistStamped
 
 rospy.init_node('controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped)
-lock = threading.lock()
+lock = threading.Lock()
+
+#set controller gains
+rospy.set_param('~p_gain', {'x':5.0,'y':5.0,'yaw':4.0})#5,1
+rospy.set_param('~d_gain', {'x':1.0,'y':1.0,'yaw':.8})
+#.25,400
+#-----------
+
 #----------------------------------------------------------------------------------
 
 def _jacobian(x):
@@ -78,27 +85,21 @@ rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 
 #----------------------------------------------------------------------------------
 
-#set controller gains
-rospy.set_param('p_gain', {'x':5.0,'y':5.0,'yaw':4.0})#5,1
-rospy.set_param('d_gain', {'x':1.0,'y':1.0,'yaw':.8})
-#.25,400
-#----------------------------------------------------------------------------------
-
 K = numpy.array([
-	[rospy.get_param('p_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('p_gain/y'),0,0,0,0],
+	[rospy.get_param('~p_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('~p_gain/y'),0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
-	[0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
+	[0,0,0,0,0,rospy.get_param('~p_gain/yaw')]])
 
 Ks = numpy.array([
-	[rospy.get_param('d_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('d_gain/y'),0,0,0,0],
+	[rospy.get_param('~d_gain/x'),0,0,0,0,0],
+	[0,rospy.get_param('~d_gain/y'),0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
 	[0,0,0,0,0,0],
-	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
+	[0,0,0,0,0,rospy.get_param('~d_gain/yaw')]])
 def odom_callback(current_posetwist):
         global desired_state,desired_state_dot,state,stat_dot,state_dot_body,desired_state_set,odom_active
         lock.acquire()
@@ -110,6 +111,7 @@ def odom_callback(current_posetwist):
            desired_state = state
            desired_state_set = True
         lock.release()
+
 	
 def update_callback(event):
 	

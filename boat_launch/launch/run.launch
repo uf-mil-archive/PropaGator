@@ -3,7 +3,7 @@
   <!-- <include file="$(find boat_launch)/launch/navigation.launch"/> -->
 
   <node pkg="controller" type="pd_controller.py" name="controller"/>
-
+ 
   <node pkg="propagator_motor_driver" type="propagator_motor_driver_pub.py" name="motor_driver"/>
 
   <node pkg="thruster_mapper" type="thruster_mapper" name="thruster_mapper"/>

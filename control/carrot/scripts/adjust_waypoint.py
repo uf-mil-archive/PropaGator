@@ -21,20 +21,7 @@ print 'connecting to action client'
 #waypoint.wait_for_server()
 
 def send_waypoint(point):
-        global orientation
-	waypoint.send_goal(MoveToGoal(
-			header=Header(
-				frame_id='/map',
-			),
-			pose=Pose(
-				position=Point(
-					x=point[0],
-					y=point[1],
-					z=0,
-				),
-				orientation=Quaternion(*orientation),
-			),
-	))
+       
 
 def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
@@ -48,7 +35,7 @@ def pose_callback(msg):
 rospy.Subscriber('/odom', Odometry, pose_callback)
 #-----------------------------------------------------------------------------------
 def carrot_callback(msg):
-        send_waypoint(((msg.y - current_position),(msg.x + current_position)) 
+        
 
 rospy.Subscriber('/carrot', Point,carrot_callback)
 rospy.spin()

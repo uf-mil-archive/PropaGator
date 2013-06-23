@@ -17,7 +17,8 @@ from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 
 rospy.init_node('buoy_repulsor')
 
-global current_position,buoy,channel_width
+global current_position,buoy,channel_width,running
+running = False
 channel_width = 4
 current_position = [0,0]
 buoy = []
@@ -75,26 +76,27 @@ def send_waypoint(point,orientation):
 
 	
 def buoy_callback(msg):
-	global current_position
+
+        global current_position
         red = ColorRGBA(1.0,0,0,1.0)
-	green = ColorRGBA(0,1.0,0,1.0)
-	yellow = ColorRGBA(1.0,1.0,0,1.0)
+        green = ColorRGBA(0,1.0,0,1.0)
+        yellow = ColorRGBA(1.0,1.0,0,1.0)
         blue = ColorRGBA(0,0,1.0,1.0)	
 
-	red_pos = find_closest_buoy(msg,red)
+        red_pos = find_closest_buoy(msg,red)
         green_pos = find_closest_buoy(msg,green)
         blue_pos = find_closest_buoy(msg,blue)
         yellow_pos = find_closest_buoy(msg,yellow)
 
        
         if (green_pos[0] and red_pos[0]):
-		goal = find_pair_center(red_pos[1],green_pos[1])
+	        goal = find_pair_center(red_pos[1],green_pos[1])
                 if (goal[0]):
                         
                         mid_goal = goal[1] + 1.5*get_perp(red_pos[1],green_pos[1])
                         print 'going to center of channel', mid_goal
-                       # waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(mid_goal))
-		        #send_waypoint_wait(mid_goal,0)
+                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(mid_goal))
+	                #send_waypoint_wait(mid_goal,0)
                         #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(goal[1]))
                         #waypoint.send_goal(current_pose_editor.forward(3).as_MoveToGoal(speed = .4))
 
@@ -114,5 +116,7 @@ def pose_callback(msg):
 	current_pose_editor = PoseEditor.from_Odometry(msg)
 	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
 rospy.Subscriber('/odom', Odometry, pose_callback)
+
 rospy.spin()
+
 
