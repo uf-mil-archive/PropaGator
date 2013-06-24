@@ -160,7 +160,7 @@ if __name__ == '__main__':
       ser.flushInput()
       ser.write("l"+str(min_start)+"\r")
       msg = ser.readline()
-
+  
 
       while not "l"+str(min_start) in msg:
         rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_start))
@@ -176,7 +176,11 @@ if __name__ == '__main__':
         ser.write("h"+str(max_start)+"\r")
         msg = ser.readline()
       rospy.logdebug("Max angle updated to "+str(max_start))
+      
       ser.write("s800\r")
+      for i in range(15):
+      	ser.write("u")
+
       print "got back",ser.readline()
       ser.write("S")
       while not "S" in ser.readline():
