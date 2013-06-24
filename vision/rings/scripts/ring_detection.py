@@ -38,11 +38,21 @@ IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
 hsv_image = cv.CreateImage(IMAGE_SIZE,8,3)
+lab_image = cv.CreateImage(IMAGE_SIZE,8,3)
 blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
 h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
 v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-h_s = cv.CreateImage(IMAGE_SIZE,8,1)
+l_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+a_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
+b_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+r = cv.CreateImage(IMAGE_SIZE,8,1)
+g = cv.CreateImage(IMAGE_SIZE,8,1)  
+b = cv.CreateImage(IMAGE_SIZE,8,1)
+
+sa = cv.CreateImage(IMAGE_SIZE,8,1)
+a_not = cv.CreateImage(IMAGE_SIZE,8,1)
+
 red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 purple_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
@@ -67,7 +77,8 @@ def adjust_carrot(x,y):
         err = distance((x,y),red_shoot)
         adjust = (x-red_shoot[0],y-red_shoot[1])
         if (err > 10):
-                waypoint.send_goal(current_pose_editor.relative(numpy.array([x, y, 0])).as_MoveToGoal(speed = .1))
+                print "move by: ",adjust
+                #waypoint.send_goal(current_pose_editor.relative(numpy.array([x, y, 0])).as_MoveToGoal(speed = .1))
         else:
                 print "shooting!"
                 color_index = color_index + 1
@@ -75,14 +86,14 @@ def adjust_carrot(x,y):
 
 #----------------------------------------------------------------------------------- 
 def threshold_purple(image):
-        cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
+        #cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
         cv.Erode(purple_adaptive,purple_eroded_image,None,1)
         cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
 
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,201,-40)
-        cv.Erode(red_adaptive,red_eroded_image,None,1)
-        cv.Dilate(red_eroded_image,red_dilated_image,None,10)    
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,57,-7)
+        cv.Erode(red_adaptive,red_eroded_image,None,2)
+        cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
 
 #-----------------------------------------------------------------------------------   
 
@@ -96,10 +107,9 @@ def extract_circles(contours,rgb):
                         x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                         y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
                         radius = int(math.sqrt(area/math.pi))
-                       
+                        circles.append((x,y,int(radius)))
                         if (colors[color_index] == 'red'):
-                                pass
-                                #adjust_carrot(x,y)          
+                                adjust_carrot(x,y)          
         return circles 
 
 #-----------------------------------------------------------------------------------    
@@ -109,13 +119,22 @@ def image_callback(data):
         if (running):
                 #print "running"
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
-                cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                        
+                cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)
+                cv.CvtColor(cv_image,lab_image,cv.CV_BGR2Lab)                        
 
                 cv.Smooth(hsv_image,blurred_image,cv.CV_GAUSSIAN,5,5)                
-                cv.Split(hsv_image,h_channel,s_channel,v_channel,None)
+                cv.Split(blurred_image,h_channel,s_channel,v_channel,None)
+                cv.Split(cv_image,r,g,b,None)
+                cv.Split(lab_image,l_channel,a_channel,b_channel,None)
+
+                cv.Not(a_channel,a_not)
+                cv.Sub(s_channel,a_not,sa)
+
+                
 
                 threshold_purple(s_channel)
-                threshold_red(s_channel)               
+                threshold_red(sa)  
+                cv.ShowImage("red",red_eroded_image)             
 
                 red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -128,13 +147,19 @@ def image_callback(data):
                         for x,y,radius in circles:                    
                                 cv.Circle(cv_image,(x,y),radius,bgr,3)  
 
-                cv.ShowImage("red",red_adaptive)
-                cv.ShowImage("purple",purple_adaptive)
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                #cv.ShowImage("H channel",h_channel)
-                #cv.ShowImage("S channel",s_channel)
-                #cv.ShowImage("V channel",v_channel)
+                '''
+                cv.ShowImage("H channel",h_channel)
+                cv.ShowImage("S channel",s_channel)
+                cv.ShowImage("V channel",v_channel)
+                cv.ShowImage("L channel",l_channel)
+                cv.ShowImage("A channel",a_channel)
+                cv.ShowImage("B channel",b_channel)
+                cv.ShowImage("R",r)
+                cv.ShowImage("G",g)
+                cv.ShowImage("B",b)
+                '''
                 cv.ShowImage("camera feed",cv_image)
                
                 cv.WaitKey(3)
