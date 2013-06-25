@@ -125,7 +125,7 @@ def threshold_purple(image):
 def threshold_red(image):
         cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,57,-10)
         cv.Erode(red_adaptive,red_eroded_image,None,1)
-        cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
+        cv.Dilate(red_eroded_image,red_dilated_image,None,3)    
 
 #-----------------------------------------------------------------------------------   
 
@@ -201,9 +201,6 @@ def image_callback(data):
                 red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 #cv2.drawContours(numpy.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3)   
-                
-                (_,center,radius) = cv.MinEnclosingCircle(red_contours)
-                cv.Circle(cv_image,center,radius,(1,0,0),3) 
 
                 for i in [ (red_contours,[1,0,0]) , (purple_contours,[1,0,1]) ]:
                         circles = extract_circles(i[0],i[1])
@@ -215,7 +212,7 @@ def image_callback(data):
 
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv)   
-                '''
+                
                 cv.ShowImage("TEST",test)
                 cv.ShowImage("HSV_H",hsv_h)
                 cv.ShowImage("HSV_S",hsv_s)
@@ -238,7 +235,7 @@ def image_callback(data):
                 cv.ShowImage("YCrCb_Y",ycrcb_y)
                 cv.ShowImage("YCrCb_Cr",ycrcb_cr)
                 cv.ShowImage("YCrCb_Cb",ycrcb_cb)
-                '''
+                
                 cv.ShowImage("camera feed",cv_image)
                
                 cv.WaitKey(3)

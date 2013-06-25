@@ -25,7 +25,8 @@ class sleep(smach.State):
 
 def main():
   rospy.init_node('state_machine')
-
+        
+        #RINGS
   rings_concurrence = smach.Concurrence(outcomes=['rings_done'],
                                           default_outcome = 'rings_done',
                                           child_termination_cb = lambda outcome_map : True,
@@ -39,8 +40,22 @@ def main():
                                  
           smach.Concurrence.add('RingsTimeout',sleep(15))
 
-  sm = smach.StateMachine(outcomes = ['rings_done','succeeded','aborted','preempted'])
+        
+        #BUOYS
+  buoys_concurrence = smach.Concurrence(outcomes=['buoys_done'],
+                                          default_outcome = 'buoys_done',
+                                          child_termination_cb = lambda outcome_map : True,
+                                          outcome_cb = lambda outcome_map : 'buoys_done')
+  with buoys_concurrence:
+          smach.Concurrence.add('BuoysTask', SimpleActionState('traverse_rings',
+                                          TraverseBuoysAction))
+                                 
+          smach.Concurrence.add('BuoysTimeout',sleep(15))
+
+  sm = smach.StateMachine(outcomes = ['rings_done','buoys_done','succeeded','aborted','preempted'])
   with sm:
+          
+          smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'Rings'})
           smach.StateMachine.add('Rings', rings_concurrence, transitions={'rings_done':'Button'})
           smach.StateMachine.add('Button',sleep(2),transitions={'succeeded':'Signals','aborted':'Signals'})
           smach.StateMachine.add('Signals',sleep(2),transitions={'succeeded':'Rings','aborted':'Rings'})

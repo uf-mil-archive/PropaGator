@@ -22,16 +22,6 @@ global pos,origin
 pos = [0,0,0]
 origin = [0,0,0]
 
-def waypoint_latlong_callback(msg):
-        global pos,origin
-
-        ecef = ecef_from_latlongheight(msg.latitude, msg.longitude, msg.altitude)
-        diff = numpy.array(ecef) - numpy.array(pos)
-
-        goal = enu_from_ecef(diff,origin)
-        print goal
-        #waypoint.send_goal_and_wait('world',(goal[0],goal[1],0))
-
 def waypoint_ecef_callback(msg):
         global pos,origin
 
