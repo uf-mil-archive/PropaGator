@@ -19,7 +19,7 @@ rospy.init_node('buoy_repulsor')
 
 global current_position,buoy,channel_width,running
 running = False
-channel_width = 4
+channel_width = 8
 current_position = [0,0]
 buoy = []
 
@@ -51,6 +51,7 @@ def center_of_points((p1,p2)):
 	return numpy.mean([p1,p2],0)
 	
 def find_pair_center(red,green):
+        print 'dist',distance(red,green)
         if (distance(red,green) < channel_width and distance(red,green) > .3):
                 return [True,center_of_points((red,green))]
         else:
@@ -61,6 +62,31 @@ def max_dist(x,ref):
                 if (distance(i,ref) > ans):
                         i = ans
         return ans
+
+def find_best_pair_center(msg):
+        global current_position
+        red = ColorRGBA(1.0,0,0,1.0)
+        green = ColorRGBA(0,1.0,0,1.0)
+        green_buoy = []
+        red_buoy = []
+        ans = []
+        min_dist = 100
+	
+	for marker in msg.markers:
+			if (marker.color == red):
+				red_buoy.append([marker.pose.position.x,marker.pose.position.y])
+			if (marker.color == green):
+				green_buoy.append([marker.pose.position.x,marker.pose.position.y])
+        for i in red_buoy:
+                for j in green_buoy:
+                        dist = distance(i,j)
+                        if (dist > 1.0 and dist < channel_width and distance(current_position,center_of_points((i,j))) < min_dist):
+                                ans = [i,j]
+			
+	if (not ans):	
+		return [False,[0,0]]
+	else: 
+	        return [True,ans]
 
 def get_perp(p1,p2):
     x = p2[0]-p1[0]
@@ -88,18 +114,33 @@ def buoy_callback(msg):
         blue_pos = find_closest_buoy(msg,blue)
         yellow_pos = find_closest_buoy(msg,yellow)
 
-       
+        goal = find_best_pair_center(msg)
+        '''
         if (green_pos[0] and red_pos[0]):
 	        goal = find_pair_center(red_pos[1],green_pos[1])
                 if (goal[0]):
                         
                         mid_goal = goal[1] + 1.5*get_perp(red_pos[1],green_pos[1])
                         print 'going to center of channel', mid_goal
-                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(mid_goal))
-	                #send_waypoint_wait(mid_goal,0)
-                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(goal[1]))
-                        #waypoint.send_goal(current_pose_editor.forward(3).as_MoveToGoal(speed = .4))
-
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0].mid_goal[1],0])).position))
+	                send_waypoint_wait(mid_goal,0)
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(goal[1]))
+                        waypoint.send_goal(current_pose_editor.forward(3).as_MoveToGoal(speed = .4))
+        '''
+        if (goal[0]):
+                point = center_of_points((goal[1][0],goal[1][1]))
+                mid_goal = point + 1.5*get_perp(goal[1][0],goal[1][1])
+                print 'going to center of channel', mid_goal
+        
+                waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0],mid_goal[1],0])).position))
+                print 'aligned'
+                print 'going for mid_goal',mid_goal
+                send_waypoint_wait(mid_goal,0)
+                print 'align again'
+                waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(point))
+                print 'open loop'
+                waypoint.send_goal(current_pose_editor.forward(3).as_MoveToGoal(speed = .4))
+                print 'done'
         elif(green_pos[0]):
                 print 'going to green buoy: ',green_pos[1]
                 #send_waypoint(green_pos[1],0)

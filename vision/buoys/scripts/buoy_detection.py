@@ -25,7 +25,7 @@ GREEN_MAX = cv.fromarray(np.array([90, 210, 255],np.uint8),allowND = True)
 YELLOW_MIN = cv.fromarray(np.array([20, 130, 200],np.uint8),allowND = True)
 YELLOW_MAX = cv.fromarray(np.array([40, 180, 255],np.uint8),allowND = True)
 
-OBJECT_AREA = 20
+OBJECT_AREA = 10
 IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
@@ -156,7 +156,7 @@ def check_lidar((x,y),radius):
         lock.acquire()
         for i in master_cloud:
                 dist = distance((i[0],i[1]),(x,y))
-                if (dist < radius*2.0 and dist < min_dist ):          
+                if (dist < radius*3.0 and dist < min_dist ):          
                         object_center = i[2]
                         object_found = True 
                         min_dist = dist
@@ -190,8 +190,8 @@ def extract_circles(contours,rgb):
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-45)  
-        cv.Erode(red_adaptive,red_eroded_image,None,8)                                                                
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-50)  
+        cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
         cv.Dilate(red_eroded_image,red_dilated_image,None,9)    
 
 def threshold_green(image):
@@ -242,10 +242,10 @@ def image_callback(data):
                 threshold_blue(h_channel) 
        
                 #cv.ShowImage("test",sminv)
-                cv.ShowImage("red",red_dilated_image)
-                cv.ShowImage("yellow",yellow_adaptive)
+                cv.ShowImage("red",red_adaptive)
+                #cv.ShowImage("yellow",yellow_adaptive)
                 #cv.ShowImage("blue",blue_dilated_image)
-                cv.ShowImage("green",green_dilated_image)
+                cv.ShowImage("green",green_adaptive)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -255,7 +255,7 @@ def image_callback(data):
             
                 print_lidar_projections(cv_image)
 
-                for i in [(green_contours,[0,1,0]) , (yellow_contours,[1,1,0]) , (red_contours,[1,0,0])]:# , (blue_contours,[0,0,1])]:
+                for i in [(green_contours,[0,1,0]) ,(red_contours,[1,0,0])]: #(yellow_contours,[1,1,0]) , ]:# , (blue_contours,[0,0,1])]:
                         circles = extract_circles(i[0],i[1])
                         rgb = i[1]
                         bgr = (255*np.array(rgb[::-1])).tolist()        #invert list and multiply by 255 for cv.Circle color argument
@@ -273,12 +273,17 @@ def image_callback(data):
                
 
 #-----------------------------------------------------------------------------------
+global counter
+counter = 0
 def buoy_callback(event):
-        global new_buoy
+        global new_buoy,counter
         if (running and new_buoy):
+                counter = counter + 1
                 global buoy_array
                 buoy_publisher.publish(buoy_array)
-                buoy_array=MarkerArray()
+                if counter > 5:
+                        buoy_array=MarkerArray()
+                        counter = 0
                 new_buoy = False
           
 #-----------------------------------------------------------------------------------
@@ -297,7 +302,7 @@ def pointcloud_callback(msg):
                 lock.acquire()
                 global master_cloud
                 cloud = pointcloud2_to_xyz_array(msg)
-                print len(cloud)
+                #print len(cloud)
                 if (len(cloud) > 0):
                         cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
                         projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
@@ -309,7 +314,7 @@ def pointcloud_callback(msg):
                         master_cloud = []
                         for i,j in zip(x,y):
                                 master_cloud.append([i[0],j[0],cloud[index]])
-                                index = index + 1 
+                                index = index + 1
                         master_cloud = filter(in_frame,master_cloud)
                 lock.release()
                 
