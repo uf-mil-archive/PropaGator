@@ -156,7 +156,7 @@ class TraverseBuoysServer:
              running = True
         running = False
 
-        if (numpy.linalg.norm(ecef_position-end_position) < 5):
+        if (numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) < 5):
                 self.server.set_succeeded()
         else:
                 self.server.set_preempted()                  

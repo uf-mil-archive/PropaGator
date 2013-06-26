@@ -13,6 +13,7 @@
   <depend package="smach"/>
   <depend package="smach_ros"/>
   <depend package="rings"/>
+  <depend package="path_planner"/>
 </package>
 
 
