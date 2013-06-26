@@ -149,6 +149,7 @@ class TraverseBuoysServer:
         global running
         running = False
         self.server.start()
+        print "path_planner server started"
 
  def execute(self,goal):
         global running

@@ -26,7 +26,7 @@ print 'connecting to action client'
 global running,shots,colors,color_index
 running = False
 shots = 0
-colors = ['red','green','purple']
+colors = ['red','red','red']
 color_index = 0
 
 #-----------------------------------------------------------------------------------
@@ -123,9 +123,10 @@ def threshold_purple(image):
         cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
 
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,57,-10)
+        #bright cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-30)
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-15)
         cv.Erode(red_adaptive,red_eroded_image,None,1)
-        cv.Dilate(red_eroded_image,red_dilated_image,None,3)    
+        cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
 
 #-----------------------------------------------------------------------------------   
 
@@ -154,13 +155,11 @@ def image_callback(data):
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
 
                 cv.CvtColor(cv_image,hsv,cv.CV_BGR2HSV)
-
                 cv.CvtColor(cv_image,lab,cv.CV_BGR2Lab)
                 cv.CvtColor(cv_image,luv,cv.CV_BGR2Luv)
                 cv.CvtColor(cv_image,hls,cv.CV_BGR2HLS)
                 cv.CvtColor(cv_image,xyz,cv.CV_BGR2XYZ)
                 cv.CvtColor(cv_image,ycrcb,cv.CV_BGR2YCrCb)                       
-
                
                 cv.Split(hsv,hsv_h,hsv_s,hsv_v,None)
                 cv.Split(cv_image,rgb_r,rgb_g,rgb_b,None)
@@ -192,27 +191,36 @@ def image_callback(data):
                 
               
                 threshold_purple(hsv_s)
-                threshold_red(ycrcb_cr)  
+                #threshold_red(ycrcb_cr)  
+                threshold_red(sa)                 
                 cv.Mul(test,red_adaptive,final)
 
-                cv.ShowImage("red",red_dilated_image)            
-               
+                cv.ShowImage("red",red_adaptive)            
 
                 red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                #cv2.drawContours(numpy.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3)   
+                
+                if (colors[color_index] == 'red'):
+                        circles = extract_circles(red_contours,[1,0,0])
+                        for x,y,radius in circles:  
+                                cv.Circle(cv_image,(x,y),radius,[0,0,255],3)
+                elif(colors[color_index] == 'purple'):
+                        circles = extract_circles(purple_contours,[1,0,1])
+                        for x,y,radius in circles:  
+                                cv.Circle(cv_image,(x,y),radius,[255,0,255],3)
 
+                '''  
                 for i in [ (red_contours,[1,0,0]) , (purple_contours,[1,0,1]) ]:
                         circles = extract_circles(i[0],i[1])
                         rgb = i[1]
                         bgr = (255*numpy.array(rgb[::-1])).tolist()        #invert list and multiply by 255 for cv.Circle color argument
-                        for x,y,radius in circles:  
-                                pass                  
-                                #cv.Circle(cv_image,(x,y),radius,bgr,3)  
+                        for x,y,radius in circles:                   
+                                cv.Circle(cv_image,(x,y),radius,bgr,3) 
+                ''' 
 
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv)   
-                
+                '''
                 cv.ShowImage("TEST",test)
                 cv.ShowImage("HSV_H",hsv_h)
                 cv.ShowImage("HSV_S",hsv_s)
@@ -235,9 +243,9 @@ def image_callback(data):
                 cv.ShowImage("YCrCb_Y",ycrcb_y)
                 cv.ShowImage("YCrCb_Cr",ycrcb_cr)
                 cv.ShowImage("YCrCb_Cb",ycrcb_cb)
-                
+                '''     
                 cv.ShowImage("camera feed",cv_image)
-               
+                
                 cv.WaitKey(3)
 
 #-----------------------------------------------------------------------------------
@@ -250,6 +258,7 @@ class ShootRingsServer:
         rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
         self._feedback = ShootRingsActionFeedback
+        print "rings server started"
 
  def execute(self,goal):
         global shots,running
@@ -257,7 +266,7 @@ class ShootRingsServer:
                 running = True
                 self._feedback.darts_shot = shots
                 self.server.publish_feedback(self._feedback)
-                #shots = shots + 1
+                shots = shots + 1
                 rospy.sleep(1)
              
         running = False

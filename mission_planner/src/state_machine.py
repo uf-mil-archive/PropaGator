@@ -8,9 +8,11 @@ from smach_ros import SimpleActionState
 from rings.msg import ShootRingsAction,ShootRingsGoal
 from path_planner.msg import TraverseBuoysAction,TraverseBuoysGoal
 from buoys.msg import FindBuoysAction,FindBuoysGoal
+from button.msg import FindButtonAction,FindButtonGoal
 
 ringsTimeout = 20
 buoysTimeout = 10
+buttonTimeout = 10
 
 class sleep(smach.State):
    def __init__(self,sleep_time):
@@ -58,6 +60,18 @@ def main():
                                  
           smach.Concurrence.add('BuoysTimeout',sleep(buoysTimeout))
 
+        
+#BUTTON--------------------------------------------------------------------------------------------------
+  button_concurrence = smach.Concurrence(outcomes=['button_done'],
+                                          default_outcome = 'button_done',
+                                          child_termination_cb = lambda outcome_map : True,
+                                          outcome_cb = lambda outcome_map : 'button_done')
+  with buoys_concurrence:
+          smach.Concurrence.add('ButtonTask', SimpleActionState('find_button',
+                                          FindButtonAction))
+                                 
+          smach.Concurrence.add('ButtonTimeout',sleep(buttonTimeout))
+
 
 #-------------------------------------------------------------------------------------------------------
 
@@ -66,7 +80,7 @@ def main():
           
           smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'Rings'})
           smach.StateMachine.add('Rings', rings_concurrence, transitions={'rings_done':'Button'})
-          smach.StateMachine.add('Button',sleep(2),transitions={'succeeded':'Signals','aborted':'Signals'})
+          smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'Signals'})
           smach.StateMachine.add('Signals',sleep(2),transitions={'succeeded':'Buoys','aborted':'Buoys'})
 
   sis = smach_ros.IntrospectionServer('mission_planner', sm, '/MISSIONS')

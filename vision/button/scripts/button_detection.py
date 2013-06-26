@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 import roslib
-roslib.load_manifest('buoys')
+roslib.load_manifest('button')
 import rospy
 import numpy as np
 import cv,cv2,math,threading
+from nav_msgs.msg import Odometry
 from pointcloud2xyz import *
 from std_msgs.msg import String
 from sensor_msgs.msg import Image,PointCloud2,PointField
@@ -12,19 +13,15 @@ from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker,MarkerArray
 import matplotlib.pyplot as plt
 import actionlib
-from buoys.msg import FindBuoysAction
+from button.msg import FindButtonAction
+from uf_common.msg import MoveToAction, MoveToGoal
+from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 
-rospy.init_node('buoy_detection')
+rospy.init_node('button_detection')
 bridge = CvBridge()
 
-#-----------------------------------------------------------------------------------
-
-#parameters to set
-GREEN_MIN = cv.fromarray(np.array([50, 150, 200],np.uint8),allowND = True)
-GREEN_MAX = cv.fromarray(np.array([90, 210, 255],np.uint8),allowND = True)
-
-YELLOW_MIN = cv.fromarray(np.array([20, 130, 200],np.uint8),allowND = True)
-YELLOW_MAX = cv.fromarray(np.array([40, 180, 255],np.uint8),allowND = True)
+waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
+print 'connecting to action client'
 
 OBJECT_AREA = 10
 IMAGE_SIZE = (640,480)
@@ -56,7 +53,6 @@ translation_vector[0,0] =  -0.135459  #-0.25#
 translation_vector[0,1] =  0.545470#0.145470
 translation_vector[0,2] =  0.818359   # .5#
 
-
 #-----------------------------------------------------------------------------------
 
 #memory allocation
@@ -72,29 +68,13 @@ l_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 a_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
 b_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 
-#sminv = cv.CreateImage(IMAGE_SIZE,8,1)
-#vminh = cv.CreateImage(IMAGE_SIZE,8,1)
 sminh = cv.CreateImage(IMAGE_SIZE,8,1)
-#yellow_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
-#red_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
-green_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
-yellow_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
-blue_threshold_image = cv.CreateImage(IMAGE_SIZE,8,1)
-
-blue_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
-yellow_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
-green_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-green_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-green_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-yellow_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-blue_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-blue_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+
 
 lock = threading.Lock()
 
@@ -102,42 +82,7 @@ global running,new_buoy,max_distance,master_cloud
 
 master_cloud = []
 max_distance = 7
-new_buoy = False
 running = False
-
-
-#-----------------------------------------------------------------------------------
-
-#publish marker array of objects found
-global buoy_array,marker_id
-buoy_publisher=rospy.Publisher('buoy_markers',MarkerArray)
-buoy_array=MarkerArray()
-marker_id = 0
-def append_marker(pos,color):
-        global marker_id     
-        if (marker_id > 20):
-                marker_id = 0
-        else:
-                marker_id = marker_id + 1
-	marker = Marker()
-	marker.header.frame_id = "/base_link"
-	marker.type = marker.SPHERE
-	marker.id = marker_id
-	marker.lifetime = rospy.Duration.from_sec(2)
-	marker.action = marker.ADD
-	marker.scale.x = 0.5
-	marker.scale.y = 0.5
-	marker.scale.z = 0.5
-	marker.color.a = 1.0
-	marker.color.r = color[0]
-	marker.color.g = color[1]
-	marker.color.b = color[2]
-	marker.pose.orientation.w = 1.0
-	marker.pose.position.x = pos[0]
-	marker.pose.position.y = pos[1]
-	marker.pose.position.z = pos[2]
-	buoy_array.markers.append(marker)
-        #buoy_publisher.publish(marker)
 
 #-----------------------------------------------------------------------------------
 #--print HSV of pixel clicked on in image (used to find threshold values)
@@ -168,8 +113,8 @@ def check_lidar((x,y),radius):
         else:
                 return (False,[0,0,0])
 
-
 def extract_circles(contours,rgb):
+        global current_pose_editor        
         circles = []
         for i in contours:
                 moments = cv.Moments(cv.fromarray(i), binary = 1)             
@@ -182,35 +127,15 @@ def extract_circles(contours,rgb):
 
                         point = check_lidar((x,y),radius)
                         if (point[0]):
-                                circles.append((x,y,int(radius*1.5)))
-                                append_marker(point[1],rgb)
-                                global new_buoy
-                                new_buoy = True     
-        return circles
-                        
+                                #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([point[1][0] + .1, point[1][1] + .1, 0])).as_MoveToGoal(speed = .2))
+                                circles.append((x,y,int(radius*1.5)))   
+        return circles                
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
         cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-50)  
         cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
         cv.Dilate(red_eroded_image,red_dilated_image,None,9)    
-
-def threshold_green(image):
-        #cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
-        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,25)
-        cv.Erode(green_adaptive,green_eroded_image,None,2) #9                                                      
-        cv.Dilate(green_eroded_image,green_dilated_image,None,6)#27
-
-def threshold_yellow(image):
-        cv.InRange(image,YELLOW_MIN,YELLOW_MAX,yellow_adaptive)
-        #cv.AdaptiveThreshold(v_channel,yellow_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,103,-15)
-        cv.Erode(yellow_adaptive,yellow_eroded_image,None,5)                                                                            
-        cv.Dilate(yellow_eroded_image,yellow_dilated_image,None,9)     
-
-def threshold_blue(image):
-        cv.AdaptiveThreshold(image,blue_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,71,-20)
-        cv.Erode(blue_adaptive,blue_eroded_image,None,9)                                                        
-        cv.Dilate(blue_eroded_image,blue_dilated_image,None,9) 
 
 def print_lidar_projections(image):
         if (len(master_cloud) > 0):
@@ -222,8 +147,9 @@ def print_lidar_projections(image):
 
 def image_callback(data):
         
+        global running       
         if (running):
-      
+                print "running"
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
                 cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
                 cv.CvtColor(cv_image,lab_image_,cv.CV_BGR2Lab)
@@ -238,31 +164,17 @@ def image_callback(data):
                 #cv.Sub(s_channel,v_channel,sminv) #maybe use for blue            
                 
                 threshold_red(sminh)
-                threshold_green(a_channel)
-                threshold_yellow(blurred_image)
-                threshold_blue(h_channel) 
        
                 #cv.ShowImage("test",sminv)
                 cv.ShowImage("red",red_adaptive)
-                #cv.ShowImage("yellow",yellow_adaptive)
-                #cv.ShowImage("blue",blue_dilated_image)
-                cv.ShowImage("green",green_adaptive)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                yellow_contours,_ = cv2.findContours(image=np.asarray(yellow_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                blue_contours,_ = cv2.findContours(image=np.asarray(blue_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                #cv2.drawContours(np.asarray(cv_image[:,:]),red_contours,-1,(0,0,255),3)   
             
                 print_lidar_projections(cv_image)
 
-                for i in [(green_contours,[0,1,0]) ,(red_contours,[1,0,0])]: #(yellow_contours,[1,1,0]) , ]:# , (blue_contours,[0,0,1])]:
-                        circles = extract_circles(i[0],i[1])
-                        rgb = i[1]
-                        bgr = (255*np.array(rgb[::-1])).tolist()        #invert list and multiply by 255 for cv.Circle color argument
-                        for x,y,radius in circles:                    
-                                cv.Circle(cv_image,(x,y),radius,bgr,3)
-    
+                circles = extract_circles(red_contours,[1,0,0])
+                for x,y,radius in circles:                    
+                        cv.Circle(cv_image,(x,y),radius,[0,0,1],3)
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
                 #cv.ShowImage("l channel",l_channel)
@@ -272,25 +184,6 @@ def image_callback(data):
                 
                 cv.WaitKey(3)
                
-
-#-----------------------------------------------------------------------------------
-global counter
-counter = 0
-def buoy_callback(event):
-        global new_buoy,counter
-        if (running and new_buoy):
-                counter = counter + 1
-                global buoy_array
-                buoy_publisher.publish(buoy_array)
-                if counter > 5:
-                        buoy_array=MarkerArray()
-                        counter = 0
-                new_buoy = False
-          
-#-----------------------------------------------------------------------------------
-
-def action_callback(event):
-        running = False
 #-----------------------------------------------------------------------------------
 def in_frame(x):
         if (x[0] < 600 and x[0] > 0 and x[1] < 600 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2])):
@@ -320,31 +213,29 @@ def pointcloud_callback(msg):
                 lock.release()
                 
 #-----------------------------------------------------------------------------------
+def pose_callback(msg):
+	global current_position,current_pose_editor
+	current_pose_editor = PoseEditor.from_Odometry(msg)
+	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
+rospy.Subscriber('/odom', Odometry, pose_callback)
 
-class FindBuoysServer:
+#-----------------------------------------------------------------------------------
+class FindButtonServer:
 
  def __init__(self):
-        self.server = actionlib.SimpleActionServer('find_buoys', FindBuoysAction, self.execute, False)
-        rospy.Timer(rospy.Duration(.1), buoy_callback)
-        rospy.Timer(rospy.Duration(1), action_callback)
+        self.server = actionlib.SimpleActionServer('find_button', FindButtonAction, self.execute, False)
         rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
         rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
-        print "buoy detection server started"
+        print "button server started"
 
  def execute(self,goal):
+        global running
         while (not(self.server.is_preempt_requested())):
              running = True
         running = False
         self.server.set_preempted() 
 
-server = FindBuoysServer()
+server = FindButtonServer()
 rospy.spin()
-'''
-
-rospy.Timer(rospy.Duration(.1), buoy_callback)
-rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
-rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
-rospy.spin()
-'''
 
