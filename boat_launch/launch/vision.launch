@@ -1,0 +1,6 @@
+<launch>
+
+  <node pkg="rings" type="ring_detection.py" name="ring_finder"/>
+  <node pkg="buoys" type="buoy_detection.py" name="buoy_finder"/>
+        
+</launch>

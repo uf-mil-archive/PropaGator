@@ -25,5 +25,7 @@
   </node>
 
   <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
+  <node pkg="path_planner" type="buoy_repulsor.py" name="channel_navigation"/>
+  <include file="$(find boat_launch)/launch/vision.launch"/>
 
 </launch>

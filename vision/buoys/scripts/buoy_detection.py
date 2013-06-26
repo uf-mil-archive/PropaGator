@@ -12,6 +12,7 @@ from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker,MarkerArray
 import matplotlib.pyplot as plt
 import actionlib
+from buoys.msg import FindBuoysAction
 
 rospy.init_node('buoy_detection')
 bridge = CvBridge()
@@ -102,7 +103,7 @@ global running,new_buoy,max_distance,master_cloud
 master_cloud = []
 max_distance = 7
 new_buoy = False
-running = True
+running = False
 
 
 #-----------------------------------------------------------------------------------
@@ -136,7 +137,7 @@ def append_marker(pos,color):
 	marker.pose.position.y = pos[1]
 	marker.pose.position.z = pos[2]
 	buoy_array.markers.append(marker)
-        #bouy_publisher.publish(marker)
+        #buoy_publisher.publish(marker)
 
 #-----------------------------------------------------------------------------------
 #--print HSV of pixel clicked on in image (used to find threshold values)
@@ -319,19 +320,22 @@ def pointcloud_callback(msg):
                 lock.release()
                 
 #-----------------------------------------------------------------------------------
-'''
+
 class FindBuoysServer:
 
  def __init__(self):
         self.server = actionlib.SimpleActionServer('find_buoys', FindBuoysAction, self.execute, False)
-        rospy.Timer(rospy.Duration(.1), bouy_callback)
+        rospy.Timer(rospy.Duration(.1), buoy_callback)
         rospy.Timer(rospy.Duration(1), action_callback)
         rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
         rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
 
  def execute(self,goal):
-        running = True
+        while (not(self.server.is_preempt_requested())):
+             running = True
+        running = False
+        self.server.set_preempted() 
 
 server = FindBuoysServer()
 rospy.spin()
@@ -341,4 +345,5 @@ rospy.Timer(rospy.Duration(.1), buoy_callback)
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 rospy.spin()
+'''
 

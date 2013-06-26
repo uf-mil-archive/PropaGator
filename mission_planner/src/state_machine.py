@@ -7,6 +7,7 @@ import smach,smach_ros
 from smach_ros import SimpleActionState
 from rings.msg import ShootRingsAction,ShootRingsGoal
 from path_planner.msg import TraverseBuoysAction,TraverseBuoysGoal
+from buoys.msg import FindBuoysAction,FindBuoysGoal
 
 ringsTimeout = 20
 buoysTimeout = 10
@@ -29,7 +30,7 @@ class sleep(smach.State):
 def main():
   rospy.init_node('state_machine')
         
-        #RINGS
+#RINGS--------------------------------------------------------------------------------------------------
   rings_concurrence = smach.Concurrence(outcomes=['rings_done'],
                                           default_outcome = 'rings_done',
                                           child_termination_cb = lambda outcome_map : True,
@@ -44,7 +45,7 @@ def main():
           smach.Concurrence.add('RingsTimeout',sleep(ringsTimeout))
 
         
-        #BUOYS
+#BUOYS--------------------------------------------------------------------------------------------------
   buoys_concurrence = smach.Concurrence(outcomes=['buoys_done'],
                                           default_outcome = 'buoys_done',
                                           child_termination_cb = lambda outcome_map : True,
@@ -52,8 +53,13 @@ def main():
   with buoys_concurrence:
           smach.Concurrence.add('BuoysTask', SimpleActionState('traverse_buoys',
                                           TraverseBuoysAction))
+          smach.Concurrence.add('BuoysFinder', SimpleActionState('find_buoys',
+                                          FindBuoysAction))
                                  
           smach.Concurrence.add('BuoysTimeout',sleep(buoysTimeout))
+
+
+#-------------------------------------------------------------------------------------------------------
 
   sm = smach.StateMachine(outcomes = ['rings_done','buoys_done','succeeded','aborted','preempted'])
   with sm:

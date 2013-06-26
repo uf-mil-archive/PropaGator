@@ -25,8 +25,6 @@ shift: [3.940740301160063e-06, 3.889613985839648e-06, -1.4399265951226065e-06]
     <param name="frame_id" value="/gps2"/>
     <remap from="/gps" to="gps2"/> 
   </node>
-
-  <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoints"/>
 	
 
   <node pkg="nodelet" type="nodelet" args="standalone nv08c_driver/nodelet" name="gps_driver">
