@@ -31,7 +31,7 @@ global IN_CALLBACK
 IN_CALLBACK = False
 
 #initial sweeping range
-min_start = 20	#40
+min_start = 15	#40
 max_start =0
 	#-10
 
@@ -243,11 +243,13 @@ if __name__ == '__main__':
       ser.write("H")
       rospy.logerr("leaving node")
       msg = ser.readline()
+      '''
       while not "H" in msg:
         ser.flushInput()
         rospy.logwarn("Resending halt command to I/O board to end process. "+msg)
         ser.write("H")
         msg = ser.readline()
+      '''
       ser.close()
     except rospy.ROSInterruptException:
       rospy.logerr("interruptException")
