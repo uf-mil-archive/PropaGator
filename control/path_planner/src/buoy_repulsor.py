@@ -30,7 +30,7 @@ print 'connecting to action client'
 
 def find_closest_buoy(msg,color):
 	global current_position,green_buoy,red_buoy
-	
+	buoy = []
 	for marker in msg.markers:
 			if ((not buoy) and (marker.color == color)):
 				buoy = [marker.pose.position.x,marker.pose.position.y]

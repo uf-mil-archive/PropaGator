@@ -191,7 +191,7 @@ def extract_circles(contours,rgb):
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-50)  
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-80)  
         cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
         cv.Dilate(red_eroded_image,red_dilated_image,None,9)    
 
@@ -221,9 +221,10 @@ def print_lidar_projections(image):
 #-----------------------------------------------------------------------------------
 
 def image_callback(data):
-        
+        global running
+        #print "running"
         if (running):
-      
+                
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
                 cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
                 cv.CvtColor(cv_image,lab_image_,cv.CV_BGR2Lab)
@@ -333,6 +334,7 @@ class FindBuoysServer:
         print "buoy detection server started"
 
  def execute(self,goal):
+        global running
         while (not(self.server.is_preempt_requested())):
              running = True
         running = False
