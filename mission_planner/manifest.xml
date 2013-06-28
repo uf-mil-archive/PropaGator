@@ -16,6 +16,8 @@
   <depend package="buoys"/>
   <depend package="button"/>
   <depend package="path_planner"/>
+  <depend package="gps_waypoints"/>
+  <depend package="rawgps_common"/>
 </package>
 
 

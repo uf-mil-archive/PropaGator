@@ -12,17 +12,18 @@ import threading,numpy
 import actionlib
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from uf_common.msg import MoveToAction, MoveToGoal
+from gps_waypoints.msg import GoToWaypointAction
 rospy.init_node('gps_waypoints')
 
 
-waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
-print 'connecting to action client'
+
 #waypoint.wait_for_server()
 
 global pos,origin
 pos = [0,0,0]
 origin = [0,0,0]
 
+'''
 def waypoint_ecef_callback(msg):
         global pos,origin,current_position
 
@@ -39,7 +40,8 @@ def waypoint_ecef_callback(msg):
         final_goal = current_position + goal        
         waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
         waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
-
+rospy.Subscriber('/gps_ecef_waypoint',PointStamped,waypoint_ecef_callback)
+'''
 
 def pos_callback(msg):
         global pos,origin
@@ -47,6 +49,7 @@ def pos_callback(msg):
         if (origin == [0,0,0]):
                 origin = [msg.point.x,msg.point.y,msg.point.z]
         pos = [msg.point.x,msg.point.y,msg.point.z]
+rospy.Subscriber('/gps_conv/pos',PointStamped,pos_callback)
 
 def pose_callback(msg):
 	global current_pose_editor,current_position
@@ -54,6 +57,33 @@ def pose_callback(msg):
 	current_pose_editor = PoseEditor.from_Odometry(msg)
 rospy.Subscriber('/odom', Odometry, pose_callback)
 
-rospy.Subscriber('/gps_ecef_waypoint',PointStamped,waypoint_ecef_callback)
-rospy.Subscriber('/gps_conv/pos',PointStamped,pos_callback)
+
+class GoToWaypointServer:
+
+ def __init__(self):
+        self.server = actionlib.SimpleActionServer('go_waypoint', GoToWaypointAction, self.execute, False)
+        self.server.start()
+        self.waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
+        print 'connecting to action client'     
+        print "gps waypoint server started"
+
+ def execute(self,goal):
+
+        global pos,origin,current_position
+        '''
+        ecef = [goal.waypoint.x,goal.waypoint.y,goal.waypoint.z]
+        diff = numpy.array(ecef) - numpy.array(pos)
+        goal = enu_from_ecef(diff,origin)
+        final_goal = current_position + goal      
+
+        self.waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
+        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
+        '''
+        print goal.waypoint
+        rospy.sleep(10)
+        self.server.set_succeeded()
+                
+
+server = GoToWaypointServer()
 rospy.spin()
+

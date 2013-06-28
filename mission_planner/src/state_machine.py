@@ -4,11 +4,14 @@ import roslib
 import rospy
 roslib.load_manifest('mission_planner')
 import smach,smach_ros
+from geometry_msgs.msg import Point
 from smach_ros import SimpleActionState
 from rings.msg import ShootRingsAction,ShootRingsGoal
 from path_planner.msg import TraverseBuoysAction,TraverseBuoysGoal
 from buoys.msg import FindBuoysAction,FindBuoysGoal
 from button.msg import FindButtonAction,FindButtonGoal
+from gps_waypoints.msg import GoToWaypointAction,GoToWaypointGoal
+from rawgps_common.gps import ecef_from_latlongheight,enu_from_ecef
 
 ringsTimeout = 20
 buoysTimeout = 10
@@ -27,9 +30,15 @@ class sleep(smach.State):
                 self.service_preempt()
                 return 'aborted'
         return 'succeeded'
-                
 
 def main():
+
+  
+  rings_pos = ecef_from_latlongheight(1,2,3)
+  button_pos = ecef_from_latlongheight(1,2,3)
+  buoys_pos = ecef_from_latlongheight(1,2,3)
+  spock_pos = ecef_from_latlongheight(1,2,3) 
+     
   rospy.init_node('state_machine')
         
 #RINGS--------------------------------------------------------------------------------------------------
@@ -66,7 +75,7 @@ def main():
                                           default_outcome = 'button_done',
                                           child_termination_cb = lambda outcome_map : True,
                                           outcome_cb = lambda outcome_map : 'button_done')
-  with buoys_concurrence:
+  with button_concurrence:
           smach.Concurrence.add('ButtonTask', SimpleActionState('find_button',
                                           FindButtonAction))
                                  
@@ -75,13 +84,38 @@ def main():
 
 #-------------------------------------------------------------------------------------------------------
 
-  sm = smach.StateMachine(outcomes = ['rings_done','buoys_done','succeeded','aborted','preempted'])
+  sm = smach.StateMachine(outcomes = ['succeeded','aborted','preempted'])
   with sm:
           
-          smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'Rings'})
-          smach.StateMachine.add('Rings', rings_concurrence, transitions={'rings_done':'Button'})
-          smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'Signals'})
-          smach.StateMachine.add('Signals',sleep(2),transitions={'succeeded':'Buoys','aborted':'Buoys'})
+          smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRings'})
+
+          rings_pos_goal = GoToWaypointGoal()
+          rings_pos_goal.waypoint = Point(x = rings_pos[0],y = rings_pos[1],z = rings_pos[2])
+          smach.StateMachine.add('GoToRings', SimpleActionState('go_waypoint',
+                                         GoToWaypointAction,
+                                          goal=rings_pos_goal),
+                                          transitions={'succeeded':'Rings'})
+
+          smach.StateMachine.add('Rings', rings_concurrence, transitions={'rings_done':'GoToButton'})
+
+          button_pos_goal = GoToWaypointGoal()
+          button_pos_goal.waypoint = Point(x = button_pos[0],y = button_pos[1],z = button_pos[2])
+          smach.StateMachine.add('GoToButton', SimpleActionState('go_waypoint',
+                                         GoToWaypointAction,
+                                          goal=button_pos_goal),
+                                          transitions={'succeeded':'Button'})
+
+          smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'GoToSpock'})
+
+          spock_pos_goal = GoToWaypointGoal()
+          spock_pos_goal.waypoint = Point(x = spock_pos[0],y = spock_pos[1],z = spock_pos[2])
+          smach.StateMachine.add('GoToSpock', SimpleActionState('go_waypoint',
+                                         GoToWaypointAction,
+                                          goal=spock_pos_goal),
+                                          transitions={'succeeded':'Spock'})
+
+          smach.StateMachine.add('Spock',sleep(2),transitions={'succeeded':'Buoys','aborted':'Buoys'})
+  
 
   sis = smach_ros.IntrospectionServer('mission_planner', sm, '/MISSIONS')
   sis.start()
