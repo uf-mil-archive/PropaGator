@@ -111,20 +111,23 @@ def buoy_callback(msg):
                         print 'going for mid_goal',mid_goal
                         send_waypoint_wait(mid_goal,0)
                         print 'align again'
-                        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(point))
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(point))
                         print 'open loop'
-                        waypoint.send_goal(current_pose_editor.forward(3).as_MoveToGoal(speed = .4))
+                        waypoint.send_goal(current_pose_editor.forward(1).as_MoveToGoal(speed = .4))
                         print 'done'
                 elif(green_pos[0]):
                         print 'going to green buoy: ',green_pos[1]
-                        #send_waypoint((green_pos[1][0],green_pos[1][0] + 1),0)
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([green_pos[1][0],(green_pos[1][0] + 1),0]))
+                        send_waypoint((green_pos[1][0],green_pos[1][0] + 1),0)
                 elif(red_pos[0]):
                         print 'going to red buoy: ',red_pos[1]
-                        #send_waypoint((red_pos[1][0],red_pos[1][0] - 1),0)
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([red_pos[1][0],(red_pos[1][0] - 1),0]))
+                        send_waypoint((red_pos[1][0],red_pos[1][0] - 1),0)
 rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
 
 #-----------------------------------------------------------------------------------------
 def pose_callback(msg):
+
 	global current_position,current_pose_editor
 	current_pose_editor = PoseEditor.from_Odometry(msg)
 	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
