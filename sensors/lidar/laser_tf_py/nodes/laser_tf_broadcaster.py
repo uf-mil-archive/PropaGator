@@ -36,8 +36,8 @@ max_start =0
 	#-10
 
 #calibration points for angles
-point1 = [2030,25]#35	#point = [encoder value,angle]
-point2 = [3160,-20]#-20
+point1 = [3004,40]#35	#point = [encoder value,angle]
+point2 = [3500,-35]#-20
 
 m = (float(point2[1]-point1[1]))/(point2[0]-point1[0])
 b = -(m*point1[0]-point1[1])
