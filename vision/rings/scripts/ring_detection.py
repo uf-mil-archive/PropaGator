@@ -26,15 +26,19 @@ print 'connecting to action client'
 global running,shots,colors,color_index
 running = False
 shots = 0
-colors = ['red','red','red']
+colors = ['red','red','red','red','red','red']
 color_index = 0
+
+gain = .01
+red_shoot = (320,240)
+
+OBJECT_AREA = 1500
+IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
 
 purple_MIN = cv.fromarray(numpy.array([30, 160, 50],numpy.uint8),allowND = True)
 purple_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True)
-OBJECT_AREA = 1500
-IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
 blurred_gray = cv.CreateImage(IMAGE_SIZE,8,1)
@@ -100,17 +104,16 @@ def mouse_callback(event,x,y,flags,image):
                 print cv.Get2D(image,y,x)                                     
 
 #-----------------------------------------------------------------------------------
-gain = .1
-red_shoot = (320,240)
+
 def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
 def adjust_carrot(x,y):
+        global color_index,shot
         err = distance((x,y),red_shoot)
-        adjust = (x-red_shoot[0],y-red_shoot[1])
+        adjust = [gain*(x-red_shoot[0]),gain*(y-red_shoot[1])]
         if (err > 10):
-                pass
-                #print "move by: ",adjust
-                #waypoint.send_goal(current_pose_editor.relative(numpy.array([x, y, 0])).as_MoveToGoal(speed = .1))
+                print "move by: ",adjust
+                #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust[0], adjust[1], 0])).as_MoveToGoal(speed = .1))
         else:
                 print "shooting!"
                 color_index = color_index + 1
@@ -261,7 +264,7 @@ class ShootRingsServer:
         print "rings server started"
 
  def execute(self,goal):
-        global shots,running
+        global shots,running,color_index
         while(shots < goal.attempts and not(self.server.is_preempt_requested())):
                 running = True
                 self._feedback.darts_shot = shots
@@ -271,11 +274,15 @@ class ShootRingsServer:
              
         running = False
         if (shots == goal.attempts):
+                shots = 0
+                color_index = 0
                 self.server.set_succeeded()
-                shots = 0
+              
         else:
-                self.server.set_preempted()
                 shots = 0
+                color_index = 0
+                self.server.set_preempted()
+              
 
 def pose_callback(msg):
 	global current_pose_editor
