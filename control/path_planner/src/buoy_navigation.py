@@ -17,8 +17,9 @@ from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 
 
 rospy.init_node('buoy_repulsor')
-global current_position,channel_width,end_position,ecef_position
+global current_position,channel_width,end_position,ecef_position,avoid
 channel_width = 8
+avoid = False
 current_position = [0,0]
 end_position = [0,0,0]
 ecef_position = [1000,10000,0]
@@ -75,8 +76,8 @@ def send_waypoint(point,orientation):
 	waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .2))
 	
 def buoy_callback(msg):
-        global running
-        if (running):
+        global running,avoid
+        if (running and not(avoid)):
                 global current_position
                 red = ColorRGBA(1.0,0,0,1.0)
                 green = ColorRGBA(0,1.0,0,1.0)
@@ -124,6 +125,28 @@ def buoy_callback(msg):
                         waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([red_pos[1][0],(red_pos[1][0] - 1),0]))
                         send_waypoint((red_pos[1][0],red_pos[1][0] - 1),0)
 rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
+
+
+#-----------------------------------------------------------------------------------------
+def pointcloud_callback(msg):
+      
+        if (running):
+                global avoid
+                dist = .5
+                cloud = pointcloud2_to_xyz_array(msg)
+
+                if (len(cloud) > 0):
+                        for i in cloud:
+                                if (i[0] < dist or i[1] < dist):
+                                        avoid = True
+                                        print "avoiding obstacle!"
+                                        if (i[1] < 0):
+                                                waypoint.send_goal_and_wait(current_pose_editor.left(.2).as_MoveToGoal(speed = .8))
+                                        else:
+                                                waypoint.send_goal_and_wait(current_pose_editor.right(.2).as_MoveToGoal(speed = .8))          
+                                else:
+                                        avoid = False          
+rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 
 #-----------------------------------------------------------------------------------------
 def pose_callback(msg):
