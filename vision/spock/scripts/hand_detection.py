@@ -9,9 +9,16 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 from visualization_msgs.msg import Marker,MarkerArray
+from ioboard.msg import IOBoardAction,IOBoardActionResult,IOBoardGoal
 
 rospy.init_node('hand_detection')
 bridge = CvBridge()
+
+waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
+temp = actionlib.SimpleActionClient('ioboard_command', IOBoardAction)
+print 'connecting to action client'
+temp.wait_for_server()
+print 'connecting to shooter client'
 
 #-----------------------------------------------------------------------------------
 #memory allocation
@@ -42,7 +49,8 @@ def threshold_scissor(image):
 #-----------------------------------------------------------------------------------
 
 def image_callback(data):
-      
+
+
         cv_image = bridge.imgmsg_to_cv(data,"bgr8")
         cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
         cv.CvtColor(cv_image,lab_image,cv.CV_BGR2Lab)   
@@ -71,12 +79,17 @@ def image_callback(data):
         cv.ShowImage("B channel",b_channel)
         '''
         cv.WaitKey(3)
-
-
-
-
-
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
+
+
+def temp_callback(event):
+        goal = IOBoardGoal(command = 'Temp')
+        temp.send_goal_wait(goal)
+        temperature = temp.get_result()
+        print temperature
+rospy.Timer(rospy.Duration(.5),temp_callback)
+
+
 rospy.spin()
 
 

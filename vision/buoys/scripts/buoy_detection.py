@@ -98,10 +98,11 @@ blue_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 lock = threading.Lock()
 
-global running,new_buoy,max_distance,master_cloud
+global running,new_buoy,max_distance,master_cloud,min_distance
 
 master_cloud = []
-max_distance = 7
+max_distance = 6
+min_distance = .2
 new_buoy = False
 running = False
 
@@ -294,13 +295,15 @@ def action_callback(event):
         running = False
 #-----------------------------------------------------------------------------------
 def in_frame(x):
-        if (x[0] < 600 and x[0] > 0 and x[1] < 600 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2])):
+        global max_distance,min_distance
+        if (x[0] < 640 and x[0] > 0 and x[1] < 640 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2]) and all(math.fabs(i) > min_distance for i in [x[2][0],x[2][1]])):
                 return True
         else:
                 return False
 
 def pointcloud_callback(msg):
         if (running):
+  
                 lock.acquire()
                 global master_cloud
                 cloud = pointcloud2_to_xyz_array(msg)

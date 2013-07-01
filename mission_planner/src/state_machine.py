@@ -31,13 +31,20 @@ class sleep(smach.State):
                 return 'aborted'
         return 'succeeded'
 
-def main():
 
-  
-  rings_pos = ecef_from_latlongheight(1,2,3)
-  button_pos = ecef_from_latlongheight(1,2,3)
-  buoys_pos = ecef_from_latlongheight(1,2,3)
-  spock_pos = ecef_from_latlongheight(1,2,3) 
+
+def read_task_pos(task):
+        path = roslib.packages.resource_file('gps_waypoints','saved','task_loc.txt')
+
+        with open(path,'r+') as task_loc:
+           for line in task_loc:
+                data = line.split(',')
+
+                if data[0] == task:
+                   return [float(data[1]),float(data[2]),float(data[3])]
+        return ecef_from_latlongheight(1,2,3)
+
+def main():
      
   rospy.init_node('state_machine')
         
@@ -86,10 +93,11 @@ def main():
 
   sm = smach.StateMachine(outcomes = ['succeeded','aborted','preempted'])
   with sm:
-          
+          *+
           smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRings'})
 
           rings_pos_goal = GoToWaypointGoal()
+          ring_pos = read_task_pos('rings')
           rings_pos_goal.waypoint = Point(x = rings_pos[0],y = rings_pos[1],z = rings_pos[2])
           smach.StateMachine.add('GoToRings', SimpleActionState('go_waypoint',
                                          GoToWaypointAction,
@@ -99,6 +107,7 @@ def main():
           smach.StateMachine.add('Rings', rings_concurrence, transitions={'rings_done':'GoToButton'})
 
           button_pos_goal = GoToWaypointGoal()
+          button_pos = read_task_pos('button')
           button_pos_goal.waypoint = Point(x = button_pos[0],y = button_pos[1],z = button_pos[2])
           smach.StateMachine.add('GoToButton', SimpleActionState('go_waypoint',
                                          GoToWaypointAction,
@@ -108,6 +117,7 @@ def main():
           smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'GoToSpock'})
 
           spock_pos_goal = GoToWaypointGoal()
+          spock_pos = read_task_pos('spock')
           spock_pos_goal.waypoint = Point(x = spock_pos[0],y = spock_pos[1],z = spock_pos[2])
           smach.StateMachine.add('GoToSpock', SimpleActionState('go_waypoint',
                                          GoToWaypointAction,
