@@ -4,7 +4,7 @@
 
   <node pkg="controller" type="pd_controller.py" name="controller"/>
  
-  <node pkg="propagator_motor_driver" type="propagator_motor_driver_pub.py" name="motor_driver"/>
+  <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
 
   <node pkg="thruster_mapper" type="thruster_mapper" name="thruster_mapper"/>
 

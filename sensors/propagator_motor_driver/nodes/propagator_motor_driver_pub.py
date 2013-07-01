@@ -26,7 +26,7 @@ while True:
 	   motordrivers = {
 		'FR': MotorDriver.MotorDriver('FR'),
 		'FL': MotorDriver.MotorDriver('FL'),
-		'BR': MotorDriver.MotorDriver('BR'),
+		#'BR': MotorDriver.MotorDriver('BR'),
 		'BL': MotorDriver.MotorDriver('BL'),
 	   }
 	except :
@@ -66,7 +66,7 @@ lifetime = rospy.Duration(1.)
 thrusterbroadcasters = [
 	ThrusterBroadcaster('/base_link', 'FR', lifetime, [.729401, -.23495, -.241308], [math.cos(thruster_angle), math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('FR', force)),
 	ThrusterBroadcaster('/base_link', 'FL', lifetime, [.729401, .23495, -.241308], [math.cos(thruster_angle), -math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('FL', force)),
-	ThrusterBroadcaster('/base_link', 'BR', lifetime, [-.821269, -.23495, -.241308], [math.cos(thruster_angle), -math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('BR', force)),
+	#ThrusterBroadcaster('/base_link', 'BR', lifetime, [-.821269, -.23495, -.241308], [math.cos(thruster_angle), -math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('BR', force)),
 	ThrusterBroadcaster('/base_link', 'BL', lifetime, [-.821269, .23495, -.241308], [math.cos(thruster_angle), math.sin(thruster_angle), 0], -min_force, max_force, lambda force: apply_command('BL', force)),
 ]
 

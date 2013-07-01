@@ -36,8 +36,8 @@ max_start =0
 	#-10
 
 #calibration points for angles
-point1 = [3004,40]#35	#point = [encoder value,angle]
-point2 = [3500,-35]#-20
+point1 = [3004,20]#35	#point = [encoder value,angle]
+point2 = [3500,-40]#-20
 
 m = (float(point2[1]-point1[1]))/(point2[0]-point1[0])
 b = -(m*point1[0]-point1[1])
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         msg = ser.readline()
       rospy.logdebug("Max angle updated to "+str(max_start))
       
-      ser.write("s800\r")
+      ser.write("s700\r")
       for i in range(15):
       	ser.write("u")
 
