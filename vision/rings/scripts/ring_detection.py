@@ -15,13 +15,17 @@ from nav_msgs.msg import Odometry
 from rings.msg import ShootRingsAction,ShootRingsActionFeedback
 from uf_common.msg import MoveToAction, MoveToGoal
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
-
+from ioboard.msg import IOBoardAction,IOBoardActionResult,IOBoardGoal
 
 rospy.init_node('ring_detection')
 bridge = CvBridge()
 
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
+shooter = actionlib.SimpleActionClient('ioboard_command', IOBoardAction)
 print 'connecting to action client'
+shooter.wait_for_server()
+print 'connecting to shooter client'
+
 
 global running,shots,colors,color_index
 running = False
@@ -107,6 +111,7 @@ def mouse_callback(event,x,y,flags,image):
 
 def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
+
 def adjust_carrot(x,y):
         global color_index,shot
         err = distance((x,y),red_shoot)
@@ -115,6 +120,8 @@ def adjust_carrot(x,y):
                 print "move by: ",adjust
                 #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust[0], adjust[1], 0])).as_MoveToGoal(speed = .1))
         else:
+                goal = IOBoardGoal(command = 'Shoot2')
+                shooter.send_goal_wait(goal)
                 print "shooting!"
                 color_index = color_index + 1
                 shots = shots + 1  
