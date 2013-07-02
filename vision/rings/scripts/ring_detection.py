@@ -33,8 +33,8 @@ shots = 0
 colors = ['red','red','red','red','red','red']
 color_index = 0
 
-gain = .01
-red_shoot = (320,240)
+gain = 1
+red_shoot = (320,100)
 
 OBJECT_AREA = 1500
 IMAGE_SIZE = (640,480)
@@ -113,18 +113,30 @@ def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
 
 def adjust_carrot(x,y):
-        global color_index,shot
+        global color_index,shots
         err = distance((x,y),red_shoot)
-        adjust = [gain*(x-red_shoot[0]),gain*(y-red_shoot[1])]
-        if (err > 10):
-                print "move by: ",adjust
-                #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust[0], adjust[1], 0])).as_MoveToGoal(speed = .1))
+        adjust_sign = [(x -red_shoot[0]),gain*(y - red_shoot[1])]
+        adjust_mag = [.3,.3]
+        if (err > 30):
+                print 'pos',(x,y)
+                adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
+                adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
+               
+                if (math.fabs(adjust_sign[1]) > 20):
+                      print "x"
+                      print adjust_mag[1]
+                      waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
+                elif (math.fabs(adjust_sign[0]) > 20):
+                      print "y"
+                      print adjust_mag[0]
+                      waypoint.send_goal(current_pose_editor.relative(numpy.array([0, adjust_mag[0], 0])).as_MoveToGoal(speed = .3))   
         else:
                 goal = IOBoardGoal(command = 'Shoot2')
-                shooter.send_goal_wait(goal)
                 print "shooting!"
+                waypoint.cancel_goal()
+                shooter.send_goal_and_wait(goal)
                 color_index = color_index + 1
-                shots = shots + 1  
+                shots = True  
 
 #----------------------------------------------------------------------------------- 
 def threshold_purple(image):
@@ -134,7 +146,7 @@ def threshold_purple(image):
 
 def threshold_red(image):
         #bright cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-30)
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-15)
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-25)
         cv.Erode(red_adaptive,red_eroded_image,None,1)
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
 
@@ -272,14 +284,16 @@ class ShootRingsServer:
 
  def execute(self,goal):
         global shots,running,color_index
-        while(shots < goal.attempts and not(self.server.is_preempt_requested())):
+        shots = False
+        while(not(shots) and not(self.server.is_preempt_requested())):
                 running = True
                 self._feedback.darts_shot = shots
                 self.server.publish_feedback(self._feedback)
-                shots = shots + 1
+                #shots = shots + 1
                 rospy.sleep(1)
              
         running = False
+        self.server.set_succeeded()
         if (shots == goal.attempts):
                 shots = 0
                 color_index = 0

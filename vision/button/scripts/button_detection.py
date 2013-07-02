@@ -127,15 +127,16 @@ def extract_circles(contours,rgb):
 
                         point = check_lidar((x,y),radius)
                         if (point[0]):
-                                #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([point[1][0] + .1, point[1][1] + .1, 0])).as_MoveToGoal(speed = .2))
+                                print 'going to:',point[1]
+                                waypoint.send_goal_and_wait(current_pose_editor.relative(np.array([point[1][0], point[1][1] + .5, 0])).as_MoveToGoal(speed = .5))
                                 circles.append((x,y,int(radius*1.5)))   
         return circles                
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-50)  
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-45)  
         cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
-        cv.Dilate(red_eroded_image,red_dilated_image,None,9)    
+        cv.Dilate(red_eroded_image,red_dilated_image,None,10)    
 
 def print_lidar_projections(image):
         if (len(master_cloud) > 0):
