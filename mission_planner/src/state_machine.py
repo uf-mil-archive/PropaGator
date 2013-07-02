@@ -13,6 +13,7 @@ from button.msg import FindButtonAction,FindButtonGoal
 from gps_waypoints.msg import GoToWaypointAction,GoToWaypointGoal
 from rawgps_common.gps import ecef_from_latlongheight,enu_from_ecef
 
+runTime = 20 #minutes
 ringsTimeout = 20
 buoysTimeout = 10
 buttonTimeout = 10

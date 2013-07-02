@@ -4,6 +4,7 @@ class IOBoard():
 	def __init__(self,usb_id):
 		self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
                 self.shooting = False
+                self.reading_temp = False
 
 	def shoot(self,shots):
                 if (shots == 2):
@@ -26,8 +27,19 @@ class IOBoard():
 
         def read_temp(self):
                 self.commport.write('T')
-                while (not(self.commport.inWaiting() > 0)):{}
-                return str(self.commport.readline())
+                self.reading_temp = True
+                #while (not(self.commport.inWaiting() > 0)):{}
+                #return str(self.commport.readline())
+
+        def temp_status(self):
+                if (self.reading_temp == True):
+                        if (self.commport.inWaiting() > 0):
+                                self.reading_temp = False
+                                return str(self.commport.readline())
+                        else:
+                                return False
+                else:
+                        return False
        
 
         def check_kill(self):

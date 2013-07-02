@@ -47,7 +47,12 @@ class IOBoardServer:
                 self.server.set_preempted() 
 
      elif (goal.command == 'Temp'):
-        self._result.temp = self.ioboard.read_temp()
+        self.ioboard.read_temp()
+        while (not(self.server.is_preempt_requested()) and not(done)):
+                check = self.ioboard.temp_status()
+                if(check):
+                        self._result.temp = check
+                        done = True
         self.server.set_succeeded(self._result) 
 
      elif (goal.command == 'Kill'):
