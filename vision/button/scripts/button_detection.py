@@ -23,7 +23,7 @@ bridge = CvBridge()
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 print 'connecting to action client'
 
-OBJECT_AREA = 10
+OBJECT_AREA = 1000
 IMAGE_SIZE = (640,480)
 
 #-----------------------------------------------------------------------------------
@@ -59,14 +59,52 @@ translation_vector[0,2] =  0.818359   # .5#
 hsv_image = cv.CreateImage(IMAGE_SIZE,8,3)
 blurred_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
-h_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-s_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
-v_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+blurred_gray = cv.CreateImage(IMAGE_SIZE,8,1)
+gray = cv.CreateImage(IMAGE_SIZE,8,1)
 
-lab_image_ = cv.CreateImage(IMAGE_SIZE,8,3)
-l_channel = cv.CreateImage(IMAGE_SIZE,8,1)
-a_channel = cv.CreateImage(IMAGE_SIZE,8,1)  
-b_channel = cv.CreateImage(IMAGE_SIZE,8,1)
+hsv = cv.CreateImage(IMAGE_SIZE,8,3)
+hsv_h = cv.CreateImage(IMAGE_SIZE,8,1)
+hsv_s = cv.CreateImage(IMAGE_SIZE,8,1)  
+hsv_v = cv.CreateImage(IMAGE_SIZE,8,1)
+
+lab = cv.CreateImage(IMAGE_SIZE,8,3)
+lab_l = cv.CreateImage(IMAGE_SIZE,8,1)
+lab_a = cv.CreateImage(IMAGE_SIZE,8,1)  
+lab_b = cv.CreateImage(IMAGE_SIZE,8,1)
+
+rgb_r = cv.CreateImage(IMAGE_SIZE,8,1)
+rgb_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+rgb_b = cv.CreateImage(IMAGE_SIZE,8,1)
+
+luv = cv.CreateImage(IMAGE_SIZE,8,3)
+luv_l = cv.CreateImage(IMAGE_SIZE,8,1)
+luv_u = cv.CreateImage(IMAGE_SIZE,8,1)  
+luv_v = cv.CreateImage(IMAGE_SIZE,8,1)
+
+xyz = cv.CreateImage(IMAGE_SIZE,8,3)
+xyz_x = cv.CreateImage(IMAGE_SIZE,8,1)
+xyz_y = cv.CreateImage(IMAGE_SIZE,8,1)  
+xyz_z = cv.CreateImage(IMAGE_SIZE,8,1)
+
+hls = cv.CreateImage(IMAGE_SIZE,8,3)
+hls_h = cv.CreateImage(IMAGE_SIZE,8,1)
+hls_l = cv.CreateImage(IMAGE_SIZE,8,1)  
+hls_s = cv.CreateImage(IMAGE_SIZE,8,1)
+
+xyz = cv.CreateImage(IMAGE_SIZE,8,3)
+xyz_x = cv.CreateImage(IMAGE_SIZE,8,1)
+xyz_y = cv.CreateImage(IMAGE_SIZE,8,1)  
+xyz_z = cv.CreateImage(IMAGE_SIZE,8,1)
+
+ycrcb = cv.CreateImage(IMAGE_SIZE,8,3)
+ycrcb_y = cv.CreateImage(IMAGE_SIZE,8,1)
+ycrcb_cr = cv.CreateImage(IMAGE_SIZE,8,1)  
+ycrcb_cb = cv.CreateImage(IMAGE_SIZE,8,1)
+
+sa = cv.CreateImage(IMAGE_SIZE,8,1)
+a_not = cv.CreateImage(IMAGE_SIZE,8,1)
+test = cv.CreateImage(IMAGE_SIZE,8,1)
+final = cv.CreateImage(IMAGE_SIZE,8,1)
 
 sminh = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
@@ -78,8 +116,8 @@ red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 lock = threading.Lock()
 
-global running,new_buoy,max_distance,master_cloud
-
+global running,new_buoy,max_distance,master_cloud,rammed
+rammed = False
 master_cloud = []
 max_distance = 7
 running = False
@@ -113,6 +151,28 @@ def check_lidar((x,y),radius):
         else:
                 return (False,[0,0,0])
 
+desired = [600,1000] #x position,area
+def adjust_carrot(x,y,area):
+        global rammed
+        err = (desired[0]-x)
+        if (err > 20):
+                print 'pos',(x,y)
+                adjust = err
+                print "y"
+                print adjust
+                #waypoint.send_goal(current.as_MoveToGoal(linear=[0,adjust,0]))  
+        elif (area < desired[1]):
+                adjust = desired[1] - area
+                print 'x'
+                print adjust
+                #waypoint.send_goal(current.as_MoveToGoal(linear=[adjust,0,0]))  
+        else:
+                print "ramming"
+                #waypoint.cancel_goal()
+                #waypoint.send_goal_and_wait(current_pose_editor.forward(3))
+                #waypoint.send_goal_and_wait(current_pose_editor.backward(3))
+                rammed = True
+
 def extract_circles(contours,rgb):
         global current_pose_editor        
         circles = []
@@ -124,19 +184,24 @@ def extract_circles(contours,rgb):
                         x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                         y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
                         radius = int(math.sqrt(area/math.pi))
-
-                        point = check_lidar((x,y),radius)
+                        circles.append((x,y,int(radius*1.5))) 
+                        adjust_carrot(x,y,area)                             #use just visual servo
+                        '''
+                        point = check_lidar((x,y),radius)               #use if you want to use lidar to confirm waypoint
                         if (point[0]):
                                 print 'going to:',point[1]
                                 waypoint.send_goal_and_wait(current_pose_editor.relative(np.array([point[1][0], point[1][1] + .5, 0])).as_MoveToGoal(speed = .5))
-                                circles.append((x,y,int(radius*1.5)))   
+                                circles.append((x,y,int(radius*1.5))) 
+                        '''  
         return circles                
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-45)  
-        cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
-        cv.Dilate(red_eroded_image,red_dilated_image,None,10)    
+    
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,27,-25)
+        cv.Erode(red_adaptive,red_eroded_image,None,2)
+        cv.Dilate(red_eroded_image,red_dilated_image,None,5)  
+
 
 def print_lidar_projections(image):
         if (len(master_cloud) > 0):
@@ -150,24 +215,26 @@ def image_callback(data):
         
         global running       
         if (running):
-                print "running"
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
-                cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
-                cv.CvtColor(cv_image,lab_image_,cv.CV_BGR2Lab)
+                cv.CvtColor(cv_image,hsv,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
+                cv.CvtColor(cv_image,lab,cv.CV_BGR2Lab)
 
-                cv.Smooth(cv_image,blurred_bgr_image,cv.CV_GAUSSIAN,9,9)  
-                cv.Smooth(hsv_image,blurred_image,cv.CV_GAUSSIAN,5,5)                
-                cv.Split(blurred_image,h_channel,s_channel,v_channel,None) 
-                cv.Split(lab_image_,l_channel,a_channel,b_channel,None)   
+                cv.Split(hsv,hsv_h,hsv_s,hsv_v,None)
+                cv.Split(cv_image,rgb_r,rgb_g,rgb_b,None)
+                cv.Split(lab,lab_l,lab_a,lab_b,None)
+                cv.Split(luv,luv_l,luv_u,luv_v,None)
+                cv.Split(hls,hls_h,hls_l,hls_s,None)
+                cv.Split(xyz,xyz_x,xyz_y,xyz_x,None)
+                cv.Split(ycrcb,ycrcb_y,ycrcb_cr,ycrcb_cb,None)
 
-                cv.Sub(s_channel,h_channel,sminh)
-                #v.Sub(v_channel,h_channel,vminh)
-                #cv.Sub(s_channel,v_channel,sminv) #maybe use for blue            
-                
-                threshold_red(sminh)
-       
-                #cv.ShowImage("test",sminv)
-                cv.ShowImage("red",red_adaptive)
+                cv.Not(lab_a,a_not)
+                cv.Sub(hsv_s,a_not,sa)
+                cv.Sub(luv_u,hls_h,test)
+                cv.Sub(hls_s,hls_h,sminh)
+        
+                threshold_red(sa)
+             
+                cv.ShowImage("red",red_dilated_image)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
             
@@ -178,9 +245,6 @@ def image_callback(data):
                         cv.Circle(cv_image,(x,y),radius,[0,0,1],3)
 
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv_image)   
-                #cv.ShowImage("l channel",l_channel)
-                #cv.ShowImage("a channel",a_channel)
-                #cv.ShowImage("b channel",b_channel)
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
@@ -225,16 +289,17 @@ class FindButtonServer:
 
  def __init__(self):
         self.server = actionlib.SimpleActionServer('find_button', FindButtonAction, self.execute, False)
-        rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
+        #rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
         rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
         print "button server started"
 
  def execute(self,goal):
-        global running
-        while (not(self.server.is_preempt_requested())):
+        global running,rammed
+        while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True
         running = False
+        rammed = False
         self.server.set_preempted() 
 
 server = FindButtonServer()

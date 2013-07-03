@@ -94,7 +94,7 @@ def main():
 
   sm = smach.StateMachine(outcomes = ['succeeded','aborted','preempted'])
   with sm:
-          *+
+          
           smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRings'})
 
           rings_pos_goal = GoToWaypointGoal()

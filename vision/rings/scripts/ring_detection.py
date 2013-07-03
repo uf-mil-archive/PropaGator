@@ -23,7 +23,7 @@ bridge = CvBridge()
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 shooter = actionlib.SimpleActionClient('ioboard_command', IOBoardAction)
 print 'connecting to action client'
-shooter.wait_for_server()
+#shooter.wait_for_server()
 print 'connecting to shooter client'
 
 
@@ -115,28 +115,34 @@ def distance (p1,p2):
 def adjust_carrot(x,y):
         global color_index,shots
         err = distance((x,y),red_shoot)
-        adjust_sign = [(x -red_shoot[0]),gain*(y - red_shoot[1])]
-        adjust_mag = [.3,.3]
+        adjust_sign = [(red_shoot[0]-x),(y-red_shoot[1])]
+        #adjust_mag = [.3,.3]
         if (err > 30):
                 print 'pos',(x,y)
-                adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
-                adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
-               
-                if (math.fabs(adjust_sign[1]) > 20):
+                #adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
+                #adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
+                adjust_mag = [.005*adjust_sign[0],.005*adjust_sign[1]]
+                if (math.fabs(adjust_sign[1]) > 20 and math.fabs(adjust_sign[0]) > 20):
+                      print "both"
+                      print 'x=',adjust_mag[1],'y=',adjust_mag[0]
+                      #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
+                      #waypoint.send_goal(current.as_MoveToGoal(linear=[adjust_mag[1],adjust_mag[0],0]))           
+                elif (math.fabs(adjust_sign[1]) > 20):
                       print "x"
                       print adjust_mag[1]
-                      waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
+                      #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
+                      #waypoint.send_goal(current.as_MoveToGoal(linear=[adjust_mag[1],0,0]))                
                 elif (math.fabs(adjust_sign[0]) > 20):
                       print "y"
                       print adjust_mag[0]
-                      waypoint.send_goal(current_pose_editor.relative(numpy.array([0, adjust_mag[0], 0])).as_MoveToGoal(speed = .3))   
+                      #waypoint.send_goal(current.as_MoveToGoal(linear=[0,adjust_mag[0],0]))     
         else:
                 goal = IOBoardGoal(command = 'Shoot2')
                 print "shooting!"
                 waypoint.cancel_goal()
                 shooter.send_goal_and_wait(goal)
                 color_index = color_index + 1
-                shots = True  
+                shots = shots + 2
 
 #----------------------------------------------------------------------------------- 
 def threshold_purple(image):
@@ -217,7 +223,7 @@ def image_callback(data):
                 threshold_red(sa)                 
                 cv.Mul(test,red_adaptive,final)
 
-                cv.ShowImage("red",red_adaptive)            
+                cv.ShowImage("red",sa)            
 
                 red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -269,7 +275,7 @@ def image_callback(data):
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
-
+rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 #-----------------------------------------------------------------------------------
 
 class ShootRingsServer:
@@ -277,28 +283,24 @@ class ShootRingsServer:
  def __init__(self):
         global running
         self.server = actionlib.SimpleActionServer('shoot_rings', ShootRingsAction, self.execute, False)
-        rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
         self._feedback = ShootRingsActionFeedback
         print "rings server started"
 
  def execute(self,goal):
         global shots,running,color_index
-        shots = False
-        while(not(shots) and not(self.server.is_preempt_requested())):
+        shots = 0
+        while(shots < goal.attempts and not(self.server.is_preempt_requested())):
                 running = True
                 self._feedback.darts_shot = shots
                 self.server.publish_feedback(self._feedback)
-                #shots = shots + 1
                 rospy.sleep(1)
              
         running = False
-        self.server.set_succeeded()
         if (shots == goal.attempts):
                 shots = 0
                 color_index = 0
-                self.server.set_succeeded()
-              
+                self.server.set_succeeded()       
         else:
                 shots = 0
                 color_index = 0
