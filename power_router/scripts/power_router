@@ -1,0 +1,74 @@
+#!/usr/bin/python
+
+import threading
+
+import serial
+
+import roslib
+roslib.load_manifest('power_router')
+import rospy
+from std_msgs.msg import Header
+
+from power_router.msg import prstatus
+#from .srv import PulseValve, PulseValveResponse, SetValve, SetValveResponse
+
+
+rospy.init_node('power_router')
+
+
+class PowerRouter(object):
+    
+    def __init__(self, port):
+        self._serial = serial.Serial(port, 9600)
+    
+    def read(self):
+		while True:
+			string  = command.readline()
+
+			splt = string.split(",")
+
+			if (len(splt) == 4):
+
+				motorcurrent = splt[0]
+				computercurrent = splt[1]
+				temperature = splt[2]
+				battery = splt[3]
+				return motorcurrent, computercurrent, temperature, battery
+    
+
+ad = PowerRouter(rospy.get_param('~port'))
+
+'''def pulsevalve(req):
+    if req.valve >= PowerRouter.VALVES:
+        return None # service error condition
+    
+    with valves_lock:
+        valves[:] = [True if i == req.valve else valve for i, valve in enumerate(valves)]
+        ad.send_setvalves(valves)
+    rospy.sleep(req.duration)
+    with valves_lock:
+        valves[:] = [False if i == req.valve else valve for i, valve in enumerate(valves)]
+        ad.send_setvalves(valves)
+    return PulseValveResponse()
+rospy.Service('~pulsevalve', PulseValve, pulsevalve)
+
+def setvalve(req):
+    if req.valve >= PowerRouter.VALVES:
+        return None # service error condition
+    
+    with valves_lock:
+        valves[:] = [True if i == req.valve else valve for i, valve in enumerate(valves)]
+        ad.send_setvalves(valves)
+    return SetValveResponse()
+rospy.Service('~setvalve', SetValve, setvalve)'''
+
+pub = rospy.Publisher('~status', prstatus)
+while not rospy.is_shutdown():
+    motorcurrent, computercurrent, temperature, battery = ad.read()
+      
+    pub.publish(Switches(
+    	header=Header(
+        stamp=rospy.Time.now(),
+            ),
+            motorcurrent=motorcurrent, computercurrent=computercurrent, temperature=temperature, battery=battery
+        ))
