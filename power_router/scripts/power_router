@@ -10,7 +10,7 @@ import rospy
 from std_msgs.msg import Header
 
 from power_router.msg import prstatus
-#from .srv import PulseValve, PulseValveResponse, SetValve, SetValveResponse
+from power_router.srv import SetKill, SetKillResponse
 
 
 rospy.init_node('power_router')
@@ -23,50 +23,34 @@ class PowerRouter(object):
     
     def read(self):
 		while True:
-			string  = command.readline()
+			string  = self._serial.readline()
 
 			splt = string.split(",")
 
 			if (len(splt) == 4):
 
-				motorcurrent = splt[0]
-				computercurrent = splt[1]
-				temperature = splt[2]
-				battery = splt[3]
+				motorcurrent = float(splt[0])
+				computercurrent = float(splt[1])
+				temperature = float(splt[2])
+				battery = float(splt[3])
 				return motorcurrent, computercurrent, temperature, battery
     
 
 ad = PowerRouter(rospy.get_param('~port'))
 
-'''def pulsevalve(req):
-    if req.valve >= PowerRouter.VALVES:
-        return None # service error condition
-    
-    with valves_lock:
-        valves[:] = [True if i == req.valve else valve for i, valve in enumerate(valves)]
-        ad.send_setvalves(valves)
-    rospy.sleep(req.duration)
-    with valves_lock:
-        valves[:] = [False if i == req.valve else valve for i, valve in enumerate(valves)]
-        ad.send_setvalves(valves)
-    return PulseValveResponse()
-rospy.Service('~pulsevalve', PulseValve, pulsevalve)
-
-def setvalve(req):
-    if req.valve >= PowerRouter.VALVES:
-        return None # service error condition
-    
-    with valves_lock:
-        valves[:] = [True if i == req.valve else valve for i, valve in enumerate(valves)]
-        ad.send_setvalves(valves)
-    return SetValveResponse()
-rospy.Service('~setvalve', SetValve, setvalve)'''
+def setkill(req):
+    if req.kill:
+	ad._serial.write("H")
+    else:
+	ad._serial.write("G")
+    return SetKillResponse()
+rospy.Service('~setkill', SetKill, setkill)
 
 pub = rospy.Publisher('~status', prstatus)
 while not rospy.is_shutdown():
     motorcurrent, computercurrent, temperature, battery = ad.read()
       
-    pub.publish(Switches(
+    pub.publish(prstatus(
     	header=Header(
         stamp=rospy.Time.now(),
             ),
