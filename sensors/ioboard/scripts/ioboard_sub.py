@@ -32,7 +32,7 @@ class IOBoardServer:
         if (done):
                 self.server.set_succeeded()
         else:
-                done = True+
+                done = True
                 self.server.set_preempted() 
 
      elif (goal.command == 'Shoot2'):
