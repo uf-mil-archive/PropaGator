@@ -17,7 +17,7 @@ class IOBoardServer:
  def __init__(self):
         self.server = actionlib.SimpleActionServer('ioboard_command', IOBoardAction, self.execute, False)
         self._result = IOBoardActionResult
-        self.ioboard = IOBoard.IOBoard('ttyUSB0')
+        self.ioboard = IOBoard.IOBoard('IOBoard')
         self.server.start()
         print "IO board server started"
 
