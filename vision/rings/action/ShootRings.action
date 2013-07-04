@@ -1,5 +1,5 @@
 # goal
-uint32 attempts
+string color
 ---
 # result
 #not used

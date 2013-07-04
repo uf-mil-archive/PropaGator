@@ -27,11 +27,11 @@ print 'connecting to action client'
 print 'connecting to shooter client'
 
 
-global running,shots,colors,color_index
+global running,shot,color
 running = False
-shots = 0
-colors = ['red','red','red','red','red','red']
-color_index = 0
+shot = False
+color = []
+
 
 gain = 1
 red_shoot = (320,100)
@@ -113,7 +113,7 @@ def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
 
 def adjust_carrot(x,y):
-        global color_index,shots
+        global shot
         err = distance((x,y),red_shoot)
         adjust_sign = [(red_shoot[0]-x),(y-red_shoot[1])]
         #adjust_mag = [.3,.3]
@@ -141,8 +141,7 @@ def adjust_carrot(x,y):
                 print "shooting!"
                 waypoint.cancel_goal()
                 shooter.send_goal_and_wait(goal)
-                color_index = color_index + 1
-                shots = shots + 2
+                shot = True
 
 #----------------------------------------------------------------------------------- 
 def threshold_purple(image):
@@ -177,7 +176,7 @@ def extract_circles(contours,rgb):
 #-----------------------------------------------------------------------------------    
 
 def image_callback(data):
-        global running,colors
+        global running,color
         if (running):
                 #print "running"
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
@@ -199,7 +198,6 @@ def image_callback(data):
 
                 cv.Not(lab_a,a_not)
                 cv.Sub(hsv_s,a_not,sa)
-                #cv.Sub(luv_u,hls_h,test)
                 cv.Sub(luv_u,hls_h,test)
 
                 '''
@@ -216,37 +214,24 @@ def image_callback(data):
                                         radius = i[0][2]
                                         cv.Circle(cv_image,center,radius,(1,1,0),2) 
                 '''
+                            
+                cv.Mul(test,red_adaptive,final)      
                 
-              
-                threshold_purple(hsv_s)
-                #threshold_red(ycrcb_cr)  
-                threshold_red(sa)                 
-                cv.Mul(test,red_adaptive,final)
-
-                cv.ShowImage("red",sa)            
-
-                red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-                
-                if (colors[color_index] == 'red'):
+                if (color = 'red'):
+                        threshold_red(sa)
+                        #threshold_red(ycrcb_cr)     
+                        red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
                         circles = extract_circles(red_contours,[1,0,0])
                         for x,y,radius in circles:  
                                 cv.Circle(cv_image,(x,y),radius,[0,0,255],3)
-                elif(colors[color_index] == 'purple'):
+                elif(color== 'purple'):
+                        threshold_purple(hsv_s)
+                        purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                         circles = extract_circles(purple_contours,[1,0,1])
                         for x,y,radius in circles:  
                                 cv.Circle(cv_image,(x,y),radius,[255,0,255],3)
 
-                '''  
-                for i in [ (red_contours,[1,0,0]) , (purple_contours,[1,0,1]) ]:
-                        circles = extract_circles(i[0],i[1])
-                        rgb = i[1]
-                        bgr = (255*numpy.array(rgb[::-1])).tolist()        #invert list and multiply by 255 for cv.Circle color argument
-                        for x,y,radius in circles:                   
-                                cv.Circle(cv_image,(x,y),radius,bgr,3) 
-                ''' 
-
-
+                cv.ShowImage("red",sa)      
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv)   
                 '''
                 cv.ShowImage("TEST",test)
@@ -288,22 +273,19 @@ class ShootRingsServer:
         print "rings server started"
 
  def execute(self,goal):
-        global shots,running,color_index
-        shots = 0
-        while(shots < goal.attempts and not(self.server.is_preempt_requested())):
+        global shot,running,color
+        shot = False
+        color = goal.color
+        while(not(shot) and not(self.server.is_preempt_requested())):
                 running = True
-                self._feedback.darts_shot = shots
-                self.server.publish_feedback(self._feedback)
                 rospy.sleep(1)
-             
+        
         running = False
-        if (shots == goal.attempts):
-                shots = 0
-                color_index = 0
+        if (shot):
+                shot = False
                 self.server.set_succeeded()       
         else:
-                shots = 0
-                color_index = 0
+                shot = False
                 self.server.set_preempted()
               
 

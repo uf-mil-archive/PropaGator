@@ -116,11 +116,12 @@ red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 lock = threading.Lock()
 
-global running,new_buoy,max_distance,master_cloud,rammed
+global running,new_buoy,max_distance,master_cloud,rammed,side
 rammed = False
 master_cloud = []
 max_distance = 7
 running = False
+side = []
 
 #-----------------------------------------------------------------------------------
 #--print HSV of pixel clicked on in image (used to find threshold values)
@@ -295,7 +296,8 @@ class FindButtonServer:
         print "button server started"
 
  def execute(self,goal):
-        global running,rammed
+        global running,rammed,side
+        side = goal.side
         while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True
         running = False

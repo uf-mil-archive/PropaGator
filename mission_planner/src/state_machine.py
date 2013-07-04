@@ -43,20 +43,33 @@ def read_task_pos(task):
 
                 if data[0] == task:
                    return [float(data[1]),float(data[2]),float(data[3])]
-        return ecef_from_latlongheight(1,2,3)
+        return ecef_from_latlongheight(1.0,2.0,3.0)
 
 def main():
      
   rospy.init_node('state_machine')
         
 #RINGS--------------------------------------------------------------------------------------------------
-  rings_concurrence = smach.Concurrence(outcomes=['rings_done'],
+  rings_concurrence_red = smach.Concurrence(outcomes=['rings_done'],
                                           default_outcome = 'rings_done',
                                           child_termination_cb = lambda outcome_map : True,
                                           outcome_cb = lambda outcome_map : 'rings_done')
-  with rings_concurrence:
+  with rings_concurrence_red:
           rings_goal = ShootRingsGoal()
-          rings_goal.attempts = 5
+          rings_goal.color = 'red'
+          smach.Concurrence.add('RingsTask', SimpleActionState('shoot_rings',
+                                          ShootRingsAction,
+                                          goal=rings_goal))
+                                 
+          smach.Concurrence.add('RingsTimeout',sleep(ringsTimeout))
+
+  rings_concurrence_purple = smach.Concurrence(outcomes=['rings_done'],
+                                          default_outcome = 'rings_done',
+                                          child_termination_cb = lambda outcome_map : True,
+                                          outcome_cb = lambda outcome_map : 'rings_done')
+  with rings_concurrence_purple:
+          rings_goal = ShootRingsGoal()
+          rings_goal.color = 'purple'
           smach.Concurrence.add('RingsTask', SimpleActionState('shoot_rings',
                                           ShootRingsAction,
                                           goal=rings_goal))
@@ -95,17 +108,27 @@ def main():
   sm = smach.StateMachine(outcomes = ['succeeded','aborted','preempted'])
   with sm:
           
-          smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRings'})
+          smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRingsRed'})
 
           rings_pos_goal = GoToWaypointGoal()
           ring_pos = read_task_pos('rings')
-          rings_pos_goal.waypoint = Point(x = rings_pos[0],y = rings_pos[1],z = rings_pos[2])
-          smach.StateMachine.add('GoToRings', SimpleActionState('go_waypoint',
+          rings_pos_goal.waypoint = Point(x = ring_pos[0],y = ring_pos[1],z = ring_pos[2])
+          smach.StateMachine.add('GoToRingsRed', SimpleActionState('go_waypoint',
                                          GoToWaypointAction,
                                           goal=rings_pos_goal),
-                                          transitions={'succeeded':'Rings'})
+                                          transitions={'succeeded':'RingsRed'})
 
-          smach.StateMachine.add('Rings', rings_concurrence, transitions={'rings_done':'GoToButton'})
+          smach.StateMachine.add('RingsRed', rings_concurrence_red, transitions={'rings_done':'GoToRingsPurple'})
+
+          rings_pos_goal = GoToWaypointGoal()
+          ring_pos = read_task_pos('rings')
+          rings_pos_goal.waypoint = Point(x = ring_pos[0],y = ring_pos[1],z = ring_pos[2])
+          smach.StateMachine.add('GoToRingsPurple', SimpleActionState('go_waypoint',
+                                         GoToWaypointAction,
+                                          goal=rings_pos_goal),
+                                          transitions={'succeeded':'RingsPurple'})
+
+          smach.StateMachine.add('RingsPurple', rings_concurrence_purple, transitions={'rings_done':'GoToButton'})
 
           button_pos_goal = GoToWaypointGoal()
           button_pos = read_task_pos('button')
