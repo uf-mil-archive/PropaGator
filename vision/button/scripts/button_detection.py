@@ -152,26 +152,28 @@ def check_lidar((x,y),radius):
         else:
                 return (False,[0,0,0])
 
-desired = [600,1000] #x position,area
+desired = [380,1500] #x position,area
 def adjust_carrot(x,y,area):
         global rammed
         err = (desired[0]-x)
-        if (err > 20):
+        print "error",err
+        print "area",area
+        if (math.fabs(err) > 20):
                 print 'pos',(x,y)
-                adjust = err
+                adjust = err*.001
                 print "y"
                 print adjust
-                #waypoint.send_goal(current.as_MoveToGoal(linear=[0,adjust,0]))  
+                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust,0]))  
         elif (area < desired[1]):
                 adjust = desired[1] - area
                 print 'x'
                 print adjust
-                #waypoint.send_goal(current.as_MoveToGoal(linear=[adjust,0,0]))  
+                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust,0,0]))  
         else:
                 print "ramming"
-                #waypoint.cancel_goal()
-                #waypoint.send_goal_and_wait(current_pose_editor.forward(3))
-                #waypoint.send_goal_and_wait(current_pose_editor.backward(3))
+                waypoint.cancel_goal()
+                waypoint.send_goal_and_wait(current_pose_editor.forward(5))
+                waypoint.send_goal_and_wait(current_pose_editor.backward(5))
                 rammed = True
 
 def extract_circles(contours,rgb):
@@ -186,7 +188,8 @@ def extract_circles(contours,rgb):
                         y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
                         radius = int(math.sqrt(area/math.pi))
                         circles.append((x,y,int(radius*1.5))) 
-                        adjust_carrot(x,y,area)                             #use just visual servo
+                        if (y > 100):
+                                adjust_carrot(x,y,area)                             #use just visual servo
                         '''
                         point = check_lidar((x,y),radius)               #use if you want to use lidar to confirm waypoint
                         if (point[0]):
@@ -199,7 +202,7 @@ def extract_circles(contours,rgb):
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
     
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,27,-25)
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-8)
         cv.Erode(red_adaptive,red_eroded_image,None,2)
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)  
 

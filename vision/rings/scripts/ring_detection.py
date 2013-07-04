@@ -34,7 +34,7 @@ color = []
 
 
 gain = 1
-red_shoot = (320,100)
+red_shoot = (350,75)
 
 OBJECT_AREA = 1500
 IMAGE_SIZE = (640,480)
@@ -121,21 +121,21 @@ def adjust_carrot(x,y):
                 print 'pos',(x,y)
                 #adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
                 #adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
-                adjust_mag = [.005*adjust_sign[0],.005*adjust_sign[1]]
+                adjust_mag = [.001*adjust_sign[0],.001*adjust_sign[1]]
                 if (math.fabs(adjust_sign[1]) > 20 and math.fabs(adjust_sign[0]) > 20):
                       print "both"
                       print 'x=',adjust_mag[1],'y=',adjust_mag[0]
                       #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
-                      #waypoint.send_goal(current.as_MoveToGoal(linear=[adjust_mag[1],adjust_mag[0],0]))           
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust_mag[1],adjust_mag[0],0]))           
                 elif (math.fabs(adjust_sign[1]) > 20):
                       print "x"
                       print adjust_mag[1]
                       #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
-                      #waypoint.send_goal(current.as_MoveToGoal(linear=[adjust_mag[1],0,0]))                
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust_mag[1],0,0]))                
                 elif (math.fabs(adjust_sign[0]) > 20):
                       print "y"
                       print adjust_mag[0]
-                      #waypoint.send_goal(current.as_MoveToGoal(linear=[0,adjust_mag[0],0]))     
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust_mag[0],0]))     
         else:
                 goal = IOBoardGoal(command = 'Shoot2')
                 print "shooting!"
@@ -145,13 +145,13 @@ def adjust_carrot(x,y):
 
 #----------------------------------------------------------------------------------- 
 def threshold_purple(image):
-        #cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,20)
+        cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,15)
         cv.Erode(purple_adaptive,purple_eroded_image,None,1)
         cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
 
 def threshold_red(image):
         #bright cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-30)
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-25)
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-15)
         cv.Erode(red_adaptive,red_eroded_image,None,1)
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
 
@@ -159,6 +159,7 @@ def threshold_red(image):
 
 def extract_circles(contours,rgb):
         circles = []
+        global shot
         for i in contours:
                 moments = cv.Moments(cv.fromarray(i), binary = 1)             
                 area = cv.GetCentralMoment(moments, 0, 0)
@@ -167,10 +168,9 @@ def extract_circles(contours,rgb):
                         x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
                         y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
                         radius = int(math.sqrt(area/math.pi))
-                        if (y < 200):
+                        if (shot == False):
                                 circles.append((x,y,int(radius)))
-                                if (colors[color_index] == 'red'):
-                                        adjust_carrot(x,y)          
+                                adjust_carrot(x,y)          
         return circles 
 
 #-----------------------------------------------------------------------------------    
@@ -217,21 +217,21 @@ def image_callback(data):
                             
                 cv.Mul(test,red_adaptive,final)      
                 
-                if (color = 'red'):
+                if (color == 'red'):
                         threshold_red(sa)
                         #threshold_red(ycrcb_cr)     
                         red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
                         circles = extract_circles(red_contours,[1,0,0])
                         for x,y,radius in circles:  
                                 cv.Circle(cv_image,(x,y),radius,[0,0,255],3)
-                elif(color== 'purple'):
+                elif(color == 'purple'):
                         threshold_purple(hsv_s)
                         purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                         circles = extract_circles(purple_contours,[1,0,1])
                         for x,y,radius in circles:  
                                 cv.Circle(cv_image,(x,y),radius,[255,0,255],3)
 
-                cv.ShowImage("red",sa)      
+                cv.ShowImage("red",red_adaptive)      
                 cv.SetMouseCallback("camera feed",mouse_callback,hsv)   
                 '''
                 cv.ShowImage("TEST",test)
@@ -256,7 +256,7 @@ def image_callback(data):
                 cv.ShowImage("YCrCb_Y",ycrcb_y)
                 cv.ShowImage("YCrCb_Cr",ycrcb_cr)
                 cv.ShowImage("YCrCb_Cb",ycrcb_cb)
-                '''     
+                '''
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)

@@ -9,6 +9,7 @@ from uf_common.msg import MoveToAction, MoveToGoal
 from visualization_msgs.msg import Marker,MarkerArray
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header,ColorRGBA
+from sensor_msgs.msg import Image,PointCloud2,PointField
 from geometry_msgs.msg import Pose,Quaternion,Point,PointStamped
 from path_planner.msg import TraverseBuoysAction
 import random,numpy,threading,math,time
@@ -110,20 +111,20 @@ def buoy_callback(msg):
                         waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0],mid_goal[1],0])).position))
                         print 'aligned'
                         print 'going for mid_goal',mid_goal
-                        send_waypoint_wait(mid_goal,0)
+                        #send_waypoint(mid_goal,0)
                         print 'align again'
-                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(point))
+                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(point).asMoveToGoal(speed = .2))
                         print 'open loop'
-                        waypoint.send_goal(current_pose_editor.forward(1).as_MoveToGoal(speed = .4))
+                        #waypoint.send_goal(current_pose_editor.forward(1).as_MoveToGoal(speed = .2))
                         print 'done'
                 elif(green_pos[0]):
                         print 'going to green buoy: ',green_pos[1]
-                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([green_pos[1][0],(green_pos[1][0] + 1),0]))
-                        send_waypoint((green_pos[1][0],green_pos[1][0] + 1),0)
+                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([green_pos[1][0],(green_pos[1][0] - 1),0]))
+                        send_waypoint((green_pos[1][0],green_pos[1][1] + .5),0)
                 elif(red_pos[0]):
                         print 'going to red buoy: ',red_pos[1]
-                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([red_pos[1][0],(red_pos[1][0] - 1),0]))
-                        send_waypoint((red_pos[1][0],red_pos[1][0] - 1),0)
+                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([red_pos[1][0],(red_pos[1][0] + 1),0]))
+                        send_waypoint((red_pos[1][0],red_pos[1][1] - .5),0)
 rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
 
 
@@ -131,6 +132,7 @@ rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
 def pointcloud_callback(msg):
       
         if (running):
+                '''
                 global avoid
                 dist = .5
                 cloud = pointcloud2_to_xyz_array(msg)
@@ -145,7 +147,8 @@ def pointcloud_callback(msg):
                                         else:
                                                 waypoint.send_goal_and_wait(current_pose_editor.right(.2).as_MoveToGoal(speed = .8))          
                                 else:
-                                        avoid = False          
+                                        avoid = False  
+                '''        
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 
 #-----------------------------------------------------------------------------------------
@@ -173,6 +176,7 @@ class TraverseBuoysServer:
  def __init__(self):
         self.server = actionlib.SimpleActionServer('traverse_buoys', TraverseBuoysAction, self.execute, False)
         global running
+        waypoint.cancel_goal()
         running = False
         self.server.start()
         print "path_planner server started"
@@ -190,5 +194,6 @@ class TraverseBuoysServer:
 
 server = TraverseBuoysServer()
 rospy.spin()
+waypoint.cancel_goal()
 
 

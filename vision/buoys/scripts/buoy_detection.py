@@ -198,7 +198,7 @@ def threshold_red(image):
 
 def threshold_green(image):
         #cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
-        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,25)
+        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,25)#25
         cv.Erode(green_adaptive,green_eroded_image,None,2) #9                                                      
         cv.Dilate(green_eroded_image,green_dilated_image,None,6)#27
 
@@ -241,14 +241,14 @@ def image_callback(data):
                 
                 threshold_red(sminh)
                 threshold_green(a_channel)
-                threshold_yellow(blurred_image)
-                threshold_blue(h_channel) 
+                #threshold_yellow(blurred_image)
+                #threshold_blue(h_channel) 
        
                 #cv.ShowImage("test",sminv)
-                cv.ShowImage("red",red_adaptive)
+                cv.ShowImage("red",red_dilated_image)
                 #cv.ShowImage("yellow",yellow_adaptive)
                 #cv.ShowImage("blue",blue_dilated_image)
-                cv.ShowImage("green",green_adaptive)
+                cv.ShowImage("green",green_dilated_image)
 
                 red_contours,_ = cv2.findContours(image=np.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                 green_contours,_ = cv2.findContours(image=np.asarray(green_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
@@ -296,7 +296,7 @@ def action_callback(event):
 #-----------------------------------------------------------------------------------
 def in_frame(x):
         global max_distance,min_distance
-        if (x[0] < 640 and x[0] > 0 and x[1] < 640 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2]) and all(math.fabs(i) > min_distance for i in [x[2][0],x[2][1]])):
+        if (x[0] < 600 and x[0] > 0 and x[1] < 400 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2]) and all(math.fabs(i) > min_distance for i in [x[2][0],x[2][1]])):
                 return True
         else:
                 return False
@@ -345,6 +345,7 @@ class FindBuoysServer:
 
 server = FindBuoysServer()
 rospy.spin()
+
 '''
 
 rospy.Timer(rospy.Duration(.1), buoy_callback)
