@@ -40,7 +40,6 @@
    </rosparam>
    </node>
 
-   <node name="thruster_mapper" pkg="thruster_mapper" type="thruster_mapper" />
 
 </launch>
 
