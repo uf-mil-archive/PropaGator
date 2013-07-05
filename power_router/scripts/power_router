@@ -29,8 +29,8 @@ class PowerRouter(object):
 
 			if (len(splt) == 4):
 
-				motorcurrent = float(splt[0])
-				computercurrent = float(splt[1])
+				computercurrent = float(splt[0])
+				motorcurrent = float(splt[1])
 				temperature = float(splt[2])
 				battery = float(splt[3])
 				return motorcurrent, computercurrent, temperature, battery
