@@ -92,6 +92,14 @@ a_not = cv.CreateImage(IMAGE_SIZE,8,1)
 test = cv.CreateImage(IMAGE_SIZE,8,1)
 final = cv.CreateImage(IMAGE_SIZE,8,1)
 
+rgb_r = cv.CreateImage(IMAGE_SIZE,8,1)
+rgb_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+rgb_b = cv.CreateImage(IMAGE_SIZE,8,1)
+scaled_r = cv.CreateImage(IMAGE_SIZE,8,1)
+scaled_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+scaled_b = cv.CreateImage(IMAGE_SIZE,8,1)
+cv_image = cv.CreateImage(IMAGE_SIZE,8,3)
+
 red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 purple_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
 red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
@@ -179,7 +187,18 @@ def image_callback(data):
         global running,color
         if (running):
                 #print "running"
-                cv_image = bridge.imgmsg_to_cv(data,"bgr8")
+                image = bridge.imgmsg_to_cv(data,"bgr8")
+
+                #normalize image
+                cv.Split(image,rgb_r,rgb_g,rgb_b,None)
+                red_mean = cv2.mean(numpy.asarray(rgb_r[:,:]))
+                cv.Div(src2 = cv.fromarray(numpy.ones((480,640))),src1 = rgb_r,dst = scaled_r, scale = 128/red_mean[0])
+                green_mean = cv2.mean(numpy.asarray(rgb_g[:,:]))
+                cv.Div(src2 = cv.fromarray(numpy.ones((480,640))),src1 = rgb_g,dst = scaled_g, scale = 128/green_mean[0])
+                blue_mean = cv2.mean(numpy.asarray(rgb_b[:,:]))
+                cv.Div(src2 = cv.fromarray(numpy.ones((480,640))),src1 = rgb_b,dst = scaled_b, scale = 128/blue_mean[0])
+                cv.Merge(scaled_r,scaled_g,scaled_b,None,cv_image)
+
 
                 cv.CvtColor(cv_image,hsv,cv.CV_BGR2HSV)
                 cv.CvtColor(cv_image,lab,cv.CV_BGR2Lab)
@@ -232,31 +251,6 @@ def image_callback(data):
                                 cv.Circle(cv_image,(x,y),radius,[255,0,255],3)
 
                 cv.ShowImage("red",red_adaptive)      
-                cv.SetMouseCallback("camera feed",mouse_callback,hsv)   
-                '''
-                cv.ShowImage("TEST",test)
-                cv.ShowImage("HSV_H",hsv_h)
-                cv.ShowImage("HSV_S",hsv_s)
-                cv.ShowImage("HSV_V",hsv_v)
-                cv.ShowImage("LAB_L",lab_l)
-                cv.ShowImage("LAB_A",lab_a)
-                cv.ShowImage("LAB_B",lab_b)
-                cv.ShowImage("RGB_R",rgb_r)
-                cv.ShowImage("RGB_G",rgb_g)
-                cv.ShowImage("RGB_B",rgb_b)
-                cv.ShowImage("LUV_L",luv_l)
-                cv.ShowImage("LUV_U",luv_u)
-                cv.ShowImage("LUV_V",luv_v)
-                cv.ShowImage("HLS_H",hls_h)
-                cv.ShowImage("HLS_L",hls_l)
-                cv.ShowImage("HLS_S",hls_s)
-                cv.ShowImage("XYZ_X",xyz_x)
-                cv.ShowImage("XYZ_Y",xyz_y)
-                cv.ShowImage("XYZ_Z",xyz_z)
-                cv.ShowImage("YCrCb_Y",ycrcb_y)
-                cv.ShowImage("YCrCb_Cr",ycrcb_cr)
-                cv.ShowImage("YCrCb_Cb",ycrcb_cb)
-                '''
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)

@@ -13,7 +13,6 @@
   <depend package="sim"/>
   <depend package="c3_trajectory_generator"/>
   <depend package="uf_common"/>
-  <depend package="buoys"/>
   <depend package="actionlib"/>
   
 

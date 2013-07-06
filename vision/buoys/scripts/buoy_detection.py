@@ -75,6 +75,7 @@ b_channel = cv.CreateImage(IMAGE_SIZE,8,1)
 #sminv = cv.CreateImage(IMAGE_SIZE,8,1)
 #vminh = cv.CreateImage(IMAGE_SIZE,8,1)
 sminh = cv.CreateImage(IMAGE_SIZE,8,1)
+hmina = cv.CreateImage(IMAGE_SIZE,8,1)
 #yellow_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 #red_threshold = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
@@ -96,6 +97,20 @@ yellow_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 blue_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 blue_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
+rgb_r = cv.CreateImage(IMAGE_SIZE,8,1)
+rgb_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+rgb_b = cv.CreateImage(IMAGE_SIZE,8,1)
+scaled_r = cv.CreateImage(IMAGE_SIZE,8,1)
+scaled_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+scaled_b = cv.CreateImage(IMAGE_SIZE,8,1)
+cv_image = cv.CreateImage(IMAGE_SIZE,8,3)
+
+ycrcb = cv.CreateImage(IMAGE_SIZE,8,3)
+ycrcb_y = cv.CreateImage(IMAGE_SIZE,8,1)
+ycrcb_cr = cv.CreateImage(IMAGE_SIZE,8,1)
+ycrcb_cb = cv.CreateImage(IMAGE_SIZE,8,1)
+final = cv.CreateImage(IMAGE_SIZE,8,1)
+
 lock = threading.Lock()
 
 global running,new_buoy,max_distance,master_cloud,min_distance
@@ -104,7 +119,7 @@ master_cloud = []
 max_distance = 6
 min_distance = .2
 new_buoy = False
-running = False
+running = True
 
 
 #-----------------------------------------------------------------------------------
@@ -192,14 +207,14 @@ def extract_circles(contours,rgb):
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,51,-80)  
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,101,-35)  
         cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
-        cv.Dilate(red_eroded_image,red_dilated_image,None,9)    
+        cv.Dilate(red_eroded_image,red_dilated_image,None,7)    
 
 def threshold_green(image):
         #cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
-        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,25)#25
-        cv.Erode(green_adaptive,green_eroded_image,None,2) #9                                                      
+        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,35)#25
+        cv.Erode(green_adaptive,green_eroded_image,None,4) #9                                                      
         cv.Dilate(green_eroded_image,green_dilated_image,None,6)#27
 
 def threshold_yellow(image):
@@ -226,21 +241,36 @@ def image_callback(data):
         #print "running"
         if (running):
                 
-                cv_image = bridge.imgmsg_to_cv(data,"bgr8")
+                image = bridge.imgmsg_to_cv(data,"bgr8")
+
+                #normalize image
+                cv.Split(image,rgb_r,rgb_g,rgb_b,None)
+                red_mean = cv2.mean(np.asarray(rgb_r[:,:]))
+                cv.Div(src2 = cv.fromarray(np.ones((480,640))),src1 = rgb_r,dst = scaled_r, scale = 128/red_mean[0])
+                green_mean = cv2.mean(np.asarray(rgb_g[:,:]))
+                cv.Div(src2 = cv.fromarray(np.ones((480,640))),src1 = rgb_g,dst = scaled_g, scale = 128/green_mean[0])
+                blue_mean = cv2.mean(np.asarray(rgb_b[:,:]))
+                cv.Div(src2 = cv.fromarray(np.ones((480,640))),src1 = rgb_b,dst = scaled_b, scale = 128/blue_mean[0])
+                cv.Merge(scaled_r,scaled_g,scaled_b,None,cv_image)
+
+
                 cv.CvtColor(cv_image,hsv_image,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
                 cv.CvtColor(cv_image,lab_image_,cv.CV_BGR2Lab)
+                cv.CvtColor(cv_image,ycrcb,cv.CV_BGR2YCrCb)  
 
                 cv.Smooth(cv_image,blurred_bgr_image,cv.CV_GAUSSIAN,9,9)  
                 cv.Smooth(hsv_image,blurred_image,cv.CV_GAUSSIAN,5,5)                
                 cv.Split(blurred_image,h_channel,s_channel,v_channel,None) 
                 cv.Split(lab_image_,l_channel,a_channel,b_channel,None)   
+                cv.Split(ycrcb,ycrcb_y,ycrcb_cr,ycrcb_cb,None)
 
                 cv.Sub(s_channel,h_channel,sminh)
-                #v.Sub(v_channel,h_channel,vminh)
+                cv.Sub(s_channel,a_channel,hmina)
+                cv.Sub(ycrcb_cr,hmina,final)
                 #cv.Sub(s_channel,v_channel,sminv) #maybe use for blue            
                 
-                threshold_red(sminh)
-                threshold_green(a_channel)
+                threshold_red(final)
+                threshold_green(final)
                 #threshold_yellow(blurred_image)
                 #threshold_blue(h_channel) 
        

@@ -70,7 +70,7 @@ class GoToWaypointServer:
  def execute(self,goal):
 
         global pos,origin,current_position
-        '''
+   
         ecef = [goal.waypoint.x,goal.waypoint.y,goal.waypoint.z]
         diff = numpy.array(ecef) - numpy.array(pos)
         goal = enu_from_ecef(diff,origin)
@@ -78,9 +78,7 @@ class GoToWaypointServer:
 
         self.waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
         self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
-        '''
-        print goal.waypoint
-        rospy.sleep(10)
+
         self.server.set_succeeded()
                 
 

@@ -82,13 +82,9 @@ def buoy_callback(msg):
                 global current_position
                 red = ColorRGBA(1.0,0,0,1.0)
                 green = ColorRGBA(0,1.0,0,1.0)
-                yellow = ColorRGBA(1.0,1.0,0,1.0)
-                blue = ColorRGBA(0,0,1.0,1.0)
 
                 red_pos = find_closest_buoy(msg,red)
                 green_pos = find_closest_buoy(msg,green)
-                blue_pos = find_closest_buoy(msg,blue)
-                yellow_pos = find_closest_buoy(msg,yellow)
 
                 goal = find_best_pair_center(msg)
                 '''
@@ -105,26 +101,27 @@ def buoy_callback(msg):
                 '''
                 if (goal[0]):
                         point = center_of_points((goal[1][0],goal[1][1]))
-                        mid_goal = point + 1.5*get_perp(goal[1][0],goal[1][1])
+                        mid_goal = point + 1.0*get_perp(goal[1][0],goal[1][1])
+                        print 'goal',goal,'mid_goal',mid_goal
                         print 'going to center of channel', mid_goal
                 
-                        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0],mid_goal[1],0])).position))
+                        waypoint.send_goal(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0],mid_goal[1],0])).position))
                         print 'aligned'
                         print 'going for mid_goal',mid_goal
-                        #send_waypoint(mid_goal,0)
+                        send_waypoint(mid_goal,0)
                         print 'align again'
-                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(point).asMoveToGoal(speed = .2))
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(point))
                         print 'open loop'
-                        #waypoint.send_goal(current_pose_editor.forward(1).as_MoveToGoal(speed = .2))
+                        waypoint.send_goal(current_pose_editor.forward(1).as_MoveToGoal(speed = .2))
                         print 'done'
                 elif(green_pos[0]):
                         print 'going to green buoy: ',green_pos[1]
                         #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([green_pos[1][0],(green_pos[1][0] - 1),0]))
-                        send_waypoint((green_pos[1][0],green_pos[1][1] + .5),0)
+                        send_waypoint((green_pos[1][0],green_pos[1][1] - .5),0)
                 elif(red_pos[0]):
                         print 'going to red buoy: ',red_pos[1]
                         #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([red_pos[1][0],(red_pos[1][0] + 1),0]))
-                        send_waypoint((red_pos[1][0],red_pos[1][1] - .5),0)
+                        send_waypoint((red_pos[1][0],red_pos[1][1] + .5),0)
 rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
 
 

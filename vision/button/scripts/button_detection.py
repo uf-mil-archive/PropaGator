@@ -106,6 +106,14 @@ a_not = cv.CreateImage(IMAGE_SIZE,8,1)
 test = cv.CreateImage(IMAGE_SIZE,8,1)
 final = cv.CreateImage(IMAGE_SIZE,8,1)
 
+rgb_r = cv.CreateImage(IMAGE_SIZE,8,1)
+rgb_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+rgb_b = cv.CreateImage(IMAGE_SIZE,8,1)
+scaled_r = cv.CreateImage(IMAGE_SIZE,8,1)
+scaled_g = cv.CreateImage(IMAGE_SIZE,8,1)  
+scaled_b = cv.CreateImage(IMAGE_SIZE,8,1)
+cv_image = cv.CreateImage(IMAGE_SIZE,8,3)
+
 sminh = cv.CreateImage(IMAGE_SIZE,8,1)
 blurred_bgr_image = cv.CreateImage(IMAGE_SIZE,8,3)
 
@@ -176,8 +184,8 @@ def adjust_carrot(x,y,area):
                 waypoint.send_goal_and_wait(current_pose_editor.backward(5))
                 rammed = True
 
-def extract_circles(contours,rgb):
-        global current_pose_editor        
+def extract_circles(contours,rgb,pos):
+        global current_pose_editor,side     
         circles = []
         for i in contours:
                 moments = cv.Moments(cv.fromarray(i), binary = 1)             
@@ -189,7 +197,10 @@ def extract_circles(contours,rgb):
                         radius = int(math.sqrt(area/math.pi))
                         circles.append((x,y,int(radius*1.5))) 
                         if (y > 100):
-                                adjust_carrot(x,y,area)                             #use just visual servo
+                                if (side == 'left' and x < 420):
+                                        adjust_carrot(x,y,area)                             #use just visual servo
+                                elif(side == 'right' and x > 420):
+                                        adjust_carrot(x,y,area)                             #use just visual servo
                         '''
                         point = check_lidar((x,y),radius)               #use if you want to use lidar to confirm waypoint
                         if (point[0]):
@@ -220,6 +231,17 @@ def image_callback(data):
         global running       
         if (running):
                 cv_image = bridge.imgmsg_to_cv(data,"bgr8")
+
+                #normalize image
+                cv.Split(image,rgb_r,rgb_g,rgb_b,None)
+                red_mean = cv2.mean(np.asarray(rgb_r[:,:]))
+                cv.Div(src2 = cv.fromarray(np.ones((480,640))),src1 = rgb_r,dst = scaled_r, scale = 128/red_mean[0])
+                green_mean = cv2.mean(np.asarray(rgb_g[:,:]))
+                cv.Div(src2 = cv.fromarray(np.ones((480,640))),src1 = rgb_g,dst = scaled_g, scale = 128/green_mean[0])
+                blue_mean = cv2.mean(np.asarray(rgb_b[:,:]))
+                cv.Div(src2 = cv.fromarray(np.ones((480,640))),src1 = rgb_b,dst = scaled_b, scale = 128/blue_mean[0])
+                cv.Merge(scaled_r,scaled_g,scaled_b,None,cv_image)
+
                 cv.CvtColor(cv_image,hsv,cv.CV_BGR2HSV)                         # --convert from BGR to HSV
                 cv.CvtColor(cv_image,lab,cv.CV_BGR2Lab)
 
@@ -265,7 +287,6 @@ def pointcloud_callback(msg):
                 lock.acquire()
                 global master_cloud
                 cloud = pointcloud2_to_xyz_array(msg)
-                #print len(cloud)
                 if (len(cloud) > 0):
                         cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
                         projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
