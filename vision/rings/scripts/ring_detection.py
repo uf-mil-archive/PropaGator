@@ -159,7 +159,7 @@ def threshold_purple(image):
 
 def threshold_red(image):
         #bright cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-30)
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-15)
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-14)
         cv.Erode(red_adaptive,red_eroded_image,None,1)
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
 

@@ -19,7 +19,7 @@ from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 
 rospy.init_node('buoy_repulsor')
 global current_position,channel_width,end_position,ecef_position,avoid
-channel_width = 8
+channel_width = 3
 avoid = False
 current_position = [0,0]
 end_position = [0,0,0]
@@ -101,27 +101,29 @@ def buoy_callback(msg):
                 '''
                 if (goal[0]):
                         point = center_of_points((goal[1][0],goal[1][1]))
-                        mid_goal = point + 1.0*get_perp(goal[1][0],goal[1][1])
+                        mid_goal = point + .5*get_perp(goal[1][0],goal[1][1])
                         print 'goal',goal,'mid_goal',mid_goal
                         print 'going to center of channel', mid_goal
                 
-                        waypoint.send_goal(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0],mid_goal[1],0])).position))
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(current_pose_editor.relative(numpy.array([mid_goal[0],mid_goal[1],0])).position))
                         print 'aligned'
                         print 'going for mid_goal',mid_goal
-                        send_waypoint(mid_goal,0)
+                        send_waypoint_wait(mid_goal,0)
                         print 'align again'
-                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching(point))
+                        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([point[0],point[1],0]))
                         print 'open loop'
                         waypoint.send_goal(current_pose_editor.forward(1).as_MoveToGoal(speed = .2))
                         print 'done'
                 elif(green_pos[0]):
                         print 'going to green buoy: ',green_pos[1]
-                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([green_pos[1][0],(green_pos[1][0] - 1),0]))
+                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([green_pos[1][0],(green_pos[1][0] - .5),0]))
                         send_waypoint((green_pos[1][0],green_pos[1][1] - .5),0)
+                        rospy.sleep(1)
                 elif(red_pos[0]):
                         print 'going to red buoy: ',red_pos[1]
-                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_rel_without_pitching([red_pos[1][0],(red_pos[1][0] + 1),0]))
+                        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([red_pos[1][0],(red_pos[1][0] + .5),0]))
                         send_waypoint((red_pos[1][0],red_pos[1][1] + .5),0)
+                        rospy.sleep(1)
 rospy.Subscriber('buoy_markers',MarkerArray,buoy_callback)
 
 
@@ -180,7 +182,8 @@ class TraverseBuoysServer:
 
  def execute(self,goal):
         global running
-        while ((numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) > 5) and not(self.server.is_preempt_requested())):
+        #(numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) > 5) and
+        while ( not(self.server.is_preempt_requested())):
              running = True
         running = False
 

@@ -160,7 +160,7 @@ def check_lidar((x,y),radius):
         else:
                 return (False,[0,0,0])
 
-desired = [380,1500] #x position,area
+desired = [360,1500] #x position,area
 def adjust_carrot(x,y,area):
         global rammed
         err = (desired[0]-x)
@@ -184,7 +184,7 @@ def adjust_carrot(x,y,area):
                 waypoint.send_goal_and_wait(current_pose_editor.backward(5))
                 rammed = True
 
-def extract_circles(contours,rgb,pos):
+def extract_circles(contours,rgb):
         global current_pose_editor,side     
         circles = []
         for i in contours:
@@ -197,6 +197,7 @@ def extract_circles(contours,rgb,pos):
                         radius = int(math.sqrt(area/math.pi))
                         circles.append((x,y,int(radius*1.5))) 
                         if (y > 100):
+                                adjust_carrot(x,y,area)
                                 if (side == 'left' and x < 420):
                                         adjust_carrot(x,y,area)                             #use just visual servo
                                 elif(side == 'right' and x > 420):
@@ -230,7 +231,7 @@ def image_callback(data):
         
         global running       
         if (running):
-                cv_image = bridge.imgmsg_to_cv(data,"bgr8")
+                image = bridge.imgmsg_to_cv(data,"bgr8")
 
                 #normalize image
                 cv.Split(image,rgb_r,rgb_g,rgb_b,None)
