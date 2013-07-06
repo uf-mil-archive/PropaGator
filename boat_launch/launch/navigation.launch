@@ -65,5 +65,8 @@ shift: [9.739891887866563e-06, 1.1806817027430028e-06, -9.089265368551549e-06]
     <remap from="orig_odom" to="imu_odom"/>
   </node>
   <node pkg="odometry_utils" type="odometry_to_tf" name="odometry_to_tf"/>
+  <node pkg="power_router" type="power_router" name="power_router">
+	<param name="port" value="/dev/ttyPowerRouter"/>
+  </node>
 
 </launch>

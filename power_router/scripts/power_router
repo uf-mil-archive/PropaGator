@@ -28,12 +28,14 @@ class PowerRouter(object):
 			splt = string.split(",")
 
 			if (len(splt) == 4):
-
-				computercurrent = float(splt[0])
-				motorcurrent = float(splt[1])
-				temperature = float(splt[2])
-				battery = float(splt[3])
-				return motorcurrent, computercurrent, temperature, battery
+				try:
+					computercurrent = float(splt[0])
+					motorcurrent = float(splt[1])
+					temperature = float(splt[2])
+					battery = float(splt[3])
+					return motorcurrent, computercurrent, temperature, battery
+				except ValueError:
+					print "bad_data"
     
 
 ad = PowerRouter(rospy.get_param('~port'))
