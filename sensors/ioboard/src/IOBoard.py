@@ -19,31 +19,37 @@ class IOBoard():
                         data = self.commport.read(1)
                         if (data == 's' or data == 'S'):
                                 self.shooting = False
-                                return True
+                                return [True,False]
+                        elif(data == 'E'):
+                                return [False,True]
                         else:
-                                return False
+                                return [False,False]
                 else:
-                        return True
+                        return [True,False]
 
         def read_temp(self):
                 self.commport.write('T')
                 self.reading_temp = True
-                #while (not(self.commport.inWaiting() > 0)):{}
-                #return str(self.commport.readline())
 
         def temp_status(self):
                 if (self.reading_temp == True):
                         if (self.commport.inWaiting() > 0):
                                 self.reading_temp = False
-                                return str(self.commport.readline())
+                                return [str(self.commport.readline()),False]
+                        elif(data == 'E'):
+                                return [False,True]
                         else:
-                                return False
+                                return [False,False]
                 else:
-                        return False
+                        return [False,False]
        
 
         def check_kill(self):
-                return self.commport.read(1)
+                data = self.commport.read(1)
+                if (data == 'E'):
+                        return True
+                else:
+                        return False
 
         def close(self):
                 self.commport.close()
