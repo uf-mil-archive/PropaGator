@@ -14,9 +14,9 @@ from gps_waypoints.msg import GoToWaypointAction,GoToWaypointGoal
 from rawgps_common.gps import ecef_from_latlongheight,enu_from_ecef
 
 runTime = 20 #minutes
-ringsTimeout = 20
+ringsTimeout = 20000
 buoysTimeout = 10
-buttonTimeout = 10
+buttonTimeout = 100000
 
 class sleep(smach.State):
    def __init__(self,sleep_time):
@@ -108,7 +108,7 @@ def main():
   sm = smach.StateMachine(outcomes = ['succeeded','aborted','preempted'])
   with sm:
           
-          smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRingsRed'})
+          #smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRingsRed'})
 
           rings_pos_goal = GoToWaypointGoal()
           ring_pos = read_task_pos('rings')
@@ -118,8 +118,8 @@ def main():
                                           goal=rings_pos_goal),
                                           transitions={'succeeded':'RingsRed'})
 
-          smach.StateMachine.add('RingsRed', rings_concurrence_red, transitions={'rings_done':'GoToRingsPurple'})
-
+          smach.StateMachine.add('RingsRed', rings_concurrence_red, transitions={'rings_done':'GoToButton'})
+          '''
           rings_pos_goal = GoToWaypointGoal()
           ring_pos = read_task_pos('rings')
           rings_pos_goal.waypoint = Point(x = ring_pos[0],y = ring_pos[1],z = ring_pos[2])
@@ -129,7 +129,7 @@ def main():
                                           transitions={'succeeded':'RingsPurple'})
 
           smach.StateMachine.add('RingsPurple', rings_concurrence_purple, transitions={'rings_done':'GoToButton'})
-
+          '''
           button_pos_goal = GoToWaypointGoal()
           button_pos = read_task_pos('button')
           button_pos_goal.waypoint = Point(x = button_pos[0],y = button_pos[1],z = button_pos[2])
@@ -138,8 +138,8 @@ def main():
                                           goal=button_pos_goal),
                                           transitions={'succeeded':'Button'})
 
-          smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'GoToSpock'})
-
+          smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'GoToRingsRed'})
+          '''
           spock_pos_goal = GoToWaypointGoal()
           spock_pos = read_task_pos('spock')
           spock_pos_goal.waypoint = Point(x = spock_pos[0],y = spock_pos[1],z = spock_pos[2])
@@ -149,7 +149,7 @@ def main():
                                           transitions={'succeeded':'Spock'})
 
           smach.StateMachine.add('Spock',sleep(2),transitions={'succeeded':'Buoys','aborted':'Buoys'})
-  
+          '''
 
   sis = smach_ros.IntrospectionServer('mission_planner', sm, '/MISSIONS')
   sis.start()

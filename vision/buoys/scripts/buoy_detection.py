@@ -116,8 +116,8 @@ lock = threading.Lock()
 global running,new_buoy,max_distance,master_cloud,min_distance
 
 master_cloud = []
-max_distance = 6
-min_distance = .2
+max_distance = 7
+min_distance = .4
 new_buoy = False
 running = True
 
@@ -207,14 +207,14 @@ def extract_circles(contours,rgb):
 
 #-----------------------------------------------------------------------------------
 def threshold_red(image):
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,101,-35)  
-        cv.Erode(red_adaptive,red_eroded_image,None,5)                                                                
+        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,101,-30)  
+        cv.Erode(red_adaptive,red_eroded_image,None,4)                                                                
         cv.Dilate(red_eroded_image,red_dilated_image,None,7)    
 
 def threshold_green(image):
         #cv.InRange(blurred_image,GREEN_MIN,GREEN_MAX,green_adaptive)
-        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,35)#25
-        cv.Erode(green_adaptive,green_eroded_image,None,4) #9                                                      
+        cv.AdaptiveThreshold(image,green_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,101,40)#25
+        cv.Erode(green_adaptive,green_eroded_image,None,5) #9                                                      
         cv.Dilate(green_eroded_image,green_dilated_image,None,6)#27
 
 def threshold_yellow(image):
@@ -326,7 +326,7 @@ def action_callback(event):
 #-----------------------------------------------------------------------------------
 def in_frame(x):
         global max_distance,min_distance
-        if (x[0] < 600 and x[0] > 0 and x[1] < 400 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2]) and all(math.fabs(i) > min_distance for i in [x[2][0],x[2][1]])):
+        if (x[0] < 640 and x[0] > 0 and x[1] < 480 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2]) and all(math.fabs(i) > min_distance for i in [x[2][0],x[2][1]])):
                 return True
         else:
                 return False

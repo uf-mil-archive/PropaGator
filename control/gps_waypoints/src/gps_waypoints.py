@@ -15,7 +15,7 @@ from uf_common.msg import MoveToAction, MoveToGoal
 from gps_waypoints.msg import GoToWaypointAction
 rospy.init_node('gps_waypoints')
 
-
+waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 
 #waypoint.wait_for_server()
 
@@ -23,7 +23,6 @@ global pos,origin
 pos = [0,0,0]
 origin = [0,0,0]
 
-'''
 def waypoint_ecef_callback(msg):
         global pos,origin,current_position
 
@@ -38,10 +37,10 @@ def waypoint_ecef_callback(msg):
         #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([goal[0], goal[1], 0])).as_MoveToGoal(speed = .8))
 
         final_goal = current_position + goal        
-        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
+        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
         waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
 rospy.Subscriber('/gps_ecef_waypoint',PointStamped,waypoint_ecef_callback)
-'''
+
 
 def pos_callback(msg):
         global pos,origin
