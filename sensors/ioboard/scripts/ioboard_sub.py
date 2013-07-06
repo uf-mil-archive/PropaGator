@@ -9,7 +9,16 @@ from ioboard.msg import IOBoardAction,IOBoardActionResult
 
 rospy.init_node('motor_driver')
 
+global running = False
+ioboard = IOBoard.IOBoard('IOBoard')
 
+def kill_check(event):
+        global running
+        if (not(running)):
+                if (ioboard.check_kill()):
+                        #kill
+                
+rospy.Timer(rospy.Duration(.2),kill_check)
 
 
 class IOBoardServer:
@@ -17,17 +26,19 @@ class IOBoardServer:
  def __init__(self):
         self.server = actionlib.SimpleActionServer('ioboard_command', IOBoardAction, self.execute, False)
         self._result = IOBoardActionResult
-        self.ioboard = IOBoard.IOBoard('IOBoard')
+        
         self.server.start()
         print "IO board server started"
 
  def execute(self,goal):
      done = False
-
+     global running 
      if (goal.command == 'Shoot3'):
+        running = True
         while (not(self.server.is_preempt_requested()) and not(done)):
-                self.ioboard.shoot(3)
-                while (not(self.ioboard.shoot_status())):{}     
+                ioboard.shoot(3)
+                while (not(ioboard.shoot_status()[0])):
+                            
                 done = True
         if (done):
                 self.server.set_succeeded()
@@ -36,9 +47,10 @@ class IOBoardServer:
                 self.server.set_preempted() 
 
      elif (goal.command == 'Shoot2'):
+        running = True
         while (not(self.server.is_preempt_requested()) and not(done)):
-                self.ioboard.shoot(2)
-                while (not(self.ioboard.shoot_status())):{}   
+                ioboard.shoot(2)
+                while (not(ioboard.shoot_status())):{}   
                 done = True
         if (done):
                 self.server.set_succeeded()
@@ -47,21 +59,16 @@ class IOBoardServer:
                 self.server.set_preempted() 
 
      elif (goal.command == 'Temp'):
-        self.ioboard.read_temp()
+        ioboard.read_temp()
+        running = True
         while (not(self.server.is_preempt_requested()) and not(done)):
-                check = self.ioboard.temp_status()
+                check = ioboard.temp_status()
                 if(check):
                         self._result.temp = check
                         done = True
-        self.server.set_succeeded(self._result) 
+        self.server.set_succeeded(self._result)
 
-     elif (goal.command == 'Kill'):
-        #send kill to power router
-        print 'killing'
-        self.server.set_succeeded()
-
-     else:
-        self.server.set_aborted() 
+     running = False 
 
 server = IOBoardServer()
 rospy.spin()
