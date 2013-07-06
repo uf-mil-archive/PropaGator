@@ -1,0 +1,19 @@
+<package>
+  <description brief="quad">
+
+     quad
+
+  </description>
+  <author>Navid Shahrestani</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/quad</url>
+  <depend package="rospy"/>
+  <depend package="std_msgs"/>
+  <depend package="uf_common"/>
+  <depend package="rawgps_common"/>
+  <depend package="actionlib"/>
+
+</package>
+
+
