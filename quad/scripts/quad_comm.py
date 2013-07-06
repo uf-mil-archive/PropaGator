@@ -13,7 +13,6 @@ from quad.msg import LaunchQuadAction
 rospy.init_node('quad')
 
 
-
 def pos_callback(msg):  
         global pos      
         pos = [msg.point.x,msg.point.y,msg.point.z]
@@ -32,17 +31,23 @@ class LaunchQuadServer:
 
         dock = [goal.lat,goal.long,goal.alt]
         done = False
-        self.xbee.send_start(dock)
+        puck_done = False
+        
+        self.xbee.send_start(dock)                                            #send start to quad followed by gps location of dock
 
-        while (not(self.server.is_preempt_requested()) and not(done)):
-                 done = self.xbee.check_done()  
+        while (not(self.server.is_preempt_requested()) and not(puck_done)):   
+                 puck_done = self.xbee.check_puck_status()                    #check to see if quad got puck
 
-        if (done == False):
-                self.xbee.timeout()
+        self.xbee.send_pos(pos)                                               #send boat position to quad
+            
+        while (not(self.server.is_preempt_requested()) and not(done)):        #wait for quad to signal it is finished
+                 done = self.xbee.check_done()                       
+                              
+
+        if (done == False):                                                   #means action was pre-empted by state machine, will tell quad that mission timed out
+                self.xbee.timeout()  
                 self.server.set_preempted() 
-        else:
-                self.xbee.send_pos(pos)
-                done = True
+        else:                                                                 #success was reported by quad, will send
                 self.server.set_succeeded()
         
 
