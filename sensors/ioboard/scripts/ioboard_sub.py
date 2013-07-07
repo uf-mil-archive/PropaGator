@@ -10,15 +10,9 @@ from ioboard.msg import IOBoardAction,IOBoardActionResult
 rospy.init_node('motor_driver')
 
 global running = False
-ioboard = IOBoard.IOBoard('IOBoard')
 
-def kill_check(event):
-        global running
-        if (not(running)):
-                if (ioboard.check_kill()):
-                        #kill
-                
-rospy.Timer(rospy.Duration(.2),kill_check)
+
+
 
 
 class IOBoardServer:
@@ -26,7 +20,8 @@ class IOBoardServer:
  def __init__(self):
         self.server = actionlib.SimpleActionServer('ioboard_command', IOBoardAction, self.execute, False)
         self._result = IOBoardActionResult
-        
+        self.ioboard = IOBoard.IOBoard('IOBoard')
+        self.killservice = rospy.ServiceProxy('/power_router/setkill', SetKill)
         self.server.start()
         print "IO board server started"
 
@@ -36,9 +31,12 @@ class IOBoardServer:
      if (goal.command == 'Shoot3'):
         running = True
         while (not(self.server.is_preempt_requested()) and not(done)):
-                ioboard.shoot(3)
-                while (not(ioboard.shoot_status()[0])):
-                            
+                self.ioboard.shoot(3)
+                check = self.ioboard.check_port()
+                while (check != 'S'):
+                        if (check == 'E'):
+                           self.killservice(True)
+                        check = self.ioboard.check_port()           
                 done = True
         if (done):
                 self.server.set_succeeded()
@@ -49,25 +47,34 @@ class IOBoardServer:
      elif (goal.command == 'Shoot2'):
         running = True
         while (not(self.server.is_preempt_requested()) and not(done)):
-                ioboard.shoot(2)
-                while (not(ioboard.shoot_status())):{}   
+                self.ioboard.shoot(3)
+                check = self.ioboard.check_port()
+                while (check != 's'):
+                        if (check == 'E'):
+                           self.killservice(True)
+                        check = self.ioboard.check_port()           
                 done = True
         if (done):
                 self.server.set_succeeded()
         else:
                 done = True
-                self.server.set_preempted() 
-
+                self.server.set_preempted()
      elif (goal.command == 'Temp'):
-        ioboard.read_temp()
+        self.ioboard.read_temp()
         running = True
         while (not(self.server.is_preempt_requested()) and not(done)):
-                check = ioboard.temp_status()
-                if(check):
-                        self._result.temp = check
-                        done = True
-        self.server.set_succeeded(self._result)
-
+                check = self.ioboard.check_port()
+                while (check == [] or check == 'E'):
+                        if (check == 'E'):
+                           self.killservice(True)
+                        check = self.ioboard.check_port()           
+                done = True
+        if (done):
+                self._result.temp = check
+                self.server.set_succeeded(self._result)
+        else:
+                done = True
+                self.server.set_preempted()
      running = False 
 
 server = IOBoardServer()

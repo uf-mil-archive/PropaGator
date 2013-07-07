@@ -5,7 +5,7 @@ class IOBoard():
 		self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
                 self.shooting = False
                 self.reading_temp = False
-
+        
 	def shoot(self,shots):
                 if (shots == 2):
                         self.shooting = True
@@ -44,12 +44,8 @@ class IOBoard():
                         return [False,False]
        
 
-        def check_kill(self):
-                data = self.commport.read(1)
-                if (data == 'E'):
-                        return True
-                else:
-                        return False
+        def check_port(self):
+                return self.commport.readline()
 
         def close(self):
                 self.commport.close()
