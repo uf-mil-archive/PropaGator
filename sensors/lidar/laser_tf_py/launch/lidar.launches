@@ -1,0 +1,11 @@
+<launch>
+	<node pkg="LMS1xx" name="LIDAR" type="LMS100">
+	</node>
+
+	<node pkg="laser_tf_py" name="laser_tf" type="laser_tf_broadcaster.py">
+	</node>
+
+	<node pkg="pointcloud_publisher" name="pointcloud_publisher" type="pointcloud_publisher">
+	</node>
+
+</launch>

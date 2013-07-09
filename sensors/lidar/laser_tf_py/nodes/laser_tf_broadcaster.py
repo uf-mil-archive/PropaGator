@@ -9,7 +9,7 @@ import tf
 import numpy
 import select
 from std_msgs.msg import Bool
-from laser_tf_py.msg import ScanAngle,FindButtonAction
+from laser_tf_py.msg import ScanAngle,SweepLidarAction
 import actionlib
 
 ##########################
@@ -171,14 +171,15 @@ ser.write("l"+str(min_start)+"\r")
 msg = ser.readline()
 
 while not "l"+str(min_start) in msg:
-        rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_start))
+	print "!!!!"        
+	rospy.logwarn("Retrying to send min angle. Got "+msg+" not "+"l"+str(min_start))
         ser.write("l"+str(min_start)+"\r")
         msg = ser.readline()
         rospy.logdebug("Min angle updated to "+str(min_start))
 
-        ser.flushInput()
-        ser.write("h"+str(max_start)+"\r")
-        msg = ser.readline()
+ser.flushInput()
+ser.write("h"+str(max_start)+"\r")
+msg = ser.readline()
 while not "h"+str(max_start) in msg:
         rospy.logwarn("Retrying to send max angle. Got "+msg+" not "+"h"+str(min_start))
         ser.write("h"+str(max_start)+"\r")
