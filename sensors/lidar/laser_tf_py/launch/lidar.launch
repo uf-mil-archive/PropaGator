@@ -10,7 +10,6 @@
       
 	<node pkg="tf" type="static_transform_publisher" name="base_link_to_camera" args=" .812 .228 .1524 .5 -.5 .5 -.5 /base_link /bluefox 100"/>
 
-	<include file="$(find mv_bluefox_driver)/launch/camera_node.launch"/>	
 	<!-->
 	<node pkg="lidar_object_publisher" name="euclidean_buoy_extractor" type="euclidean_buoy_extractor">
 	</node>

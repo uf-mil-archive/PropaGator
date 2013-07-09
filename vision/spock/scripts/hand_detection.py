@@ -69,6 +69,7 @@ ycrcb_cb = cv.CreateImage(IMAGE_SIZE,8,1)
 sa = cv.CreateImage(IMAGE_SIZE,8,1)
 a_not = cv.CreateImage(IMAGE_SIZE,8,1)
 s_not = cv.CreateImage(IMAGE_SIZE,8,1)
+hl_not = cv.CreateImage(IMAGE_SIZE,8,1)
 
 final = cv.CreateImage(IMAGE_SIZE,8,1)
 test = cv.CreateImage(IMAGE_SIZE,8,1)
@@ -111,9 +112,9 @@ purple_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
 #----------------------------------------------------------------------------------- 
 def threshold_paper(image):
-        cv.AdaptiveThreshold(image,paper_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-6)
+        cv.AdaptiveThreshold(image,paper_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,203,15)
         cv.Mul(paper_adaptive,hls_s,paper)
-        cv.Erode(paper_adaptive,paper_eroded,None,1)
+        cv.Erode(paper_adaptive,paper_eroded,None,3)
         cv.Dilate(paper_eroded,paper_dilated,None,4)
 
 def threshold_lizard(image):
@@ -133,7 +134,7 @@ def threshold_scissors(image):
         cv.Dilate(scissors_eroded,scissors_dilated,None,6)
 
 def threshold_rock(image):
-        cv.AdaptiveThreshold(image,rock_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,203,-116)
+        cv.AdaptiveThreshold(image,rock_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,203,-46)
         cv.Erode(rock_adaptive,rock_eroded,None,3)
         cv.Dilate(rock_eroded,rock_dilated,None,6)
  
@@ -187,42 +188,43 @@ def image_callback(data):
         #cv.Not(lab_a,a_not)
         #cv.Sub(hsv_s,a_not,sa)
         cv.Not(hsv_s,s_not)
+        cv.Not(hls_h,rock)
         
         #cv.Sub(hsv_s,hsv_h,rock)
         #cv.Sub(rock,hls_h,test)        #MAYBE LIZARD
 
-        cv.Sub(ycrcb_cr,hsv_h,rock)
+        #cv.Sub(ycrcb_cr,hsv_h,rock)
 
         cv.Sub(luv_u,hls_h,scissors)
         cv.Sub(luv_v,luv_u,lizard)
                      
        
-        threshold_scissors(hls_h)
-        threshold_lizard(lizard)
-        threshold_spock(hls_s)
-        threshold_paper(hls_s)
-        threshold_rock(hls_s)
+        threshold_scissors(hls_h)     #works
+        threshold_lizard(lizard)      #finnicky (gets confused with paper)
+        threshold_spock(hls_s)        #works (noisy)
+        threshold_paper(ycrcb_cb)
+        threshold_rock(hls_s)         #not working
         
-        '''
+        
         cv.ShowImage("paper",paper_dilated)
-        cv.ShowImage("lizard",lizard_dilated)
-        cv.ShowImage("scissors",scissors_dilated)      
-        '''
-        cv.ShowImage("spock",spock_dilated)
-        cv.ShowImage("rock",rock_dilated)
+        #cv.ShowImage("lizard",lizard_dilated)
+        #cv.ShowImage("scissors",scissors_dilated)      
+        #cv.ShowImage("spock",spock_dilated)
+        #cv.ShowImage("rock",rock)
 
         #threshold_red(ycrcb_cr)     
         scissors_contours,_ = cv2.findContours(image=numpy.asarray(scissors_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
         lizard_contours,_ = cv2.findContours(image=numpy.asarray(lizard_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         spock_contours,_ = cv2.findContours(image=numpy.asarray(spock_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
         rock_contours,_ = cv2.findContours(image=numpy.asarray(rock_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
-        paper_contours,_ = cv2.findContours(image=numpy.asarray(paper_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
+        paper_contours,_ = cv2.findContours(image=numpy.asarray(paper[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
        
         
         find_squares(scissors_contours,"scissors")
         find_squares(lizard_contours,"lizard")
         find_squares(spock_contours,"spock")
-  
+        find_squares(paper_contours,"paper")
+        '''
         cv.ShowImage("HSV_H",hsv_h)
         cv.ShowImage("HSV_S",hsv_s)
         cv.ShowImage("HSV_V",hsv_v)
@@ -241,7 +243,7 @@ def image_callback(data):
         cv.ShowImage("YCrCb_Y",ycrcb_y)
         cv.ShowImage("YCrCb_Cr",ycrcb_cr)
         cv.ShowImage("YCrCb_Cb",ycrcb_cb)
-       
+        '''
         cv.ShowImage("normalized",cv_image)
         cv.WaitKey(3)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
