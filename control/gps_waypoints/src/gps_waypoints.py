@@ -37,7 +37,7 @@ def waypoint_ecef_callback(msg):
         #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([goal[0], goal[1], 0])).as_MoveToGoal(speed = .8))
 
         final_goal = current_position + goal        
-        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
+        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
         waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
 rospy.Subscriber('/gps_ecef_waypoint',PointStamped,waypoint_ecef_callback)
 
