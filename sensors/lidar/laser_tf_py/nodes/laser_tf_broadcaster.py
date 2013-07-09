@@ -31,8 +31,8 @@ global IN_CALLBACK
 IN_CALLBACK = False
 
 #initial sweeping range
-min_start = 15	#40
-max_start =0
+min_start = 10	#40
+max_start =-10
 	#-10
 
 #calibration points for angles
