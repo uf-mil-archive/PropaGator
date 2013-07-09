@@ -10,13 +10,20 @@ from rings.msg import ShootRingsAction,ShootRingsGoal
 from path_planner.msg import TraverseBuoysAction,TraverseBuoysGoal
 from buoys.msg import FindBuoysAction,FindBuoysGoal
 from button.msg import FindButtonAction,FindButtonGoal
+from quad.msg import LaunchQuadAction,LaunchQuadGoal
 from gps_waypoints.msg import GoToWaypointAction,GoToWaypointGoal
 from rawgps_common.gps import ecef_from_latlongheight,enu_from_ecef
 
 runTime = 20 #minutes
-ringsTimeout = 20000
-buoysTimeout = 10
-buttonTimeout = 100000
+ringsTimeout = (5.0/20)*runtime*60
+buoysTimeout = (3.0/20)*runtime*60
+buttonTimeout = (5.0/20)*runtime*60
+quadTimeout = (4.0/20)*runtime*60
+
+print "buoys timeout: ",buoysTimeout
+print "rings timeout: ",ringsTimeout
+print "button timeout: ",buttonTimeout
+print "quad timeout: ",quadTimeout
 
 class sleep(smach.State):
    def __init__(self,sleep_time):
@@ -102,6 +109,23 @@ def main():
                                  
           smach.Concurrence.add('ButtonTimeout',sleep(buttonTimeout))
 
+#QUAD--------------------------------------------------------------------------------------------------
+  quad_goal = LaunchQuadGoal
+  quad_goal_coord = read_dock_pos('quad')
+  quad_goal.lat = quad_goal_coord[0]
+  quad_goal.long = quad_goal_coord[1]
+  quad_goal.alt = quad_goal_coord[2]
+  quad_concurrence = smach.Concurrence(outcomes=['quad_done'],
+                                          default_outcome = 'quad_done',
+                                          child_termination_cb = lambda outcome_map : True,
+                                          outcome_cb = lambda outcome_map : 'quad_done')
+  with button_concurrence:
+          smach.Concurrence.add('QuadTask', SimpleActionState('launch_quad',
+                                          LaunchQuadAction,
+                                          goal=quad_goal))
+                                 
+          smach.Concurrence.add('QuadTimeout',sleep(quadTimeout))
+
 
 #-------------------------------------------------------------------------------------------------------
 
@@ -140,6 +164,19 @@ def main():
 
           smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'GoToRingsRed'})
           '''
+          quad_pos_goal = GoToWaypointGoal()
+          quad_pos = read_task_pos('quad')
+          quad_pos_goal.waypoint = Point(x = quad_pos[0],y = quad_pos[1],z = quad_pos[2])
+          smach.StateMachine.add('GoToQuad', SimpleActionState('go_waypoint',
+                                         GoToWaypointAction,
+                                          goal=quad_pos_goal),
+                                          transitions={'succeeded':'Quad'})
+
+           smach.StateMachine.add('Quad', quad_concurrence, transitions={'quad_done':'GoToSpock'})
+
+
+
+
           spock_pos_goal = GoToWaypointGoal()
           spock_pos = read_task_pos('spock')
           spock_pos_goal.waypoint = Point(x = spock_pos[0],y = spock_pos[1],z = spock_pos[2])

@@ -68,36 +68,88 @@ ycrcb_cb = cv.CreateImage(IMAGE_SIZE,8,1)
 
 sa = cv.CreateImage(IMAGE_SIZE,8,1)
 a_not = cv.CreateImage(IMAGE_SIZE,8,1)
-test = cv.CreateImage(IMAGE_SIZE,8,1)
+s_not = cv.CreateImage(IMAGE_SIZE,8,1)
+
 final = cv.CreateImage(IMAGE_SIZE,8,1)
+test = cv.CreateImage(IMAGE_SIZE,8,1)
 
 scaled_r = cv.CreateImage(IMAGE_SIZE,8,1)
 scaled_g = cv.CreateImage(IMAGE_SIZE,8,1)  
 scaled_b = cv.CreateImage(IMAGE_SIZE,8,1)
 
-red_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+scissors = cv.CreateImage(IMAGE_SIZE,8,1)
+lizard = cv.CreateImage(IMAGE_SIZE,8,1)
+rock = cv.CreateImage(IMAGE_SIZE,8,1)
+spock = cv.CreateImage(IMAGE_SIZE,8,1)
+paper = cv.CreateImage(IMAGE_SIZE,8,1)
+
+scissors_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+scissors_eroded = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+scissors_dilated = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+
+spock_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+spock_eroded = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+spock_dilated = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+
+rock_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+rock_eroded = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+rock_dilated = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+
+paper_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+paper_eroded = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+paper_dilated = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+
+lizard_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
+lizard_eroded = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+lizard_dilated = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
+
 purple_adaptive = cv.CreateImage(IMAGE_SIZE,8,1)
-red_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
-red_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 purple_eroded_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 purple_dilated_image = cv.CreateMat(IMAGE_SIZE[1],IMAGE_SIZE[0],cv.CV_8U)
 
-def threshold_scissor(image):
-        cv.AdaptiveThreshold(image,scissor_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,81,55)
-        cv.Erode(scissor_adaptive,scissor_eroded,None,2)
-        cv.Dilate(scissor_eroded,scissor_dilated,None,5)
+
 
 #----------------------------------------------------------------------------------- 
-def threshold_purple(image):
-        cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,15)
-        cv.Erode(purple_adaptive,purple_eroded_image,None,1)
-        cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
+def threshold_paper(image):
+        cv.AdaptiveThreshold(image,paper_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-6)
+        cv.Mul(paper_adaptive,hls_s,paper)
+        cv.Erode(paper_adaptive,paper_eroded,None,1)
+        cv.Dilate(paper_eroded,paper_dilated,None,4)
 
-def threshold_red(image):
-        #bright cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-30)
-        cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-15)
-        cv.Erode(red_adaptive,red_eroded_image,None,1)
-        cv.Dilate(red_eroded_image,red_dilated_image,None,5)    
+def threshold_lizard(image):
+        cv.AdaptiveThreshold(image,lizard_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,53,-20)#16
+        cv.Erode(lizard_adaptive,lizard_eroded,None,1)
+        cv.Dilate(lizard_eroded,lizard_dilated,None,4)
+
+def threshold_spock(image):
+        cv.AdaptiveThreshold(image,spock_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,103,25)
+        cv.Mul(spock_adaptive,hls_h,spock)
+        cv.Erode(spock,spock_eroded,None,2)
+        cv.Dilate(spock_eroded,spock_dilated,None,6)
+
+def threshold_scissors(image):
+        cv.AdaptiveThreshold(image,scissors_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,203,-116)
+        cv.Erode(scissors_adaptive,scissors_eroded,None,3)
+        cv.Dilate(scissors_eroded,scissors_dilated,None,6)
+
+def threshold_rock(image):
+        cv.AdaptiveThreshold(image,rock_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,203,-116)
+        cv.Erode(rock_adaptive,rock_eroded,None,3)
+        cv.Dilate(rock_eroded,rock_dilated,None,6)
+ 
+ 
+def find_squares(contours,sign):
+        font = cv.InitFont(cv.CV_FONT_HERSHEY_SIMPLEX,1,1,0,1,1)
+        max_area = 1000
+        for i in contours:    
+                x,y,w,h = cv2.boundingRect(i)
+                if (w*h > max_area and math.fabs(w-h) < 5 and y < 240):
+                        best = [x,y,w,h]
+        try:
+                cv.PutText(cv_image,sign,(best[0],best[1]),font,[0,0,255])
+                cv.Rectangle(cv_image,(best[0],best[1]),(best[0]+best[2],best[1]+best[3]),[0,0,255])
+        except UnboundLocalError:
+                print sign," not found"
 
 #-----------------------------------------------------------------------------------
 
@@ -132,54 +184,54 @@ def image_callback(data):
         cv.Split(xyz,xyz_x,xyz_y,xyz_x,None)
         cv.Split(ycrcb,ycrcb_y,ycrcb_cr,ycrcb_cb,None)
 
-        cv.Not(lab_a,a_not)
-        cv.Sub(hsv_s,a_not,sa)
-        cv.Sub(luv_u,hls_h,test)
-
-        '''
-        cv.CvtColor(cv_image,gray,cv.CV_BGR2GRAY) 
-        cv.Smooth(gray,blurred_gray,cv.CV_GAUSSIAN,3,3) 
-        small = cv2.resize(numpy.asarray(ycrcb_cr[:,:]),(320,240)
-        circles=cv2.HoughCircles(image=numpy.asarray(small[:,:]),method=cv.CV_HOUGH_GRADIENT,dp=1,minDist=1,param1=100,param2=60, minRadius=1,maxRadius=600)
-
-        if not(circles is None):
-                for i in circles:
-                        if (i[0][1] < 200):
-                                print "found circles",i,len(i)
-                                center = (i[0][0],i[0][1])
-                                radius = i[0][2]
-                                cv.Circle(cv_image,center,radius,(1,1,0),2) 
-        '''
-                    
-        cv.Mul(test,red_adaptive,final)      
+        #cv.Not(lab_a,a_not)
+        #cv.Sub(hsv_s,a_not,sa)
+        cv.Not(hsv_s,s_not)
         
-        threshold_red(sa)
+        #cv.Sub(hsv_s,hsv_h,rock)
+        #cv.Sub(rock,hls_h,test)        #MAYBE LIZARD
+
+        cv.Sub(ycrcb_cr,hsv_h,rock)
+
+        cv.Sub(luv_u,hls_h,scissors)
+        cv.Sub(luv_v,luv_u,lizard)
+                     
+       
+        threshold_scissors(hls_h)
+        threshold_lizard(lizard)
+        threshold_spock(hls_s)
+        threshold_paper(hls_s)
+        threshold_rock(hls_s)
+        
+        '''
+        cv.ShowImage("paper",paper_dilated)
+        cv.ShowImage("lizard",lizard_dilated)
+        cv.ShowImage("scissors",scissors_dilated)      
+        '''
+        cv.ShowImage("spock",spock_dilated)
+        cv.ShowImage("rock",rock_dilated)
+
         #threshold_red(ycrcb_cr)     
-        red_contours,_ = cv2.findContours(image=numpy.asarray(red_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
-        '''
-        circles = extract_circles(red_contours,[1,0,0])
-        for x,y,radius in circles:  
-                cv.Circle(cv_image,(x,y),radius,[0,0,255],3)
-        '''
-        threshold_purple(hsv_s)
-        purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
-        '''
-        circles = extract_circles(purple_contours,[1,0,1])
-        for x,y,radius in circles:  
-                cv.Circle(cv_image,(x,y),radius,[255,0,255],3)
-        '''
-      
-        '''
-        cv.ShowImage("TEST",test)
+        scissors_contours,_ = cv2.findContours(image=numpy.asarray(scissors_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
+        lizard_contours,_ = cv2.findContours(image=numpy.asarray(lizard_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
+        spock_contours,_ = cv2.findContours(image=numpy.asarray(spock_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
+        rock_contours,_ = cv2.findContours(image=numpy.asarray(rock_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
+        paper_contours,_ = cv2.findContours(image=numpy.asarray(paper_dilated[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE) 
+       
+        
+        find_squares(scissors_contours,"scissors")
+        find_squares(lizard_contours,"lizard")
+        find_squares(spock_contours,"spock")
+  
         cv.ShowImage("HSV_H",hsv_h)
         cv.ShowImage("HSV_S",hsv_s)
         cv.ShowImage("HSV_V",hsv_v)
         cv.ShowImage("LAB_L",lab_l)
         cv.ShowImage("LAB_A",lab_a)
         cv.ShowImage("LAB_B",lab_b)
-        cv.ShowImage("RGB_R",rgb_r)
-        cv.ShowImage("RGB_G",rgb_g)
-        cv.ShowImage("RGB_B",rgb_b)
+        cv.ShowImage("RGB_R",scaled_r)
+        cv.ShowImage("RGB_G",scaled_g)
+        cv.ShowImage("RGB_B",scaled_b)
         cv.ShowImage("LUV_L",luv_l)
         cv.ShowImage("LUV_U",luv_u)
         cv.ShowImage("LUV_V",luv_v)
@@ -189,10 +241,8 @@ def image_callback(data):
         cv.ShowImage("YCrCb_Y",ycrcb_y)
         cv.ShowImage("YCrCb_Cr",ycrcb_cr)
         cv.ShowImage("YCrCb_Cb",ycrcb_cb)
-        '''
-     
+       
         cv.ShowImage("normalized",cv_image)
-        cv.ShowImage("original",image)
         cv.WaitKey(3)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 

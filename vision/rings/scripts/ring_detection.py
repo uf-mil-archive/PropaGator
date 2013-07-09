@@ -147,15 +147,15 @@ def adjust_carrot(x,y):
         else:
                 goal = IOBoardGoal(command = 'Shoot2')
                 print "shooting!"
-                waypoint.cancel_goal()
-                shooter.send_goal_and_wait(goal)
-                shot = True
+                #waypoint.cancel_goal()
+                #shooter.send_goal_and_wait(goal)
+                #shot = True
 
 #----------------------------------------------------------------------------------- 
 def threshold_purple(image):
-        cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY_INV,53,15)
+        cv.AdaptiveThreshold(image,purple_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,43,-9)
         cv.Erode(purple_adaptive,purple_eroded_image,None,1)
-        cv.Dilate(purple_adaptive,purple_dilated_image,None,8)
+        cv.Dilate(purple_adaptive,purple_dilated_image,None,1)
 
 def threshold_red(image):
         #bright cv.AdaptiveThreshold(image,red_adaptive,255,cv.CV_ADAPTIVE_THRESH_MEAN_C,cv.CV_THRESH_BINARY,17,-30)
@@ -168,17 +168,23 @@ def threshold_red(image):
 def extract_circles(contours,rgb):
         circles = []
         global shot
+        max_ = OBJECT_AREA
         for i in contours:
                 moments = cv.Moments(cv.fromarray(i), binary = 1)             
                 area = cv.GetCentralMoment(moments, 0, 0)
 
-                if area > OBJECT_AREA:
-                        x = int(cv.GetSpatialMoment(moments, 1, 0)/area)
-                        y = int(cv.GetSpatialMoment(moments, 0, 1)/area)
-                        radius = int(math.sqrt(area/math.pi))
-                        if (shot == False):
-                                circles.append((x,y,int(radius)))
-                                adjust_carrot(x,y)          
+                if area > max_:
+                        max_ = area
+                        best = [moments,area]
+        try:
+                x = int(cv.GetSpatialMoment(best[0], 1, 0)/best[1])
+                y = int(cv.GetSpatialMoment(best[0], 0, 1)/best[1])
+                radius = int(math.sqrt(best[1]/math.pi))
+                if (shot == False):
+                        circles.append((x,y,int(radius)))
+                        adjust_carrot(x,y)  
+        except UnboundLocalError:
+                print "not found"         
         return circles 
 
 #-----------------------------------------------------------------------------------    
@@ -244,13 +250,14 @@ def image_callback(data):
                         for x,y,radius in circles:  
                                 cv.Circle(cv_image,(x,y),radius,[0,0,255],3)
                 elif(color == 'purple'):
-                        threshold_purple(hsv_s)
+                        threshold_purple(lab_a)
                         purple_contours,_ = cv2.findContours(image=numpy.asarray(purple_dilated_image[:,:]),mode=cv.CV_RETR_EXTERNAL,method=cv.CV_CHAIN_APPROX_SIMPLE)
                         circles = extract_circles(purple_contours,[1,0,1])
                         for x,y,radius in circles:  
                                 cv.Circle(cv_image,(x,y),radius,[255,0,255],3)
 
-                cv.ShowImage("red",red_adaptive)      
+                cv.ShowImage("red",red_adaptive)
+                cv.ShowImage("purple",purple_adaptive)    
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)

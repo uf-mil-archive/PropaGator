@@ -14,7 +14,7 @@ rospy.init_node('quad')
 
 
 def pos_callback(msg):  
-        global pos      
+        global pos
         pos = [msg.point.x,msg.point.y,msg.point.z]
 
 class LaunchQuadServer:
