@@ -26,7 +26,6 @@ def kill_callback(event):
 
 rospy.Timer(rospy.Duration(.01),kill_callback)
 
-
 class IOBoardServer:
 
  def __init__(self):

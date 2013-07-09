@@ -27,6 +27,8 @@
   <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
   <node pkg="path_planner" type="buoy_navigation.py" name="channel_navigation"/>
   <node pkg="ioboard" type="ioboard_sub.py" name="ioboard"/>
+
+  <include file="$(find laser_tf_py)/launch/lidar.launch"/>
   <include file="$(find boat_launch)/launch/vision.launch"/>
   
 

@@ -14,14 +14,14 @@ rospy.init_node('quad')
 
 
 def pos_callback(msg):  
-        global pos      
+        global pos
         pos = [msg.point.x,msg.point.y,msg.point.z]
 
 class LaunchQuadServer:
 
  def __init__(self):
         self.server = actionlib.SimpleActionServer('launch_quad', LaunchQuadAction, self.execute, False)
-        self.xbee = xbee.xbee('xbee')                 
+        self.xbee = xbee.xbee('ttyUSB0')                 
         rospy.Subscriber('/latlong',PointStamped,pos_callback)
         self.server.start()
         print "quad server started"

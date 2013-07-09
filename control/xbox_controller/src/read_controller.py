@@ -46,7 +46,7 @@ def joystick_callback(msg):
 							frame_id="/base_link",
 							),
 						wrench=Wrench(
-							force = Vector3(x=25*(msg.axes[1]/2 + msg.buttons[9]*msg.axes[1]/2),y= 25*-(-msg.axes[0]/2  - msg.buttons[9]*msg.axes[0]/2),z= 0),
+							force = Vector3(x=50*(msg.axes[1]/2 + msg.buttons[9]*msg.axes[1]/2),y= 50*-(-msg.axes[0]/2  - msg.buttons[9]*msg.axes[0]/2),z= 0),
 							torque = Vector3(x=0,y= 0,z= 20*-(-msg.axes[3]/2 - msg.buttons[9]*msg.axes[3]/2)),
 							))
 							)
