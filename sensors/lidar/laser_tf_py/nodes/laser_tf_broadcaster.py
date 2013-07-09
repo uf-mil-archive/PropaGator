@@ -58,39 +58,6 @@ br = tf.TransformBroadcaster()
 pub_complete = rospy.Publisher('scan_complete', Bool)
 
 
-# IN RADIANS, NOT DEGREES!!
-if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
-  bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
-  bl_lu_y	= 0	# Distance left, BaseLink to Lidar Unit
-  bl_lu_z	= 0.254		# Distance up, BaseLink to Lidar Unit
-  lu_r		= 0		# Roll of Lidar Unit
-  lu_p		= 0		# Pitch of Lidar Unit
-  lu_y		= 0		# Yaw of Lidar Unit
-  lu_lp_x	= 0		# Distance forward, Lidar Unit to Lidar Pivot
-  lu_lp_y	= 0		# Distance left, Lidar Unit to Lidar Pivot
-  lu_lp_z	= 0		# Distance up, Lidar Unit to Lidar Pivot
-  lp_r		= 0		# Roll of Lidar Pivot
-  lp_p		= 0		# Pitch of Lidar Pivot
-  lp_y		= 0		# Yaw of Lidar Pivot
-  lp_lm_x	= 0.0127	# Distance forward, Lidar Pivot to Lidar Mirror
-  lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
-  lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
-else:
-  bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
-  bl_lu_y	= 0	# Distance left, BaseLink to Lidar Unit
-  bl_lu_z	= 0.254		# Distance up, BaseLink to Lidar Unit
-  lu_r		= 0		# Roll of Lidar Unit
-  lu_p		= 0		# Pitch of Lidar Unit
-  lu_y		= 0		# Yaw of Lidar Unit
-  lu_lp_x	= 0		# Distance forward, Lidar Unit to Lidar Pivot
-  lu_lp_y	= 0		# Distance left, Lidar Unit to Lidar Pivot
-  lu_lp_z	= 0		# Distance up, Lidar Unit to Lidar Pivot
-  lp_r		= 0		# Roll of Lidar Pivot
-  lp_p		= 0		# Pitch of Lidar Pivot
-  lp_y		= 0		# Yaw of Lidar Pivot
-  lp_lm_x	= 0.0127	# Distance forward, Lidar Pivot to Lidar Mirror
-  lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
-  lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
 
 #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #!! min_angle is bottom (most positive) !!
@@ -191,6 +158,40 @@ for i in range(15):
         ser.write("u")
 
 def send_transform():
+  
+	# IN RADIANS, NOT DEGREES!!
+  if (OFFBOARD_TESTING):	# Constants for when the lidar is off the boat
+	  bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
+	  bl_lu_y	= 0	# Distance left, BaseLink to Lidar Unit
+	  bl_lu_z	= 0.254		# Distance up, BaseLink to Lidar Unit
+	  lu_r		= 0		# Roll of Lidar Unit
+	  lu_p		= 0		# Pitch of Lidar Unit
+	  lu_y		= 0		# Yaw of Lidar Unit
+	  lu_lp_x	= 0		# Distance forward, Lidar Unit to Lidar Pivot
+	  lu_lp_y	= 0		# Distance left, Lidar Unit to Lidar Pivot
+	  lu_lp_z	= 0		# Distance up, Lidar Unit to Lidar Pivot
+	  lp_r		= 0		# Roll of Lidar Pivot
+	  lp_p		= 0		# Pitch of Lidar Pivot
+	  lp_y		= 0		# Yaw of Lidar Pivot
+	  lp_lm_x	= 0.0127	# Distance forward, Lidar Pivot to Lidar Mirror
+	  lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
+	  lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
+  else:
+	  bl_lu_x	= 0.8001	# Distance forward, BaseLink to Lidar Unit
+	  bl_lu_y	= 0	# Distance left, BaseLink to Lidar Unit
+	  bl_lu_z	= 0.254		# Distance up, BaseLink to Lidar Unit
+	  lu_r		= 0		# Roll of Lidar Unit
+	  lu_p		= 0		# Pitch of Lidar Unit
+	  lu_y		= 0		# Yaw of Lidar Unit
+	  lu_lp_x	= 0		# Distance forward, Lidar Unit to Lidar Pivot
+	  lu_lp_y	= 0		# Distance left, Lidar Unit to Lidar Pivot
+	  lu_lp_z	= 0		# Distance up, Lidar Unit to Lidar Pivot
+	  lp_r		= 0		# Roll of Lidar Pivot
+	  lp_p		= 0		# Pitch of Lidar Pivot
+	  lp_y		= 0		# Yaw of Lidar Pivot
+	  lp_lm_x	= 0.0127	# Distance forward, Lidar Pivot to Lidar Mirror
+	  lp_lm_y	= 0		# Distance left, Lidar Pivot to Lidar Mirror
+	  lp_lm_z	= 0.0317	# Distance up, Lidar Pivot to Lidar Mirror
   try:
     data = ser.readline()
     time = rospy.Time.now()
@@ -252,11 +253,14 @@ class SweepLidarServer:
 
  def execute(self,goal):
         global running
-        ser.write("S")
-        while(not(self.server.is_preempt_requested())):
-                running = True
-                send_transform()
-        ser.write("H")
+	if (goal.mode == 'start'):
+		ser.write("S")
+		while(not(self.server.is_preempt_requested())):
+		        running = True
+		        send_transform()
+	else:
+        	ser.write("H")
+		running = False	
         running = False
         self.server.set_succeeded()       
               
