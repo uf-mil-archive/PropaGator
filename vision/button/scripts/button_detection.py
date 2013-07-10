@@ -4,6 +4,7 @@ import roslib
 roslib.load_manifest('button')
 import rospy
 import numpy as np
+import json
 import cv,cv2,math,threading
 from nav_msgs.msg import Odometry
 from pointcloud2xyz import *
@@ -226,45 +227,62 @@ def image_callback(data):
 # trying sub legacy_vision--------------------------------------------------------------------------               
 desired = [360,1500] #x position,area
 def visual_servo(object_fb):
-        global rammed
+        global rammed,side
 
-        print object_fb
-        
-        err = (desired[0]-fb.x)
-        print "error",err
-        print "area",fb.area
-        if (math.fabs(err) > 20):
-                print 'pos',(fb.x,fb.y)
-                adjust = err*.001
-                print "y"
-                print adjust
-                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust,0]))  
-        elif (area < desired[1]):
-                adjust = desired[1] - fb.area
-                print 'x'
-                print adjust
-                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust,0,0]))  
-        else:
-                print "ramming"
-                waypoint.cancel_goal()
-                waypoint.send_goal(current_pose_editor.forward(5))
-                rospy.sleep(6)
-                waypoint.send_goal_and_wait(current_pose_editor.backward(5))
-                rammed = True
+        res = map(json.loads, object_fb.targetreses[0].object_results)
+	if (len(res) == 2):
+		if (res[0]['center'][0] < res[0]['center'][0]):
+			if (side == 'left'):
+				button = dict([('x', res[0]['center'][0]), ('y', res[0]['center'][1]), ('area', res[0]['scale'])])
+			else:
+				button = dict([('x', res[1]['center'][0]), ('y', res[1]['center'][1]), ('area', res[1]['scale'])])
+		else:
+			if (side == 'right'):
+				button = dict([('x', res[0]['center'][0]), ('y', res[0]['center'][1]), ('area', res[0]['scale'])])
+			else:			
+				button = dict([('x', res[1]['center'][0]), ('y', res[1]['center'][1]), ('area', res[1]['scale'])])
+
+	try:
+
+		print button
+		err = float(button['x'])
+		print "error",err
+	
+		if (math.fabs(err) > .1):
+		        print 'pos',(button['x'],button['y'])
+		        adjust = err*.1
+		        print "y"
+		        print adjust
+		        waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust,0]))  
+		elif (float(button['area']) < desired[1]):
+		        adjust = desired[1] - float(button['area'])
+		        print 'x'
+		        print adjust*.01
+		        waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust,0,0]))  
+		else:
+		        print "ramming"
+		        waypoint.cancel_goal()
+		        waypoint.send_goal(current_pose_editor.forward(5))
+		        rospy.sleep(6)
+		        waypoint.send_goal_and_wait(current_pose_editor.backward(5))
+		        rammed = True
+	except UnboundLocalError:
+		print "both buttons not found yet"
 
 class FindButtonServer:
  def __init__(self):
         self.server = actionlib.SimpleActionServer('find_button', FindButtonAction, self.execute, False)
         self.client = actionlib.SimpleActionClient('find2_mv_bluefox_camera_node', FindAction)
         self.client.wait_for_server()
-        self.goal = FindGoal(object_names = 'button')     
+        self.goal = FindGoal(object_names = ['button'])     
         #rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
         print "button server started"
 
  def execute(self,goal):
         print "running"
-        global running,rammed
+        global running,rammed,side
+	side = goal.side
         self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True
