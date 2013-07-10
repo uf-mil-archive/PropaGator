@@ -1,9 +1,5 @@
 <launch>
 
-  <node pkg="tf" type="static_transform_publisher" name="base_link_to_camera" args=" .9144 .1524 .3048 0 1 0 /base_link /bluefox 100"/>
-
-  <include file="$(find mv_bluefox_driver)/launch/camera_node.launch"/>	
-
   <node pkg="rings" type="ring_detection.py" name="ring_finder"/>
   <node pkg="buoys" type="buoy_detection.py" name="buoy_finder"/>
   <node pkg="button" type="button_detection.py" name="button_finder"/>

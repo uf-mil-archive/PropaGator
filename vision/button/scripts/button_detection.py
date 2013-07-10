@@ -16,6 +16,7 @@ import actionlib
 from button.msg import FindButtonAction
 from uf_common.msg import MoveToAction, MoveToGoal
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
+from legacy_vision.msg import FindAction,FindGoal
 
 rospy.init_node('button_detection')
 bridge = CvBridge()
@@ -137,53 +138,7 @@ def mouse_callback(event,x,y,flags,image):
 
         if event==cv.CV_EVENT_LBUTTONDOWN:
                 print cv.Get2D(image,y,x)  
-#----------------------------------------------------------------------------------
-
-def distance(p0, p1):
-    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
-
-def check_lidar((x,y),radius):
-        min_dist = 200
-        object_found = False
-        
-        lock.acquire()
-        for i in master_cloud:
-                dist = distance((i[0],i[1]),(x,y))
-                if (dist < radius*3.0 and dist < min_dist ):          
-                        object_center = i[2]
-                        object_found = True 
-                        min_dist = dist
-
-        lock.release()
-        if (object_found):         
-                return (True,object_center)
-        else:
-                return (False,[0,0,0])
-
-desired = [360,1500] #x position,area
-def adjust_carrot(x,y,area):
-        global rammed
-        err = (desired[0]-x)
-        print "error",err
-        print "area",area
-        if (math.fabs(err) > 20):
-                print 'pos',(x,y)
-                adjust = err*.001
-                print "y"
-                print adjust
-                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust,0]))  
-        elif (area < desired[1]):
-                adjust = desired[1] - area
-                print 'x'
-                print adjust
-                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust,0,0]))  
-        else:
-                print "ramming"
-                waypoint.cancel_goal()
-                waypoint.send_goal_and_wait(current_pose_editor.forward(5))
-                waypoint.send_goal_and_wait(current_pose_editor.backward(5))
-                rammed = True
-
+#---------------------------------------------------------------------------------
 def extract_circles(contours,rgb):
         global current_pose_editor,side     
         circles = []
@@ -218,17 +173,9 @@ def threshold_red(image):
         cv.Erode(red_adaptive,red_eroded_image,None,2)
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)  
 
-
-def print_lidar_projections(image):
-        if (len(master_cloud) > 0):
-                lock.acquire()
-                for i in master_cloud:
-                        cv.Circle(image,(int(i[0]),int(i[1])),1,(0,255,0),3)
-                lock.release()
 #-----------------------------------------------------------------------------------
 
-def image_callback(data):
-        
+def image_callback(data):     
         global running       
         if (running):
                 image = bridge.imgmsg_to_cv(data,"bgr8")
@@ -275,54 +222,49 @@ def image_callback(data):
                 cv.ShowImage("camera feed",cv_image)
                 
                 cv.WaitKey(3)
-               
-#-----------------------------------------------------------------------------------
-def in_frame(x):
-        if (x[0] < 600 and x[0] > 0 and x[1] < 600 and x[1] > 0 and all(math.fabs(i) < max_distance for i in x[2])):
-                return True
+
+# trying sub legacy_vision--------------------------------------------------------------------------               
+desired = [360,1500] #x position,area
+def visual_servo(object_fb):
+        global rammed
+
+        print object_fb
+        
+        err = (desired[0]-fb.x)
+        print "error",err
+        print "area",fb.area
+        if (math.fabs(err) > 20):
+                print 'pos',(fb.x,fb.y)
+                adjust = err*.001
+                print "y"
+                print adjust
+                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust,0]))  
+        elif (area < desired[1]):
+                adjust = desired[1] - fb.area
+                print 'x'
+                print adjust
+                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust,0,0]))  
         else:
-                return False
+                print "ramming"
+                waypoint.cancel_goal()
+                waypoint.send_goal(current_pose_editor.forward(5))
+                rospy.sleep(6)
+                waypoint.send_goal_and_wait(current_pose_editor.backward(5))
+                rammed = True
 
-def pointcloud_callback(msg):
-        if (running):
-                lock.acquire()
-                global master_cloud
-                cloud = pointcloud2_to_xyz_array(msg)
-                if (len(cloud) > 0):
-                        cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
-                        projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
-                        cloud_mat = cloud
-                     
-                        cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
-                        (x,y) = cv2.split(np.asarray(projection))
-                        index = 0
-                        master_cloud = []
-                        for i,j in zip(x,y):
-                                master_cloud.append([i[0],j[0],cloud[index]])
-                                index = index + 1
-                        master_cloud = filter(in_frame,master_cloud)
-                lock.release()
-                
-#-----------------------------------------------------------------------------------
-def pose_callback(msg):
-	global current_position,current_pose_editor
-	current_pose_editor = PoseEditor.from_Odometry(msg)
-	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
-rospy.Subscriber('/odom', Odometry, pose_callback)
-
-#-----------------------------------------------------------------------------------
 class FindButtonServer:
-
  def __init__(self):
         self.server = actionlib.SimpleActionServer('find_button', FindButtonAction, self.execute, False)
-        #rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
-        rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
+        self.client = actionlib.SimpleActionClient('find', FindAction)
+        self.client.wait_for_server()
+        self.goal = FindGoal(object_names = 'button')     
+        #rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
         self.server.start()
         print "button server started"
 
  def execute(self,goal):
-        global running,rammed,side
-        side = goal.side
+        global running,rammed
+        self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True
         running = False
