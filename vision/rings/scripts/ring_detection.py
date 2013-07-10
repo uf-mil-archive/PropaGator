@@ -16,6 +16,7 @@ from rings.msg import ShootRingsAction,ShootRingsActionFeedback
 from uf_common.msg import MoveToAction, MoveToGoal
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from ioboard.msg import IOBoardAction,IOBoardActionResult,IOBoardGoal
+from legacy_vision.msg import FindAction,FindGoal
 
 rospy.init_node('ring_detection')
 bridge = CvBridge()
@@ -44,6 +45,7 @@ IMAGE_SIZE = (640,480)
 purple_MIN = cv.fromarray(numpy.array([30, 160, 50],numpy.uint8),allowND = True)
 purple_MAX = cv.fromarray(numpy.array([75, 210, 130],numpy.uint8),allowND = True)
 
+from cv_bridge import CvBridge, CvBridgeError
 #-----------------------------------------------------------------------------------
 blurred_gray = cv.CreateImage(IMAGE_SIZE,8,1)
 gray = cv.CreateImage(IMAGE_SIZE,8,1)
@@ -269,15 +271,26 @@ def visual_servo(object_fb):
 
         res = map(json.loads, object_fb.targetreses[0].object_results)
         
-        dict([('x', res[0]['center'][0]), ('y', res[0]['center'][1]), ('area', res[0]['scale'])])
-        err = distance((x,y),red_shoot)
-        adjust_sign = [(red_shoot[0]-x),(y-red_shoot[1])]
+        if (len(res) == 2):
+		if (res[0]['center'][0] < res[0]['center'][0]):
+			if (color == 'red'):
+				ring = dict([('x', res[0]['center'][0]), ('y', res[0]['center'][1]), ('area', res[0]['scale'])])
+			else:
+				ring = dict([('x', res[1]['center'][0]), ('y', res[1]['center'][1]), ('area', res[1]['scale'])])
+		else:
+			if (color == 'orange'):
+				ring = dict([('x', res[0]['center'][0]), ('y', res[0]['center'][1]), ('area', res[0]['scale'])])
+			else:			
+				ring = dict([('x', res[1]['center'][0]), ('y', res[1]['center'][1]), ('area', res[1]['scale'])])
+
+        err = distance((float(ring['x']),float(ring['y'])),red_shoot)
+        adjust_sign = [(red_shoot[0]-float(ring['x'])),(float(ring['y'])-red_shoot[1])]
         #adjust_mag = [.3,.3]
         if (err > 30):
                 print 'pos',(x,y)
                 #adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
                 #adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
-                adjust_mag = [.001*adjust_sign[0],.001*adjust_sign[1]]
+                adjust_mag = [adjust_sign[0],adjust_sign[1]]
                 if (math.fabs(adjust_sign[1]) > 20 and math.fabs(adjust_sign[0]) > 20):
                       print "both"
                       print 'x=',adjust_mag[1],'y=',adjust_mag[0]

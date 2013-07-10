@@ -75,7 +75,7 @@ def apply_command(force):
 		out_voltage  = "0",#motordriver.get_out_voltage(),
 		batt_voltage = "0",#motordriver.get_batt_voltage(),
 		)	
-	motor_driver_statistics_publisher.publish(motordriverstat_msg)
+	#motor_driver_statistics_publisher.publish(motordriverstat_msg)
 
 
 	

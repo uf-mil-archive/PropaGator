@@ -19,6 +19,8 @@
   <depend package="actionlib_msgs"/>
   <depend package="c3_trajectory_generator"/>
   <depend package="ioboard"/>
+  <depend package="legacy_vision"/>
+
 
 </package>
 

@@ -13,7 +13,7 @@ import actionlib
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from uf_common.msg import MoveToAction, MoveToGoal
 from gps_waypoints.msg import GoToWaypointAction
-rospy.init_node('gps_waypoints')
+rospy.init_node('gps_waypoint')
 
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 
@@ -38,8 +38,14 @@ def waypoint_ecef_callback(msg):
         #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([goal[0], goal[1], 0])).as_MoveToGoal(speed = .8))
 
         final_goal = current_position + goal        
-        waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
-        waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
+        x = current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0])
+        print x.__dict__
+        print "result:", waypoint.send_goal_and_wait(x)
+        print "aligned"
+	x = current_pose_editor.set_position([final_goal[0],final_goal[1],0])
+        print x.__dict__
+	waypoint.send_goal_and_wait(x)
+	print "done"
 rospy.Subscriber('/gps_ecef_waypoint',PointStamped,waypoint_ecef_callback)
 
 
@@ -49,7 +55,7 @@ def pos_callback(msg):
         if (origin == [0,0,0]):
                 origin = [msg.point.x,msg.point.y,msg.point.z]
         pos = [msg.point.x,msg.point.y,msg.point.z]
-rospy.Subscriber('/gps_conv/pos',PointStamped,pos_callback)
+rospy.Subscriber('/gps2_parser/pos',PointStamped,pos_callback)
 
 def pose_callback(msg):
 	global current_pose_editor,current_position
@@ -82,11 +88,11 @@ class GoToWaypointServer:
         final_goal = current_position + goal      
 
         self.waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
-        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0] - 4,final_goal[1] + 4,0]))
+        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0] + 4,final_goal[1] + 4,0]))
 
         self.server.set_succeeded()
                 
 
-server = GoToWaypointServer()
+#server = GoToWaypointServer()
 rospy.spin()
 

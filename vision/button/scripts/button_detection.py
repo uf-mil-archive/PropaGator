@@ -253,22 +253,22 @@ def visual_servo(object_fb):
 		err = float(button['x'])
 		print "error",err
 	
-		if (math.fabs(err) > .1):
+		if (math.fabs(err) > .05):
 		        print 'pos',(button['x'],button['y'])
-		        adjust = err*.1
+		        adjust = -err*.1
 		        print "y"
 		        print adjust
 		        waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust,0]))  
 		elif (float(button['area']) < desired[1]):
 		        adjust = desired[1] - float(button['area'])
 		        print 'x'
-		        print adjust*.01
-		        waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust,0,0]))  
+		        print adjust*.001
+		        waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[.001*adjust,0,0]))  
 		else:
 		        print "ramming"
 		        waypoint.cancel_goal()
 		        waypoint.send_goal(current_pose_editor.forward(5))
-		        rospy.sleep(6)
+		        rospy.sleep(4)
 		        waypoint.send_goal_and_wait(current_pose_editor.backward(5))
 		        rammed = True
 	except UnboundLocalError:
@@ -288,7 +288,7 @@ class FindButtonServer:
         print "running"
         global running,rammed,side
 	side = goal.side
-	waypoint.send_goal_and_wait(current_pose_editor.look_at_rel([1,-1,0]))  
+	waypoint.send_goal_and_wait(current_pose_editor.look_at_rel([-1,0,0]))  
         self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True

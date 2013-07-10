@@ -163,16 +163,17 @@ def main():
 	  print "going to: ",button_pos
           button_pos_goal.waypoint = Point(x = button_pos[0],y = button_pos[1],z = button_pos[2])
 	  print button_pos
-          smach.StateMachine.add('GoToButton', SimpleActionState('go_waypoint',
+          '''
+	  smach.StateMachine.add('GoToButton', SimpleActionState('go_waypoint',
                                          GoToWaypointAction,
                                           goal=button_pos_goal),
                                           transitions={'succeeded':'ButtonRight'})
+          '''
+          smach.StateMachine.add('ButtonRight', button_concurrence, transitions={'button_done':'GoToButtonLeft'})
+	  smach.StateMachine.add('ButtonLeft', button_concurrence, transitions={'button_done':'Wait'})
 
-          smach.StateMachine.add('ButtonRight', button_concurrence, transitions={'button_done':'ButtonLeft'})
-          smach.StateMachine.add('ButtonLeft', button_concurrence, transitions={'button_done':'Wait'})
 
-
-          smach.StateMachine.add('Wait',sleep(10000),transitions={'succeeded':'Button','aborted':'Button'})
+          smach.StateMachine.add('Wait',sleep(10000),transitions={'succeeded':'ButtonRight','aborted':'ButtonRight'})
 		
           '''
           quad_pos_goal = GoToWaypointGoal()
