@@ -263,20 +263,59 @@ def image_callback(data):
                 cv.WaitKey(3)
 rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
 #-----------------------------------------------------------------------------------
+red_shoot = (350,75)
+def visual_servo(object_fb):
+        global shot,color
+
+        res = map(json.loads, object_fb.targetreses[0].object_results)
+        
+        dict([('x', res[0]['center'][0]), ('y', res[0]['center'][1]), ('area', res[0]['scale'])])
+        err = distance((x,y),red_shoot)
+        adjust_sign = [(red_shoot[0]-x),(y-red_shoot[1])]
+        #adjust_mag = [.3,.3]
+        if (err > 30):
+                print 'pos',(x,y)
+                #adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
+                #adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
+                adjust_mag = [.001*adjust_sign[0],.001*adjust_sign[1]]
+                if (math.fabs(adjust_sign[1]) > 20 and math.fabs(adjust_sign[0]) > 20):
+                      print "both"
+                      print 'x=',adjust_mag[1],'y=',adjust_mag[0]
+                      #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust_mag[1],adjust_mag[0],0]))           
+                elif (math.fabs(adjust_sign[1]) > 20):
+                      print "x"
+                      print adjust_mag[1]
+                      #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust_mag[1],0,0]))             
+                elif (math.fabs(adjust_sign[0]) > 20):
+                      print "y"
+                      print adjust_mag[0]
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust_mag[0],0])) 
+        else:
+                goal = IOBoardGoal(command = 'Shoot2')
+                print "shooting!"
+                waypoint.cancel_goal()
+                shooter.send_goal_and_wait(goal)
+                shot = True
 
 class ShootRingsServer:
 
  def __init__(self):
         global running
         self.server = actionlib.SimpleActionServer('shoot_rings', ShootRingsAction, self.execute, False)
-        self.server.start()
+        self.client = actionlib.SimpleActionClient('find2_mv_bluefox_camera_node', FindAction)
+        self.client.wait_for_server()
+        self.goal = FindGoal(object_names = ['rings'])
         self._feedback = ShootRingsActionFeedback
+        self.server.start()
         print "rings server started"
 
  def execute(self,goal):
         global shot,running,color
         shot = False
         color = goal.color
+        self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while(not(shot) and not(self.server.is_preempt_requested())):
                 running = True
                 rospy.sleep(1)
