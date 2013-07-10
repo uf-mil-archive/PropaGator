@@ -255,7 +255,7 @@ def visual_servo(object_fb):
 class FindButtonServer:
  def __init__(self):
         self.server = actionlib.SimpleActionServer('find_button', FindButtonAction, self.execute, False)
-        self.client = actionlib.SimpleActionClient('find', FindAction)
+        self.client = actionlib.SimpleActionClient('find2_mv_bluefox_camera_node', FindAction)
         self.client.wait_for_server()
         self.goal = FindGoal(object_names = 'button')     
         #rospy.Subscriber("/mv_bluefox_camera_node/image_raw",Image,image_callback)
@@ -263,6 +263,7 @@ class FindButtonServer:
         print "button server started"
 
  def execute(self,goal):
+        print "running"
         global running,rammed
         self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while (not(self.server.is_preempt_requested()) and not(rammed)):
