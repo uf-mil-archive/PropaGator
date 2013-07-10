@@ -33,6 +33,7 @@ def waypoint_ecef_callback(msg):
         print 'ecef',ecef
         print 'pos',pos
         print 'goal',goal
+        print 'offset goal',[goal[0] ,goal[1],0]
         #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([goal[0],goal[1],0])).position))
         #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([goal[0], goal[1], 0])).as_MoveToGoal(speed = .8))
 
@@ -73,10 +74,15 @@ class GoToWaypointServer:
         ecef = [goal.waypoint.x,goal.waypoint.y,goal.waypoint.z]
         diff = numpy.array(ecef) - numpy.array(pos)
         goal = enu_from_ecef(diff,origin)
+	print 'diff',diff
+	print 'ecef',ecef
+        print 'pos',pos
+	print 'goal',goal
+	print 'offset goal',[goal[0],goal[1],0]
         final_goal = current_position + goal      
 
         self.waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
-        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0],final_goal[1],0]))
+        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0] - 4,final_goal[1] + 4,0]))
 
         self.server.set_succeeded()
                 

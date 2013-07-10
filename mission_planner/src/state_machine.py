@@ -14,11 +14,11 @@ from quad.msg import LaunchQuadAction,LaunchQuadGoal
 from gps_waypoints.msg import GoToWaypointAction,GoToWaypointGoal
 from rawgps_common.gps import ecef_from_latlongheight,enu_from_ecef
 
-runTime = 20 #minutes
-ringsTimeout = (5.0/20)*runtime*60
-buoysTimeout = (3.0/20)*runtime*60
-buttonTimeout = (5.0/20)*runtime*60
-quadTimeout = (4.0/20)*runtime*60
+runTime = 200 #minutes
+ringsTimeout = (5.0/20)*runTime*60
+buoysTimeout = (3.0/20)*runTime*60
+buttonTimeout = (5.0/20)*runTime*60
+quadTimeout = (4.0/20)*runTime*60
 
 print "buoys timeout: ",buoysTimeout
 print "rings timeout: ",ringsTimeout
@@ -42,7 +42,7 @@ class sleep(smach.State):
 
 
 def read_task_pos(task):
-        path = roslib.packages.resource_file('gps_waypoints','saved','task_loc.txt')
+        path = roslib.packages.resource_file('gps_waypoints','saved','task_loc_a.txt')
 
         with open(path,'r+') as task_loc:
            for line in task_loc:
@@ -104,14 +104,18 @@ def main():
                                           child_termination_cb = lambda outcome_map : True,
                                           outcome_cb = lambda outcome_map : 'button_done')
   with button_concurrence:
+	  button_goal = FindButtonGoal()
+          button_goal.side = 'left'
           smach.Concurrence.add('ButtonTask', SimpleActionState('find_button',
-                                          FindButtonAction))
+                                          FindButtonAction,
+					  goal=button_goal))
                                  
           smach.Concurrence.add('ButtonTimeout',sleep(buttonTimeout))
 
 #QUAD--------------------------------------------------------------------------------------------------
+  '''
   quad_goal = LaunchQuadGoal
-  quad_goal_coord = read_dock_pos('quad')
+  quad_goal_coord = read_task_pos('dock')
   quad_goal.lat = quad_goal_coord[0]
   quad_goal.long = quad_goal_coord[1]
   quad_goal.alt = quad_goal_coord[2]
@@ -125,7 +129,7 @@ def main():
                                           goal=quad_goal))
                                  
           smach.Concurrence.add('QuadTimeout',sleep(quadTimeout))
-
+   '''
 
 #-------------------------------------------------------------------------------------------------------
 
@@ -133,7 +137,7 @@ def main():
   with sm:
           
           #smach.StateMachine.add('Buoys', buoys_concurrence, transitions={'buoys_done':'GoToRingsRed'})
-
+          '''
           rings_pos_goal = GoToWaypointGoal()
           ring_pos = read_task_pos('rings')
           rings_pos_goal.waypoint = Point(x = ring_pos[0],y = ring_pos[1],z = ring_pos[2])
@@ -143,7 +147,7 @@ def main():
                                           transitions={'succeeded':'RingsRed'})
 
           smach.StateMachine.add('RingsRed', rings_concurrence_red, transitions={'rings_done':'GoToButton'})
-          '''
+         
           rings_pos_goal = GoToWaypointGoal()
           ring_pos = read_task_pos('rings')
           rings_pos_goal.waypoint = Point(x = ring_pos[0],y = ring_pos[1],z = ring_pos[2])
@@ -156,13 +160,20 @@ def main():
           '''
           button_pos_goal = GoToWaypointGoal()
           button_pos = read_task_pos('button')
+	  print "going to: ",button_pos
           button_pos_goal.waypoint = Point(x = button_pos[0],y = button_pos[1],z = button_pos[2])
+	  print button_pos
           smach.StateMachine.add('GoToButton', SimpleActionState('go_waypoint',
                                          GoToWaypointAction,
                                           goal=button_pos_goal),
-                                          transitions={'succeeded':'Button'})
+                                          transitions={'succeeded':'ButtonRight'})
 
-          smach.StateMachine.add('Button', button_concurrence, transitions={'button_done':'GoToRingsRed'})
+          smach.StateMachine.add('ButtonRight', button_concurrence, transitions={'button_done':'ButtonLeft'})
+          smach.StateMachine.add('ButtonLeft', button_concurrence, transitions={'button_done':'Wait'})
+
+
+          smach.StateMachine.add('Wait',sleep(10000),transitions={'succeeded':'Button','aborted':'Button'})
+		
           '''
           quad_pos_goal = GoToWaypointGoal()
           quad_pos = read_task_pos('quad')

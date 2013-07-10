@@ -49,7 +49,7 @@ shift: [9.74349877448012e-06, 1.2844613312776938e-06, -9.033222369532357e-06]
   </node>
   <node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>
 -->
-  <node pkg="tf" type="static_transform_publisher" name="base_link_to_camera" args=" .9144 .1524 .3048 0 1 0 /base_link /bluefox 100"/>
+
 
   <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
       frame_id: /map
@@ -63,7 +63,7 @@ shift: [9.74349877448012e-06, 1.2844613312776938e-06, -9.033222369532357e-06]
 	<param name="port" value="/dev/ttyPowerRouter"/>
   </node>
   
-  <node pkg="io_board" type="io_board_sub.py" name="io_board">
+  <node pkg="ioboard" type="ioboard_sub.py" name="io_board"/>
         
   <include file="$(find mv_bluefox_driver)/launch/camera_node.launch"/>
 

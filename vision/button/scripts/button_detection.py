@@ -175,6 +175,11 @@ def threshold_red(image):
         cv.Dilate(red_eroded_image,red_dilated_image,None,5)  
 
 #-----------------------------------------------------------------------------------
+def pose_callback(msg):
+	global current_pose_editor
+	current_pose_editor = PoseEditor.from_Odometry(msg)
+	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
+rospy.Subscriber('/odom', Odometry, pose_callback)
 
 def image_callback(data):     
         global running       
@@ -283,6 +288,7 @@ class FindButtonServer:
         print "running"
         global running,rammed,side
 	side = goal.side
+	waypoint.send_goal_and_wait(current_pose_editor.look_at_rel([1,-1,0]))  
         self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True
