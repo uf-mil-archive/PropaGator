@@ -1,7 +1,7 @@
 <launch>
 
   <!-- <include file="$(find boat_launch)/launch/navigation.launch"/> -->
-
+  <!-- 
   <node pkg="controller" type="pd_controller.py" name="controller"/>
  
   <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
@@ -26,6 +26,13 @@
 
   <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
   <node pkg="path_planner" type="buoy_navigation.py" name="channel_navigation"/>
+  </-->
+  <include file="$(find legacy_vision)/launch/legacy_vision.launch">
+        <arg name="camera" value="mv_bluefox_camera_node"/>
+  </include>
+      
+  <node ns="mv_bluefox_camera_node" pkg="image_proc" type="image_proc"
+          name="image_proc" /> 
  
   <include file="$(find boat_launch)/launch/vision.launch"/>
   
