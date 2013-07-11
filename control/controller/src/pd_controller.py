@@ -13,6 +13,7 @@ import numpy,math,tf,threading
 from tf import transformations
 from uf_common.orientation_helpers import xyz_array, xyzw_array
 from uf_common.msg import PoseTwistStamped
+from controller.srv import Enable,EnableResponse
 
 
 rospy.init_node('controller')
@@ -63,7 +64,8 @@ def _jacobian_inv(x):
     return J_inv
     
 #---------------collect desired state information as soon as it is posted--------------------
-global desired_state_set,previous_error,odom_active
+global desired_state_set,previous_error,odom_active,enable
+enable = True
 odom_active = False
 desired_state_set = False
 desired_state = numpy.zeros(6)
@@ -115,11 +117,11 @@ def odom_callback(current_posetwist):
 	
 def update_callback(event):
 	
-	global desired_state,desired_state_dot,state,stat_dot,state_dot_body,previous_error
+	global desired_state,desired_state_dot,state,stat_dot,state_dot_body,previous_error,enable
 
 	lock.acquire()	
-	print 'desired state', desired_state
-        print 'current_state', state		
+	#print 'desired state', desired_state
+        #print 'current_state', state		
 	def smallest_coterminal_angle(x):
 		return (x + math.pi) % (2*math.pi) - math.pi
 
@@ -130,23 +132,33 @@ def update_callback(event):
 	e2 = vbd - state_dot_body
 	output = Ks.dot(e2)
        
-	print 'output',output
+	#print 'output',output
         lock.release()
 
         if (not(odom_active)):
                 output = [0,0,0,0,0,0]
-	
-	controller_wrench.publish(WrenchStamped(
-				header = Header(
-					stamp=rospy.Time.now(),
-					frame_id="/base_link",
-					),
-				wrench=Wrench(
-					force = Vector3(x= output[0],y= output[1],z= 0),
-					torque = Vector3(x=0,y= 0,z= output[5]),
-					))
+	if (enable):
+                print '.'
+	        controller_wrench.publish(WrenchStamped(
+				        header = Header(
+					        stamp=rospy.Time.now(),
+					        frame_id="/base_link",
+					        ),
+				        wrench=Wrench(
+					        force = Vector3(x= output[0],y= output[1],z= 0),
+					        torque = Vector3(x=0,y= 0,z= output[5]),
+					        ))
 
-					)	
+					        )	
+
+def setStatus(action):
+    global enable
+    if action.enable:
+	enable = True
+    else:
+	enable = False
+    return EnableResponse()
+rospy.Service('~enable', Enable, setStatus)
 	
 def timeout_callback(event):
 	global odom_active 

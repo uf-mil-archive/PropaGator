@@ -17,7 +17,7 @@ from uf_common.msg import MoveToAction, MoveToGoal
 from pointcloud2xyz import *
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from path_planner.msg import TraverseBuoysAction
-
+from controller.srv import Enable,EnableResponse
 
 rospy.init_node('potential_field_generator')
 #-----------------------------------------------------------------------
@@ -39,10 +39,12 @@ def vector(event):
                 print 'len',len(master_cloud)
                 lock.acquire()
                 for point in master_cloud:
-                        deviation = deviation + (point[1]/numpy.linalg.norm(numpy.array([point[0],point[1]])))
+                        deviation = deviation + (math.copysign(1,point[1])/numpy.linalg.norm(numpy.array([point[0],point[1]])))
                 lock.release()        
                 print 'deviation',deviation
-                #waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,0,0],angular=[0,0,10*deviation]))
+                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,0,0],angular=[0,0,10*deviation]))
+                
+                '''
                 output_wrench.publish(WrenchStamped(
 				        header = Header(
 					        stamp=rospy.Time.now(),
@@ -54,11 +56,11 @@ def vector(event):
 					        ))
 
 					        )	         
-                
+                '''
 rospy.Timer(rospy.Duration(.1),vector)
 
 def in_range(x):
-        max_distance = 6
+        max_distance = 8
         min_distance = 1
         if (all(math.fabs(i) < max_distance for i in x) and all(math.fabs(i) > min_distance for i in x)):
                 return True
@@ -91,16 +93,18 @@ class TraverseBuoysServer:
         global running
         waypoint.cancel_goal()
         running = False
+        self.controller_enable = rospy.ServiceProxy('/controller/enable', Enable)
         self.server.start()
         print "path_planner server started"
 
  def execute(self,goal):
         global running
         #(numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) > 5) and
+        self.controller_enable(False)
         while ( not(self.server.is_preempt_requested())):
              running = True
         running = False
-
+        self.controller_enable(True)
         if (numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) < 5):
                 self.server.set_succeeded()
         else:

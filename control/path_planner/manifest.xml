@@ -15,8 +15,7 @@
   <depend package="uf_common"/>
   <depend package="actionlib"/>
   <depend package="buoys"/>
-  
-
+  <depend package="controller"/>
 </package>
 
 
