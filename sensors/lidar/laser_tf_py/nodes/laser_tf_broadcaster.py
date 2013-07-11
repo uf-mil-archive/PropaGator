@@ -28,7 +28,8 @@ import actionlib
 OFFBOARD_TESTING = False
 LIDAR_UPSIDE_DOWN = False	# T = LIDAR mounted with lense on bottom (upside down)
 
-global IN_CALLBACK
+global IN_CALLBACK,running
+running = False
 IN_CALLBACK = False
 
 #initial sweeping range
@@ -153,7 +154,7 @@ while not "h"+str(max_start) in msg:
         msg = ser.readline()
 rospy.logdebug("Max angle updated to "+str(max_start))
 
-ser.write("s700\r")
+ser.write("s1000\r")
 for i in range(15):
         ser.write("u")
 

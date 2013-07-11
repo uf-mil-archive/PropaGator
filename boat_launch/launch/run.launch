@@ -29,6 +29,4 @@
   <node ns="mv_bluefox_camera_node" pkg="image_proc" type="image_proc"
           name="image_proc" /> 
 
-  <include file="$(find laser_tf_py)/launch/lidar.launch"/>
-
 </launch>

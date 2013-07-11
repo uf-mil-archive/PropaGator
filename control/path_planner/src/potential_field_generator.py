@@ -32,17 +32,38 @@ running = False
 def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
 	
-def vector(event):
+def vector():
         if (running):
                 global master_cloud,current_position
                 deviation = 0
-                print 'len',len(master_cloud)
-                lock.acquire()
-                for point in master_cloud:
-                        deviation = deviation + (math.copysign(1,point[1])/numpy.linalg.norm(numpy.array([point[0],point[1]])))
-                lock.release()        
-                print 'deviation',deviation
-                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,0,0],angular=[0,0,10*deviation]))
+		sum_ = numpy.zeros(3)
+		angle_sum = 0
+		left = 0
+		right = 0
+		
+                if (len(master_cloud) > 0):
+		        for point in master_cloud:
+				sum_ += numpy.array(point)
+				angle_sum +=  math.atan2(point[1],point[0])
+			mean_angle = angle_sum/float(len(master_cloud))
+			mean_point = sum_/float(len(master_cloud))
+			for point in master_cloud:
+				if (math.atan2(point[1],point[0]) < mean_angle):
+					right += 1
+					deviation += (1/numpy.linalg.norm(numpy.array([point[0],point[1]])))
+				else:
+					left += 1
+					deviation -= (1/numpy.linalg.norm(numpy.array([point[0],point[1]])))
+			print "left",left
+			print "right",right
+			print 'mean angle',mean_angle
+		        print 'deviation',deviation
+			print "cloud size",len(master_cloud)
+			
+			waypoint.send_goal(current_pose_editor.relative(numpy.array(mean_point)).as_MoveToGoal(speed = .8))
+			#waypoint.send_goal_and_wait(current_pose_editor.yaw_left(mean_angle))
+			
+                #waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[.8,0,0],angular=[0,0,0]))
                 
                 '''
                 output_wrench.publish(WrenchStamped(
@@ -56,12 +77,12 @@ def vector(event):
 					        ))
 					        )	         
                 '''
-rospy.Timer(rospy.Duration(.1),vector)
+#rospy.Timer(rospy.Duration(.1),vector)
 
 def in_range(x):
         max_distance = 8
-        min_distance = 1
-        if (all(math.fabs(i) < max_distance for i in x) and all(math.fabs(i) > min_distance for i in x)):
+        min_distance = 1.5
+        if ((min_distance <= numpy.linalg.norm(x) <= max_distance) and x[0] > 1):
                 return True
         else:
                 return False
@@ -69,12 +90,11 @@ def in_range(x):
 global master_cloud
 master_cloud = []
 def pointcloud_callback(msg):
-        lock.acquire()
         global master_cloud
         cloud = pointcloud2_to_xyz_array(msg)
         if (len(cloud) > 0):
                 master_cloud = filter(in_range,cloud)
-        lock.release()
+	vector()
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 #-----------------------------------------------------------------------
 
@@ -82,7 +102,7 @@ def pose_callback(msg):
         global current_position,current_pose_editor
 	current_pose_editor = PoseEditor.from_Odometry(msg)
 	current_position = [msg.pose.pose.position.x,msg.pose.pose.position.y]
-rospy.Subscriber('/sim_odom', Odometry, pose_callback)
+rospy.Subscriber('/odom', Odometry, pose_callback)
 
 
 class TraverseBuoysServer:
@@ -97,9 +117,11 @@ class TraverseBuoysServer:
         print "path_planner server started"
 
  def execute(self,goal):
-        global running
+        global running,current_pose_editor
         #(numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) > 5) and
-        self.controller_enable(False)
+	#waypoint.send_goal_and_wait(current_pose_editor.forward(20))
+	print "starting buoy channel"
+        #self.controller_enable(False)
         while ( not(self.server.is_preempt_requested())):
              running = True
         running = False

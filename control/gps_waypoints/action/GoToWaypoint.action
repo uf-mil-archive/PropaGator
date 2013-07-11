@@ -1,5 +1,6 @@
 # goal
 geometry_msgs/Point waypoint
+geometry_msgs/Point offset
 ---
 # result
 #not used

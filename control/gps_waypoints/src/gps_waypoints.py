@@ -25,6 +25,11 @@ origin = [0,0,0]
 
 def waypoint_ecef_callback(msg):
         global pos,origin,current_position
+	
+	#a
+	#offset = dict([('spock', [4,4]), ('button', [-4,4]), ('rings', [4,4]), ('buoys', [0,0])])
+	#b
+	offset = dict([('spock', [4,4]), ('button', [-4,4]), ('rings', [4,4]), ('buoys', [0,0])])
 
         ecef = [msg.point.x,msg.point.y,msg.point.z]
         diff = numpy.array(ecef) - numpy.array(pos)
@@ -34,15 +39,13 @@ def waypoint_ecef_callback(msg):
         print 'pos',pos
         print 'goal',goal
         print 'offset goal',[goal[0] ,goal[1],0]
-        #waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching(current_pose_editor.relative(numpy.array([goal[0],goal[1],0])).position))
-        #waypoint.send_goal_and_wait(current_pose_editor.relative(numpy.array([goal[0], goal[1], 0])).as_MoveToGoal(speed = .8))
 
         final_goal = current_position + goal        
         x = current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0])
         print x.__dict__
         print "result:", waypoint.send_goal_and_wait(x)
         print "aligned"
-	x = current_pose_editor.set_position([final_goal[0],final_goal[1],0])
+	x = current_pose_editor.set_position([final_goal[0]-4,final_goal[1]+4,0])
         print x.__dict__
 	waypoint.send_goal_and_wait(x)
 	print "done"
@@ -78,17 +81,17 @@ class GoToWaypointServer:
         global pos,origin,current_position
    
         ecef = [goal.waypoint.x,goal.waypoint.y,goal.waypoint.z]
+	offset = [goal.offset.x,goal.offset.y]
         diff = numpy.array(ecef) - numpy.array(pos)
         goal = enu_from_ecef(diff,origin)
 	print 'diff',diff
 	print 'ecef',ecef
         print 'pos',pos
 	print 'goal',goal
-	print 'offset goal',[goal[0],goal[1],0]
         final_goal = current_position + goal      
 
         self.waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
-        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0] + 4,final_goal[1] + 4,0]))
+        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0] + offset[0],final_goal[1] + offset[1],0]))
 
         self.server.set_succeeded()
                 
