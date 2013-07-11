@@ -19,7 +19,7 @@ from uf_common.msg import MoveToAction, MoveToGoal
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from legacy_vision.msg import FindAction,FindGoal
 
-rospy.init_node('button_detection')
+rospy.init_node('button_finder')
 bridge = CvBridge()
 
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)

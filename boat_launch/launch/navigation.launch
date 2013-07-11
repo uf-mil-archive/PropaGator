@@ -65,8 +65,4 @@ shift: [9.74349877448012e-06, 1.2844613312776938e-06, -9.033222369532357e-06]
   
   <node pkg="ioboard" type="ioboard_sub.py" name="io_board"/>
         
-  <include file="$(find mv_bluefox_driver)/launch/camera_node.launch"/>
-
-  <include file="$(find laser_tf_py)/launch/lidar.launch"/>
-
 </launch>

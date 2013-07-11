@@ -19,7 +19,7 @@ from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from path_planner.msg import TraverseBuoysAction
 from controller.srv import Enable,EnableResponse
 
-rospy.init_node('potential_field_generator')
+rospy.init_node('channel_navigation')
 #-----------------------------------------------------------------------
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
 output_wrench = rospy.Publisher('wrench', WrenchStamped)
@@ -54,7 +54,6 @@ def vector(event):
 					        force = Vector3(x= .2,y= 0,z= 0),
 					        torque = Vector3(x=0,y= 0,z= .01*deviation),
 					        ))
-
 					        )	         
                 '''
 rospy.Timer(rospy.Duration(.1),vector)

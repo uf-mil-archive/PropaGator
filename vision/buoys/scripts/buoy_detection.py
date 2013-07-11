@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import actionlib
 from buoys.msg import FindBuoysAction
 
-rospy.init_node('buoy_detection')
+rospy.init_node('buoy_finder')
 bridge = CvBridge()
 
 #-----------------------------------------------------------------------------------

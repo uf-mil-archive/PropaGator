@@ -18,7 +18,7 @@ from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from ioboard.msg import IOBoardAction,IOBoardActionResult,IOBoardGoal
 from legacy_vision.msg import FindAction,FindGoal
 
-rospy.init_node('ring_detection')
+rospy.init_node('ring_finder')
 bridge = CvBridge()
 
 waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)

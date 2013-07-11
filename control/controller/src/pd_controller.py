@@ -137,8 +137,7 @@ def update_callback(event):
 
         if (not(odom_active)):
                 output = [0,0,0,0,0,0]
-	if (enable):
-                print '.'
+	if (enable):  
 	        controller_wrench.publish(WrenchStamped(
 				        header = Header(
 					        stamp=rospy.Time.now(),
