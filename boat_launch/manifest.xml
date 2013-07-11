@@ -15,7 +15,7 @@
   <depend package="controller"/>
   <depend package="thruster_mapper"/>	
   <depend package="c3_trajectory_generator"/>	
-
+  <depend package="sim"/>
   <depend package="depth_driver"/>	
 
 </package>

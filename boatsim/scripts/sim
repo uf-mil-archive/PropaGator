@@ -3,6 +3,7 @@
 from __future__ import division
 
 import math
+import numpy
 import random
 import traceback
 import rospy
@@ -17,7 +18,7 @@ import roslib
 roslib.load_manifest('boatsim')
 import rospy
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point, Vector3, Quaternion
+from geometry_msgs.msg import Point, Vector3, Quaternion, WrenchStamped
 
 
 from sim import threed, vector, util
@@ -62,7 +63,7 @@ space = ode.HashSpace()
 body_geom = ode.GeomBox(space, (1.27, .46, .46))
 body_geom.setBody(body)
 
-pool_mesh = threed.mesh_from_obj(open(roslib.packages.resource_file('boatsim', 'scene', 'pool6.obj')))
+pool_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'scene', 'pool6.obj'))
 pool_geom = ode.GeomTriMesh(pool_mesh.ode_trimeshdata, space)
 
 def get_water_vel(pos):
@@ -73,6 +74,13 @@ killed = False
 locked = False
 
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
+
+xyz_array = lambda o: numpy.array([o.x, o.y, o.z])
+current_wrench = numpy.zeros(3), numpy.zeros(3)
+def got_wrench(msg):
+    current_wrench[0][:] = xyz_array(msg.wrench.force)
+    current_wrench[1][:] = xyz_array(msg.wrench.torque)
+rospy.Subscriber('/wrench', WrenchStamped, got_wrench)
 
 def world_tick():
     global world_time
@@ -85,8 +93,11 @@ def world_tick():
     #body.addTorque([random.gauss(0, 10) for i in xrange(3)])
     body.addTorque(-(20 if body.getPosition()[2] >= 0 else 5) * V(body.getAngularVel()))
     
+    body.addRelForce(current_wrench[0])
+    body.addRelTorque(current_wrench[1])
+
     #print thrusters
-    
+    '''
     sub_model.vectors = []
     thruster_angle = math.radians(30)
     #print thrusters
@@ -96,9 +107,10 @@ def world_tick():
         (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,-.241308), 100, 100), # BR
         (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,-.241308), 100, 100), # BL
     ]):
+        assert abs(thrusters[i]) <= 1, thrusters[i]
         body.addRelForceAtRelPos(reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce), relpos)
         sub_model.vectors.append((relpos, relpos - .02*reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce)))
-    
+    '''
     keys = pygame.key.get_pressed()
     for keycode, force in [
         (pygame.K_k, v(-50, 0, 0)),
@@ -156,7 +168,7 @@ def world_tick():
     
     msg = Odometry()
     msg.header.stamp = rospy.Time(world_time)
-    msg.header.frame_id = '/simmap'
+    msg.header.frame_id = '/map'
     msg.child_frame_id = '/base_link'
     msg.pose.pose.position = Point(*body.getPosition())
     q = V(body.getQuaternion())
@@ -247,7 +259,7 @@ class Buoys(object):
 
 w = threed.World()
 
-w.objs.append(threed.MeshDrawer(pool_mesh, (.4, .4, .4)))
+w.objs.append(pool_mesh)
 sub_model = Boat(body, lambda: killed)
 w.objs.append(sub_model)
 w.objs.append(threed.VectorField(get_water_vel))

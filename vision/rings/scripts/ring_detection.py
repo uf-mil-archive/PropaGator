@@ -283,19 +283,18 @@ def visual_servo(object_fb):
 			else:			
 				ring = dict([('x', res[1]['center'][0]), ('y', res[1]['center'][1]), ('area', res[1]['scale'])])
 
-        err = distance((float(ring['x']),float(ring['y'])),red_shoot)
-        adjust_sign = [(red_shoot[0]-float(ring['x'])),(float(ring['y'])-red_shoot[1])]
-        #adjust_mag = [.3,.3]
-        if (err > 30):
+        err = numpy.linalg.norm(numpy.array(float(ring['x']),float(ring['y']))
+        adjust_sign = [-.1*float(ring['x']),-.1*float(ring['y'])]
+        if (err > 20):
+                waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust[1],adjust[0],0])) 
+                '''
                 print 'pos',(x,y)
                 #adjust_mag[0] = math.copysign(adjust_mag[0],adjust_sign[0])
                 #adjust_mag[1] = math.copysign(adjust_mag[1],adjust_sign[1])
-                adjust_mag = [adjust_sign[0],adjust_sign[1]]
-                if (math.fabs(adjust_sign[1]) > 20 and math.fabs(adjust_sign[0]) > 20):
+                if (math.fabs(adjust[1]) > 20 and math.fabs(adjust[0]) > 20):
                       print "both"
-                      print 'x=',adjust_mag[1],'y=',adjust_mag[0]
-                      #waypoint.send_goal(current_pose_editor.relative(numpy.array([adjust_mag[1], 0, 0])).as_MoveToGoal(speed = .3)) 
-                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust_mag[1],adjust_mag[0],0]))           
+                      print 'x=',adjust[1],'y=',adjust[0]
+                      waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust[1],adjust[0],0]))           
                 elif (math.fabs(adjust_sign[1]) > 20):
                       print "x"
                       print adjust_mag[1]
@@ -305,6 +304,7 @@ def visual_servo(object_fb):
                       print "y"
                       print adjust_mag[0]
                       waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,adjust_mag[0],0])) 
+                '''
         else:
                 goal = IOBoardGoal(command = 'Shoot2')
                 print "shooting!"

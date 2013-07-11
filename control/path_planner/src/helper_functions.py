@@ -28,3 +28,7 @@ def get_perp(p1,p2):
     y = p2[1]-p1[1]
     vec = max_dist(([-y,x],[y,-x]),center_of_points((p1,p2))) 
     return vec/numpy.linalg.norm(vec)
+
+def three_d(x):
+	return numpy.array([x[0], x[1], 0])                                
+			

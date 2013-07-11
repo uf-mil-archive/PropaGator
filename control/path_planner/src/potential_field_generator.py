@@ -4,130 +4,111 @@ import roslib
 import rospy
 roslib.load_manifest('path_planner')
 from std_msgs.msg import Header
-import math,time
+import math,time,numpy
 from visualization_msgs.msg import Marker,MarkerArray
 from std_msgs.msg import ColorRGBA
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Pose,Quaternion,Point,WrenchStamped,Wrench,Vector3
-import random,numpy
+from geometry_msgs.msg import Pose,Quaternion,Point,WrenchStamped,Wrench,Vector3,Vector3Stamped,PoseStamped
+import random,numpy,threading
 import actionlib
+from sensor_msgs.msg import Image,PointCloud2,PointField
 from c3_trajectory_generator.msg import MoveToAction, MoveToGoal
-from uf_common.orientation_helpers import lookat, get_perpendicular
-from sim.vector import v, V
+from uf_common.msg import MoveToAction, MoveToGoal
+from pointcloud2xyz import *
+from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
+from path_planner.msg import TraverseBuoysAction
+
 
 rospy.init_node('potential_field_generator')
-wrench_publisher = rospy.Publisher('wrench',WrenchStamped)
-
 #-----------------------------------------------------------------------
+waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
+output_wrench = rospy.Publisher('wrench', WrenchStamped)
 
-global traversed_buoys,red_buoys,green_buoys,current_position
-traversed_buoys = []
-red_buoy = []
-green_buoy = []
+lock = threading.Lock()
+global current_position,running
 current_position = []
-
-
-#-----------------------------------------------------------------------
+running = False
 
 def distance (p1,p2):
 	return (math.sqrt((p2[1]-p1[1])**2 + (p2[0]-p1[0])**2))
-
-#-----------------------------------------------------------------------
-
-def three_d(x):
-	return numpy.array([x[0], x[1], 0])
 	
-#-----------------------------------------------------------------------
+def vector(event):
+        if (running):
+                global master_cloud,current_position
+                deviation = 0
+                print 'len',len(master_cloud)
+                lock.acquire()
+                for point in master_cloud:
+                        deviation = deviation + (point[1]/numpy.linalg.norm(numpy.array([point[0],point[1]])))
+                lock.release()        
+                print 'deviation',deviation
+                #waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[0,0,0],angular=[0,0,10*deviation]))
+                output_wrench.publish(WrenchStamped(
+				        header = Header(
+					        stamp=rospy.Time.now(),
+					        frame_id="/base_link",
+					        ),
+				        wrench=Wrench(
+					        force = Vector3(x= .2,y= 0,z= 0),
+					        torque = Vector3(x=0,y= 0,z= .01*deviation),
+					        ))
 
-def find_closest_buoys(msg):
-	global current_position,green_buoy,red_buoy,traversed_buoys
-	red = ColorRGBA(1.0,0,0,1.0)
-	green = ColorRGBA(0,1.0,0,1.0)
-	
-	for marker in msg.markers:
-		if (not ((marker.pose.position.x,marker.pose.position.y) in traversed_buoys)):
-			if ((not red_buoy) and (marker.color == red)):
-				red_buoy = (marker.pose.position.x,marker.pose.position.y)
-			elif (marker.color == red):                                                                                                 se.position.y),current_position) < distance(red_buoy,current_position)):
-					red_buoy = (marker.pose.position.x,marker.pose.position.y)
-				
-			if ((not green_buoy) and (marker.color == green)):
-				green_buoy = (marker.pose.position.x,marker.pose.position.y)
-			elif (marker.color == green):
-				if (distance((marker.pose.position.x,marker.pose.position.y),current_position) < distance(green_buoy,current_position)):
-					green_buoy = (marker.pose.position.x,marker.pose.position.y)
-					
-	if ((not red_buoy) or (not green_buoy)):	
-		return [],[]
-	else: 
-		if (distance(red_buoy,green_buoy) < 4):
-			return red_buoy,green_buoy
-		else:
-			return [],[]
+					        )	         
+                
+rospy.Timer(rospy.Duration(.1),vector)
 
-#-----------------------------------------------------------------------
+def in_range(x):
+        max_distance = 6
+        min_distance = 1
+        if (all(math.fabs(i) < max_distance for i in x) and all(math.fabs(i) > min_distance for i in x)):
+                return True
+        else:
+                return False
 
-def attractive_vector(msg):
-        global current_position,green_buoy,red_buoy,traversed_buoys
-	red = ColorRGBA(1.0,0,0,1.0)
-	green = ColorRGBA(0,1.0,0,1.0)
-	attractive_points = []
-
-	for marker in msg.markers:
-		if (not ((marker.pose.position.x,marker.pose.position.y) in traversed_buoys)):
-                        if ((marker.color == red) or (marker.color == green)):
-                                pos = [marker.pose.position.x,marker.pose.position.y] 
-                                attractive_points.append(((pos[0]-current_position[0])/(distance(current_position,pos)**2),(pos[1] - current_position[1])/(distance(current_position,pos)**2)))
-        print attractive_points
-        return numpy.mean(attractive_points,0)
-                                
-			
-#-----------------------------------------------------------------------
-
-def center_of_points((p1,p2)):
-	return numpy.mean([p1,p2],0)
-
-#-----------------------------------------------------------------------
-
-def buoy_callback(msg):
-	global current_position,traversed_buoys
-	red = ColorRGBA(1.0,0,0,1.0)
-	green = ColorRGBA(0,1.0,0,1.0)
-	yellow = ColorRGBA(1.0,1.0,0,1.0)
-	obstacles = []
-	
-	for marker in msg.markers:
-		if (marker.color == yellow):
-			obstacles.append((marker.pose.position.x,marker.pose.position.y))
-	
-	#lookat(get_perpendicular(three_d(p1)-three_d(p2),(0,0,1)))
-
-        attractive_force = attractive_vector(msg)
-        print 'attractive force', attractive_force
-
-	if (numpy.mean(attractive_force) < .1):
-                print 'at buoy'
-                [p1,p2] = find_closest_buoys(msg)
-		traversed_buoys.append(p1)
-		traversed_buoys.append(p2)
-	else:
-		waypoint.send_goal(current_pose_editor.relative(numpy.array([point[0], point[1], 0])).as_MoveToGoal(speed = .1))	
-
-#-----------------------------------------------------------------------
-
-rospy.Subscriber('buoys',MarkerArray,buoy_callback)
-
+global master_cloud
+master_cloud = []
+def pointcloud_callback(msg):
+        lock.acquire()
+        global master_cloud
+        cloud = pointcloud2_to_xyz_array(msg)
+        if (len(cloud) > 0):
+                master_cloud = filter(in_range,cloud)
+        lock.release()
+rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 #-----------------------------------------------------------------------
 
 def pose_callback(msg):
-	global current_position
-	current_position = (msg.pose.pose.position.x,msg.pose.pose.position.y)
+        global current_position,current_pose_editor
+	current_pose_editor = PoseEditor.from_Odometry(msg)
+	current_position = [msg.pose.pose.position.x,msg.pose.pose.position.y]
+rospy.Subscriber('/sim_odom', Odometry, pose_callback)
 
-#-----------------------------------------------------------------------
 
-rospy.Subscriber('/odom', Odometry, pose_callback)
+class TraverseBuoysServer:
+
+ def __init__(self):
+        self.server = actionlib.SimpleActionServer('traverse_buoys', TraverseBuoysAction, self.execute, False)
+        global running
+        waypoint.cancel_goal()
+        running = False
+        self.server.start()
+        print "path_planner server started"
+
+ def execute(self,goal):
+        global running
+        #(numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) > 5) and
+        while ( not(self.server.is_preempt_requested())):
+             running = True
+        running = False
+
+        if (numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) < 5):
+                self.server.set_succeeded()
+        else:
+                self.server.set_preempted()                  
+
+server = TraverseBuoysServer()
 rospy.spin()
-
+waypoint.cancel_goal()
 
 
 

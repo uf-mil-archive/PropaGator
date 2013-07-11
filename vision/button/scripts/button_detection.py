@@ -267,6 +267,7 @@ def visual_servo(object_fb):
 		else:
 		        print "ramming"
 		        waypoint.cancel_goal()
+                        waypoint.send_goal_and_wait(current_pose_editor.left(.5))
 		        waypoint.send_goal(current_pose_editor.forward(5))
 		        rospy.sleep(4)
 		        waypoint.send_goal_and_wait(current_pose_editor.backward(5))
