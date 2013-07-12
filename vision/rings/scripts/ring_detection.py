@@ -328,11 +328,12 @@ class ShootRingsServer:
         global shot,running,color
         shot = False
         color = goal.color
+        waypoint.send_goal_and_wait(current_pose_editor.look_at_rel([goal.orientation.x,goal.orientation.y,0]))  
         self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while(not(shot) and not(self.server.is_preempt_requested())):
                 running = True
                 rospy.sleep(1)
-        
+        waypoint.send_goal(current_pose_editor.backward(3))
         running = False
         if (shot):
                 shot = False

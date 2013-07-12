@@ -26,10 +26,6 @@ origin = [0,0,0]
 def waypoint_ecef_callback(msg):
         global pos,origin,current_position
 	
-	#a
-	#offset = dict([('spock', [4,4]), ('button', [-4,4]), ('rings', [4,4]), ('buoys', [0,0])])
-	#b
-	offset = dict([('spock', [4,4]), ('button', [-4,4]), ('rings', [4,4]), ('buoys', [0,0])])
 
         ecef = [msg.point.x,msg.point.y,msg.point.z]
         diff = numpy.array(ecef) - numpy.array(pos)
@@ -45,7 +41,7 @@ def waypoint_ecef_callback(msg):
         print x.__dict__
         print "result:", waypoint.send_goal_and_wait(x)
         print "aligned"
-	x = current_pose_editor.set_position([final_goal[0]-4,final_goal[1]+4,0])
+	x = current_pose_editor.set_position([final_goal[0],final_goal[1],0])
         print x.__dict__
 	waypoint.send_goal_and_wait(x)
 	print "done"
@@ -74,7 +70,7 @@ class GoToWaypointServer:
         self.server.start()
         self.waypoint = actionlib.SimpleActionClient('moveto', MoveToAction)
         print 'connecting to action client'     
-        print "gps waypoint server started"
+        print 'gps waypoint server started'
 
  def execute(self,goal):
 
@@ -91,11 +87,15 @@ class GoToWaypointServer:
         final_goal = current_position + goal      
 
         self.waypoint.send_goal_and_wait(current_pose_editor.look_at_without_pitching([final_goal[0],final_goal[1],0]))
-        self.waypoint.send_goal_and_wait(current_pose_editor.set_position([final_goal[0] + offset[0],final_goal[1] + offset[1],0]))
+        self.waypoint.send_goal(current_pose_editor.set_position([final_goal[0] + offset[0],final_goal[1] + offset[1],0]).asMoveToGoal(linear_tolerance = 1))
+        
+        while (self.waypoint.get_state() == 'ACTIVE'):
+                rospy.sleep(2)
+                self.waypoint.send_goal(current_pose_editor.set_position([final_goal[0] + offset[0],final_goal[1] + offset[1],0]))
 
         self.server.set_succeeded()
                 
 
-#server = GoToWaypointServer()
+server = GoToWaypointServer()
 rospy.spin()
 

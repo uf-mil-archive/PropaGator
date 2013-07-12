@@ -1,5 +1,6 @@
 # goal
 string side
+geometry_msgs/Point orientation
 ---
 # result
 #not used

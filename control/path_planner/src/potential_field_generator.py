@@ -47,6 +47,7 @@ def vector():
 				angle_sum +=  math.atan2(point[1],point[0])
 			mean_angle = angle_sum/float(len(master_cloud))
 			mean_point = sum_/float(len(master_cloud))
+                        '''
 			for point in master_cloud:
 				if (math.atan2(point[1],point[0]) < mean_angle):
 					right += 1
@@ -56,9 +57,10 @@ def vector():
 					deviation -= (1/numpy.linalg.norm(numpy.array([point[0],point[1]])))
 			print "left",left
 			print "right",right
-			print 'mean angle',mean_angle
 		        print 'deviation',deviation
+                        '''
 			print "cloud size",len(master_cloud)
+                        print 'mean point',mean_point
 			
 			waypoint.send_goal(current_pose_editor.relative(numpy.array(mean_point)).as_MoveToGoal(speed = .8))
 			#waypoint.send_goal_and_wait(current_pose_editor.yaw_left(mean_angle))
@@ -97,13 +99,11 @@ def pointcloud_callback(msg):
 	vector()
 rospy.Subscriber("/cloud_3d",PointCloud2,pointcloud_callback)
 #-----------------------------------------------------------------------
-
 def pose_callback(msg):
         global current_position,current_pose_editor
 	current_pose_editor = PoseEditor.from_Odometry(msg)
 	current_position = [msg.pose.pose.position.x,msg.pose.pose.position.y]
 rospy.Subscriber('/odom', Odometry, pose_callback)
-
 
 class TraverseBuoysServer:
 
@@ -119,7 +119,8 @@ class TraverseBuoysServer:
  def execute(self,goal):
         global running,current_pose_editor
         #(numpy.linalg.norm(numpy.array(ecef_position)-numpy.array(end_position)) > 5) and
-	#waypoint.send_goal_and_wait(current_pose_editor.forward(20))
+        print "speed challenge"
+	waypoint.send_goal_and_wait(current_pose_editor.forward(25))
 	print "starting buoy channel"
         #self.controller_enable(False)
         while ( not(self.server.is_preempt_requested())):

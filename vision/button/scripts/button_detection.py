@@ -273,7 +273,7 @@ def visual_servo(object_fb):
 		        waypoint.send_goal_and_wait(current_pose_editor.backward(6))
 		        rammed = True
 	except UnboundLocalError:
-		print "both buttons not found yet"
+		print "no buttons found yet"
 
 class FindButtonServer:
  def __init__(self):
@@ -289,7 +289,7 @@ class FindButtonServer:
         print "running"
         global running,rammed,side
 	side = goal.side
-	waypoint.send_goal_and_wait(current_pose_editor.look_at_rel([1,-1,0]))  
+	waypoint.send_goal_and_wait(current_pose_editor.look_at_rel([goal.orientation.x,goal.orientation.y,0]))  
         self.client.send_goal(self.goal,feedback_cb = visual_servo)
         while (not(self.server.is_preempt_requested()) and not(rammed)):
              running = True

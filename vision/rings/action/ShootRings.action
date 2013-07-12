@@ -1,5 +1,6 @@
 # goal
 string color
+geometry_msgs/Point orientation
 ---
 # result
 #not used

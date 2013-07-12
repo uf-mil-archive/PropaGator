@@ -22,11 +22,4 @@
   <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
   <node pkg="path_planner" type="potential_field_generator.py" name="channel_navigation"/>
 
-  <include file="$(find legacy_vision)/launch/legacy_vision.launch">
-        <arg name="camera" value="mv_bluefox_camera_node"/>
-  </include>
-      
-  <node ns="mv_bluefox_camera_node" pkg="image_proc" type="image_proc"
-          name="image_proc" /> 
-
 </launch>
