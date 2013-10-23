@@ -1,0 +1,30 @@
+#!/usr/bin/python
+
+import traceback
+import math
+import rospy
+
+import serial
+
+s = serial.Serial('/dev/ttyUSB0', 115200)
+s.write('1 s.p\r\n')
+
+g0 = 9.80665
+
+tmpdata = ''
+while True:
+  tmpdata += s.read(s.inWaiting())
+  x = tmpdata.split('\r')
+  tmpdata = x[-1]
+  for data in x[:-1]:
+    try:
+        timestamp,magx,magy,magz,accelx,accely,accelz,gyrox,gyroy,gyroz,temperatureCoefficient = map(float, data.split(','))
+    except:
+        traceback.print_exc()
+        continue
+    #print timestamp,magx,magy,magz,accelx,accely,accelz,gyrox,gyroy,gyroz,temperatureCoefficient
+    accelx *= g0/2048
+    accely *= g0/2048
+    accelz *= g0/2048
+    #print math.sqrt(magx**2+magy**2+magz**2)
+    print magx, magy, magz

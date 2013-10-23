@@ -1,0 +1,14 @@
+<package>
+  <description brief="sparton_ahrs8">
+
+     sparton_ahrs8
+
+  </description>
+  <author>Forrest Voight</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/sparton_ahrs8</url>
+
+</package>
+
+

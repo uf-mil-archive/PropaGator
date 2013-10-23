@@ -1,0 +1,118 @@
+#!/usr/bin/python
+
+import roslib
+roslib.load_manifest('sparton_ahrs8')
+import rospy
+from std_msgs.msg import Header, String
+from geometry_msgs.msg import Quaternion, Vector3
+from sensor_msgs.msg import Imu, MagneticField
+
+import traceback
+import math
+
+import numpy
+import serial
+
+g0 = 9.80665
+
+in_points = []
+out_points = []
+
+cal = numpy.array([
+    [ -2.70866151e-06,  -3.46915663e-09,  -2.93130691e-08,  -6.85251404e-05],
+    [  3.91807091e-10,   2.76719429e-06,   8.75176653e-09,  -1.30416296e-05],
+    [  2.95058884e-08,  -3.85210310e-08,  -2.71557653e-06,  -6.68594735e-05],
+])
+
+
+rospy.init_node('sparton_ahrs8')
+
+frame_id = rospy.get_param('~frame_id', '/imu')
+port = rospy.get_param('~port', '/dev/imu')
+
+s = serial.Serial(port, 115200)
+s.write('printmask magp_trigger temp_trigger or accelp_trigger or gyrop_trigger or gyror_trigger or set drop\r\n')
+s.write('printmodulus 1 set drop\r\n')
+s.write('printtrigger gyror_trigger set drop\r\n')
+
+
+pub = rospy.Publisher('/imu/data_raw', Imu)
+mag_pub = rospy.Publisher('/imu/mag_raw', MagneticField)
+raw_pub = rospy.Publisher('/imu/raw', String)
+
+
+def handle_line(data):
+    try:
+        # P:,13267,mp,-48.742573,667.253479,-79.224556,ap,-5.441035,1006.101807,2.989686,gp,0.000000,0.000000,0.000000,T,34.88 \r
+        raw_pub.publish(data)
+        const_P_colon, timestamp, const_mp, mag_x, mag_y, mag_z, const_ap, acc_x, acc_y, acc_z, const_gr, gyror_x, gyror_y, gyror_z, const_gp, gyro_x, gyro_y, gyro_z, const_T, temperature = data.split(',')
+        assert const_P_colon == 'P:'
+        assert const_mp == 'mp'
+        assert const_ap == 'ap'
+        assert const_T == 'T'
+        timestamp, mag_x, mag_y, mag_z, acc_x, acc_y, acc_z, gyror_x, gyror_y, gyror_z, gyro_x, gyro_y, gyro_z, temperature = map(float, [timestamp, mag_x, mag_y, mag_z, acc_x, acc_y, acc_z, gyror_x, gyror_y, gyror_z, gyro_x, gyro_y, gyro_z, temperature])
+    except Exception:
+        print repr(data)
+        traceback.print_exc()
+        return
+    mag_x, mag_y, mag_z = [1e-7 * x for x in [mag_x, mag_y, mag_z]]
+    acc_x, acc_y, acc_z = [-1e-3 * g0 * x for x in [acc_x, acc_y, acc_z]]
+    #print gyro_x, gyro_y, gyro_z,
+    gyro2_x, gyro2_y, gyro2_z = cal.dot([gyror_x, gyror_y, gyror_z, 1])
+    gyro_x, gyro_y, gyro_z = [110.447762 * x for x in [gyro_x, gyro_y, gyro_z]]
+    gyro2_x, gyro2_y, gyro2_z = [110.447762 * x for x in [gyro2_x, gyro2_y, gyro2_z]]
+    #print gyro_x, gyro_y, gyro_z, gyro2_x, gyro2_y, gyro2_z
+    #print acc_x, acc_y, acc_z
+    #print '%+.7f %+.7f %+.7f' % (mag_x, mag_y, mag_z)
+    #if gyro_x != 0 and gyro_y != 0 and gyro_z != 0 and max(map(abs, [gyror_x, gyror_y, gyror_z])) < 30000:
+    #    in_points.append([gyror_x, gyror_y, gyror_z, 1])
+    #    out_points.append([gyro_x, gyro_y, gyro_z])
+    #if len(in_points) == 1000: break
+    #print len(in_points)
+    pub.publish(Imu(
+        header=Header(
+            stamp=now,
+            frame_id=frame_id,
+        ),
+        orientation=Quaternion(0, 0, 0, 0),
+        orientation_covariance=[-1] + [0]*8,
+        angular_velocity=Vector3(gyro2_x, gyro2_y, gyro2_z),
+        angular_velocity_covariance=[.03**2,0,0, 0,.03**2,0, 0,0,.03**2], # XXX
+        linear_acceleration=Vector3(acc_x, acc_y, acc_z),
+        linear_acceleration_covariance=[.02**2,0,0, 0,.02**2,0, 0,0,.02**2], # XXX
+    ))
+
+    mag_pub.publish(MagneticField(
+        header=Header(
+            stamp=now,
+            frame_id=frame_id,
+        ),
+        magnetic_field=Vector3(mag_x, mag_y, mag_z),
+    ))
+
+
+
+tmpdata = ''
+while not rospy.is_shutdown():
+    waiting = s.inWaiting()
+    now = rospy.Time.now()
+    tmpdata += s.read(waiting) # blocking seems to break things, strangely
+    x = tmpdata.split('\n')
+    tmpdata = x[-1]
+    for data in x[:-1]:
+        handle_line(data)
+
+import numpy
+for n in xrange(3):
+  res, _, _, _ = numpy.linalg.lstsq(in_points, [x[n] for x in out_points])
+  print n, res
+res, _, _, _ = numpy.linalg.lstsq(in_points, out_points)
+res = res.T
+
+try:
+  print max([(numpy.linalg.norm(res.dot(i)-o), i, o, res.dot(i)) for i, o in zip(in_points, out_points)])
+except: pass
+#print res
+
+import code
+code.interact(local=dict(in_points=in_points, out_points=out_points))

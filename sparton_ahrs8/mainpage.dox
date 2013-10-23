@@ -1,0 +1,19 @@
+/**
+\mainpage
+\htmlinclude manifest.html
+
+\b sparton_ahrs8 
+
+Coordinate frame
+
++x is opposite the cable entry side
++z is opposite the label side
+
+<!-- 
+Provide an overview of your package.
+-->
+
+-->
+
+
+*/
