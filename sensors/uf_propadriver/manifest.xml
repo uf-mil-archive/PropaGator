@@ -1,0 +1,16 @@
+<package>
+  <description brief="uf_propadriver">
+
+     uf_propadriver
+
+  </description>
+  <author>Forrest Voight</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/uf_propadriver</url>
+
+  <depend package="thruster_handling"/>
+  <depend package="kill_handling"/>
+</package>
+
+
