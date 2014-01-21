@@ -11,7 +11,6 @@
   <depend package="std_msgs"/>
   <depend package="rospy"/>
   <depend package="roscpp"/>
-  <depend package="pcl"/>
   <depend package="pcl_ros"/>
   <depend package="laser_tf_py"/>
   <depend package="laser_geometry"/>

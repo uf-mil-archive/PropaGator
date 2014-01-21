@@ -11,7 +11,7 @@
   <depend package="tf"/>
   <depend package="roscpp"/>
   <depend package="rospy"/>
-  <depend package="LMS1xx"/>
+  <depend package="lms1xx"/>
   <depend package="actionlib"/>
 
 </package>

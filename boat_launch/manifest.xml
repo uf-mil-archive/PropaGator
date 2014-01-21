@@ -9,9 +9,7 @@
   <review status="unreviewed" notes=""/>
   <url>http://ros.org/wiki/boat_launch</url>
   <depend package="propagator_motor_driver"/>
-  <depend package="legacy_ukf"/>
   <depend package="odometry_utils"/>
-  <depend package="kalman_6dof"/>
   <depend package="controller"/>
   <depend package="thruster_mapper"/>	
   <depend package="c3_trajectory_generator"/>	
