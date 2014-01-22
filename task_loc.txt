@@ -1,4 +1,0 @@
-rings,1,2,3
-buoys,1,2,3
-spock,1,2,3
-button,1,2,3

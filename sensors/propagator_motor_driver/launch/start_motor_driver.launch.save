@@ -1,8 +1,0 @@
-<launch>
-
-
-   <node name="motor_driver" pkg="propagator_motor_driver" type="propagator_motor_driver_pub.py" />
-   <node name="thruster_mapper" pkg="thruster_mapper" type="thruster_mapper" />
-
-</launch>
-

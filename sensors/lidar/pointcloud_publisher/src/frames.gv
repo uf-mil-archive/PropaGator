@@ -1,7 +1,0 @@
-digraph G {
-"/world" -> "/laser"[label="Broadcaster: /laser_tf_broadcaster\nAverage rate: 230.117 Hz\nMost recent transform: 0.002 sec old \nBuffer length: 4.984 sec\n"];
-edge [style=invis];
- subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
-"Recorded at time: 1357767463.874"[ shape=plaintext ] ;
- }->"/world";
-}
