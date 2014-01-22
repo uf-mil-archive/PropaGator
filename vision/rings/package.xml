@@ -1,0 +1,63 @@
+<package>
+  <name>rings</name>
+  <version>1.0.0</version>
+  <description>sandbox_opencv</description>
+  <maintainer email="navid102@gmail.com">Navid Shahrestani</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/sandbox_opencv</url>
+  <!-- <url type="bugtracker"></url> -->
+
+  <author>Navid Shahrestani</author>
+
+  <!-- Dependencies which this package needs to build itself. -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Dependencies needed to compile this package. -->
+  <build_depend>c3_trajectory_generator</build_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>actionlib</build_depend>
+  <build_depend>message_runtime</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>legacy_vision</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>ioboard</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
+
+  <!-- Dependencies needed after this package is compiled. -->
+  <run_depend>c3_trajectory_generator</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>actionlib</run_depend>
+  <run_depend>message_runtime</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>image_transport</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>legacy_vision</run_depend>
+  <run_depend>message_generation</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>ioboard</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>actionlib_msgs</run_depend>
+
+  <!-- Dependencies needed only for running tests. -->
+  <!-- <test_depend>ioboard</test_depend> -->
+  <!-- <test_depend>roscpp</test_depend> -->
+  <!-- <test_depend>sensor_msgs</test_depend> -->
+  <!-- <test_depend>actionlib</test_depend> -->
+  <!-- <test_depend>std_msgs</test_depend> -->
+  <!-- <test_depend>image_transport</test_depend> -->
+  <!-- <test_depend>rospy</test_depend> -->
+  <!-- <test_depend>legacy_vision</test_depend> -->
+  <!-- <test_depend>geometry_msgs</test_depend> -->
+  <!-- <test_depend>c3_trajectory_generator</test_depend> -->
+  <!-- <test_depend>cv_bridge</test_depend> -->
+  <!-- <test_depend>actionlib_msgs</test_depend> -->
+
+</package>

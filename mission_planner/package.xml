@@ -1,0 +1,56 @@
+<package>
+  <name>mission_planner</name>
+  <version>1.0.0</version>
+  <description>mission_planner</description>
+  <maintainer email="navid102@gmail.com">Navid Shahrestani</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/mission_planner</url>
+  <!-- <url type="bugtracker"></url> -->
+
+  <author>Navid Shahrestani</author>
+
+  <!-- Dependencies which this package needs to build itself. -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Dependencies needed to compile this package. -->
+  <build_depend>smach_ros</build_depend>
+  <build_depend>path_planner</build_depend>
+  <build_depend>buoys</build_depend>
+  <build_depend>gps_waypoints</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>button</build_depend>
+  <build_depend>rawgps_common</build_depend>
+  <build_depend>rings</build_depend>
+  <build_depend>smach</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>quad</build_depend>
+
+  <!-- Dependencies needed after this package is compiled. -->
+  <run_depend>smach_ros</run_depend>
+  <run_depend>path_planner</run_depend>
+  <run_depend>buoys</run_depend>
+  <run_depend>gps_waypoints</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>button</run_depend>
+  <run_depend>rawgps_common</run_depend>
+  <run_depend>rings</run_depend>
+  <run_depend>smach</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>quad</run_depend>
+
+  <!-- Dependencies needed only for running tests. -->
+  <!-- <test_depend>smach_ros</test_depend> -->
+  <!-- <test_depend>path_planner</test_depend> -->
+  <!-- <test_depend>buoys</test_depend> -->
+  <!-- <test_depend>gps_waypoints</test_depend> -->
+  <!-- <test_depend>rings</test_depend> -->
+  <!-- <test_depend>button</test_depend> -->
+  <!-- <test_depend>rawgps_common</test_depend> -->
+  <!-- <test_depend>std_msgs</test_depend> -->
+  <!-- <test_depend>smach</test_depend> -->
+  <!-- <test_depend>rospy</test_depend> -->
+  <!-- <test_depend>quad</test_depend> -->
+
+</package>

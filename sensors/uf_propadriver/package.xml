@@ -1,0 +1,29 @@
+<package>
+  <name>uf_propadriver</name>
+  <version>1.0.0</version>
+  <description>uf_propadriver</description>
+  <maintainer email="forrest@forre.st">Forrest Voight</maintainer>
+
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/uf_propadriver</url>
+  <!-- <url type="bugtracker"></url> -->
+
+  <author>Forrest Voight</author>
+
+  <!-- Dependencies which this package needs to build itself. -->
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <!-- Dependencies needed to compile this package. -->
+  <build_depend>thruster_handling</build_depend>
+  <build_depend>kill_handling</build_depend>
+
+  <!-- Dependencies needed after this package is compiled. -->
+  <run_depend>thruster_handling</run_depend>
+  <run_depend>kill_handling</run_depend>
+
+  <!-- Dependencies needed only for running tests. -->
+  <!-- <test_depend>thruster_handling</test_depend> -->
+  <!-- <test_depend>kill_handling</test_depend> -->
+
+</package>
