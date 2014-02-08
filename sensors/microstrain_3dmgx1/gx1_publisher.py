@@ -4,8 +4,8 @@ import roslib
 roslib.load_manifest('microstrain_3dmgx1')
 import rospy
 from std_msgs.msg import Header
-from geometry_msgs.msg import Quaternion, Vector3, Vector3Stamped
-from sensor_msgs.msg import Imu
+from geometry_msgs.msg import Quaternion, Vector3
+from sensor_msgs.msg import Imu, MagneticField
 
 from src.micro_3dm_gx1 import micro_3dm_gx1, inst_vectors, inst_vectors_bytes
 
@@ -16,7 +16,7 @@ frame_id = rospy.get_param("~frame_id", "/imu")
 port = rospy.get_param("~port", "/dev/IMU")
 
 pub = rospy.Publisher('/imu/data_raw', Imu)
-mag_pub = rospy.Publisher('/imu/mag_raw', Vector3Stamped)
+mag_pub = rospy.Publisher('/imu/mag_raw', MagneticField)
 
 imu = micro_3dm_gx1(port)
 
@@ -55,10 +55,10 @@ while not rospy.is_shutdown():
         linear_acceleration_covariance=[.02**2,0,0, 0,.02**2,0, 0,0,.02**2],
     ))
     
-    mag_pub.publish(Vector3Stamped(
+    mag_pub.publish(MagneticField(
         header=Header(
             stamp=now,
             frame_id=frame_id,
         ),
-        vector=Vector3(values[0]*imu.mag_scale, values[1]*imu.mag_scale, values[2]*imu.mag_scale),
+        magnetic_field=Vector3(values[0]*imu.mag_scale, values[1]*imu.mag_scale, values[2]*imu.mag_scale),
     ))
