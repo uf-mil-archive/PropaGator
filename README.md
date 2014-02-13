@@ -9,6 +9,12 @@ installable with:
 
     sudo apt-get install ros-hydro-gps-common
 
+This repository also depends on
+[socat](http://www.dest-unreach.org/socat/), installable
+with:
+
+    sudo apt-get install socat
+
 This repository also depends on the lms1xx package,
 installable with:
 
