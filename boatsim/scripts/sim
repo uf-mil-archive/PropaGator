@@ -73,7 +73,7 @@ def get_water_vel(pos):
 killed = False
 locked = False
 
-odom_pub = rospy.Publisher('/odom', Odometry)
+odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
 xyz_array = lambda o: numpy.array([o.x, o.y, o.z])
 current_wrench = numpy.zeros(3), numpy.zeros(3)
