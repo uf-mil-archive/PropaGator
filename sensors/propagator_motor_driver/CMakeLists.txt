@@ -5,6 +5,8 @@ project(propagator_motor_driver)
 # Load catkin and all dependencies required for this package
 # TODO: remove all from COMPONENTS that are not catkin packages.
 find_package(catkin REQUIRED COMPONENTS thruster_handling rospy message_runtime message_generation std_msgs)
+catkin_python_setup()
+
 # CATKIN_MIGRATION: removed during catkin migration
 # cmake_minimum_required(VERSION 2.4.6)
 

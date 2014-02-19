@@ -8,8 +8,8 @@ import serial,time
 #
 ####################################################
 class MotorDriver():
-	def __init__(self,usb_id):
-		self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
+	def __init__(self, port):
+		self.commport = serial.Serial(port=port, baudrate=115200, parity=serial.PARITY_NONE, stopbits=1, bytesize=8,timeout = 1)
 		self.commport.write('\r')
 	
 	def set_forward_speed(self,speed):

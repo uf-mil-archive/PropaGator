@@ -75,13 +75,6 @@ locked = False
 
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
-xyz_array = lambda o: numpy.array([o.x, o.y, o.z])
-current_wrench = numpy.zeros(3), numpy.zeros(3)
-def got_wrench(msg):
-    current_wrench[0][:] = xyz_array(msg.wrench.force)
-    current_wrench[1][:] = xyz_array(msg.wrench.torque)
-rospy.Subscriber('/wrench', WrenchStamped, got_wrench)
-
 def world_tick():
     global world_time
     
@@ -93,24 +86,21 @@ def world_tick():
     #body.addTorque([random.gauss(0, 10) for i in xrange(3)])
     body.addTorque(-(20 if body.getPosition()[2] >= 0 else 5) * V(body.getAngularVel()))
     
-    body.addRelForce(current_wrench[0])
-    body.addRelTorque(current_wrench[1])
-
     #print thrusters
-    '''
+    
     sub_model.vectors = []
     thruster_angle = math.radians(30)
     #print thrusters
     for i, (reldir, relpos, fwdforce, revforce) in enumerate([
-        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(.729401, -.23495, -.241308), 100, 100), # FR
-        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(.729401,.23495,-.241308), 100, 100), # FL
-        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,-.241308), 100, 100), # BR
-        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,-.241308), 100, 100), # BL
+        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(.729401, -.23495, -.241308), 10, 10), # FR
+        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(.729401,.23495,-.241308), 10, 10), # FL
+        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,-.241308), 10, 10), # BR
+        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,-.241308), 10, 10), # BL
     ]):
         assert abs(thrusters[i]) <= 1, thrusters[i]
         body.addRelForceAtRelPos(reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce), relpos)
         sub_model.vectors.append((relpos, relpos - .02*reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce)))
-    '''
+    
     keys = pygame.key.get_pressed()
     for keycode, force in [
         (pygame.K_k, v(-50, 0, 0)),
