@@ -13,7 +13,7 @@ class MotorDriver():
 		self.commport.write('\r')
 	
 	def set_forward_speed(self,speed):
-		assert 0 <= speed <= 1
+		assert 0 <= speed <= 1, repr(speed)
 		self.commport.write('1')
 		self.commport.write(str(int(round(200*speed))) + '\r')
 

@@ -24,10 +24,12 @@ motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', m
 message_received = False
 port = rospy.get_param('~port')
 thruster_id = rospy.get_param('~id')
-min_force = rospy.get_param('~min_force')
-max_force = rospy.get_param('~max_force')
 thruster_position = rospy.get_param('~position')
 thruster_direction = rospy.get_param('~direction')
+forward_c0 = rospy.get_param('~forward_c0')
+forward_c1 = rospy.get_param('~forward_c1')
+reverse_c0 = rospy.get_param('~reverse_c0')
+reverse_c1 = rospy.get_param('~reverse_c1')
 
 while True:
 	try:
@@ -41,13 +43,12 @@ while True:
 def map_thruster_curve(direction,force):
 	assert force >= 0
         if direction == "forward":
-                output = max(0, 0.1530275483395*math.log(force) + 0.580279995)
+        	output = forward_c1 * force + forward_c0
         else:
         	assert direction == "reverse"
-		output = 0.1455577435*force + 0.28803985
-	if output > 1:
-		output = 1
-	assert output >= 0
+        	output = reverse_c1 * force + reverse_c0
+	assert 0 <= output <= 1.1
+	if output > 1: output = 1
         return output 
 
 def apply_command(force):
@@ -58,12 +59,12 @@ def apply_command(force):
 	if (force > 0):
                	thrust = map_thruster_curve("forward",force)
 		print "forward force = ",force,"forward thrust = ",thrust
-                motordriver.set_forward_speed(str(int(thrust)))
+                motordriver.set_forward_speed(thrust)
 #      		motordriver.set_forward_speed(str(int(force*200/max_force)))
 	elif (force < 0):
                 thrust = map_thruster_curve("reverse",-force)
 		print "reverse force = ",force,"reverse thrust = ",thrust		
-                motordriver.set_reverse_speed(str(int(thrust)))
+                motordriver.set_reverse_speed(thrust)
 	#	motordriver.set_reverse_speed(str(int(-force*200/min_force)))
 	else:
 		motordriver.stop()
@@ -83,8 +84,7 @@ def apply_command(force):
 
 	
 lifetime = rospy.Duration(1.)	
-print (thruster_id, lifetime, thruster_position, thruster_direction, -min_force, max_force,apply_command)
-thruster_broadcaster = ThrusterBroadcaster('/base_link', thruster_id, lifetime, thruster_position, thruster_direction, -min_force, max_force, [0, 0, 0], apply_command)
+thruster_broadcaster = ThrusterBroadcaster('/base_link', thruster_id, lifetime, thruster_position, thruster_direction, -(1 - reverse_c0)/reverse_c1, (1 - forward_c0)/forward_c1, [0, 0, 0], apply_command)
 
 def thrusterinfo_callback(event):
 	global message_received

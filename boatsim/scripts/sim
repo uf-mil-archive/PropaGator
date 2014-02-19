@@ -35,7 +35,10 @@ buoy_publisher=rospy.Publisher('buoys',MarkerArray)
 buoy_array=MarkerArray()
 '''
 
-thrusters = [0]*4
+thruster_infos = [rospy.get_param(param) for param in rospy.get_param('~thruster_params')]
+thrusters = [0]*len(thruster_infos)
+for i in xrange(len(thruster_infos)):
+    reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
 
 
 clip = lambda x, (low, high): min(max(x, low), high)
@@ -89,17 +92,19 @@ def world_tick():
     #print thrusters
     
     sub_model.vectors = []
-    thruster_angle = math.radians(30)
-    #print thrusters
-    for i, (reldir, relpos, fwdforce, revforce) in enumerate([
-        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(.729401, -.23495, -.241308), 10, 10), # FR
-        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(.729401,.23495,-.241308), 10, 10), # FL
-        (v(math.cos(thruster_angle), -math.sin(thruster_angle), 0), v(-.821269,-.23495,-.241308), 10, 10), # BR
-        (v(math.cos(thruster_angle), math.sin(thruster_angle), 0), v(-.821269,.23495,-.241308), 10, 10), # BL
-    ]):
-        assert abs(thrusters[i]) <= 1, thrusters[i]
-        body.addRelForceAtRelPos(reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce), relpos)
-        sub_model.vectors.append((relpos, relpos - .02*reldir*thrusters[i]*(fwdforce if thrusters[i] > 0 else revforce)))
+    for info, value in zip(thruster_infos, thrusters):
+        value = 1
+        relpos = V(info['position'])
+        reldir = V(info['direction'])
+        if value < -info['reverse_c0']:
+            force = -(-value - info['reverse_c0'])/info['reverse_c1']
+        elif value > info['forward_c0']:
+            force = (value - info['forward_c0'])/info['forward_c1']
+        else:
+            force = 0
+        print info['id'], force
+        body.addRelForceAtRelPos(reldir*force, relpos)
+        sub_model.vectors.append((relpos, relpos - .02*reldir*force))
     
     keys = pygame.key.get_pressed()
     for keycode, force in [
@@ -169,9 +174,6 @@ def world_tick():
     
     
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
-
-for i in xrange(4):
-    reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
 
 
 

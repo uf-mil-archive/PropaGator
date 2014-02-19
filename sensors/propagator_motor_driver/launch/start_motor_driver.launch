@@ -9,6 +9,10 @@
       max_force: 6.25
       position: [.729401, -0.23495, -0.241308]
       direction: [0.86602540378, 0.5, 0]
+      forward_c0: 0.6711
+      forward_c1: 0.0258
+      reverse_c0: 0.2880
+      reverse_c1: 0.1456
     </rosparam>
   </node>
 
@@ -20,6 +24,10 @@
       max_force: 6.25
       position: [.729401, 0.23495, -0.241308]
       direction: [0.86602540378,-0.5, 0]
+      forward_c0: 0.6711
+      forward_c1: 0.0258
+      reverse_c0: 0.2880
+      reverse_c1: 0.1456
     </rosparam>
   </node>
 
@@ -31,6 +39,10 @@
       max_force: 6.25
       position: [-0.821269, -0.23495, -0.241308]
       direction: [0.86602540378, -0.5, 0]
+      forward_c0: 0.6711
+      forward_c1: 0.0258
+      reverse_c0: 0.2880
+      reverse_c1: 0.1456
     </rosparam>
   </node>
 
@@ -42,6 +54,10 @@
       max_force: 6.25
       position:  [-0.821269, 0.23495, -0.241308]
       direction: [0.86602540378, 0.5, 0]
+      forward_c0: 0.6711
+      forward_c1: 0.0258
+      reverse_c0: 0.2880
+      reverse_c1: 0.1456
     </rosparam>
   </node>
 
