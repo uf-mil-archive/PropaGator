@@ -29,9 +29,9 @@
     <arg name="port_prefix" value="/tmp/thruster_"/>
   </include>
   
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_fr" args="FR 10030" respawn="true"/>
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_fl" args="FL 10031" respawn="true"/>
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_br" args="BR 10032" respawn="true"/>
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_bl" args="BL 10033" respawn="true"/>
+  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_FR" args="/tmp/thruster_FR 10030" respawn="true"/>
+  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_FL" args="/tmp/thruster_FL 10031" respawn="true"/>
+  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_BR" args="/tmp/thruster_BR 10032" respawn="true"/>
+  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_BL" args="/tmp/thruster_BL 10033" respawn="true"/>
 
 </launch>

@@ -4,7 +4,6 @@ import math,time
 import traceback
 
 import serial
-import numpy as np
 
 import rospy
 from geometry_msgs.msg import WrenchStamped, Wrench, Vector3, Point
@@ -41,12 +40,13 @@ while True:
 
 def map_thruster_curve(direction,force):
 	assert force >= 0
-        if (direction == "forward"):
-                output = (30.6055096679*np.log(force+1) + 116.055999)
+        if direction == "forward":
+                output = max(0, 0.1530275483395*math.log(force) + 0.580279995)
         else:
-		output = (29.1115487*force + 57.60797)
-	if (output > 200):
-		output = 200 
+        	assert direction == "reverse"
+		output = 0.1455577435*force + 0.28803985
+	if output > 1:
+		output = 1
 	assert output >= 0
         return output 
 

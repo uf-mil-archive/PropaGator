@@ -13,12 +13,14 @@ class MotorDriver():
 		self.commport.write('\r')
 	
 	def set_forward_speed(self,speed):
+		assert 0 <= speed <= 1
 		self.commport.write('1')
-		self.commport.write(str(speed) + '\r')
+		self.commport.write(str(int(round(200*speed))) + '\r')
 
 	def set_reverse_speed(self,speed):
+		assert 0 <= speed <= 1
 		self.commport.write('3')
-		self.commport.write(str(speed) + '\r')
+		self.commport.write(str(int(round(200*speed))) + '\r')
 
 	def stop(self):
 		#while True:
