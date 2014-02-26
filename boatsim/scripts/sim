@@ -93,7 +93,6 @@ def world_tick():
     
     sub_model.vectors = []
     for info, value in zip(thruster_infos, thrusters):
-        value = 1
         relpos = V(info['position'])
         reldir = V(info['direction'])
         if value < -info['reverse_c0']:
