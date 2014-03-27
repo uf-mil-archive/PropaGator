@@ -263,12 +263,26 @@ i.objs.append(Buoys(v(-1, 5, 0)))
 i.objs.append(Buoys(v(-5, 10, 0)))
 i.objs.append(Buoys(v(-2, 15, 0)))
 '''
+def set_forward_view():
+    glTranslate(-2.8, 0, 0)
+    threed.rotate_to_body(body, inv=True)
+c1 = threed.Camera(w, "mv_bluefox_camera_node", set_forward_view, body, fovy=90)
+#Guessed topic name based on vision src contents(Jake)
+
+def set_forward_view2():
+    glTranslate(-2.4, 0.1, 0.1)
+    threed.rotate_to_body(body, inv=True)
+c2 = threed.Camera(w, 'fwd_camera_2', set_forward_view2, body, fovy=50)
+#Guessed topic name based on dice roll(Jake)
+#-> Add correct offsets
 
 i = threed.Interface()
 i.init(w)
 def _():
     try:
         i.step()
+	c1.step()
+	c2.step()
     except:
         traceback.print_exc()
         reactor.stop()
