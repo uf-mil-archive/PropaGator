@@ -22,7 +22,7 @@ lock = threading.Lock()
 
 #set controller gains
 rospy.set_param('p_gain', {'x':2.0,'y':2.0,'yaw':3.5})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':10,'y':10,'yaw':10})
+rospy.set_param('d_gain', {'x':1,'y':1,'yaw':1})
 #.25,400
 #-----------
 

@@ -16,53 +16,42 @@ shift: [9.74349877448012e-06, 1.2844613312776938e-06, -9.033222369532357e-06]
     </rosparam>
   </node>
 
-  <node pkg="skytraq_driver" type="skytraq_driver" name="gps_driver2">
+  <node pkg="sparton_ahrs8" type="sparton_ahrs8" name="imu2_driver">
+    <param name="port" value="/dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTFUXEDU-if00-port0"/>
+    <remap from="imu/data_raw" to="imu2/data_raw"/>
+    <remap from="imu/mag_raw" to="imu2/mag"/>
+  </node>
+  <node pkg="tf" type="static_transform_publisher" name="imu2_broadcaster" args="-.7366 -.1778 .1778  0.5 -0.5 -0.5 0.5  base_link imu2 100"/>
+
+  <node pkg="skytraq_driver" type="skytraq_driver" name="gps_driver">
     <param name="port" value="/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DA0032VC-if00-port0"/>
     <param name="frame_id" value="/gps"/>
-    <remap from="/gps" to="/gps2"/>
+    <remap from="/gps" to="/gps"/>
   </node>
-  <node pkg="skytraq_driver" type="parser" name="gps2_parser">
-    <param name="frame_id" value="/gps2"/>
-    <remap from="/gps" to="gps2"/> 
-  </node>
-	
-
-  <node pkg="nodelet" type="nodelet" args="standalone nv08c_driver/nodelet" name="gps_driver">
-    <param name="port" value="/dev/serial/by-id/usb-FTDI_Dual_RS232-if01-port0"/>
+  <node pkg="skytraq_driver" type="parser" name="gps_parser">
     <param name="frame_id" value="/gps"/>
-  </node>
-
-  <node pkg="nv08c_driver" type="dump" name="gps_conv">
+    <remap from="/gps" to="gps"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
-    args="0.559 .267 -.051 0 0 0 1  /base_link /gps 100" />
+    args="0.40 -0.40 0  0 0 0 1  /base_link /gps 100" />
 
   <node pkg="nodelet" type="nodelet" args="standalone odom_estimator/nodelet" name="odom_estimator" respawn="true">
     <remap from="odom" to="imu_odom"/>
     <remap from="gps" to="gps"/>
   </node>
-<!--
-
-  <node pkg="kalman_6dof" type="kalman_6dof" name="kalman_6dof" respawn="true">
-    <param name="hack_down_ref" value="false"/>
-    <remap from="ins" to="imu_odom"/>
-  </node>
-  <node pkg = "depth_driver" name="fake_depth" type="fake_depth"/>
--->
-
 
   <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
-      frame_id: /map
+      frame_id: /enu
       child_frame_id: /base_link
     </rosparam>
     <remap from="orig_odom" to="imu_odom"/>
   </node>
   <node pkg="odometry_utils" type="odometry_to_tf" name="odometry_to_tf"/>
   
-  <node pkg="power_router" type="power_router" name="power_router">
-	<param name="port" value="/dev/ttyPowerRouter"/>
+  <!--<node pkg="power_router" type="power_router" name="power_router">
+ 	<param name="port" value="/dev/ttyPowerRouter"/>
   </node>
   
-  <node pkg="ioboard" type="ioboard_sub.py" name="io_board"/>
+  <node pkg="ioboard" type="ioboard_sub.py" name="io_board"/>-->
         
 </launch>
