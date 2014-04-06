@@ -276,6 +276,11 @@ c2 = threed.Camera(w, 'fwd_camera_2', set_forward_view2, body, fovy=50)
 #Guessed topic name based on dice roll(Jake)
 #-> Add correct offsets
 
+newbuoy_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'green_buoy.obj'))
+newbuoy_mesh = newbuoy_mesh.translate((5, 5, 0))
+w.objs.append(newbuoy_mesh)
+newbuoy_geom = ode.GeomTriMesh(newbuoy_mesh.ode_trimeshdata, space)
+
 i = threed.Interface()
 i.init(w)
 def _():
