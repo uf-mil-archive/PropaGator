@@ -26,10 +26,12 @@ port = rospy.get_param('~port')
 thruster_id = rospy.get_param('~id')
 thruster_position = rospy.get_param('~position')
 thruster_direction = rospy.get_param('~direction')
-forward_c0 = rospy.get_param('~forward_c0')
-forward_c1 = rospy.get_param('~forward_c1')
-reverse_c0 = rospy.get_param('~reverse_c0')
-reverse_c1 = rospy.get_param('~reverse_c1')
+output_list = rospy.get_param('~output_list')
+assert sorted(output_list) == output_list
+force_list = rospy.get_param('~force_list')
+assert sorted(force_list) == force_list
+assert output_list[0] == -1
+assert output_list[-1] == 1
 
 while True:
 	try:
@@ -40,32 +42,26 @@ while True:
 	else:
 		break
 
-def map_thruster_curve(direction,force):
-	assert force >= 0
-        if direction == "forward":
-        	output = forward_c1 * force + forward_c0
-        else:
-        	assert direction == "reverse"
-        	output = reverse_c1 * force + reverse_c0
-	assert 0 <= output <= 1.1
-	if output > 1: output = 1
-        return output 
+def map_curve(force):
+	if force < force_list[0]: force = force_list[0]
+	if force > force_list[-1]: force = force_list[-1]
+	pairs = zip(force_list, output_list)
+	for (left_force, left_output), (right_force, right_output) in zip(pairs[:-1], pairs[1:]):
+		if left_force <= force <= right_force:
+			x = (force - left_force)/(right_force - left_force)
+			return x * (right_output - left_output) + left_output
+	assert False
 
 def apply_command(force):
 	
 	global message_received
 	message_received = True
 	#print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
-	if (force > 0):
-               	thrust = map_thruster_curve("forward",force)
-		print "forward force = ",force,"forward thrust = ",thrust
+	output = map_curve(force)
+	if output > 0:
                 motordriver.set_forward_speed(thrust)
-#      		motordriver.set_forward_speed(str(int(force*200/max_force)))
-	elif (force < 0):
-                thrust = map_thruster_curve("reverse",-force)
-		print "reverse force = ",force,"reverse thrust = ",thrust		
-                motordriver.set_reverse_speed(thrust)
-	#	motordriver.set_reverse_speed(str(int(-force*200/min_force)))
+	elif output < 0:
+                motordriver.set_reverse_speed(-thrust)
 	else:
 		motordriver.stop()
 		
