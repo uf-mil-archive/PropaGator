@@ -281,6 +281,21 @@ newbuoy_mesh = newbuoy_mesh.translate((5, 5, 0))
 w.objs.append(newbuoy_mesh)
 newbuoy_geom = ode.GeomTriMesh(newbuoy_mesh.ode_trimeshdata, space)
 
+cruciform_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'cruciform.obj'))
+cruciform_mesh = cruciform_mesh.translate((10, 5, 0))
+w.objs.append(cruciform_mesh)
+cruciform_geom = ode.GeomTriMesh(cruciform_mesh.ode_trimeshdata, space)
+
+circle_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'circle.obj'))
+circle_mesh = circle_mesh.translate((10, 5, .66))
+w.objs.append(circle_mesh)
+circle_geom = ode.GeomTriMesh(circle_mesh.ode_trimeshdata, space)
+
+triangle_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'triangle.obj'))
+triangle_mesh = triangle_mesh.translate((10, 5, 1.33))
+w.objs.append(triangle_mesh)
+triangle_geom = ode.GeomTriMesh(triangle_mesh.ode_trimeshdata, space)
+
 i = threed.Interface()
 i.init(w)
 def _():
