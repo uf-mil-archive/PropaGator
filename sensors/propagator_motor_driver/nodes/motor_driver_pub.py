@@ -7,6 +7,7 @@ import rospy
 from std_msgs.msg import Header
 
 from thruster_handling.broadcaster import ThrusterBroadcaster
+from uf_common import interpolate
 
 from propagator_motor_driver import MotorDriver
 from propagator_motor_driver.msg import motor_driver_statistics
@@ -15,7 +16,6 @@ from propagator_motor_driver.msg import motor_driver_statistics
 rospy.init_node('motor_driver')
 
 motor_driver_statistics_publisher = rospy.Publisher('motor_driver_statistics', motor_driver_statistics)
-
 
 message_received = False
 port = rospy.get_param('~port')
@@ -29,30 +29,15 @@ assert sorted(force_list) == force_list
 assert output_list[0] == -1
 assert output_list[-1] == 1
 
-while True:
-    try:
-        motordriver = MotorDriver.MotorDriver(port)
-    except:
-        traceback.print_exc()
-        time.sleep(1)
-    else:
-        break
+motordriver = MotorDriver.MotorDriver(port)
 
-def map_curve(force):
-    if force < force_list[0]: force = force_list[0]
-    if force > force_list[-1]: force = force_list[-1]
-    pairs = zip(force_list, output_list)
-    for (left_force, left_output), (right_force, right_output) in zip(pairs[:-1], pairs[1:]):
-        if left_force <= force <= right_force:
-            x = (force - left_force)/(right_force - left_force)
-            return x * (right_output - left_output) + left_output
-    assert False
+lifetime = rospy.Duration(1.)
 
 def apply_command(force):
     global message_received
     message_received = True
     #print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
-    output = map_curve(force)
+    output = interpolate.sample_curve((force_list, output_list), force)
     if output > 0:
         motordriver.set_forward_speed(thrust)
     elif output < 0:
@@ -70,14 +55,12 @@ def apply_command(force):
         out_voltage  = "0",#motordriver.get_out_voltage(),
         batt_voltage = "0",#motordriver.get_batt_voltage(),
         )
-#motor_driver_statistics_publisher.publish(motordriverstat_msg)
+    #motor_driver_statistics_publisher.publish(motordriverstat_msg)
+thruster_broadcaster = ThrusterBroadcaster('/base_link', thruster_id,
+    lifetime, thruster_position, thruster_direction,
+    min(force_list), max(force_list), [0, 0, 0], apply_command)
 
-
-
-lifetime = rospy.Duration(1.)
-thruster_broadcaster = ThrusterBroadcaster('/base_link', thruster_id, lifetime, thruster_position, thruster_direction, -(1 - reverse_c0)/reverse_c1, (1 - forward_c0)/forward_c1, [0, 0, 0], apply_command)
-
-def thrusterinfo_callback(event):
+def timeout(event):
     global message_received
     
     thruster_broadcaster.send()
@@ -86,8 +69,8 @@ def thrusterinfo_callback(event):
         motordriver.stop()
     else:
         message_received = False
-
-rospy.Timer(lifetime/2., thrusterinfo_callback)
+rospy.Timer(lifetime/2., timeout)
 
 rospy.spin()
+
 motordriver.stop()
