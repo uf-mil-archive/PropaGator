@@ -39,9 +39,9 @@ def apply_command(force):
     #print 'speed: ',str(int(force*200/max_force)),' motor driver: ',thruster_id
     output = interpolate.sample_curve((force_list, output_list), force)
     if output > 0:
-        motordriver.set_forward_speed(thrust)
+        motordriver.set_forward_speed(output)
     elif output < 0:
-        motordriver.set_reverse_speed(-thrust)
+        motordriver.set_reverse_speed(-output)
     else:
         motordriver.stop()
     

@@ -1,7 +1,7 @@
 <launch>
   <arg name="port_prefix" default="/dev/" />
 
-  <node name="motor_driver_FR" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
+  <node name="motor_driver_FR" pkg="propagator_motor_driver" type="motor_driver_pub.py" respawn="true">
     <param name="port" value="$(arg port_prefix)FR"/>
     <rosparam>
       id: FR
@@ -12,7 +12,7 @@
     </rosparam>
   </node>
 
-  <node name="motor_driver_FL" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
+  <node name="motor_driver_FL" pkg="propagator_motor_driver" type="motor_driver_pub.py"  respawn="true">
     <param name="port" value="$(arg port_prefix)FL"/>
     <rosparam>
       id: FL
@@ -23,7 +23,7 @@
     </rosparam>
   </node>
 
-  <node name="motor_driver_BR" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
+  <node name="motor_driver_BR" pkg="propagator_motor_driver" type="motor_driver_pub.py"  respawn="true">
     <param name="port" value="$(arg port_prefix)BR"/>
     <rosparam>
       id: BR
@@ -34,7 +34,7 @@
     </rosparam>
   </node>
 
-  <node name="motor_driver_BL" pkg="propagator_motor_driver" type="motor_driver_pub.py" >
+  <node name="motor_driver_BL" pkg="propagator_motor_driver" type="motor_driver_pub.py"  respawn="true">
     <param name="port" value="$(arg port_prefix)BL"/>
     <rosparam>
       id: BL

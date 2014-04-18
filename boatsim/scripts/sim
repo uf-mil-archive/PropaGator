@@ -20,7 +20,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Vector3, Quaternion, WrenchStamped
 
-
+from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
 
@@ -95,12 +95,7 @@ def world_tick():
     for info, value in zip(thruster_infos, thrusters):
         relpos = V(info['position'])
         reldir = V(info['direction'])
-        if value < -info['reverse_c0']:
-            force = -(-value - info['reverse_c0'])/info['reverse_c1']
-        elif value > info['forward_c0']:
-            force = (value - info['forward_c0'])/info['forward_c1']
-        else:
-            force = 0
+        force = interpolate.sample_curve((info['output_list'], info['force_list']), value)
         print info['id'], force
         body.addRelForceAtRelPos(reldir*force, relpos)
         sub_model.vectors.append((relpos, relpos - .02*reldir*force))
