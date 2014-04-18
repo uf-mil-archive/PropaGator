@@ -103,7 +103,7 @@ def world_tick():
             relpos = V(info['position'])
             reldir = V(info['direction'])
             force = interpolate.sample_curve((info['output_list'], info['force_list']), value)
-            print info['id'], force
+            #print info['id'], force
             body.addRelForceAtRelPos(reldir*force, relpos)
             sub_model.vectors.append((relpos, relpos - .02*reldir*force))
     
