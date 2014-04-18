@@ -1,13 +1,5 @@
 <launch>
 
-  <!-- <include file="$(find boat_launch)/launch/navigation.launch"/> -->
- 
-  <node pkg="controller" type="pd_controller.py" name="controller"/>
- 
-  <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
-
-  <node pkg="thruster_mapper" type="thruster_mapper" name="thruster_mapper"/>
-
   <node pkg="c3_trajectory_generator" type="c3_trajectory_generator" name="trajectory_generator"><rosparam>
     fixed_frame: /map
     body_frame: /base_link
@@ -18,9 +10,14 @@
     arevoffset_b: [0.05, 0, 0]
     umax_b: [ 0.25,  0.25,  0.25,   0.1,   0.1,  0.1]
   </rosparam></node>
+ 
+  <node pkg="controller" type="pd_controller.py" name="controller"/>
 
-  <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
-  <node pkg="path_planner" type="potential_field_generator.py" name="channel_navigation"/>
+  <node pkg="thruster_mapper" type="thruster_mapper" name="thruster_mapper"/>
+ 
+  <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
+
+  
   
   <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
 
