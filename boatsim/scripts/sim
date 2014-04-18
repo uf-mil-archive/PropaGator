@@ -35,9 +35,10 @@ buoy_publisher=rospy.Publisher('buoys',MarkerArray)
 buoy_array=MarkerArray()
 '''
 
-thruster_infos = [rospy.get_param(param) for param in rospy.get_param('~thruster_params')]
-thrusters = [0]*len(thruster_infos)
-for i in xrange(len(thruster_infos)):
+thruster_param_names = ['motor_driver_FR', 'motor_driver_FL', 'motor_driver_BR', 'motor_driver_BL']
+thruster_infos = None
+thrusters = [0]*len(thruster_param_names)
+for i in xrange(len(thruster_param_names)):
     reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
 
 
@@ -79,7 +80,7 @@ locked = False
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
 def world_tick():
-    global world_time
+    global world_time, thruster_infos
     
     water_vel = get_water_vel(V(body.getPosition()))
     
@@ -92,13 +93,19 @@ def world_tick():
     #print thrusters
     
     sub_model.vectors = []
-    for info, value in zip(thruster_infos, thrusters):
-        relpos = V(info['position'])
-        reldir = V(info['direction'])
-        force = interpolate.sample_curve((info['output_list'], info['force_list']), value)
-        print info['id'], force
-        body.addRelForceAtRelPos(reldir*force, relpos)
-        sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+    if thruster_infos is None:
+        try:
+            thruster_infos = [rospy.get_param(param) for param in thruster_param_names]
+        except:
+            pass
+    else:
+        for info, value in zip(thruster_infos, thrusters):
+            relpos = V(info['position'])
+            reldir = V(info['direction'])
+            force = interpolate.sample_curve((info['output_list'], info['force_list']), value)
+            print info['id'], force
+            body.addRelForceAtRelPos(reldir*force, relpos)
+            sub_model.vectors.append((relpos, relpos - .02*reldir*force))
     
     keys = pygame.key.get_pressed()
     for keycode, force in [

@@ -1,10 +1,4 @@
 <launch>
-
-  <node pkg="boatsim" type="sim" name="simulator" required="true">
-    <rosparam>
-      thruster_params: [motor_driver_FR, motor_driver_FL, motor_driver_BR, motor_driver_BL]
-    </rosparam>
-  </node>
   
   <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
   
