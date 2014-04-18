@@ -26,18 +26,17 @@ def guesssign(req):
         s.send("PING\n")
         data = s.recv(BUFFER_SIZE)
         if data=="PONG\n" :
-           s.send("REPORT;UF:LIZARD@1234.1234,1234.1234\n")
-           s.close()
+            s.send("REPORT;UF:LIZARD@1234.1234,1234.1234\n")
+            s.close()
     else:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((TCP_IP, TCP_PORTB))
         s.send("PING\n")
         data = s.recv(BUFFER_SIZE)
         if data=="PONG\n" :
-           s.send("REPORT;UF:SPOCK@1234.1234,1234.1234\n")
-           s.close()
+            s.send("REPORT;UF:SPOCK@1234.1234,1234.1234\n")
+            s.close()
     return GuessSignResponse()
 rospy.Service('~guesssign', GuessSign, guesssign)
 
 rospy.spin()
-

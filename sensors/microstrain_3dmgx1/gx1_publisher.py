@@ -26,12 +26,12 @@ rospy.loginfo('successfully opened port')
 
 while not imu.init_EEPROM():
     rospy.logwarn('failed to init the IMU EEPROM')
-rospy.loginfo('successfully initialized the EEPROM')    
-    
+rospy.loginfo('successfully initialized the EEPROM')
+
 while not imu.set_continuous_command(inst_vectors):
     rospy.logwarn('failed to set imu to stream inst. vectors')
 rospy.loginfo('successfully set imu to stream continuosly')
-    
+
 while not rospy.is_shutdown():
     values = imu.get_packet(inst_vectors_bytes)
     now = rospy.Time.now()

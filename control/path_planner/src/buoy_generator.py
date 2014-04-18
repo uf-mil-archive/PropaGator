@@ -15,30 +15,30 @@ rospy.init_node('buoy_generator')
 global buoy_array
 buoy_publisher=rospy.Publisher('buoys',MarkerArray)
 buoy_array=MarkerArray()
-    
+
 def append_marker(pos,color):
-	marker = Marker()
-	marker.header.frame_id = "/simmap"
-	marker.type = marker.SPHERE
-	marker.id = pos[0]*pos[1]
-	marker.lifetime = rospy.Duration(0)
-	marker.action = marker.ADD
-	marker.scale.x = 0.2
-	marker.scale.y = 0.2
-	marker.scale.z = 0.2
-	marker.color.a = 1.0
-	marker.color.r = color[0]
-	marker.color.g = color[1]
-	marker.color.b = color[2]
-	marker.pose.orientation.w = 1.0
-	marker.pose.position.x = pos[0]
-	marker.pose.position.y = pos[1]
-	marker.pose.position.z = 0
-	buoy_array.markers.append(marker)
-	
+    marker = Marker()
+    marker.header.frame_id = "/simmap"
+    marker.type = marker.SPHERE
+    marker.id = pos[0]*pos[1]
+    marker.lifetime = rospy.Duration(0)
+    marker.action = marker.ADD
+    marker.scale.x = 0.2
+    marker.scale.y = 0.2
+    marker.scale.z = 0.2
+    marker.color.a = 1.0
+    marker.color.r = color[0]
+    marker.color.g = color[1]
+    marker.color.b = color[2]
+    marker.pose.orientation.w = 1.0
+    marker.pose.position.x = pos[0]
+    marker.pose.position.y = pos[1]
+    marker.pose.position.z = 0
+    buoy_array.markers.append(marker)
+
 def random_obstacle(r,g,b):
-	append_marker((random.gauss(10,10),random.gauss(10,10)),(r,g,b))
-	
+    append_marker((random.gauss(10,10),random.gauss(10,10)),(r,g,b))
+
 def pub_buoy_pair(pos,angle):
     global buoy_array
     #buoys = [(pos + [0,i*3,0],(i,1-i,0)) for i in xrange(2)]
@@ -48,7 +48,7 @@ def pub_buoy_pair(pos,angle):
     
     append_marker(green_pos,(0,1.0,0))
     append_marker(red_pos,(1.0,0,0))
-    
+
 
 pub_buoy_pair((1,2),-15)
 pub_buoy_pair((5,10),-35)
@@ -57,7 +57,7 @@ pub_buoy_pair((15,18),-80)
 pub_buoy_pair((20,16),-90)
 
 for i in range(20):
-	random_obstacle(1.0,1.0,0)
+    random_obstacle(1.0,1.0,0)
 
 
 '''

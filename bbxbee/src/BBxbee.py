@@ -10,7 +10,7 @@ class BB_xbee():
     def __init__(self,usb_id):
         self.commport = serial.Serial(port = "/dev/"+usb_id,baudrate=9600, parity=serial.PARITY_NONE, stopbits=1, bytesize=8)
         self.wrench_pub=rospy.Publisher('wrench',WrenchStamped)
-
+    
     def recievedirection(self):
         birdinput = self.commport.read(1)
         if birdinput == 'w':
@@ -35,4 +35,3 @@ bb=BB_xbee(usb_id='ttyUSB0')
 
 while True:
     bb.recievedirection()
-    

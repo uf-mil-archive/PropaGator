@@ -5,29 +5,29 @@ import cv,cv2,math
 from sensor_msgs.msg import Image,PointCloud2,PointField
 
 def pointcloud_callback(msg):
-        if (running):
-                global cloudx,cloudy,cloud
-                cloud = pointcloud2_to_xyz_array(msg)
-                cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
-                projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
-                cloud_mat = cloud
-             
-                cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
-                (cloudx,cloudy) = cv2.split(np.asarray(projection))
+    if (running):
+        global cloudx,cloudy,cloud
+        cloud = pointcloud2_to_xyz_array(msg)
+        cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)
+        projection = cv.CreateMat(len(cloud),1,cv.CV_32FC2)
+        cloud_mat = cloud
+        
+        cv.ProjectPoints2(cv.fromarray(cloud_mat),rotation_vector,translation_vector,intrinsic_mat,distortion_coeffs,projection)
+        (cloudx,cloudy) = cv2.split(np.asarray(projection))
 
 #-----------------------------------------------------------------------------------
 DUMMY_FIELD_PREFIX = '__'
 
 # mappings between PointField types and np types
 type_mappings = [(PointField.INT8, np.dtype('int8')), (PointField.UINT8, np.dtype('uint8')), (PointField.INT16, np.dtype('int16')),
-                 (PointField.UINT16, np.dtype('uint16')), (PointField.INT32, np.dtype('int32')), (PointField.UINT32, np.dtype('uint32')),
-                 (PointField.FLOAT32, np.dtype('float32')), (PointField.FLOAT64, np.dtype('float64'))]
+    (PointField.UINT16, np.dtype('uint16')), (PointField.INT32, np.dtype('int32')), (PointField.UINT32, np.dtype('uint32')),
+    (PointField.FLOAT32, np.dtype('float32')), (PointField.FLOAT64, np.dtype('float64'))]
 pftype_to_nptype = dict(type_mappings)
 nptype_to_pftype = dict((nptype, pftype) for pftype, nptype in type_mappings)
 
 # sizes (in bytes) of PointField types
 pftype_sizes = {PointField.INT8: 1, PointField.UINT8: 1, PointField.INT16: 2, PointField.UINT16: 2,
-                PointField.INT32: 4, PointField.UINT32: 4, PointField.FLOAT32: 4, PointField.FLOAT64: 8}
+    PointField.INT32: 4, PointField.UINT32: 4, PointField.FLOAT32: 4, PointField.FLOAT64: 8}
 
 def pointcloud2_to_dtype(cloud_msg):
     '''Convert a list of PointFields to a np record datatype.
@@ -41,12 +41,12 @@ def pointcloud2_to_dtype(cloud_msg):
             offset += 1
         np_dtype_list.append((f.name, pftype_to_nptype[f.datatype]))
         offset += pftype_sizes[f.datatype]
-
+    
     # might be extra padding between points
     while offset < cloud_msg.point_step:
         np_dtype_list.append(('%s%d' % (DUMMY_FIELD_PREFIX, offset), np.uint8))
         offset += 1
-        
+    
     return np_dtype_list
 
 def arr_to_fields(cloud_arr):
@@ -64,23 +64,23 @@ def arr_to_fields(cloud_arr):
     return fields
 
 def pointcloud2_to_array(cloud_msg, split_rgb=False):
-    ''' Converts a rospy PointCloud2 message to a np recordarray 
+    ''' Converts a rospy PointCloud2 message to a np recordarray
     
     Reshapes the returned array to have shape (height, width), even if the height is 1.
-
+    
     The reason for using np.fromstring rather than struct.unpack is speed... especially
     for large point clouds, this will be <much> faster.
     '''
     # construct a np record type equivalent to the point type of this cloud
     dtype_list = pointcloud2_to_dtype(cloud_msg)
-
+    
     # parse the cloud into an array
     cloud_arr = np.fromstring(cloud_msg.data, dtype_list)
-
+    
     # remove the dummy fields that were added
     cloud_arr = cloud_arr[
         [fname for fname, _type in dtype_list if not (fname[:len(DUMMY_FIELD_PREFIX)] == DUMMY_FIELD_PREFIX)]]
-
+    
     if split_rgb:
         cloud_arr = split_rgb_field(cloud_arr)
     
@@ -91,12 +91,12 @@ def array_to_pointcloud2(cloud_arr, stamp=None, frame_id=None, merge_rgb=False):
     '''
     if merge_rgb:
         cloud_arr = merge_rgb_fields(cloud_arr)
-
+    
     # make it 2d (even if height will be 1)
     cloud_arr = np.atleast_2d(cloud_arr)
-
+    
     cloud_msg = PointCloud2()
-
+    
     if stamp is not None:
         cloud_msg.header.stamp = stamp
     if frame_id is not None:
@@ -115,18 +115,18 @@ def merge_rgb_fields(cloud_arr):
     '''Takes an array with named np.uint8 fields 'r', 'g', and 'b', and returns an array in
     which they have been merged into a single np.float32 'rgb' field. The first byte of this
     field is the 'r' uint8, the second is the 'g', uint8, and the third is the 'b' uint8.
-
+    
     This is the way that pcl likes to handle RGB colors for some reason.
     '''
     r = np.asarray(cloud_arr['r'], dtype=np.uint32)
     g = np.asarray(cloud_arr['g'], dtype=np.uint32)
-    b = np.asarray(cloud_arr['b'], dtype=np.uint32)    
+    b = np.asarray(cloud_arr['b'], dtype=np.uint32)
     rgb_arr = np.array((r << 16) | (g << 8) | (b << 0), dtype=np.uint32)
-
+    
     # not sure if there is a better way to do this. i'm changing the type of the array
     # from uint32 to float32, but i don't want any conversion to take place -jdb
     rgb_arr.dtype = np.float32
-
+    
     # create a new array, without r, g, and b, but with rgb float32 field
     new_dtype = []
     for field_name in cloud_arr.dtype.names:
@@ -134,21 +134,21 @@ def merge_rgb_fields(cloud_arr):
         if field_name not in ('r', 'g', 'b'):
             new_dtype.append((field_name, field_type))
     new_dtype.append(('rgb', np.float32))
-    new_cloud_arr = np.zeros(cloud_arr.shape, new_dtype)    
-
+    new_cloud_arr = np.zeros(cloud_arr.shape, new_dtype)
+    
     # fill in the new array
     for field_name in new_cloud_arr.dtype.names:
         if field_name == 'rgb':
             new_cloud_arr[field_name] = rgb_arr
         else:
             new_cloud_arr[field_name] = cloud_arr[field_name]
-        
+    
     return new_cloud_arr
 
 def split_rgb_field(cloud_arr):
     '''Takes an array with a named 'rgb' float32 field, and returns an array in which
     this has been split into 3 uint 8 fields: 'r', 'g', and 'b'.
-
+    
     (pcl stores rgb in packed 32 bit floats)
     '''
     rgb_arr = cloud_arr['rgb'].copy()
@@ -165,7 +165,7 @@ def split_rgb_field(cloud_arr):
             new_dtype.append((field_name, field_type))
     new_dtype.append(('r', np.uint8))
     new_dtype.append(('g', np.uint8))
-    new_dtype.append(('b', np.uint8))    
+    new_dtype.append(('b', np.uint8))
     new_cloud_arr = np.zeros(cloud_arr.shape, new_dtype)
     
     # fill in the new array
@@ -194,7 +194,7 @@ def get_xyz_points(cloud_array, remove_nans=True, dtype=np.float):
     points[...,0] = cloud_array['x']
     points[...,1] = cloud_array['y']
     points[...,2] = cloud_array['z']
-
+    
     return points
 
 def pointcloud2_to_xyz_array(cloud_msg, remove_nans=True):

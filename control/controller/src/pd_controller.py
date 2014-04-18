@@ -39,7 +39,7 @@ def _jacobian(x):
         [ ctheta * cpsi, -cphi * spsi + sphi * stheta * cpsi,  sphi * spsi + cphi * stheta * cpsi],
         [ ctheta * spsi,  cphi * cpsi + sphi * stheta * spsi, -sphi * cpsi + cphi * stheta * spsi],
         [-stheta       ,                sphi * ctheta       ,                cphi * ctheta       ],]
-  
+    
     J[3:6, 3:6] = [
         [1, sphi * ttheta,  cphi * ttheta],
         [0, cphi         , -sphi         ],
@@ -62,7 +62,7 @@ def _jacobian_inv(x):
         [0,  cphi, sphi * ctheta],
         [0, -sphi, cphi * ctheta],]
     return J_inv
-    
+
 #---------------collect desired state information as soon as it is posted--------------------
 global desired_state_set,previous_error,odom_active,enable
 enable = True
@@ -78,7 +78,7 @@ state_dot_body = numpy.zeros(6)
 def desired_state_callback(desired_posetwist):
     global desired_state,desired_state_dot,desired_state_set
     lock.acquire()
-    desired_state_set = True	
+    desired_state_set = True
     desired_state = numpy.concatenate([xyz_array(desired_posetwist.posetwist.pose.position), transformations.euler_from_quaternion(xyzw_array(desired_posetwist.posetwist.pose.orientation))])
     desired_state_dot = _jacobian(desired_state).dot(numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)]))
     lock.release()
@@ -88,85 +88,81 @@ rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 #----------------------------------------------------------------------------------
 
 K = numpy.array([
-	[rospy.get_param('p_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('p_gain/y'),0,0,0,0],
-	[0,0,0,0,0,0],
-	[0,0,0,0,0,0],
-	[0,0,0,0,0,0],
-	[0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
+    [rospy.get_param('p_gain/x'),0,0,0,0,0],
+    [0,rospy.get_param('p_gain/y'),0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
 
 Ks = numpy.array([
-	[rospy.get_param('d_gain/x'),0,0,0,0,0],
-	[0,rospy.get_param('d_gain/y'),0,0,0,0],
-	[0,0,0,0,0,0],
-	[0,0,0,0,0,0],
-	[0,0,0,0,0,0],
-	[0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
+    [rospy.get_param('d_gain/x'),0,0,0,0,0],
+    [0,rospy.get_param('d_gain/y'),0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
 def odom_callback(current_posetwist):
-        global desired_state,desired_state_dot,state,stat_dot,state_dot_body,desired_state_set,odom_active
-        lock.acquire()
-	odom_active = True 
-        state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
-	state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
-	state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
-	if (not desired_state_set):
-           desired_state = state
-           desired_state_set = True
-        lock.release()
+    global desired_state,desired_state_dot,state,stat_dot,state_dot_body,desired_state_set,odom_active
+    lock.acquire()
+    odom_active = True
+    state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
+    state_dot = _jacobian(state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
+    state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
+    if (not desired_state_set):
+        desired_state = state
+        desired_state_set = True
+    lock.release()
 
-	
+
 def update_callback(event):
-	
-	global desired_state,desired_state_dot,state,stat_dot,state_dot_body,previous_error,enable
-
-	lock.acquire()	
-	#print 'desired state', desired_state
-        #print 'current_state', state		
-	def smallest_coterminal_angle(x):
-		return (x + math.pi) % (2*math.pi) - math.pi
-
-               
-        # sub pd-controller sans rise
-	e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
-	vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
-	e2 = vbd - state_dot_body
-	output = Ks.dot(e2)
-       
-	#print 'output',output
-        lock.release()
-
-        if (not(odom_active)):
-                output = [0,0,0,0,0,0]
-	if (enable):  
-	        controller_wrench.publish(WrenchStamped(
-				        header = Header(
-					        stamp=rospy.Time.now(),
-					        frame_id="/base_link",
-					        ),
-				        wrench=Wrench(
-					        force = Vector3(x= output[0],y= output[1],z= 0),
-					        torque = Vector3(x=0,y= 0,z= output[5]),
-					        ))
-
-					        )	
+    
+    global desired_state,desired_state_dot,state,stat_dot,state_dot_body,previous_error,enable
+    
+    lock.acquire()
+    #print 'desired state', desired_state
+    #print 'current_state', state
+    def smallest_coterminal_angle(x):
+        return (x + math.pi) % (2*math.pi) - math.pi
+    
+    
+    # sub pd-controller sans rise
+    e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
+    vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
+    e2 = vbd - state_dot_body
+    output = Ks.dot(e2)
+    
+    #print 'output',output
+    lock.release()
+    
+    if (not(odom_active)):
+        output = [0,0,0,0,0,0]
+    if (enable):
+        controller_wrench.publish(WrenchStamped(
+            header = Header(
+                stamp=rospy.Time.now(),
+                frame_id="/base_link",
+                ),
+            wrench=Wrench(
+                force = Vector3(x= output[0],y= output[1],z= 0),
+                torque = Vector3(x=0,y= 0,z= output[5]),
+                ))
+                
+                )
 
 def setStatus(action):
     global enable
     if action.enable:
-	enable = True
+        enable = True
     else:
-	enable = False
+        enable = False
     return EnableResponse()
 rospy.Service('~enable', Enable, setStatus)
-	
+
 def timeout_callback(event):
-	global odom_active 
-	odom_active = False
+    global odom_active
+    odom_active = False
 rospy.Timer(rospy.Duration(.1),update_callback)
 rospy.Timer(rospy.Duration(1),timeout_callback)
 rospy.Subscriber('/odom', Odometry, odom_callback)
 rospy.spin()
-
-
-
-		
