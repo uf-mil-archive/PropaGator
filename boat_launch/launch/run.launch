@@ -21,5 +21,7 @@
 
   <node pkg="gps_waypoints" type="gps_waypoints.py" name="gps_waypoint"/>
   <node pkg="path_planner" type="potential_field_generator.py" name="channel_navigation"/>
+  
+  <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
 
 </launch>
