@@ -7,7 +7,7 @@ import numpy as np
 import json
 import cv,cv2,math,threading
 from nav_msgs.msg import Odometry
-from pointcloud2xyz import *
+import pointcloud2xyz
 from std_msgs.msg import String
 from sensor_msgs.msg import Image,PointCloud2,PointField
 from cv_bridge import CvBridge, CvBridgeError

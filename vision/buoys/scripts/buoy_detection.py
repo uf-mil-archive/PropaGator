@@ -5,7 +5,7 @@ roslib.load_manifest('buoys')
 import rospy
 import numpy as np
 import cv,cv2,math,threading
-from pointcloud2xyz import *
+import pointcloud2xyz
 from std_msgs.msg import String
 from sensor_msgs.msg import Image,PointCloud2,PointField
 from cv_bridge import CvBridge, CvBridgeError
@@ -336,7 +336,7 @@ def pointcloud_callback(msg):
   
                 lock.acquire()
                 global master_cloud
-                cloud = pointcloud2_to_xyz_array(msg)
+                cloud = pointcloud2xyz.pointcloud2_to_xyz_array(msg)
                 #print len(cloud)
                 if (len(cloud) > 0):
                         cloud_mat = cv.CreateMat(len(cloud),1,cv.CV_32FC3)

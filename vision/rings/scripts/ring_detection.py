@@ -283,7 +283,7 @@ def visual_servo(object_fb):
 			else:			
 				ring = dict([('x', res[1]['center'][0]), ('y', res[1]['center'][1]), ('area', res[1]['scale'])])
 
-        err = numpy.linalg.norm(numpy.array(float(ring['x']),float(ring['y']))
+        err = numpy.linalg.norm(numpy.array(float(ring['x']),float(ring['y'])))
         adjust_sign = [-.1*float(ring['x']),-.1*float(ring['y'])]
         if (err > 20):
                 waypoint.send_goal(current_pose_editor.as_MoveToGoal(linear=[adjust[1],adjust[0],0])) 

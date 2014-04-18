@@ -25,7 +25,7 @@ if __name__ == '__main__':
         while not rospy.is_shutdown():
                 try:
                     (trans,rot) = listener.lookupTransform('/base_link', '/laser', rospy.Time(0))
-                    f.write(str(rospy.Time.now())+str(min_angle) +
+                    #f.write(str(rospy.Time.now())+str(min_angle) +
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
                     continue
 

@@ -6,7 +6,7 @@ class quad_xbee():
              
         def recieve_pos(pos):#felix does degrees decimal minutes
                 boat_pos = []
-                for i in range(3)
+                for i in range(3):
                     boat_pos.append = self.commport.readline()
                 return boat_pos# Lat, long, alt
 

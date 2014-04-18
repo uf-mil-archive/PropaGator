@@ -14,7 +14,7 @@ import actionlib
 from sensor_msgs.msg import Image,PointCloud2,PointField
 from c3_trajectory_generator.msg import MoveToAction, MoveToGoal
 from uf_common.msg import MoveToAction, MoveToGoal
-from pointcloud2xyz import *
+import pointcloud2xyz
 from uf_common.orientation_helpers import lookat, get_perpendicular,PoseEditor
 from path_planner.msg import TraverseBuoysAction
 from controller.srv import Enable,EnableResponse
@@ -93,7 +93,7 @@ global master_cloud
 master_cloud = []
 def pointcloud_callback(msg):
         global master_cloud
-        cloud = pointcloud2_to_xyz_array(msg)
+        cloud = pointcloud2xyz.pointcloud2_to_xyz_array(msg)
         if (len(cloud) > 0):
                 master_cloud = filter(in_range,cloud)
 	vector()
