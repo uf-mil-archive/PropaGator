@@ -69,8 +69,8 @@ space = ode.HashSpace()
 body_geom = ode.GeomBox(space, (1.27, .46, .46))
 body_geom.setBody(body)
 
-pool_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'scene', 'pool6.obj'))
-pool_geom = ode.GeomTriMesh(pool_mesh.ode_trimeshdata, space)
+lake_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'lake.obj'))
+lake_geom = ode.GeomTriMesh(lake_mesh.ode_trimeshdata, space)
 
 def get_water_vel(pos):
     return v(0, 0, 0)
@@ -348,7 +348,7 @@ class Buoys(object):
 
 w = threed.World()
 
-w.objs.append(pool_mesh)
+w.objs.append(lake_mesh)
 sub_model = Boat(body, lambda: killed)
 w.objs.append(sub_model)
 w.objs.append(threed.VectorField(get_water_vel))
