@@ -19,7 +19,8 @@ roslib.load_manifest('boatsim')
 import rospy
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Vector3, Quaternion, WrenchStamped
-
+from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Header
 from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
@@ -79,9 +80,82 @@ locked = False
 
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
+lidar_pub = rospy.Publisher('/lidar_range', Float64)
+
+def get_lidar_range(): 
+## get_lidar_range(nothing) -> distances
+#
+## Behavior:
+#
+#    This function will return distance to the nearest object,
+#    in accordance with the current orientation of the dynamixel servos
+#    It will automatically cull the boat geom from the list of distances
+#
+## Functionality:
+#    
+#    Distances are computed using ode collision space, where the distance is
+#    the point to point distance between the origin of the ray and the point on the geom
+#    that the ray intersects with
+#    
+## Lidar Simulated Features:
+#     
+#    Field of view:                        270 deg
+#    Scanning frequency:                   25 Hz / 50 Hz    
+#    Angular resolution:                   0.25 deg 0.5 deg
+#    Operating range:                      0.5 m to 20 m    
+#    Max. range with 10 % reflectivity:    18 m    
+#    Amount of evaluated echoes:           2
+    
+    lidar_FOV = 270 #deg
+    lidar_scanrate = 25 #hz
+    lidar_ang_res = 0.25 #deg
+    lidar_range = 20
+
+    raylength = 1e3
+    lidar_scanrate = 100
+    #Space - ?
+    ray = ode.GeomRay(None, raylength)
+    # Had to do conversions, couldn't find a metric ruler
+    # This vector is the physical offset of the LIDAR module from the center of the boat
+    lidar_pos = v(35.0*0.0254,0.0,11.0*0.0254)
+   
+    for angle in range(int(lidar_FOV/lidar_ang_res)):
+
+        projection_angle = angle*lidar_ang_res
+        lidar_ray_dir = body.vectorToWorld(v(1,0,0)) 
+        ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
+        list_dist = []
+        for contact in ode.collide(ray,space):
+            # Position = XYZ
+            # Normal = normal vector to detected surface
+            # Dist = distance to object
+            # Geom1 = the ray
+            # Geom2 = the detected object geometry
+            stamp = rospy.time.now()
+            pos,normal,dist,geom1,geom2 = contact.getContactGeomParams()
+            if(geom1 is ray):
+                continue
+            assert geom1 is ray, geom1
+            lidar_msg = Float64()
+            valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
+            list_dist.append(valid_distance)
+        
+ 
+    closest_distance = 1000
+    if len(list_dist):
+        closest_distance = min(list_dist)
+
+    lidar_msg.data = closest_distance
+    lidar_pub.publish(lidar_msg)
+    print(closest_distance)
+     
+    return(list_dist)
+
 def world_tick():
     global world_time, thruster_infos
     
+    get_lidar_range()
+
     water_vel = get_water_vel(V(body.getPosition()))
     
     body.addForceAtRelPos((0, 0, buoyancy_force(-body.getPosition()[2], 0.22728849402137372)), (0, 0, .1))
