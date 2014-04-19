@@ -20,6 +20,7 @@ import rospy
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Vector3, Quaternion, WrenchStamped
 from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Float64
 from std_msgs.msg import Header
 from uf_common import interpolate
 from sim import threed, vector, util
@@ -80,7 +81,9 @@ locked = False
 
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
-lidar_pub = rospy.Publisher('/lidar_range', Float64)
+lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
+
+
 
 def get_lidar_range(): 
 ## get_lidar_range(nothing) -> distances
@@ -105,11 +108,28 @@ def get_lidar_range():
 #    Operating range:                      0.5 m to 20 m    
 #    Max. range with 10 % reflectivity:    18 m    
 #    Amount of evaluated echoes:           2
-    
+
     lidar_FOV = 270 #deg
-    lidar_scanrate = 25 #hz
+    lidar_scanrate = 25.0 #hz
     lidar_ang_res = 0.25 #deg
-    lidar_range = 20
+    lidar_range = 20.0
+    lidar_start_angle = math.radians(0 - (lidar_FOV/2.0))
+    lidar_end_angle = math.radians(0 + (lidar_FOV/2.0))
+    
+
+    def publish_lidar(scan_ranges_in):
+        lidar_pub.publish(LaserScan(
+            header = Header(stamp=rospy.Time.now(), frame_id="/base_link"),
+            angle_min = lidar_start_angle,
+            angle_max = lidar_end_angle,
+            angle_increment = lidar_ang_res,
+            scan_time = 1.0/lidar_scanrate,
+            range_min = 0.5,
+            range_max = lidar_range,
+            ranges = scan_ranges_in,
+            intensities = [],
+            )
+        )
 
     raylength = 1e3
     lidar_scanrate = 100
@@ -117,12 +137,17 @@ def get_lidar_range():
     ray = ode.GeomRay(None, raylength)
     # Had to do conversions, couldn't find a metric ruler
     # This vector is the physical offset of the LIDAR module from the center of the boat
-    lidar_pos = v(35.0*0.0254,0.0,11.0*0.0254)
-   
-    for angle in range(int(lidar_FOV/lidar_ang_res)):
+    lidar_pos = v(35.0*0.0254,0.0,11.0*0.0254) 
 
+    scan_ranges = []
+    for angle in range(int(lidar_FOV/lidar_ang_res)):
+        
+        closest_distance = 1000
         projection_angle = angle*lidar_ang_res
-        lidar_ray_dir = body.vectorToWorld(v(1,0,0)) 
+        
+        lidar_ray_dir = body.vectorToWorld(v(math.cos(projection_angle),math.sin(projection_angle),0))
+        
+        #lidar_ray_dir = body.vectorToWorld(v(1,0,0)) 
         ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
         list_dist = []
         for contact in ode.collide(ray,space):
@@ -131,23 +156,20 @@ def get_lidar_range():
             # Dist = distance to object
             # Geom1 = the ray
             # Geom2 = the detected object geometry
-            stamp = rospy.time.now()
+            stamp = rospy.Time.now()
             pos,normal,dist,geom1,geom2 = contact.getContactGeomParams()
-            if(geom1 is ray):
-                continue
+            #if(geom1 is ray):
+            #    continue
             assert geom1 is ray, geom1
-            lidar_msg = Float64()
             valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
             list_dist.append(valid_distance)
-        
- 
-    closest_distance = 1000
-    if len(list_dist):
-        closest_distance = min(list_dist)
 
-    lidar_msg.data = closest_distance
-    lidar_pub.publish(lidar_msg)
-    print(closest_distance)
+
+        if len(list_dist) > 0:
+            closest_distance = min(list_dist)
+        scan_ranges.append(closest_distance)
+    publish_lidar(scan_ranges)
+    
      
     return(list_dist)
 
@@ -377,8 +399,8 @@ i.init(w)
 def _():
     try:
         i.step()
-	c1.step()
-	c2.step()
+        c1.step()
+        c2.step()
     except:
         traceback.print_exc()
         reactor.stop()
