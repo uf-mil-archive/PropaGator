@@ -19,6 +19,8 @@ find_package(catkin REQUIRED COMPONENTS thruster_mapper propagator_motor_driver 
 #  MinSizeRel     : w/o debug symbols, w/ optimization, stripped binaries
 #set(ROS_BUILD_TYPE RelWithDebInfo)
 
+catkin_python_setup()
+
 
 # CATKIN_MIGRATION: removed during catkin migration
 # rosbuild_init()
