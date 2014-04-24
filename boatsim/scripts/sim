@@ -17,6 +17,7 @@ from twisted.internet import protocol, reactor, task
 import roslib
 roslib.load_manifest('boatsim')
 import rospy
+import tf
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Vector3, Quaternion, WrenchStamped
 from sensor_msgs.msg import LaserScan
@@ -84,50 +85,60 @@ odom_pub = rospy.Publisher('/sim_odom', Odometry)
 lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
 
 
+lidar_tf_br = tf.TransformBroadcaster()
+#lidar_tf_br.sendTransform(transformations.translation_from_matrix(
+#Figure out how to use :tf:
 
-def get_lidar_range(): 
-## get_lidar_range(nothing) -> distances
-#
-## Behavior:
-#
-#    This function will return distance to the nearest object,
-#    in accordance with the current orientation of the dynamixel servos
-#    It will automatically cull the boat geom from the list of distances
-#
-## Functionality:
-#    
-#    Distances are computed using ode collision space, where the distance is
-#    the point to point distance between the origin of the ray and the point on the geom
-#    that the ray intersects with
-#    
-## Lidar Simulated Features:
-#     
-#    Field of view:                        270 deg
-#    Scanning frequency:                   25 Hz / 50 Hz    
-#    Angular resolution:                   0.25 deg 0.5 deg
-#    Operating range:                      0.5 m to 20 m    
-#    Max. range with 10 % reflectivity:    18 m    
-#    Amount of evaluated echoes:           2
-
+def get_lidar_range():
+    '''
+    ## get_lidar_range(nothing) -> distances
+    #
+    ## Behavior:
+    #
+    #    This function will publish distance to the nearest object,
+    #    in accordance with the current orientation of the dynamixel servos
+    #    It will automatically cull the boat geom from the list of distances
+    #
+    ## Functionality:
+    #    
+    #    Distances are computed using ode collision space, where the distance is
+    #    the point to point distance between the origin of the ray and the point on the geom
+    #    that the ray intersects with
+    #    
+    ## Lidar Simulated Features:
+    #     
+    #    Field of view:                        270 deg
+    #    Scanning frequency:                   25 Hz / 50 Hz    
+    #    Angular resolution:                   0.25 deg 0.5 deg
+    #    Operating range:                      0.5 m to 20 m    
+    #    Max. range with 10 % reflectivity:    18 m    
+    #    Amount of evaluated echoes:           2
+    '''
     lidar_FOV = 270 #deg
     lidar_scanrate = 25.0 #hz
     lidar_ang_res = 0.25 #deg
-    lidar_range = 20.0
-    lidar_start_angle = math.radians(0 - (lidar_FOV/2.0))
-    lidar_end_angle = math.radians(0 + (lidar_FOV/2.0))
-    
+    #lidar_range = 20.0
+    lidar_range = 100
+    lidar_end_angle = math.radians((lidar_FOV/2.0))
+    lidar_start_angle = math.radians(-(lidar_FOV/2.0))
+    print lidar_start_angle
+    print lidar_end_angle
 
-    def publish_lidar(scan_ranges_in):
+
+    def publish_lidar(scan_ranges_in, intensity_list_in = []):
         lidar_pub.publish(LaserScan(
-            header = Header(stamp=rospy.Time.now(), frame_id="/base_link"),
+            header = Header(stamp=rospy.Time.now(), frame_id="/base_link/lidar"),
+            #angle_min = lidar_end_angle,
+            #angle_max = lidar_start_angle,
+            
             angle_min = lidar_start_angle,
             angle_max = lidar_end_angle,
-            angle_increment = lidar_ang_res,
+            angle_increment = math.radians(lidar_ang_res),
             scan_time = 1.0/lidar_scanrate,
             range_min = 0.5,
             range_max = lidar_range,
             ranges = scan_ranges_in,
-            intensities = [],
+            intensities = intensity_list_in,
             )
         )
 
@@ -139,14 +150,21 @@ def get_lidar_range():
     # This vector is the physical offset of the LIDAR module from the center of the boat
     lidar_pos = v(35.0*0.0254,0.0,11.0*0.0254) 
 
-    scan_ranges = []
-    for angle in range(int(lidar_FOV/lidar_ang_res)):
+    # Pre-initialize the array
+    scan_ranges = [None]*int(lidar_FOV/lidar_ang_res)
+    intensity_list = [None]*len(scan_ranges)
+    print len(intensity_list)
+
+    for i in range(len(scan_ranges)):
         
         closest_distance = 1000
-        projection_angle = angle*lidar_ang_res
-        
+        projection_angle = math.radians(i*lidar_ang_res)
+        print(math.degrees(projection_angle))
+
         lidar_ray_dir = body.vectorToWorld(v(math.cos(projection_angle),math.sin(projection_angle),0))
         
+        print lidar_ray_dir
+
         #lidar_ray_dir = body.vectorToWorld(v(1,0,0)) 
         ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
         list_dist = []
@@ -164,14 +182,14 @@ def get_lidar_range():
             valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
             list_dist.append(valid_distance)
 
-
         if len(list_dist) > 0:
             closest_distance = min(list_dist)
-        scan_ranges.append(closest_distance)
-    publish_lidar(scan_ranges)
+        #scan_ranges.append(closest_distance)
     
-     
-    return(list_dist)
+
+        scan_ranges[i] = closest_distance
+        intensity_list[i] = 20
+    publish_lidar(scan_ranges)
 
 def world_tick():
     global world_time, thruster_infos
