@@ -83,11 +83,59 @@ locked = False
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
 lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
-
-
 lidar_tf_br = tf.TransformBroadcaster()
-#lidar_tf_br.sendTransform(transformations.translation_from_matrix(
-#Figure out how to use :tf:
+#rospy.Publisher('scan_complete',Bool)
+#The above is used in another laserscan, not sure how necessary it is
+
+def send_lidar_transform():
+    '''
+    Publishes a transformation on /base_link/laser
+    -> Allows LIDAR data taken at an arbitrary angle (or position) to be viewed from the
+    base_link (The boat body) reference frame.
+
+    Reference code at laser_tf_broadcaster.py in sensors package
+    (If you are looking for tf reference code, try grep -r "TransformBroadcaster" in the root uf-mil directory)
+    '''
+    ##TODO: 
+    # Clean this up, share tf xyz/pitch with publish/scanner
+    # OOP this up!
+    bl_lu_x       = 0.8001        # Distance forward, BaseLink to Lidar Unit
+    bl_lu_y       = 0     # Distance left, BaseLink to Lidar Unit
+    bl_lu_z       = 0.254         # Distance up, BaseLink to Lidar Unit
+    lu_r          = 0             # Roll of Lidar Unit
+    lu_p          = 0             # Pitch of Lidar Unit
+    lu_y          = 0             # Yaw of Lidar Unit
+    lu_lp_x       = 0             # Distance forward, Lidar Unit to Lidar Pivot
+    lu_lp_y       = 0             # Distance left, Lidar Unit to Lidar Pivot
+    lu_lp_z       = 0             # Distance up, Lidar Unit to Lidar Pivot
+    lp_r          = 0             # Roll of Lidar Pivot
+    lp_p          = 0             # Pitch of Lidar Pivot
+    lp_y          = 0             # Yaw of Lidar Pivot
+    lp_lm_x       = 0.0127        # Distance forward, Lidar Pivot to Lidar Mirror
+    lp_lm_y       = 0             # Distance left, Lidar Pivot to Lidar Mirror
+    lp_lm_z       = 0.0317        # Distance up, Lidar Pivot to Lidar Mirror
+
+    
+    T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
+    T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
+    T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
+    T = tf.transformations.rotation_matrix((lp_r), (1, 0, 0)).dot(T)
+    T = tf.transformations.translation_matrix((lu_lp_x, lu_lp_y, lu_lp_z)).dot(T)
+    T = tf.transformations.rotation_matrix((lu_y), (0, 0, 1)).dot(T)
+    T = tf.transformations.rotation_matrix((lu_p), (0, 1, 0)).dot(T)
+    T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
+    T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
+    T = tf.transformations.translation_from_matrix(T)
+
+    total_roll = lu_r + lp_r
+    total_pitch = lu_p + lp_p
+    total_yaw = lu_y + lp_y
+    lidar_tf_br.sendTransform(T,
+            tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
+            rospy.Time.now(),
+            "/base_link/laser",
+            "/base_link"
+            )
 
 def get_lidar_range():
     '''
@@ -114,23 +162,24 @@ def get_lidar_range():
     #    Max. range with 10 % reflectivity:    18 m    
     #    Amount of evaluated echoes:           2
     '''
+
+    #Make this a callback for "/lidar_angle" topic
     lidar_FOV = 270 #deg
     lidar_scanrate = 25.0 #hz
     lidar_ang_res = 0.25 #deg
-    #lidar_range = 20.0
-    lidar_range = 100
+    lidar_range = 20.0
+    #lidar_range = 100
     lidar_end_angle = math.radians((lidar_FOV/2.0))
     lidar_start_angle = math.radians(-(lidar_FOV/2.0))
-    print lidar_start_angle
-    print lidar_end_angle
 
 
     def publish_lidar(scan_ranges_in, intensity_list_in = []):
         lidar_pub.publish(LaserScan(
-            header = Header(stamp=rospy.Time.now(), frame_id="/base_link/lidar"),
-            #angle_min = lidar_end_angle,
-            #angle_max = lidar_start_angle,
-            
+            header = Header(
+                stamp=rospy.Time.now(), 
+                #frame_id="/base_link/laser"
+                frame_id="/base_link/laser" 
+                ),
             angle_min = lidar_start_angle,
             angle_max = lidar_end_angle,
             angle_increment = math.radians(lidar_ang_res),
@@ -142,7 +191,8 @@ def get_lidar_range():
             )
         )
 
-    raylength = 1e3
+    #raylength = 1e3
+    raylength = lidar_range
     lidar_scanrate = 100
     #Space - ?
     ray = ode.GeomRay(None, raylength)
@@ -153,18 +203,15 @@ def get_lidar_range():
     # Pre-initialize the array
     scan_ranges = [None]*int(lidar_FOV/lidar_ang_res)
     intensity_list = [None]*len(scan_ranges)
-    print len(intensity_list)
 
     for i in range(len(scan_ranges)):
         
         closest_distance = 1000
-        projection_angle = math.radians(i*lidar_ang_res)
-        print(math.degrees(projection_angle))
+        projection_angle = math.radians(i*lidar_ang_res) - math.radians(lidar_FOV/2.0)
+        #print(math.degrees(projection_angle))
 
         lidar_ray_dir = body.vectorToWorld(v(math.cos(projection_angle),math.sin(projection_angle),0))
         
-        print lidar_ray_dir
-
         #lidar_ray_dir = body.vectorToWorld(v(1,0,0)) 
         ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
         list_dist = []
@@ -189,6 +236,8 @@ def get_lidar_range():
 
         scan_ranges[i] = closest_distance
         intensity_list[i] = 20
+
+    send_lidar_transform()
     publish_lidar(scan_ranges)
 
 def world_tick():
