@@ -101,10 +101,22 @@ class lidar:
         
         self.lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
         self.lidar_tf_br = tf.TransformBroadcaster()
-        
         #rospy.Publisher('scan_complete',Bool)
         #The above is used in another laserscan, not sure how necessary it is
+    
+        self.pitch = 0
 
+    def pitch_lidar(self):
+        max_pitch = math.radians(10)
+        min_pitch = math.radians(-10)
+        
+        pitch_inc = math.radians(2)
+
+        if self.pitch > min_pitch:
+            self.pitch -= pitch_inc
+        else:
+            self.pitch = max_pitch
+    
     def send_lidar_transform(self):
         '''
         Publishes a transformation on /base_link/laser
@@ -127,13 +139,14 @@ class lidar:
         lu_lp_y       = 0             # Distance left, Lidar Unit to Lidar Pivot
         lu_lp_z       = 0             # Distance up, Lidar Unit to Lidar Pivot
         lp_r          = 0             # Roll of Lidar Pivot
-        lp_p          = 0             # Pitch of Lidar Pivot
+        #lp_p          = 0             # Pitch of Lidar Pivot
         lp_y          = 0             # Yaw of Lidar Pivot
         lp_lm_x       = 0.0127        # Distance forward, Lidar Pivot to Lidar Mirror
         lp_lm_y       = 0             # Distance left, Lidar Pivot to Lidar Mirror
         lp_lm_z       = 0.0317        # Distance up, Lidar Pivot to Lidar Mirror
 
-        
+        lp_p = self.pitch
+
         T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
         T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
         T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
@@ -171,7 +184,12 @@ class lidar:
             Distances are computed using ode collision space, where the distance is
             the point to point distance between the origin of the ray and the point on the geom
             that the ray intersects with
+        
+        Future:
             
+            - Variable pitch (Sub on /lidar_angle topic)
+            - Fake intensities (Based on distance, no need to go crazy)
+
         Lidar Simulated Features:
              
             Field of view:                        270 deg
@@ -181,10 +199,6 @@ class lidar:
             Max. range with 10 % reflectivity:    18 m    
             Amount of evaluated echoes:           2
         '''
-        ##TODO:
-        # Variable pitch (Match the lidar_angle topic)
-        # Fake intensities
-        # Make this a callback for "/lidar_angle" topic
          
         lidar_FOV = 270 #deg
         lidar_scanrate = 25.0 #hz
@@ -229,7 +243,13 @@ class lidar:
             
             closest_distance = 1000
             projection_angle = math.radians(i*lidar_ang_res) - math.radians(lidar_FOV/2.0)
-            lidar_ray_dir = body.vectorToWorld(v(math.cos(projection_angle),math.sin(projection_angle),0))
+            
+            x_hat = math.cos(projection_angle)
+            y_hat = math.sin(projection_angle)
+            z_hat = math.sin(self.pitch)
+            
+            lidar_ray_dir = body.vectorToWorld(v(x_hat, y_hat ,-z_hat))
+
             ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
             list_dist = []
             for contact in ode.collide(ray,space):
@@ -241,6 +261,8 @@ class lidar:
                 stamp = rospy.Time.now()
                 pos,normal,dist,geom1,geom2 = contact.getContactGeomParams()
                 assert geom1 is ray, geom1
+                if geom2 is lake_mesh:
+                    continue
                 valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
                 #Can't get away without append (maybe preallocate large list)
                 #Taking repeated minimum isn't going to cut it either
@@ -255,7 +277,7 @@ class lidar:
 
         self.send_lidar_transform()
         publish_lidar(scan_ranges)
-
+        self.pitch_lidar()
 
 #Instantiate a "Lidar" instance.
 boat_lidar = lidar()
