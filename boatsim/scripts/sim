@@ -85,20 +85,34 @@ odom_pub = rospy.Publisher('/sim_odom', Odometry)
 
 class lidar:
     def __init__(self):
+        '''
+        This class constitutes a lidar object. It is packaged with:
+            - Ranging "ray-tracer"
+            - Laserscan publisher
+            - TF publisher
+        
+        Future:
+            To make it a more generic, useful object
+                - Rotation and relative position must be settable
+                - Inspiration: 'Threed' camera view
+        '''
+
+        ##TODO: This neesd to be made more generic for use with sub imaging sonar
         
         self.lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
         self.lidar_tf_br = tf.TransformBroadcaster()
-    #rospy.Publisher('scan_complete',Bool)
-    #The above is used in another laserscan, not sure how necessary it is
+        
+        #rospy.Publisher('scan_complete',Bool)
+        #The above is used in another laserscan, not sure how necessary it is
 
     def send_lidar_transform(self):
         '''
         Publishes a transformation on /base_link/laser
-        -> Allows LIDAR data taken at an arbitrary angle (or position) to be viewed from the
-        base_link (The boat body) reference frame.
+            -> Allows LIDAR data taken at an arbitrary angle (or position) to be viewed from the
+            base_link (The boat body) reference frame.
 
         Reference code at laser_tf_broadcaster.py in sensors package
-        (If you are looking for tf reference code, try grep -r "TransformBroadcaster" in the root uf-mil directory)
+            (If you are looking for tf reference code, try grep -r "TransformBroadcaster" in the root uf-mil directory)
         '''
         ##TODO: 
         # Clean this up, share tf xyz/pitch with publish/scanner
@@ -144,33 +158,34 @@ class lidar:
 
     def get_lidar_range(self):
         '''
-        ## get_lidar_range(nothing) -> distances
-        #
-        ## Behavior:
-        #
-        #    This function will publish distance to the nearest object,
-        #    in accordance with the current orientation of the dynamixel servos
-        #    It will automatically cull the boat geom from the list of distances
-        #
-        ## Functionality:
-        #    
-        #    Distances are computed using ode collision space, where the distance is
-        #    the point to point distance between the origin of the ray and the point on the geom
-        #    that the ray intersects with
-        #    
-        ## Lidar Simulated Features:
-        #     
-        #    Field of view:                        270 deg
-        #    Scanning frequency:                   25 Hz / 50 Hz    
-        #    Angular resolution:                   0.25 deg 0.5 deg
-        #    Operating range:                      0.5 m to 20 m    
-        #    Max. range with 10 % reflectivity:    18 m    
-        #    Amount of evaluated echoes:           2
+        get_lidar_range(nothing) -> distances
+        
+        Behavior:
+        
+            This function will publish distance to the nearest object,
+            in accordance with the current orientation of the dynamixel servos
+            It will automatically cull the boat geom from the list of distances
+        
+        Functionality:
+            
+            Distances are computed using ode collision space, where the distance is
+            the point to point distance between the origin of the ray and the point on the geom
+            that the ray intersects with
+            
+        Lidar Simulated Features:
+             
+            Field of view:                        270 deg
+            Scanning frequency:                   25 Hz / 50 Hz    
+            Angular resolution:                   0.25 deg 0.5 deg
+            Operating range:                      0.5 m to 20 m    
+            Max. range with 10 % reflectivity:    18 m    
+            Amount of evaluated echoes:           2
         '''
         ##TODO:
         # Variable pitch (Match the lidar_angle topic)
         # Fake intensities
-        #Make this a callback for "/lidar_angle" topic
+        # Make this a callback for "/lidar_angle" topic
+         
         lidar_FOV = 270 #deg
         lidar_scanrate = 25.0 #hz
         lidar_ang_res = 0.25 #deg
@@ -178,7 +193,6 @@ class lidar:
         #lidar_range = 100
         lidar_end_angle = math.radians((lidar_FOV/2.0))
         lidar_start_angle = math.radians(-(lidar_FOV/2.0))
-
 
         def publish_lidar(scan_ranges_in, intensity_list_in = []):
             self.lidar_pub.publish(LaserScan(
@@ -215,11 +229,7 @@ class lidar:
             
             closest_distance = 1000
             projection_angle = math.radians(i*lidar_ang_res) - math.radians(lidar_FOV/2.0)
-            #print(math.degrees(projection_angle))
-
             lidar_ray_dir = body.vectorToWorld(v(math.cos(projection_angle),math.sin(projection_angle),0))
-            
-            #lidar_ray_dir = body.vectorToWorld(v(1,0,0)) 
             ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
             list_dist = []
             for contact in ode.collide(ray,space):
@@ -230,16 +240,15 @@ class lidar:
                 # Geom2 = the detected object geometry
                 stamp = rospy.Time.now()
                 pos,normal,dist,geom1,geom2 = contact.getContactGeomParams()
-                #if(geom1 is ray):
-                #    continue
                 assert geom1 is ray, geom1
                 valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
+                #Can't get away without append (maybe preallocate large list)
+                #Taking repeated minimum isn't going to cut it either
+                #There's no guarantee that they'll come in order, apparently.
                 list_dist.append(valid_distance)
 
             if len(list_dist) > 0:
                 closest_distance = min(list_dist)
-            #scan_ranges.append(closest_distance)
-        
 
             scan_ranges[i] = closest_distance
             intensity_list[i] = 20
@@ -254,7 +263,7 @@ boat_lidar = lidar()
 def world_tick():
     global world_time, thruster_infos
     
-    boat_lidar.get_lidar_range()
+    boat_lidar.get_lidar_range() # Use and publish whoa!
 
     water_vel = get_water_vel(V(body.getPosition()))
     
@@ -414,8 +423,7 @@ class Buoys(object):
        global buoy_array
        #self.buoys = [(pos + [random.gauss(0, 5), random.gauss(0, 5), 0], color) for i in xrange(10) for color in [(1, 0, 0), (0, 1, 0),(0,0,1)]]
        #self.buoys = [(pos + [i*3,0,0],(i,1-i,0)) for i in xrange(2)]
-       self.buoys = [pos,color]
-    
+       self.buoys = [pos,color] 
     def draw(self):
         q = gluNewQuadric()
         #for pos, color in self.buoys:
