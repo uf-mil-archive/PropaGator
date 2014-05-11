@@ -81,7 +81,7 @@ killed = False
 locked = False
 
 odom_pub = rospy.Publisher('/sim_odom', Odometry)
-
+base_tf_br = tf.TransformBroadcaster()
 
 class lidar:
     def __init__(self):
@@ -139,7 +139,6 @@ class lidar:
         lu_lp_y       = 0             # Distance left, Lidar Unit to Lidar Pivot
         lu_lp_z       = 0             # Distance up, Lidar Unit to Lidar Pivot
         lp_r          = 0             # Roll of Lidar Pivot
-        #lp_p          = 0             # Pitch of Lidar Pivot
         lp_y          = 0             # Yaw of Lidar Pivot
         lp_lm_x       = 0.0127        # Distance forward, Lidar Pivot to Lidar Mirror
         lp_lm_y       = 0             # Distance left, Lidar Pivot to Lidar Mirror
@@ -157,12 +156,15 @@ class lidar:
         T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
         T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
         T = tf.transformations.translation_from_matrix(T)
+        #-> There's got to be a less ugly way to do this
+
 
         total_roll = lu_r + lp_r
         total_pitch = lu_p + lp_p
         total_yaw = lu_y + lp_y
         
-        self.lidar_tf_br.sendTransform(T,
+        self.lidar_tf_br.sendTransform(
+                T,
                 tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
                 rospy.Time.now(),
                 "/base_link/laser",
@@ -209,31 +211,31 @@ class lidar:
         lidar_start_angle = math.radians(-(lidar_FOV/2.0))
 
         def publish_lidar(scan_ranges_in, intensity_list_in = []):
-            self.lidar_pub.publish(LaserScan(
-                header = Header(
-                    stamp=rospy.Time.now(), 
-                    #frame_id="/base_link/laser"
-                    frame_id="/base_link/laser" 
+            self.lidar_pub.publish(
+                LaserScan(
+                    header = Header(
+                        stamp=rospy.Time.now(), 
+                        frame_id="/base_link/laser" 
                     ),
-                angle_min = lidar_start_angle,
-                angle_max = lidar_end_angle,
-                angle_increment = math.radians(lidar_ang_res),
-                scan_time = 1.0/lidar_scanrate,
-                range_min = 0.5,
-                range_max = lidar_range,
-                ranges = scan_ranges_in,
-                intensities = intensity_list_in,
+                    angle_min = lidar_start_angle,
+                    angle_max = lidar_end_angle,
+                    angle_increment = math.radians(lidar_ang_res),
+                    scan_time = 1.0/lidar_scanrate,
+                    range_min = 0.5,
+                    range_max = lidar_range,
+                    ranges = scan_ranges_in,
+                    intensities = intensity_list_in,
                 )
             )
 
         #raylength = 1e3
-        raylength = lidar_range
+        raylength = lidar_range + 0.2*lidar_range
         lidar_scanrate = 100
         #Space - ?
         ray = ode.GeomRay(None, raylength)
         # Had to do conversions, couldn't find a metric ruler
         # This vector is the physical offset of the LIDAR module from the center of the boat
-        lidar_pos = v(35.0*0.0254,0.0,11.0*0.0254) 
+        lidar_pos = v(0.8001,0.0,0.254) 
 
         # Pre-initialize the array
         scan_ranges = [None]*int(lidar_FOV/lidar_ang_res)
@@ -378,6 +380,54 @@ def world_tick():
     msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
     odom_pub.publish(msg)
     
+
+    rpy_u = tf.transformations.euler_from_quaternion(q)
+    rpy = (0, 0, rpy_u[2])
+
+    #print body.getPosition()
+    T = tf.transformations.translation_matrix(body.getPosition())
+    T = tf.transformations.rotation_matrix((rpy[2]), (0, 0, 1)).dot(T)
+    T = tf.transformations.rotation_matrix((rpy[1]), (0, 1, 0)).dot(T)
+    T = tf.transformations.rotation_matrix((rpy[0]), (1, 0, 0)).dot(T)
+    #T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
+    T = tf.transformations.translation_from_matrix(T)
+    #->
+
+
+    #T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
+    #T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
+    #T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
+    #T = tf.transformations.rotation_matrix((lp_r), (1, 0, 0)).dot(T)
+    #T = tf.transformations.translation_matrix((lu_lp_x, lu_lp_y, lu_lp_z)).dot(T)
+    #T = tf.transformations.rotation_matrix((lu_y), (0, 0, 1)).dot(T)
+    #T = tf.transformations.rotation_matrix((lu_p), (0, 1, 0)).dot(T)
+    #T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
+    #T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
+    #T = tf.transformations.translation_from_matrix(T)
+
+    #bl_lu_x       = 0.8001        # Distance forward, BaseLink to Lidar Unit
+    #bl_lu_y       = 0     # Distance left, BaseLink to Lidar Unit
+    #bl_lu_z       = 0.254         # Distance up, BaseLink to Lidar Unit
+    #lu_r          = 0             # Roll of Lidar Unit
+    #lu_p          = 0             # Pitch of Lidar Unit
+    #lu_y          = 0             # Yaw of Lidar Unit
+    #lu_lp_x       = 0             # Distance forward, Lidar Unit to Lidar Pivot
+    #lu_lp_y       = 0             # Distance left, Lidar Unit to Lidar Pivot
+    #lu_lp_z       = 0             # Distance up, Lidar Unit to Lidar Pivot
+    #lp_r          = 0             # Roll of Lidar Pivot
+    #lp_y          = 0             # Yaw of Lidar Pivot
+    #lp_lm_x       = 0.0127        # Distance forward, Lidar Pivot to Lidar Mirror
+    #lp_lm_y       = 0             # Distance left, Lidar Pivot to Lidar Mirror
+    #lp_lm_z       = 0.0317        # Distance up, Lidar Pivot to Lidar Mirror
+    base_tf_br.sendTransform(
+            T,
+            #tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
+            #q,
+            tf.transformations.quaternion_from_euler(rpy[0],rpy[1],rpy[2]),
+            rospy.Time.now(),
+            "/base_link", 
+            "/map",
+            )
     
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
 
