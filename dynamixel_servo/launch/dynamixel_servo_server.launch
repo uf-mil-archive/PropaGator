@@ -1,0 +1,87 @@
+<!--
+	This is the launch file to start up the Dynamixel server node to talk over ttl to the Dynamixel Servo(s).
+	To allow for easier dynamic remapping the launch file can take the arguments: dynamixel_root_namespace, servo_namespace, and server_namespace
+	All parameters set on the ROS Parameter Server will:
+		1. Be grouped under the "dynamixel_root_namespace", by default this is "dynamixel".
+		3. All the server related parameters will be located under "server_namespace", by default this is "server".
+		2. All servo(s) will be located under "servo_namespace", by default this is "servo". Thus when expanded with the default values it's "dynamixel/servo"
+		3. Servo(s) will be grouped according to the system they are in, THEN based on a single string that directly relates to the servo in the aforementioned system- i.e. description.
+			ex. the "dynamixel" "servo" that controls the motion of the "lidar" on the "bow" will be under "/dynamixel/servo/lidar/bow"
+		4. Each servo will have at-least its "id" set accordingly on the parameter server (as an int). Only id(s) in the range [1-253] will be considered valid- to hedge against errors from uninitialized messages.
+			ex. the servo mentioned in the example above would have at-least the following on the parameter server: name="/dynamixel/servo/lidar/bow/id" value="1" type="int"
+	For this .launch file to work, the usb to Dynamixel-ttl adapter must be plugged in and show up under "/dev/serial/by-id/".
+		This can be checked with the command: ls -lLah /dev/serial/by-id/*
+	NOTE: the user that launches this file must also be a member of the group that owns the serial device (typically the "dialout" group)
+		This can be checked with the command: groups $USERNAME
+		To add the current user to the "dialout" group run the command: sudo adduser $USERNAME dialout
+-->
+
+<!-- For a roslaunch high level architecture overview see: http://wiki.ros.org/roslaunch/Architecture -->
+<!-- roslaunch evaluates the XML file in a single pass. So if a parameter is set multiple times, the last value specified for the parameter will be used. -->
+<!-- Note: Includes are processed in depth-first traversal order. -->
+<launch>
+	
+	<!-- For more information on arg see: http://wiki.ros.org/roslaunch/XML/arg -->
+	<!-- The arg tag allows you to create more re-usable and configurable launch files by specifying values that are passed via the command-line -->
+	<!-- An arg is not global, and is only specific to a single launch file. -->
+	<!-- If the arg name does not have a value passed to it (via the command-line or passed from another .launch file with the "include" tag) it will assume the "default" value. -->
+	<!-- NOTE: the value of an arg is attained by using the following: $(arg name_of_arg) -->
+	<arg name="dynamixel_root_namespace" default="dynamixel" />
+	<arg name="server_namespace" default="server" />
+	<!-- since the "servo_namespace" is configurable, we will also store it as a paramater on the server so we can access their relative location easier -->
+	<arg name="servo_namespace" default="servo" />
+	<arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_FT4232H_Device_FTWZVMOA-if03-port0" />
+	<arg name="baud_rate" default="1" />
+	<arg name="poll_rate" default="100"/>
+	
+	<!-- The group tag makes it easy to map and apply setting to many things at once. -->
+	<!-- ns="namespace", Assign the group of nodes or parameters to the specified namespace. -->
+	<!-- 	Since our namespace does not start with a "/" it is relative to the default namespace. -->
+	<group ns="$(arg dynamixel_root_namespace)">
+		
+		<!-- For more on the ROS Parameter Server see: http://wiki.ros.org/Parameter%20Server -->
+		<!-- The following parameters are relative to the group "dynamixel" since they're directly under the group section, do not start with a "/", and are outside of other xml blocks. -->
+		<!-- Since they are relative names they will be resolved with respect to the default namespace and the group. So "default namespace" + "groups name" + "relative name" = "global name" -->
+		<!-- 	ex: "/" + "dynamixel" + "servo/lidar/bow/id" = "/dynamixel/servo/lidar/bow/id" -->
+		<!-- NOTE: port is the left side and starboard is the right side (relative to a person facing the bow- a.k.a. front- of the boat). -->
+		<param name="servo_namespace" value="$(arg servo_namespace)" type="str" />
+		<param name="$(arg servo_namespace)/z_drive/port/id" value="3" type="int"/>
+		<param name="$(arg servo_namespace)/z_drive/starboard/id" value="2" type="int"/>
+		<param name="$(arg servo_namespace)/lidar/bow/id" value="1" type="int"/>
+		<param name="$(arg servo_namespace)/test/test1/id" value="1" type="int"/>
+		<param name="$(arg servo_namespace)/test/test2/id" value="4" type="int"/>
+		<param name="$(arg servo_namespace)/test/test1/test_int" value="1" type="int"/>
+		<param name="$(arg servo_namespace)/test/test1/test_str" value="test" type="str"/>
+		<param name="$(arg servo_namespace)/test/test2/test_int" value="1" type="int"/>
+		<param name="$(arg servo_namespace)/test/test2/test_str" value="test" type="str"/>
+		
+		<!-- For more information on a node's parameters see: http://wiki.ros.org/roslaunch/XML/node -->
+		<!-- node, tag that indicates the deceleration of a ros node- note the xml closing tag -->
+		<!-- pkg="mypackage", Package of node -->
+		<!-- type="nodetype", The file you want to launch in the package, there must be a corresponding executable with the same name. -->
+		<!-- name="nodename", A unique identifier for your node, this will effectively remap/override the node name used in ros::init. NOTE: name cannot contain a namespace. Use the ns attribute instead. -->
+		<!-- args="arg1 arg2 arg3", Optional command line arguments passed to the node as (argc,argv) -->
+		<!-- respawn="true", Optional value to indicate the restart behavior, if set to "true" the node automatically restarts if it quits.  -->
+		<!-- output="log|screen", Optional value to indicate where the output of things like ROS_INFO should go. By default they will go to a "log" file, but if "screen" is used they will instead be displayed in the terminal window. -->
+		<!-- NOTE: Setting the namespace (ns) for a node in a launch file causes ros::node::getNamespace() to technically return the wrong namespace (root will be "//" instead of '/'). Passing the argument __ns:="desired_namespace" to the node is a hack around this. -->
+		<!--				For more information on this issue see: http://goo.gl/oi4V4h  or  https://code.ros.org/trac/ros/ticket/3617 -->
+		<node pkg="dynamixel_servo" type="dynamixel_servo_server" name="$(arg server_namespace)" args="__ns:=$(arg dynamixel_root_namespace)" respawn="false" output="screen">
+			
+			<!-- The following parameters are private ("~") since they are within the node's xml block. -->
+			<!-- For more information on a node's parameters see: http://wiki.ros.org/roslaunch/XML/param -->
+			<!-- param, tag that indicates a parameter to set on the Parameter Server. -->
+			<!-- name="namespace/name", the parameter's name on the parameter server. Namespaces is optional, but can be included in the parameter name. -->
+			<!-- value="value", defines the value of the parameter. NOTE: If this attribute is omitted, a "binfile" or "textfile" must be specified. -->
+			<!-- type="str|int|double|bool", Optional to specify the type of the parameter; if not used roslaunch will attempt to automatically determine the type. -->
+			<param name="serial_port" value="$(arg serial_port)" type="str"/>
+			
+			<!-- The MX64T sets the Baudrate according to the formula: BPS=2000000/(baud_rate + 1) -->
+			<!-- NOTE: the above value is only valid for baud_rate values between [1-249]. -->
+			<!-- All Dynamixel Servo(s) on the same bus must communicate at the same speed, which is currently 1 MBPS. -->
+			<param name="baud_rate" value="$(arg baud_rate)" type="int"/>
+			
+			<!-- The rate at which the server polls all the servo(s) it knows about and publishes a corresponding message for each servo -->
+			<param name="poll_rate" value="$(arg poll_rate)" type="double"/>
+		</node>
+	</group>
+</launch>
