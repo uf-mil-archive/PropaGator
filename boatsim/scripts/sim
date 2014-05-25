@@ -86,7 +86,9 @@ base_tf_br = tf.TransformBroadcaster()
 class lidar:
     def __init__(self):
         '''
-        This class constitutes a lidar object. It is packaged with:
+        This class constitutes a lidar object. 
+        
+        It is packaged with:
             - Ranging "ray-tracer"
             - Laserscan publisher
             - TF publisher
@@ -97,78 +99,69 @@ class lidar:
                 - Inspiration: 'Threed' camera view
         '''
 
-        ##TODO: This neesd to be made more generic for use with sub imaging sonar
+        ##TODO: This needs to be made more generic for use with sub imaging sonar
         
         self.lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
         self.lidar_tf_br = tf.TransformBroadcaster()
-        #rospy.Publisher('scan_complete',Bool)
-        #The above is used in another laserscan, not sure how necessary it is
-    
         self.pitch = 0
+        self.pitch_inc = math.radians(1)
 
     def pitch_lidar(self):
-        max_pitch = math.radians(10)
+        '''
+        pitch_lidar()
+        This function pitches the lidar by a preset amount of 2 degrees per tick
+        It oscillates between max_pitch and min_pitch
+        '''
+
+        max_pitch = math.radians(15)
         min_pitch = math.radians(-10)
         
-        pitch_inc = math.radians(2)
 
-        if self.pitch > min_pitch:
-            self.pitch -= pitch_inc
-        else:
-            self.pitch = max_pitch
-    
+        if (self.pitch < min_pitch) or (self.pitch > max_pitch):
+            self.pitch_inc = -self.pitch_inc 
+            #swap directions
+
+        self.pitch += self.pitch_inc
+
     def send_lidar_transform(self):
         '''
         Publishes a transformation on /base_link/laser
-            -> Allows LIDAR data taken at an arbitrary angle (or position) to be viewed from the
-            base_link (The boat body) reference frame.
+            -> Allows LIDAR data taken at an arbitrary angle (or position) 
+                to be viewed from the base_link (The boat body) reference frame.
 
         Reference code at laser_tf_broadcaster.py in sensors package
-            (If you are looking for tf reference code, try grep -r "TransformBroadcaster" in the root uf-mil directory)
+        (If you are looking for tf reference code, try grep -r "TransformBroadcaster"
+        in the root uf-mil directory)
         '''
         ##TODO: 
         # Clean this up, share tf xyz/pitch with publish/scanner
-        # OOP this up!
         bl_lu_x       = 0.8001        # Distance forward, BaseLink to Lidar Unit
-        bl_lu_y       = 0     # Distance left, BaseLink to Lidar Unit
+        bl_lu_y       = 0             # Distance left, BaseLink to Lidar Unit
         bl_lu_z       = 0.254         # Distance up, BaseLink to Lidar Unit
         lu_r          = 0             # Roll of Lidar Unit
-        lu_p          = 0             # Pitch of Lidar Unit
+        lu_p          = self.pitch    # Pitch of Lidar Unit
         lu_y          = 0             # Yaw of Lidar Unit
-        lu_lp_x       = 0             # Distance forward, Lidar Unit to Lidar Pivot
-        lu_lp_y       = 0             # Distance left, Lidar Unit to Lidar Pivot
-        lu_lp_z       = 0             # Distance up, Lidar Unit to Lidar Pivot
-        lp_r          = 0             # Roll of Lidar Pivot
-        lp_y          = 0             # Yaw of Lidar Pivot
-        lp_lm_x       = 0.0127        # Distance forward, Lidar Pivot to Lidar Mirror
-        lp_lm_y       = 0             # Distance left, Lidar Pivot to Lidar Mirror
-        lp_lm_z       = 0.0317        # Distance up, Lidar Pivot to Lidar Mirror
 
-        lp_p = self.pitch
-
-        T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
-        T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
-        T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
-        T = tf.transformations.rotation_matrix((lp_r), (1, 0, 0)).dot(T)
-        T = tf.transformations.translation_matrix((lu_lp_x, lu_lp_y, lu_lp_z)).dot(T)
+        #Transformation Matrix
+        T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z))
         T = tf.transformations.rotation_matrix((lu_y), (0, 0, 1)).dot(T)
         T = tf.transformations.rotation_matrix((lu_p), (0, 1, 0)).dot(T)
         T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
-        T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
         T = tf.transformations.translation_from_matrix(T)
-        #-> There's got to be a less ugly way to do this
 
-
-        total_roll = lu_r + lp_r
-        total_pitch = lu_p + lp_p
-        total_yaw = lu_y + lp_y
+        total_roll = 0
+        total_pitch = self.pitch 
+        total_yaw = 0
+        #So this is not a full simulation of the pivot, etc
         
+        lidar_quat = tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw)
+
         self.lidar_tf_br.sendTransform(
                 T,
-                tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
+                lidar_quat,
                 rospy.Time.now(),
+                "/base_link",
                 "/base_link/laser",
-                "/base_link"
                 )
 
     def get_lidar_range(self):
@@ -184,8 +177,8 @@ class lidar:
         Functionality:
             
             Distances are computed using ode collision space, where the distance is
-            the point to point distance between the origin of the ray and the point on the geom
-            that the ray intersects with
+            the point to point distance between the origin of the ray and the point 
+            on the geom that the ray intersects with
         
         Future:
             
@@ -199,7 +192,7 @@ class lidar:
             Angular resolution:                   0.25 deg 0.5 deg
             Operating range:                      0.5 m to 20 m    
             Max. range with 10 % reflectivity:    18 m    
-            Amount of evaluated echoes:           2
+            Amount of evaluated echoes:           2 (I don't actually simulate this feature yet)
         '''
          
         lidar_FOV = 270 #deg
@@ -210,7 +203,7 @@ class lidar:
         lidar_end_angle = math.radians((lidar_FOV/2.0))
         lidar_start_angle = math.radians(-(lidar_FOV/2.0))
 
-        def publish_lidar(scan_ranges_in, intensity_list_in = []):
+        def publish_lidar(scan_ranges_in):
             self.lidar_pub.publish(
                 LaserScan(
                     header = Header(
@@ -224,13 +217,10 @@ class lidar:
                     range_min = 0.5,
                     range_max = lidar_range,
                     ranges = scan_ranges_in,
-                    intensities = intensity_list_in,
                 )
             )
 
-        #raylength = 1e3
         raylength = lidar_range + 0.2*lidar_range
-        lidar_scanrate = 100
         #Space - ?
         ray = ode.GeomRay(None, raylength)
         # Had to do conversions, couldn't find a metric ruler
@@ -238,12 +228,11 @@ class lidar:
         lidar_pos = v(0.8001,0.0,0.254) 
 
         # Pre-initialize the array
+        # Rough experimentation shows that this does save time
         scan_ranges = [None]*int(lidar_FOV/lidar_ang_res)
-        intensity_list = [None]*len(scan_ranges)
-
-        for i in range(len(scan_ranges)):
+        #xrange is now the default range function in python 3.x, if you run into porting errors, look here
+        for i in xrange(len(scan_ranges)):
             
-            closest_distance = 1000
             projection_angle = math.radians(i*lidar_ang_res) - math.radians(lidar_FOV/2.0)
             
             x_hat = math.cos(projection_angle)
@@ -253,35 +242,35 @@ class lidar:
             lidar_ray_dir = body.vectorToWorld(v(x_hat, y_hat ,-z_hat))
 
             ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
-            list_dist = []
+            
+            closest_distance = 250
+
             for contact in ode.collide(ray,space):
-                # Position = XYZ
-                # Normal = normal vector to detected surface
-                # Dist = distance to object
-                # Geom1 = the ray
-                # Geom2 = the detected object geometry
                 stamp = rospy.Time.now()
                 pos,normal,dist,geom1,geom2 = contact.getContactGeomParams()
+                # Pos = position XYZ
+                # Normal = normal vector on collided surface
+                # Dist = distance to object
+                # Geom1 = the ray (I think?)
+                # Geom2 = the detected object geometry
+                
                 assert geom1 is ray, geom1
-                if geom2 is lake_mesh:
-                    continue
+                #The purpose of the below (was) to not hit the water, but that doesn't work.
+                #if (geom2 is  not lake_geom):
+                #    continue
                 valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
-                #Can't get away without append (maybe preallocate large list)
-                #Taking repeated minimum isn't going to cut it either
                 #There's no guarantee that they'll come in order, apparently.
-                list_dist.append(valid_distance)
-
-            if len(list_dist) > 0:
-                closest_distance = min(list_dist)
+                #Maybe play with hash space settings? Is that a things?
+                if(valid_distance < closest_distance):
+                    closest_distance = valid_distance
 
             scan_ranges[i] = closest_distance
-            intensity_list[i] = 20
 
         self.send_lidar_transform()
         publish_lidar(scan_ranges)
         self.pitch_lidar()
 
-#Instantiate a "Lidar" instance.
+#Instantiate a "Lidar"
 boat_lidar = lidar()
 
 def world_tick():
@@ -376,57 +365,30 @@ def world_tick():
     msg.pose.pose.position = Point(*body.getPosition())
     q = V(body.getQuaternion())
     msg.pose.pose.orientation = Quaternion(q[1], q[2], q[3], q[0])
+   
     msg.twist.twist.linear = Vector3(*q.conj().quat_rot(body.getLinearVel()))
     msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
     odom_pub.publish(msg)
     
+    # Here's my very ugly tf publisher for boat odometry. I'm almost ashamed to have written it. It was a quick hack/slash job to make this work
+    rpy_u = tf.transformations.euler_from_quaternion(q, 'syzx') #syzx controls the axes about which the quaternion is converted to Euler
+    rpy = (rpy_u[0], rpy_u[1], rpy_u[2])
 
-    rpy_u = tf.transformations.euler_from_quaternion(q)
-    rpy = (0, 0, rpy_u[2])
-
-    #print body.getPosition()
+    #print("Current base quaternion: " + str(q))
+    #print("Current base rpy: \n\t" + str(rpy[0]) + "\n\t" + str(rpy[1]) + "\n\t" + str(rpy[2]))
     T = tf.transformations.translation_matrix(body.getPosition())
     T = tf.transformations.rotation_matrix((rpy[2]), (0, 0, 1)).dot(T)
     T = tf.transformations.rotation_matrix((rpy[1]), (0, 1, 0)).dot(T)
     T = tf.transformations.rotation_matrix((rpy[0]), (1, 0, 0)).dot(T)
-    #T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
     T = tf.transformations.translation_from_matrix(T)
     #->
 
-
-    #T = tf.transformations.translation_matrix((lp_lm_x, lp_lm_y, lp_lm_z))
-    #T = tf.transformations.rotation_matrix((lp_y), (0, 0, 1)).dot(T)
-    #T = tf.transformations.rotation_matrix((lp_p), (0, 1, 0)).dot(T)
-    #T = tf.transformations.rotation_matrix((lp_r), (1, 0, 0)).dot(T)
-    #T = tf.transformations.translation_matrix((lu_lp_x, lu_lp_y, lu_lp_z)).dot(T)
-    #T = tf.transformations.rotation_matrix((lu_y), (0, 0, 1)).dot(T)
-    #T = tf.transformations.rotation_matrix((lu_p), (0, 1, 0)).dot(T)
-    #T = tf.transformations.rotation_matrix((lu_r), (1, 0, 0)).dot(T)
-    #T = tf.transformations.translation_matrix((bl_lu_x, bl_lu_y, bl_lu_z)).dot(T)
-    #T = tf.transformations.translation_from_matrix(T)
-
-    #bl_lu_x       = 0.8001        # Distance forward, BaseLink to Lidar Unit
-    #bl_lu_y       = 0     # Distance left, BaseLink to Lidar Unit
-    #bl_lu_z       = 0.254         # Distance up, BaseLink to Lidar Unit
-    #lu_r          = 0             # Roll of Lidar Unit
-    #lu_p          = 0             # Pitch of Lidar Unit
-    #lu_y          = 0             # Yaw of Lidar Unit
-    #lu_lp_x       = 0             # Distance forward, Lidar Unit to Lidar Pivot
-    #lu_lp_y       = 0             # Distance left, Lidar Unit to Lidar Pivot
-    #lu_lp_z       = 0             # Distance up, Lidar Unit to Lidar Pivot
-    #lp_r          = 0             # Roll of Lidar Pivot
-    #lp_y          = 0             # Yaw of Lidar Pivot
-    #lp_lm_x       = 0.0127        # Distance forward, Lidar Pivot to Lidar Mirror
-    #lp_lm_y       = 0             # Distance left, Lidar Pivot to Lidar Mirror
-    #lp_lm_z       = 0.0317        # Distance up, Lidar Pivot to Lidar Mirror
     base_tf_br.sendTransform(
             T,
-            #tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw),
-            #q,
             tf.transformations.quaternion_from_euler(rpy[0],rpy[1],rpy[2]),
             rospy.Time.now(),
+            "/map", 
             "/base_link", 
-            "/map",
             )
     
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
