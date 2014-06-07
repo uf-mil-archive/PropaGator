@@ -8,8 +8,8 @@ Servo servo2;
 int servoID,thrust;
 
 void setup() {
- servo3.attach(9);
- servo2.attach(6);
+ servo3.attach(9);  //Port
+ servo2.attach(6); //Starboard
  Serial.begin(9600);
  Serial.println("Enter servo# (2 or 3) and thrust (45-145): ");
 }

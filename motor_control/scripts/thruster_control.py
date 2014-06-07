@@ -8,6 +8,7 @@ import rospy
 import serial
 from motor_control.msg import thrusterConfig
 from motor_control.msg import thrusterStatus
+import time
 
 #Define some constants
 #Note: these should be replaced with ros Params
@@ -16,9 +17,9 @@ PORT_THRUSTER = 3
 
 #    PWM values, 20 ms duty cycle with pulse width of
 ## Direction:       Reverse  Stop    Forward
-## Output value:    45       90      145
-## Pulse width:     1.04ms   1.49ms  2.07ms
-ZERO = 90
+## Output value:    45       91      145
+## Pulse width:     1.04ms   ~1.49ms  2.07ms
+ZERO = 91
 FULL_FORWARD = 145
 FULL_REVERSE = 45
 
@@ -46,6 +47,7 @@ def motorConfigCallback(config):
 
     #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
     ser.write(str(config.id)+","+str(int(convertNewtonsToDuty(config.thrust)))+":")
+    
     if config.id == STARBOARD_THRUSTER:
         starboard_thruster_value = config.thrust
     else:
@@ -84,9 +86,9 @@ def motorDirCtrl():
     #Main loop
     while not rospy.is_shutdown():
         #Periodically publish staus
-        thruster = thrusterValue(STARBOARD_THRUSTER, starboard_thruster_value)
+        thruster = thrusterStatus(STARBOARD_THRUSTER, starboard_thruster_value)
         pub.publish(thruster)
-        thruster = thrusterValue(PORT_THRUSTER, port_thruster_value)
+        thruster = thrusterStatus(PORT_THRUSTER, port_thruster_value)
         pub.publish(thruster)
         
         #Wait till next cycle
