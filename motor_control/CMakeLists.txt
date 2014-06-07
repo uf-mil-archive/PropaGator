@@ -47,7 +47,8 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
-   thrusterValue.msg
+   thrusterStatus.msg
+   thrusterConfig.msg
 )
 
 ## Generate services in the 'srv' folder

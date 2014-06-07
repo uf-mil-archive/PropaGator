@@ -6,7 +6,8 @@
 
 import rospy
 import serial
-from motor_control.msg import thrusterValue
+from motor_control.msg import thrusterConfig
+from motor_control.msg import thrusterStatus
 
 #Define some constants
 #Note: these should be replaced with ros Params
@@ -73,8 +74,8 @@ def motorDirCtrl():
     
     #Setup ros
     rospy.init_node('thruster_control', anonymous=True)
-    pub = rospy.Publisher('motor_status', thrusterValue, queue_size=10)
-    rospy.Subscriber("motor_config", thrusterValue, motorConfigCallback)
+    pub = rospy.Publisher('thruster_status', thrusterStatus, queue_size=10)
+    rospy.Subscriber("thruster_config", thrusterConfig, motorConfigCallback)
     r = rospy.Rate(5)          #50 hz... I think
     
     #Initilize the motors to 0
