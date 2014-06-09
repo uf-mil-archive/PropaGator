@@ -26,23 +26,25 @@ from std_msgs.msg import Header
 from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
+from motor_control.msg import thrusterConfig
+from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelConfigParam
 
 from boatsim import devices
 
 rospy.init_node('boatsim')
 
-'''
-from visualization_msgs.msg import MarkerArray,Marker
-global buoy_array
-buoy_publisher=rospy.Publisher('buoys',MarkerArray)
-buoy_array=MarkerArray()
-'''
+thrusts = {2: 0, 3: 0}
+positions = {2: 0, 3: 0}
 
-thruster_param_names = ['motor_driver_FR', 'motor_driver_FL', 'motor_driver_BR', 'motor_driver_BL']
-thruster_infos = None
-thrusters = [0]*len(thruster_param_names)
-for i in xrange(len(thruster_param_names)):
-    reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
+def motorConfigCallback(msg):
+    thrusts[msg.id] = msg.thrust
+rospy.Subscriber('thruster_config', thrusterConfig, motorConfigCallback)
+def dynamixelConfigPositionCallback(msg):
+    positions[msg.id] = msg.goal_position
+rospy.Subscriber('dynamixel/dynamixel_config_position', DynamixelConfigPosition, dynamixelConfigPositionCallback)
+def dynamixelConfigFullCallback(msg):
+    pass
+rospy.Subscriber('dynamixel/dynamixel_config_full', DynamixelConfigParam, dynamixelConfigFullCallback)
 
 
 clip = lambda x, (low, high): min(max(x, low), high)
@@ -60,7 +62,7 @@ world.setGravity((0, 0, -9.81))
 
 body = ode.Body(world)
 M = ode.Mass()
-M.setBoxTotal(47, 1.27, .46, .46)
+M.setBoxTotal(36, 1.27, .46, .46)
 body.setMass(M)
 body.setPosition((0, 0, 0))
 body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi/2))
@@ -80,7 +82,7 @@ def get_water_vel(pos):
 killed = False
 locked = False
 
-odom_pub = rospy.Publisher('/sim_odom', Odometry)
+odom_pub = rospy.Publisher('/odom', Odometry)
 base_tf_br = tf.TransformBroadcaster()
 
 class lidar:
@@ -274,7 +276,9 @@ class lidar:
 boat_lidar = lidar()
 
 def world_tick():
-    global world_time, thruster_infos
+    global world_time
+    
+    print positions, thrusts
     
     boat_lidar.get_lidar_range() # Use and publish whoa!
 
@@ -289,19 +293,13 @@ def world_tick():
     #print thrusters
     
     sub_model.vectors = []
-    if thruster_infos is None:
-        try:
-            thruster_infos = [rospy.get_param(param) for param in thruster_param_names]
-        except:
-            pass
-    else:
-        for info, value in zip(thruster_infos, thrusters):
-            relpos = V(info['position'])
-            reldir = V(info['direction'])
-            force = interpolate.sample_curve((info['output_list'], info['force_list']), value)
-            #print info['id'], force
-            body.addRelForceAtRelPos(reldir*force, relpos)
-            sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+    for thruster_id in [2, 3]:
+        relpos = v(-.7239, -.3048, 0) if thruster_id == 2 else v(-.7239, +.3048, 0)
+        angle = positions[thruster_id]
+        reldir = v(-math.cos(angle), -math.sin(angle), 0)
+        force = thrusts[thruster_id]
+        body.addRelForceAtRelPos(reldir*force, relpos)
+        sub_model.vectors.append((relpos, relpos - .02*reldir*force))
     
     keys = pygame.key.get_pressed()
     for keycode, force in [
