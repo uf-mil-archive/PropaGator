@@ -482,7 +482,7 @@ i.objs.append(Buoys(v(-5, 10, 0)))
 i.objs.append(Buoys(v(-2, 15, 0)))
 '''
 def set_forward_view():
-    glTranslate(-2.8, 0, 0)
+    glTranslate(-2.8, 0, -1)
     threed.rotate_to_body(body, inv=True)
 c1 = threed.Camera(w, "mv_bluefox_camera_node", set_forward_view, body, fovy=90)
 #Guessed topic name based on vision src contents(Jake)

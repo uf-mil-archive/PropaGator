@@ -17,6 +17,9 @@
  
   <include file="$(find propagator_motor_driver)/launch/start_motor_driver.launch"/>
 
+  <include file="$(find legacy_vision)/launch/legacy_vision.launch">
+    <arg name="camera" value="mv_bluefox_camera_node"/>
+  </include>
   
   
   <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
