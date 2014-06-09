@@ -48,6 +48,7 @@ add_message_files(
 	DIRECTORY msg
 	FILES
 	DynamixelConfigParam.msg
+	DynamixelConfigPosition.msg
 	DynamixelStatusParam.msg
 	DynamixelControlTableRequest.msg
 	DynamixelControlTableParam.msg

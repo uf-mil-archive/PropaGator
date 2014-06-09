@@ -10,6 +10,11 @@
 #include <string>
 using namespace std;
 
+/*
+ * Notes:
+ * 		All bits and locations referenced are 0 indexed- in concurrence with the dynamixel manual.
+ */
+
 // The idea behind a union is that two or more variables occupy the same memory space, and the union size is the biggest to make both variables fit in the same space.
 // So since a uint16_t is made up of two uint8_t(s) we are essentially saying the same thing, except this allows us to get the individual byte values very easy.
 union dynamixel_uint16_t
@@ -164,6 +169,42 @@ public:
 	string getSystemMembership(){return system_membership;};
 	void setDescription(string input){description=input;};
 	string getDescription(){return description;};
+	bool inJointMode(){return !inWheelMode();}
+	uint16_t getMinAngle(){return cw_angle_limit;};
+	uint16_t getMaxAngle(){return ccw_angle_limit;};
+	// When the power is first turned on, the Dynamixel "Torque Limit" reg (ram address 0x22 and 0x23) is initially set to the same value in "Max Torque" (eprom address 0x0E and 0x0F)- which may not necessarily be 0x3FF.
+	//		With that being said, the functions "getMaxTorqueDefaultValue" and "getMaxTorqueAllowed" were created to avoid naming confusion.
+	// 	Note: The naming convention in the Dynamixel manuals is not the best.
+	uint16_t getMaxTorqueDefaultValue(){return max_torque;};
+	uint16_t getMaxTorqueAllowed(){return 0x03FF;};
+	bool inWheelMode(){return (cw_angle_limit==0&&ccw_angle_limit==0)?true:false;};
+	// When in wheel mode the 10th bit indicates the direction, if it's set (i.e. a 1 ) the direction of rotation is clockwise.
+	bool rotatingClockWise(){return (inWheelMode() && (moving_speed&0b10000000000))?true:false;};
+	bool rotatingCounterClockWise(){return (inWheelMode() && !(moving_speed&0b10000000000))?true:false;};
+	uint16_t getMinMovingSpeed()
+	{
+		if(inWheelMode()&&rotatingCounterClockWise())
+		{
+			return 0x0000;
+		}
+		else if(inWheelMode() && rotatingCounterClockWise())
+		{
+			return 0x0400;
+		}
+		return 0x0000;
+	};
+	uint16_t GetMaxMovingSpeed()
+	{
+		if(inWheelMode()&&rotatingCounterClockWise())
+		{
+			return 0x03FF;
+		}
+		else if(inWheelMode() && rotatingCounterClockWise())
+		{
+			return 0x07FF;
+		}
+		return 0x03FF;
+	};
 
 	//----------- dynamixel memory map locations -----------------
 	//	Note: While the address locations could be specified with a uint8_t, uint16_t is used- if required- to maintain consistency
@@ -225,10 +266,16 @@ public:
 	//----------- General Dynamixel Constants -----------------
 	static const uint8_t ON;
 	static const uint8_t OFF;
-	static const uint16_t MIN_GOAL_POSITION=0;// the minimum allowed value for the goal position
-	static const uint16_t MAX_GOAL_POSITION=0xFFF; // the maximum allowed value 0xFFF (4095) to be set for the goal position;
-	static const uint16_t MAX_GOAL_POSITION_AX12A=0x3FF;// Note: An AX-12A can have a MAX_GOAL_POSITION of 0x3ff
+	static const uint16_t MAX_GOAL_POSITION;
+	//static const uint16_t MAX_GOAL_POSITION_AX12A;
+	static const uint16_t MAX_JOINT_MODE_MOVING_SPEED;
+	static const uint16_t MAX_WHEEL_MODE_MOVING_SPEED;
+	static const uint8_t MAX_ACCELERATION;
+	static const uint8_t MIN_ACCELERATION;
+	static const float ACCELERATION_PER_UNIT_IN_DEGREES;
 };
+
+//const float Servo::ACCELERATION_PER_UNIT_IN_DEGREES=8.5826772;
 
 // Note: All of the Register Addresses must be defined outside the class to be able to take the address of the static member variable (even though they are still integral data types). If it is only used by value this isn't required.
 //					Things like STL containers use a const reference (e.g. address of operator) to the variable when doing operations like push_back.
@@ -282,5 +329,12 @@ const uint8_t Servo::GOAL_ACCELERATION_REG=0x49;
 //----------- General Dynamixel Constants -----------------
 const uint8_t Servo::ON=0x01;
 const uint8_t Servo::OFF=0x00;
+const uint16_t Servo::MAX_GOAL_POSITION=0xFFF; // the maximum allowed value 0xFFF (4095) to be set for the goal position
+//const uint16_t Servo::MAX_GOAL_POSITION_AX12A=0x3FF;// Note: An AX-12A can have a MAX_GOAL_POSITION of 0x3ff
+const uint16_t Servo::MAX_JOINT_MODE_MOVING_SPEED=0x3FF;
+const uint16_t Servo::MAX_WHEEL_MODE_MOVING_SPEED=0x7FF;
+const uint8_t Servo::MAX_ACCELERATION=0xFE;
+const uint8_t Servo::MIN_ACCELERATION=0x01;// since 0x00 is the same as max acceleration the min acceleration is 0x01
+const float Servo::ACCELERATION_PER_UNIT_IN_DEGREES=8.5826772;
 
 #endif /*DYNAMIXEL_SERVO_DEFINITIONS_H_*/

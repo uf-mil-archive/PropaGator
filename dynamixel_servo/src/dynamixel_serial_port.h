@@ -57,6 +57,7 @@ protected:
 	static const int COMM_RXWAITING=5;
 	static const int COMM_RXTIMEOUT=6;
 	static const int COMM_RXCORRUPT=7;
+	static const int COMM_PORTCLOSED=8;
 	//------------- Index specifiers for a given field in a packet ------------------------
 	// Note: packets are represented as follows 0xFF,0xFF,ID,LENGTH, INSTRUCTION or ERRBIT, PARAMETER 1, ... , PARAMETER N, CHECKSUM
 	static const uint8_t ID=2; // the value in the packet[2] indicates the id of the servo to talk with
@@ -85,6 +86,8 @@ private:
 	unsigned int getChecksumLocation(const T (&packetArray) [passed_array_size]) const;
 	template <typename T, unsigned int passed_array_size>
 	string printPacket(const T (&packetArray) [passed_array_size]) const;
+	template <typename T, unsigned int passed_array_size>
+	string getStatusPacketErrors(const T (&packetArray) [passed_array_size]) const;
 	void flushComPort(){tcflush(socket_fd, TCIFLUSH);};
 	void setTimeOut(int number_bytes_to_receive);
 	bool hasTimedOut();
@@ -122,13 +125,13 @@ public:
 	static const uint8_t INST_SYSTEM_WRITE=0x0D; // Included for consistency with the sdk
 	static const uint8_t INST_SYNC_REG_WRITE=0x84; // Included for consistency with the sdk
 	//------------ Error Bit Constants -----------------
-	static const uint8_t ERRBIT_VOLTAGE=1;
-	static const uint8_t ERRBIT_ANGLE=2;
-	static const uint8_t ERRBIT_OVERHEAT=4;
-	static const uint8_t ERRBIT_RANGE=8;
-	static const uint8_t ERRBIT_CHECKSUM=16;
-	static const uint8_t ERRBIT_OVERLOAD=32;
-	static const uint8_t ERRBIT_INSTRUCTION=64;
+	static const uint8_t ERRBIT_VOLTAGE=0b00000001;
+	static const uint8_t ERRBIT_ANGLE=0b00000010;
+	static const uint8_t ERRBIT_OVERHEAT=0b00000100;
+	static const uint8_t ERRBIT_RANGE=0b00001000;
+	static const uint8_t ERRBIT_CHECKSUM=0b00010000;
+	static const uint8_t ERRBIT_OVERLOAD=0b00100000;
+	static const uint8_t ERRBIT_INSTRUCTION=0b01000000;
 	//------------ Brodcast ID ---------------------------------------------------
 	// The valid id(s) for a servo are between [0-252 (0xFC)]. The broadcast id is 0xFE (254); a message sent to this id will be sent to all the servo(s)
 	static const uint8_t BROADCAST_ID=254;
@@ -287,7 +290,7 @@ bool DynamixelSerialPort::openPort()
         closePort(); // while this seems redundant here the Dynamixel SDK closes the port again
         if((socket_fd = open(port_name.c_str(), O_RDWR|O_NOCTTY|O_NONBLOCK)) < 0)
         {
-                fprintf(stderr, "Device open error for port: %s\n", port_name.c_str());
+                fprintf(stderr, "Device open error for port: %s on second access.\n", port_name.c_str());
                 closePort();
                 return false;
         }
@@ -311,6 +314,8 @@ void DynamixelSerialPort::closePort()
 {
         if (socket_fd != -1)
         {
+      	  // flush both data received but not read and data written but not transmitted that still sits on the port.
+      	  tcflush(socket_fd, TCIOFLUSH);
                 // http://linux.die.net/man/3/close
                 // POSIX close function to close a handle on a file descriptor
                 if( close(socket_fd)==0 )
@@ -362,11 +367,16 @@ bool DynamixelSerialPort::hasTimedOut()
 // instruction_packet[0] and instruction_packet[1] will be over written with 0xFF, and instruction_packet[instruction_packet[LENGTH]+3] will be written with the checksum
 bool DynamixelSerialPort::sendPacket()
 {
-
         if(using_bus==true)
         {
                 fprintf(stderr, "Can't send the Dynamixel packet, the bus is indicated to be in use\n");
                 return false; // the bus is in use by something else and we can't send a packet at this time
+        }
+        else if(isOpen()==false)
+        {
+      	  // if the port isn't open we can't send anything.
+      	  comm_status = COMM_PORTCLOSED; // indicate that there was an error sending the packet
+      	  return false; // the bus is in use by something else and we can't send a packet at this time
         }
         using_bus=true;
 
@@ -444,7 +454,7 @@ bool DynamixelSerialPort::sendPacket()
         // verify that the data was actually written
         if(num_bytes_to_send!=num_bytes_actualy_writen)
         {
-                fprintf(stderr, "ERROR writing instruction. Only %u of %u bytes were sent.\n", num_bytes_actualy_writen, num_bytes_to_send);
+                fprintf(stderr, "ERROR writing instruction. Only %d of %u bytes were sent.\n", num_bytes_actualy_writen, num_bytes_to_send);
                 comm_status = COMM_TXFAIL;
                 using_bus = false;
                 return false;
@@ -778,6 +788,80 @@ bool DynamixelSerialPort::createPacket(uint8_t id, uint8_t instruction_code, vec
         return true;
 }
 
+template <typename T, unsigned int passed_array_size>
+string DynamixelSerialPort::getStatusPacketErrors(const T (&packetArray) [passed_array_size]) const
+{
+	string error_bits_set="";
+	if(passed_array_size > ERRBIT)//strictly grater than due to array indexing- guarantees packetArray[ERRBIT] exists.
+	{
+		// Remember that the 0xFF, 0xFF, ID, and LENGTH come before the status_packet[ERRBIT] parameter
+		if(packetArray[ERRBIT]&ERRBIT_VOLTAGE)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Input Voltage");
+		}
+		if(packetArray[ERRBIT]&ERRBIT_ANGLE)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Angle Limit");
+
+		}
+		if(packetArray[ERRBIT]&ERRBIT_OVERHEAT)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Overheating");
+		}
+		if(packetArray[ERRBIT]&ERRBIT_RANGE)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Out of Defined Range");
+		}
+		if(packetArray[ERRBIT]&ERRBIT_CHECKSUM)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Wrong instruction_packet Checksum");
+		}
+		if(packetArray[ERRBIT]&ERRBIT_OVERLOAD)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Required Torque Overload");
+		}
+		if(packetArray[ERRBIT]&ERRBIT_INSTRUCTION)
+		{
+			if(error_bits_set!="")
+			{
+				error_bits_set.append(", ");
+			}
+			error_bits_set.append("Undefined Instruction Code Sent");
+		}
+	}
+	else
+	{
+		fprintf(stderr, "ERROR Can't pull the ERRBIT's location in the returned status_packet. Passed packet size of %u is to small.\n",passed_array_size);
+		return "";
+	}
+	error_bits_set.insert(0,"The status_packet had the following error bit(s) set ");
+	return error_bits_set;
+}
+
 
 string DynamixelSerialPort::printInstructionType(const uint8_t &instruction_code) const
 {
@@ -851,6 +935,9 @@ string DynamixelSerialPort::printComStatus() const
     case COMM_RXCORRUPT:
       return "COMM_RXCORRUPT";
       break;
+    case COMM_PORTCLOSED:
+   	 return "COMM_PORTCLOSED";
+   	 break;
     default:
       break;
   }
@@ -876,6 +963,9 @@ bool DynamixelSerialPort::comErrorPresent() const
     case COMM_RXCORRUPT:
       return true;
       break;
+    case COMM_PORTCLOSED:
+   	 return true;
+   	 break;
     default:
       break;
   }
@@ -916,7 +1006,7 @@ string DynamixelSerialPort::sendAndReceive(uint8_t id, uint8_t instruction_code,
   }
   if(status_packet[ERRBIT]!=0x00)
   {
-	  return "Error bit set";
+	  return getStatusPacketErrors(status_packet);
   }
 
   return DYNAMIXEL_COMUNICATION_SUCCESSFUL;

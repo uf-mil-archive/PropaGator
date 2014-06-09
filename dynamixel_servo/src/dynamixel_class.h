@@ -18,12 +18,15 @@
 #include "ros/ros.h"
 #include "dynamixel_serial_port.h" //header file to talk to the dynamixel(s) through the serial port
 #include "dynamixel_servo_definitions.h"
-#include "dynamixel_servo/DynamixelConfigParam.h" //message config parameters
+#include "dynamixel_servo/DynamixelConfigParam.h" //message for ALL available configurable location on a mx-64t servo that our project will need
+#include "dynamixel_servo/DynamixelConfigPosition.h" //simplified message to just set the position of a servo.
 #include "dynamixel_servo/DynamixelStatusParam.h" //message status return parameters
 #include "dynamixel_servo/DynamixelControlTableRequest.h" //message control table request
 #include "dynamixel_servo/DynamixelControlTableParam.h" //message control table return paramaters
 
-using namespace std;
+// Per Ros cpp guidelines you should only refer to each element in namespace std that you want. see: http://wiki.ros.org/CppStyleGuide#Namespaces-1
+using std::string;
+using std::vector;
 
 #define DYNAMIXEL_CLASS_DEBUG
 
@@ -35,12 +38,14 @@ private:
 	DynamixelSerialPort com_port;
 	ros::NodeHandle n;
 	ros::Publisher status_pub;
-	ros::Subscriber config_subscriber;
+	ros::Subscriber full_config_subscriber;
+	ros::Subscriber position_config_subscriber;
 	ros::Subscriber control_table_request_subscriber;
 	ros::Publisher control_table_request_publisher;
 	double poll_rate;
 	static const string DEFAULT_PARAM_SERVER_DYNAMIXEL_NAMESPACE;
 	static const string DEFAULT_PARAM_SERVER_SERVO_NAMESPACE;
+	static const float pi=3.14159265359; // since no other math functions are needed from math.h M_PI isn't used
 
 public:
 	DynamixelServos();
@@ -50,14 +55,17 @@ public:
 protected:
 	bool pingServo(uint8_t id);
 	void controlTableRequestCallback(const dynamixel_servo::DynamixelControlTableRequest::ConstPtr& msg);
-	void configCallback(const dynamixel_servo::DynamixelConfigParam::ConstPtr& msg);
-
-	void setTorqueEnable(uint8_t id, uint8_t torque_state);
-	void setLed(uint8_t id, uint8_t led_state);
-	void setGoalPosition(uint8_t id, uint16_t goal_position);
-	void setMovingSpeed(uint8_t id, uint16_t moving_speed);
+	void configCallbackFull(const dynamixel_servo::DynamixelConfigParam::ConstPtr& msg);
+	void configCallbackPositionOnly(const dynamixel_servo::DynamixelConfigPosition::ConstPtr& msg);
+	void setTorqueLimit(const vector<Servo>::iterator servo_to_config, uint16_t torque_limit);
+	void setGoalAcceleration(const vector<Servo>::iterator servo_to_config, float goal_acceleration_rad_per_second_squared);
+	void setLed(const vector<Servo>::iterator servo_to_config, uint8_t led_state);
+	void setGoalPosition(const vector<Servo>::iterator servo_to_config, float goal_position);
+	void setMovingSpeed(const vector<Servo>::iterator servo_to_config, uint16_t moving_speed);
 
 	vector<uint8_t> servoRead(uint8_t id, uint8_t location, uint8_t num_bytes_to_read);
+
+	void watchDogRoutine();
 
 };
 // A string is not an integral type and hence it must be defined outside the class.
@@ -260,13 +268,12 @@ DynamixelServos::DynamixelServos()
 		sort(servos.begin(),servos.end());
 	}
 
-	// Now that everything is setup on the server we will allow subscription and advertise
+	// Now that everything is setup on the server we will allow subscriptions and advertise the posts
 	status_pub= n.advertise<dynamixel_servo::DynamixelStatusParam>("dynamixel_status_post", 1000);
-	//ControlTableRequest
 	control_table_request_subscriber= n.subscribe("dynamixel_control_table_request", 1000, &DynamixelServos::controlTableRequestCallback, this);
 	control_table_request_publisher=n.advertise<dynamixel_servo::DynamixelControlTableParam>("dynamixel_control_table_post",1000);
-	config_subscriber= n.subscribe("dynamixel_config", 1000, &DynamixelServos::configCallback,this);
-
+	full_config_subscriber= n.subscribe("dynamixel_config_full", 1000, &DynamixelServos::configCallbackFull,this);
+	position_config_subscriber=n.subscribe("dynamixel_config_position", 1000, &DynamixelServos::configCallbackPositionOnly,this);
 }
 
 void DynamixelServos::run()
@@ -275,21 +282,29 @@ void DynamixelServos::run()
 	// there must be an active handle on the com_port to communicate with the servo(s) in subsequent callbacks
 	if(com_port.isOpen()==true)
 	{
+		// initially populate the servo struct with info for all the servo(s), and post it.
+		boost::shared_ptr<dynamixel_servo::DynamixelControlTableRequest> init_msg=boost::make_shared<dynamixel_servo::DynamixelControlTableRequest>();
+		for(vector<Servo>::iterator i=servos.begin();i!=servos.end();i++)
+		{
+			init_msg->id=i->getID();
+			controlTableRequestCallback(init_msg);
+		}
+
 		ROS_INFO("%s is running with a handle on port: %s",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
 
 		ros::Rate loop_rate(poll_rate);
 		vector<uint8_t> read_return;
 		dynamixel_servo::DynamixelStatusParam status_message;
 
-		boost::shared_ptr<dynamixel_servo::DynamixelControlTableRequest> test=boost::make_shared<dynamixel_servo::DynamixelControlTableRequest>();
-		//dynamixel_servo::DynamixelControlTableRequest test;
-		test->id=2;
-		controlTableRequestCallback(test);
+		// This will be used as a watchdog timer to make sure that there are no errors on the port or with the servo(s), if there are it will try to recover.
+		double watch_dog_count=0;
+
+		float position_degrees=0.0;
+		float position_radians=0.0;
 
 		// We will poll the servo(s) based on the loop rate; so because we need to do that work we will use the "while(ros::ok)" paradigm.
 		while(ros::ok())
 		{
-			// Note: The servo(s) will not be update with the posting of each status message in order to keep this routine relatively fast.
 			for(vector<Servo>::iterator i=servos.begin();i!=servos.end();i++)
 			{
 				// Do a block read from the servo's (contiguous) ram- which is faster than multiple read request for each register.
@@ -298,18 +313,33 @@ void DynamixelServos::run()
 				// verify that it read the correct number of bytes- note: the size of the vector returned on an error will be 0.
 				if(read_return.size()==(Servo::IS_MOVING_REG-Servo::GOAL_POSITION_REG+1))
 				{
+					// Since a bus read is slower than the cpu cycles required to update a servo struct, don't waste the new information gathered.
 					status_message.id=i->getID();
-					status_message.goal_position=dynamixel_uint16_t(read_return[1],read_return[0]);
-					status_message.moving_speed=dynamixel_uint16_t(read_return[3],read_return[2]);
-					status_message.torque_limit=dynamixel_uint16_t(read_return[5],read_return[4]);
-					status_message.present_position=dynamixel_uint16_t(read_return[7],read_return[6]);
-					status_message.present_speed=dynamixel_uint16_t(read_return[9],read_return[8]);
-					status_message.present_load=dynamixel_uint16_t(read_return[11],read_return[10]);
-					status_message.present_voltage=read_return[12];
-					status_message.present_temp=read_return[13];
-					status_message.registered=read_return[14];
+					i->goal_position=dynamixel_uint16_t(read_return[1],read_return[0]);
+					position_degrees=i->goal_position*(360.0/Servo::MAX_GOAL_POSITION);
+					position_radians=position_degrees*(pi/180);
+					status_message.goal_position=position_radians;
+					i->moving_speed=dynamixel_uint16_t(read_return[3],read_return[2]);
+					status_message.moving_speed=i->moving_speed;
+					i->torque_limit=dynamixel_uint16_t(read_return[5],read_return[4]);
+					status_message.torque_limit=i->torque_limit;
+					i->present_position=dynamixel_uint16_t(read_return[7],read_return[6]);
+					position_degrees=i->present_position*(360.0/Servo::MAX_GOAL_POSITION);
+					position_radians=position_degrees*(pi/180);
+					status_message.present_position=position_radians;
+					i->present_speed=dynamixel_uint16_t(read_return[9],read_return[8]);
+					status_message.present_speed=i->present_speed;
+					i->present_load=dynamixel_uint16_t(read_return[11],read_return[10]);
+					status_message.present_load=i->present_load;
+					i->present_voltage=read_return[12];
+					status_message.present_voltage=(i->present_voltage/10.0);//This value in a reg is 10 times larger than the actual voltage
+					i->present_temp=read_return[13];
+					status_message.present_temp=i->present_temp;
+					i->instruction_registered=read_return[14];
+					status_message.registered=i->instruction_registered;
 					// Note: Byte 45 (0x2D) isn't in the ram, this corresponds to byte 15 in the read_return here,
-					status_message.is_moving=read_return[16];
+					i->is_moving=read_return[16];
+					status_message.is_moving=i->is_moving;
 					status_pub.publish(status_message);
 				}
 				else
@@ -317,8 +347,23 @@ void DynamixelServos::run()
 					ROS_WARN("Can't post status message for id: 0x%X due to bad read request", i->getID());
 				}
 			}
+
+			// process a round of callback(s)
 			ros::spinOnce();
+
+			// check the watch dog timer to see if we need to try and recover from any errors.
+			// 	It runs approximately every 1 second or 1 period, which ever is larger (due to the fact that poll_rate is in Hz).
+			if(++watch_dog_count>=poll_rate)
+			{
+				// run the watch dog routine
+				watchDogRoutine();
+				// reset the watchdog timer
+				watch_dog_count=0;
+			}
+
+			// if there is still time left in the rest of the cycle sleep
 			loop_rate.sleep();
+
 		}
 	}
 	else
@@ -340,13 +385,75 @@ DynamixelServos::~DynamixelServos()
 	}
 }
 
-//control_table_request
+void DynamixelServos::watchDogRoutine()
+{
+	// this routine should be as fast as possible and try to recover devices that are in and error state
+	if(com_port.comErrorPresent())
+	{
+		ROS_WARN("%s is reseting its handle on port %s since it has the error: %s.",ros::this_node::getName().c_str(),com_port.getPortName().c_str(),com_port.printComStatus().c_str());
+		com_port.closePort();
+		if(com_port.openPort())
+		{
+			ROS_INFO("%s has reestablished a handle on port: %s",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
+		}
+	}
+	else if(com_port.isOpen())
+	{
+		// Since the comport is up and working, see if any servo(s) have been put into an error mode (based on Alarm Shutdown EPROM)
+		vector<uint8_t> read_return;
+		for(vector<Servo>::iterator i=servos.begin();i!=servos.end();i++)
+		{
+			// See if any servo(s) have errors. If so, try to get them operational again.
+			read_return=servoRead(i->getID(),Servo::TORQUE_LIMIT_REG, sizeof(Servo::TORQUE_LIMIT_REG));
+			if(read_return.size()==sizeof(Servo::TORQUE_LIMIT_REG))
+			{
+				dynamixel_uint16_t read_torque_limit(read_return[1],read_return[0]);
+				dynamixel_uint16_t last_known_torque_limit=i->torque_limit;
+				if(last_known_torque_limit!=read_torque_limit)
+				{
+					// update the servo struct to reflect the changes we just read- don't waste the time we just used on the bus.
+					i->torque_limit=read_torque_limit;
+				}
+				// If the function of Alarm Shutdown is triggered, the motor loses its torque- setting the TORQUE_LIMIT_REG's value to 0.
+				// So if the servo wasn't initially configured to be off, due to the initial default values on boot, an error has occurred.
+				if(read_torque_limit==Servo::OFF && i->getMaxTorqueDefaultValue()!=Servo::OFF)
+				{
+					// If the value of TORQUE_LIMIT_REG is changed to a value other than 0, the motor will be able to be used again.
+					// If possible re-enable it to the last known value, otherwise set it to the EPROM configured default.
+					if(last_known_torque_limit!=Servo::OFF)
+					{
+						setTorqueLimit(i,last_known_torque_limit);
+						ROS_WARN("Servo id: 0x%X seems to have been shutdown; re-enabling it with last know \"Torque Limit\" of 0x%X", i->getID(), last_known_torque_limit.two_byte_value);
+					}
+					else
+					{
+						setTorqueLimit(i, i->getMaxTorqueDefaultValue());
+						ROS_WARN("Servo id: 0x%X seems to have been shutdown; re-enabling it with default \"Max Torque\" EPROM value of 0x%X", i->getID(), i->getMaxTorqueDefaultValue());
+					}
+				}
+			}
+			else
+			{
+				ROS_WARN("Can't check for errors on servo id: 0x%X due to bad read request", i->getID());
+			}
+		}
+	}
+	else if(com_port.isOpen()==false)
+	{
+		ROS_WARN("%s indicates port %s is closed. Trying to re-open the port.",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
+		if(com_port.openPort())
+		{
+			ROS_INFO("%s has reestablished a handle on port: %s",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
+		}
+	}
+}
+
 void DynamixelServos::controlTableRequestCallback(const dynamixel_servo::DynamixelControlTableRequest::ConstPtr& msg)
 {
 	if(msg->id==0x00)
 	{
 		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from requesting info from the wrong servo due to uninitialized ID parameters in the messages.");
-		ROS_WARN("The dynamixel_servo_server is dropping the Status Request message for servo ID 0x%X.",msg->id);
+		ROS_WARN("The %s is dropping the Status Request message for servo ID 0x%X.",ros::this_node::getName().c_str(),msg->id);
 		return;
 	}
 	// Verify that the "id" is a servo that we verified exists so we don't tie up the bus with needless messages- because cpu calculations are faster than bus transfer speeds.
@@ -386,7 +493,7 @@ void DynamixelServos::controlTableRequestCallback(const dynamixel_servo::Dynamix
 			control_table.reserve(eprom_return.size()+ram_return.size());
 			control_table.insert(control_table.end(), eprom_return.begin(), eprom_return.end());
 			control_table.insert(control_table.end(), ram_return.begin(), ram_return.end());
-			// For debugging purposes, we will actually fill in the servo structs with their relevant data
+			// We will actually fill in the servo structs with their relevant data so we can reference it- for speed- in future functions.
 			// Since we know the element was found based on the binary_search (O log n), get a handle on the servo whose data we will fill in.
 			vector<Servo>::iterator servo_to_update=find(servos.begin(),servos.end(),msg->id);
 
@@ -487,30 +594,33 @@ bool DynamixelServos::pingServo(uint8_t id)
 	// Note: Regardless of whether the Broadcasting ID is used or the Status Return Level (Address 0x10) is 0, a Status Packet is always returned by the PING instruction.
 	string temp = com_port.sendAndReceive(id, DynamixelSerialPort::INST_PING);
 
-	ROS_INFO("%s sent id: %u the packet: %s",__func__, id, com_port.printSendPacket().c_str());
-	ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
-
-	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	if(com_port.comErrorPresent())
 	{
 		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
 		return false;
 	}
-
+	else if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	{
+		// it could be just a bad status return packet from a servo that mis-behaved previously
+		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
+	}
+	//ROS_INFO("%s sent id: %u the packet: %s",__func__, id, com_port.printSendPacket().c_str());
+	//ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
 	return true;
 }
 
-void DynamixelServos::configCallback(const dynamixel_servo::DynamixelConfigParam::ConstPtr& msg)
+void DynamixelServos::configCallbackPositionOnly(const dynamixel_servo::DynamixelConfigPosition::ConstPtr& msg)
 {
 	if(msg->id==0x00)
 	{
 		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from sending configs to the wrong servo due to uninitialized ID parameters in the messages.");
-		ROS_WARN("The dynamixel_servo_server is dropping the config message for servo ID 0x%X.",msg->id);
+		ROS_WARN("The %s is dropping the config message for servo ID 0x%X.",ros::this_node::getName().c_str(), msg->id);
 		return;
 	}
 	if(binary_search(servos.begin(),servos.end(),msg->id))
 	{
-		//setLed(msg->id,msg->led);
-		setGoalPosition(msg->id,msg->goal_position);
+		vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),msg->id);
+		setGoalPosition(servo_to_config,msg->goal_position);
 	}
 	else
 	{
@@ -520,50 +630,151 @@ void DynamixelServos::configCallback(const dynamixel_servo::DynamixelConfigParam
 	return;
 }
 
-void DynamixelServos::setTorqueEnable(uint8_t id, uint8_t torque_state)
+void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelConfigParam::ConstPtr& msg)
 {
-	vector<uint8_t> params;
-	params.push_back(Servo::TORQUE_ENABLE_REG);
-	if(torque_state==Servo::ON)
+	if(msg->id==0x00)
 	{
-		// Setting the value to 1 enables the torque
-		// if torque_state==true==1==ON then turn it on
-		params.push_back(Servo::ON);
+		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from sending configs to the wrong servo due to uninitialized ID parameters in the messages.");
+		ROS_WARN("The %s is dropping the config message for servo ID 0x%X.",ros::this_node::getName().c_str(), msg->id);
+		return;
 	}
-	else if(torque_state==Servo::OFF)
+	if(binary_search(servos.begin(),servos.end(),msg->id))
 	{
-		// When the power is first turned on, the Dynamixel actuator enters the Torque Free Run condition (zero torque).
-		// if torque_state==false==0==OFF then turn it off
-		params.push_back(Servo::OFF);
+		vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),msg->id);
+		setLed(servo_to_config,msg->led);
+		setGoalPosition(servo_to_config,msg->goal_position);
+		setMovingSpeed(servo_to_config,msg->moving_speed);
+		setTorqueLimit(servo_to_config,msg->torque_limit);
+		setGoalAcceleration(servo_to_config,msg->goal_acceleration);
 	}
 	else
 	{
-		ROS_WARN("Error invalid torque_state parameter (0x%X) given to setTorqueEnable", torque_state);
+		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the config message will be dropped.",msg->id);
 		return;
 	}
-	string temp = com_port.sendAndReceive(id, DynamixelSerialPort::INST_WRITE, params);
-
-	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
-	{
-	     ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
-	}
-	ROS_INFO("%s sent id: %u the packet: %s",__func__, id, com_port.printSendPacket().c_str());
-	ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
 	return;
 }
 
-void DynamixelServos::setLed(uint8_t id, uint8_t led_state)
+void DynamixelServos::setTorqueLimit(const vector<Servo>::iterator servo_to_config, uint16_t torque_limit)
 {
-  vector<uint8_t> params;
-  params.push_back(Servo::LED_REG);
+	if(servo_to_config->torque_limit==torque_limit)
+	{
+		// Don't tie up the bus if it is known to be the same value (the bus is slower than a few cpu instructions)
+		return;
+	}
+	else if(torque_limit==Servo::OFF)
+	{
+		// An uninitialized message will have a default value of 0, which would effectively shutdown the servo; it isn't common to want to shutdown a servo, thus we will protect against this.
+		ROS_WARN("Servo ID %u is explicitly not allowed to set \"Torque Limit\" to 0x%X to prevent people from unintentionally disabling a servo due to uninitialized parameters in a messages.", servo_to_config->getID(), torque_limit);
+		ROS_WARN("The %s is dropping the set \"Torque Limit\" message for servo ID 0x%X.",ros::this_node::getName().c_str(), servo_to_config->getID());
+		return;
+	}
+
+	dynamixel_uint16_t torque_limit_params=torque_limit;
+	vector<uint8_t> params;
+	params.push_back(Servo::TORQUE_LIMIT_REG);
+	if(torque_limit > servo_to_config->getMaxTorqueDefaultValue())
+	{
+		// When the power is first turned on, the Dynamixel "Torque Limit" reg (ram address 0x22 and 0x23) is initially set to the same value in "Max Torque" (eprom address 0x0E and 0x0F)
+		//		It is not an error if the Torque Limit reg exceeds the initial value attained from Max Torque, so we will just inform ros.
+		ROS_INFO("Servo %u will be configured with a \"Torque Limit\" (0x%X) larger than the initial default \"Max Torque\" (0x%X)- this is technically allowed", servo_to_config->getID(), torque_limit, servo_to_config->getMaxTorqueDefaultValue());
+	}
+	else if(torque_limit > servo_to_config->getMaxTorqueAllowed())
+	{
+		ROS_WARN("Error the value 0x%X is larger than the maximum value (0x%x) allowed for \"Torque Limit\" on servo id %u", torque_limit, servo_to_config->getMaxTorqueAllowed(), servo_to_config->getID());
+		return;
+	}
+
+	// Since TORQUE_LIMIT_REG is the address of the lowest byte of Torque Limit, the low byte of torque_limit_params must be pushed back first then the high byte.
+	params.push_back(torque_limit_params.bytes.low_byte);
+	params.push_back(torque_limit_params.bytes.hi_byte);
+
+	string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
+
+	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	{
+	     ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, servo_to_config->getID(), temp.c_str());
+	}
+	else
+	{
+		// Modify the servo struct accordingly since communication was successful
+		servo_to_config->torque_limit=torque_limit_params;
+	}
+	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+	//ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
+	return;
+}
+
+void DynamixelServos::setGoalAcceleration(const vector<Servo>::iterator servo_to_config, float goal_acceleration_rad_per_second_squared)
+{
+	if(goal_acceleration_rad_per_second_squared<0.0 || goal_acceleration_rad_per_second_squared>((8.5826772*pi/180)*Servo::MAX_ACCELERATION))
+	{
+		ROS_WARN("The \"goal_acceleration\" should be specified in radians per second squared, rad/(s^2), between [0.0-2*%f]",(float)((8.5826772*pi/180)*Servo::MAX_ACCELERATION));
+		return;
+	}
+	float goal_acceleration_deg_per_second_squared=goal_acceleration_rad_per_second_squared*180/pi;
+	uint8_t goal_acceleration=(uint8_t)(goal_acceleration_deg_per_second_squared/8.5826772);
+	if(goal_acceleration<Servo::MIN_ACCELERATION)
+	{
+		goal_acceleration=Servo::MIN_ACCELERATION;
+	}
+	else if(goal_acceleration>Servo::MAX_ACCELERATION)
+	{
+		goal_acceleration=Servo::MAX_ACCELERATION;
+	}
+
+	if(servo_to_config->goal_acceleration==goal_acceleration)
+	{
+		// Don't tie up the bus if it is known to be the same value (the bus is slower than a few cpu instructions)
+		return;
+	}
+
+	vector<uint8_t> params;
+	params.push_back(Servo::GOAL_ACCELERATION_REG);
+	if(goal_acceleration>Servo::MAX_ACCELERATION)
+	{
+		ROS_WARN("Error the value 0x%X is larger than the maximum value (0x%x) allowed for \"Goal Acceleration\" on servo id %u", goal_acceleration, Servo::MAX_ACCELERATION, servo_to_config->getID());
+		return;
+	}
+	else if(goal_acceleration==0x00)
+	{
+		ROS_INFO("Servo %u will be configured with a \"Goal Acceleration\" of 0x%X, which equates to the maximum acceleration of the motor- please make sure this is the desired behavior.", servo_to_config->getID(), goal_acceleration);
+	}
+	params.push_back(goal_acceleration);
+
+	string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
+	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	{
+		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, servo_to_config->getID(), temp.c_str());
+	}
+	else
+	{
+		// Modify the servo struct accordingly since communication was successful
+		servo_to_config->goal_acceleration=goal_acceleration;
+	}
+	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+	//ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
+	return;
+}
+
+void DynamixelServos::setLed(const vector<Servo>::iterator servo_to_config, uint8_t led_state)
+{
+	if(servo_to_config->led==led_state)
+	{
+		// Don't tie up the bus if it is known to be the same value (the bus is slower than a few cpu instructions)
+		return;
+	}
+	vector<uint8_t> params;
+	params.push_back(Servo::LED_REG);
+
   if (led_state == Servo::ON)
   {
-    // if led_status==true==1==ON then turn it on
+    // if led_status==true==1=="ON" then turn it on
     params.push_back(Servo::ON);
   }
   else if (led_state == Servo::OFF)
   {
-    // if led_status==false==0==OFF then turn it off
+    // if led_status==false==0=="OFF" then turn it off
     params.push_back(Servo::OFF);
   }
   else
@@ -571,59 +782,148 @@ void DynamixelServos::setLed(uint8_t id, uint8_t led_state)
     ROS_WARN("Error invalid led state parameter (0x%X) given to setLed", led_state);
     return;
   }
-  string temp = com_port.sendAndReceive(id, DynamixelSerialPort::INST_WRITE, params);
+  string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
 
   if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
   {
-    ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
+    ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, servo_to_config->getID(), temp.c_str());
   }
-  ROS_INFO("%s sent id: %u the packet: %s",__func__, id, com_port.printSendPacket().c_str());
-  ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
+  else
+  {
+	  // Modify the servo struct accordingly since communication was successful
+	  servo_to_config->led=led_state;
+  }
+  //ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+  //ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
   return;
 }
 
-void DynamixelServos::setGoalPosition(uint8_t id, uint16_t goal_position)
+void DynamixelServos::setGoalPosition(const vector<Servo>::iterator servo_to_config, float goal_position_radians)
 {
+	if(goal_position_radians<0.0||goal_position_radians>2*pi)
+	{
+		// since goal_position is in radians it must be between 0 and 2*pi
+		ROS_WARN("The \"goal_position\" should be specified in radians between [0.0-2*%f]",pi);
+		return;
+	}
+	// Note: the following conversions have implicit casting involved in each division operation.
+	float goal_position_degrees=goal_position_radians*(180/pi); // see: http://goo.gl/0t2IRV
+	uint16_t goal_position= (uint16_t) (goal_position_degrees/(360.0/Servo::MAX_GOAL_POSITION)); // only the result of the math operation is explicitly cast to a uint16
+	// verify there weren't any odd issues due to casting
+	if(goal_position>Servo::MAX_GOAL_POSITION)
+	{
+		goal_position=Servo::MAX_GOAL_POSITION;
+	}
+	else if (goal_position<0x0000)
+	{
+		goal_position=0x0000;
+	}
+
+	if(servo_to_config->goal_position==goal_position)
+	{
+		// Don't tie up the bus if it is known to be the same value (the bus is slower than a few cpu instructions)
+		return;
+	}
+
 	dynamixel_uint16_t goal_position_params=goal_position;
 	vector<uint8_t> params;
 	// Note: Goal position is a two byte register, and (per the sdk) both bytes should be set with a single packet.
 	// So to write to the two addresses with one Instruction Packet- at the same time- we write at the lower address (GOAL_POSITION_REG).
 	params.push_back(Servo::GOAL_POSITION_REG);
-	if(goal_position_params.two_byte_value>= Servo::MIN_GOAL_POSITION && goal_position_params.two_byte_value<= Servo::MAX_GOAL_POSITION)// must be in the range of 0x0000 and 0x0FFF
+	if(servo_to_config->inWheelMode())
 	{
-		// Since GOAL_POSITION_REG is the address of the lowest byte of Goal Position, the low bytes of goal_position must be pushed back first then the high bytes.
-		params.push_back(goal_position_params.bytes.low_byte);
-		params.push_back(goal_position_params.bytes.hi_byte);
+		ROS_INFO("Setting the \"Goal Position\" to 0x%04X on Servo %u when in \"Wheel Mode\" will have no affect",goal_position, servo_to_config->getID());
 	}
-	else
+	else if(servo_to_config->inJointMode())
 	{
-		ROS_WARN("Error invalid goal position parameter (0x%04X) is out of the allowed range (0x%04X - 0x%04X)", goal_position_params.two_byte_value, Servo::MIN_GOAL_POSITION, Servo::MAX_GOAL_POSITION);
-		return;
+		// The goal position we wish to set must be in the range of cw_angle_limit and ccw_angle_limit when in joint mode
+		if(goal_position_params<servo_to_config->getMinAngle() || goal_position_params>servo_to_config->getMaxAngle())
+		{
+			ROS_WARN("Error invalid goal position parameter (0x%04X) specified for Servo %u; it's out of the allowed range (0x%04X - 0x%04X) for \"Joint Mode\".", goal_position, servo_to_config->getID(), servo_to_config->getMinAngle(), servo_to_config->getMaxAngle());
+			return;
+		}
 	}
-	string temp = com_port.sendAndReceive(id, DynamixelSerialPort::INST_WRITE, params);
+	// Since GOAL_POSITION_REG is the address of the lowest byte of Goal Position, the low byte of goal_position_params must be pushed back first then the high byte.
+	params.push_back(goal_position_params.bytes.low_byte);
+	params.push_back(goal_position_params.bytes.hi_byte);
+
+	string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
 
 	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
 	{
-	    ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
+	    ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, servo_to_config->getID(), temp.c_str());
 	}
-	ROS_INFO("%s sent id: %u the packet: %s",__func__, id, com_port.printSendPacket().c_str());
-	ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
+	else
+	{
+		// Modify the servo struct accordingly since communication was successful
+		servo_to_config->goal_position=goal_position_params;
+	}
+	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+	//ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
 	return;
 }
 
-void DynamixelServos::setMovingSpeed(uint8_t id, uint16_t moving_speed)
+void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_config, uint16_t moving_speed)
 {
+	if(servo_to_config->moving_speed==moving_speed)
+	{
+		// Don't tie up the bus if it is known to be the same value (the bus is slower than a few cpu instructions)
+		return;
+	}
+
 	dynamixel_uint16_t moving_speed_params=moving_speed;
 	vector<uint8_t> params;
 	// Note: Moving speed is a two byte register, and (per the sdk) both bytes should be set with a single packet.
 	// So to write to the two addresses with one Instruction Packet- at the same time- we write at the lower address (MOVING_SPEED_REG).
 	params.push_back(Servo::MOVING_SPEED_REG);
+	if(servo_to_config->inJointMode()&&moving_speed>Servo::MAX_JOINT_MODE_MOVING_SPEED)
+	{
+		ROS_WARN("Error invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Joint Mode\"", moving_speed, Servo::MAX_JOINT_MODE_MOVING_SPEED);
+		return;
+	}
+	else if(servo_to_config->inWheelMode()&&moving_speed>Servo::MAX_WHEEL_MODE_MOVING_SPEED)
+	{
+		ROS_WARN("Error invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Wheel Mode\"", moving_speed, Servo::MAX_WHEEL_MODE_MOVING_SPEED);
+		return;
+	}
+	else if(moving_speed==servo_to_config->getMinMovingSpeed())
+	{
+		if(servo_to_config->inWheelMode())
+		{
+			ROS_INFO("Servo %u will be stopped because it is in \"Wheel Mode\" and its \"Moving Speed\" is being set to 0x%X, which is the minimum value",servo_to_config->getID(), moving_speed);
+		}
+		else
+		{
+			ROS_INFO("Servo %u will be set to the maximum rpm its in \"Joint Mode\" and the \"Moving Speed\" is being set to 0x%X",servo_to_config->getID(), moving_speed);
+		}
+	}
+	else if(servo_to_config->inWheelMode())
+	{
+		if(moving_speed<servo_to_config->getMinMovingSpeed()||moving_speed>servo_to_config->GetMaxMovingSpeed())
+		{
+			// remember the bit position is 0 indexed
+			ROS_INFO("Servo %u will change its direction of rotation since it's in \"Wheel Mode\" and the 10th bit is changing; \"Moving Speed\" is being set to 0x%X",servo_to_config->getID(), moving_speed);
+		}
+	}
+	// Since MOVING_SPEED_REG is the address of the lowest byte of Moving Speed, the low byte of moving_speed_params must be pushed back first then the high byte.
+	params.push_back(moving_speed_params.bytes.low_byte);
+	params.push_back(moving_speed_params.bytes.hi_byte);
 
+	string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
 
-
+	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	{
+	    ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, servo_to_config->getID(), temp.c_str());
+	}
+	else
+	{
+		// Modify the servo struct accordingly since communication was successful
+		servo_to_config->moving_speed=moving_speed_params;
+	}
+	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+	//ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
+	return;
 }
-
-
 
 vector<uint8_t> DynamixelServos::servoRead(uint8_t id, uint8_t location, uint8_t num_bytes_to_read)
 {
@@ -642,10 +942,15 @@ vector<uint8_t> DynamixelServos::servoRead(uint8_t id, uint8_t location, uint8_t
 
 	string temp = com_port.sendAndReceive(id, DynamixelSerialPort::INST_READ, params);
 
-	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	if (com_port.comErrorPresent())
 	{
 		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s", __func__, id, temp.c_str());
 		return return_vector;
+	}
+	else if(temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	{
+		// could be just a bad status message returned
+		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s", __func__, id, temp.c_str());
 	}
 	// ROS_INFO("%s sent id: %u the packet: %s", __func__, id, com_port.printSendPacket().c_str());
 	// ROS_INFO("%s received from id: %u the packet: %s", __func__, id, com_port.printReceivePacket().c_str());

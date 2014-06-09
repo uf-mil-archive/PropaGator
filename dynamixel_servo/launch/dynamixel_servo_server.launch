@@ -30,7 +30,12 @@
 	<arg name="server_namespace" default="server" />
 	<!-- since the "servo_namespace" is configurable, we will also store it as a paramater on the server so we can access their relative location easier -->
 	<arg name="servo_namespace" default="servo" />
-	<arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_FT4232H_Device_FTWZVMOA-if03-port0" />
+	<!-- Stephen's usb to serial board-->
+	<!--arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_FT4232H_Device_FTWZVMOA-if03-port0" /-->
+	<!-- Mil's usb to serial board-->
+	<arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_USB__-__Serial_Cable_FTTKRX37-if03-port0" />
+	<!--Mils usb with serial extension cable-->
+	<!--arg name="serial_port" default="/dev/ttyUSB3"/-->
 	<arg name="baud_rate" default="1" />
 	<arg name="poll_rate" default="100"/>
 	
@@ -45,15 +50,12 @@
 		<!-- 	ex: "/" + "dynamixel" + "servo/lidar/bow/id" = "/dynamixel/servo/lidar/bow/id" -->
 		<!-- NOTE: port is the left side and starboard is the right side (relative to a person facing the bow- a.k.a. front- of the boat). -->
 		<param name="servo_namespace" value="$(arg servo_namespace)" type="str" />
-		<param name="$(arg servo_namespace)/z_drive/port/id" value="3" type="int"/>
-		<param name="$(arg servo_namespace)/z_drive/starboard/id" value="2" type="int"/>
 		<param name="$(arg servo_namespace)/lidar/bow/id" value="1" type="int"/>
-		<param name="$(arg servo_namespace)/test/test1/id" value="1" type="int"/>
-		<param name="$(arg servo_namespace)/test/test2/id" value="4" type="int"/>
-		<param name="$(arg servo_namespace)/test/test1/test_int" value="1" type="int"/>
-		<param name="$(arg servo_namespace)/test/test1/test_str" value="test" type="str"/>
-		<param name="$(arg servo_namespace)/test/test2/test_int" value="1" type="int"/>
-		<param name="$(arg servo_namespace)/test/test2/test_str" value="test" type="str"/>
+		<param name="$(arg servo_namespace)/z_drive/starboard/id" value="2" type="int"/>
+		<param name="$(arg servo_namespace)/z_drive/port/id" value="3" type="int"/>
+		<param name="$(arg servo_namespace)/ax_12a/test/id" value="4" type="int"/>
+		
+		
 		
 		<!-- For more information on a node's parameters see: http://wiki.ros.org/roslaunch/XML/node -->
 		<!-- node, tag that indicates the deceleration of a ros node- note the xml closing tag -->
@@ -65,7 +67,7 @@
 		<!-- output="log|screen", Optional value to indicate where the output of things like ROS_INFO should go. By default they will go to a "log" file, but if "screen" is used they will instead be displayed in the terminal window. -->
 		<!-- NOTE: Setting the namespace (ns) for a node in a launch file causes ros::node::getNamespace() to technically return the wrong namespace (root will be "//" instead of '/'). Passing the argument __ns:="desired_namespace" to the node is a hack around this. -->
 		<!--				For more information on this issue see: http://goo.gl/oi4V4h  or  https://code.ros.org/trac/ros/ticket/3617 -->
-		<node pkg="dynamixel_servo" type="dynamixel_servo_server" name="$(arg server_namespace)" args="__ns:=$(arg dynamixel_root_namespace)" respawn="false" output="screen">
+		<node pkg="dynamixel_servo" type="dynamixel_servo_server" name="$(arg server_namespace)" args="__ns:=$(arg dynamixel_root_namespace)" respawn="true" output="screen">
 			
 			<!-- The following parameters are private ("~") since they are within the node's xml block. -->
 			<!-- For more information on a node's parameters see: http://wiki.ros.org/roslaunch/XML/param -->

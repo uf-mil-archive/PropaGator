@@ -1,3 +1,12 @@
+#This file contains the entire control table of a MX-64T servo that will be returned when a DynamixelControlTableRequest
+#		message is sent to the Dynamixel server.
+#
+#It should be noted that the values returned in this message are as they would apper in the Dynamixel's registers, thus
+#		they are not in the standard units specified by ROS REP 103. http://www.ros.org/reps/rep-0103.html
+#
+#The Baud rate is an EPROM address value on each servo and must match value on the ROS parameter server.
+#		Note: all servos on the bus need to have the same baud rate.
+
 # Control table parameters of a MX-64T Dynamixel servo with Firmware Version 36
 #----------- dynamixel memory map locations -----------------
 # EEPROM addresses will survive a power cycling of the servo and hence have been designated with "EPROM"
