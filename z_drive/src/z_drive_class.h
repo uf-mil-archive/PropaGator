@@ -12,6 +12,7 @@
 #include "motor_control/thrusterStatus.h"
 #include "z_drive/ZDriveDbg.h"
 #include "uf_common/MoveToAction.h"
+#include <uf_common/PoseTwistStamped.h>
 #include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/JointState.h>
 #include <string>
@@ -143,6 +144,8 @@ private:
 	double pitch_desired;
 	double pitch_velocity_desired;
 
+	bool desired_position_inited;
+
 	// these are to just temporarily store the messages that are taken in the callback(s)- for debuging purposes only.
 	// Note: We will then strip out the simplified information that we care about
 	nav_msgs::Odometry odom_current;
@@ -156,6 +159,7 @@ private:
 	ros::Publisher dynamixel_config_position_pub;
 	ros::Publisher thruster_config_pub;
 	ros::Publisher z_drive_dbg_pub;
+	ros::Publisher trajectory_pub;
 	z_drive::ZDriveDbg dbg_msg;
 	tf::TransformBroadcaster tf_brodcaster;
 	tf::Transform z_drive_root_tf;
@@ -234,7 +238,7 @@ const double ZDrive::gain_thrusters_force=10; // all thrusters will have the sam
 const double ZDrive::gain_deviation_equilibrum_servo_angle=0; // all servos want to be pointing towards equilibrium/center (to minimize the motion used by the system). Note: since all servos are the same (e.g. same specs) they have the same gain_deviation_equilibrum_servo_angle
 const double ZDrive::gain_deviation_changeof_servo_angle=1; // we want to also minimize the overall amount in which the servos will have to turn (to minimize the motion used by the system). Note: since all servos are the same (e.g. same specs) they have the same gain_deviation_changeof_servo_angle
 
-const string ZDrive::odom_topic="sim_odom";
+const string ZDrive::odom_topic="odom";
 const string ZDrive::dynamixel_namespace="dynamixel";
 const string ZDrive::dynamixel_status_topic="dynamixel_status_post";
 const string ZDrive::dynamixel_config_topic="dynamixel_config";
@@ -249,6 +253,8 @@ const int ZDrive::cost_count_max=20;
 
 ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_required(0.0), estimated_port_thruster_force(0.0), estimated_port_servo_angle(0.0), estimated_starboard_thruster_force(0.0), estimated_starboard_servo_angle(0.0)
 {
+	desired_position_inited=false;
+
 	// While this should not be an issue on most computers, this check is added to try and ensure that doubles (like ros float64 msg types) are ieee754 compliant. See: http://goo.gl/mfC8tJ and http://goo.gl/AN8311
 	if(std::numeric_limits<double>::is_iec559==false)
 	{
@@ -259,12 +265,12 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	// Note: The Servo Angle limits here will comply with REP103; so 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
 	port_servo_angle_clock_wise_limit=(-50*M_PI)/180; // clockwise is towards starboard
 	port_servo_angle_counter_clock_wise_limit=(100*M_PI)/180;; //counterclockwise is towards port
-	port_thruster_reverse_limit=-100;
-	port_thruster_foward_limit=100;
+	port_thruster_reverse_limit=-5;
+	port_thruster_foward_limit=5;
 	starboard_servo_angle_clock_wise_limit=(-100*M_PI)/180; // clockwise is towards starboard
 	starboard_servo_angle_counter_clock_wise_limit=(50*M_PI)/180;; //counterclockwise is towards port
-	starboard_thruster_reverse_limit=-100;
-	starboard_thruster_foward_limit=100;
+	starboard_thruster_reverse_limit=-5;
+	starboard_thruster_foward_limit=5;
 	port_servo_angle_offset=M_PI;
 	starboard_servo_angle_offset=M_PI;
 
@@ -349,6 +355,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	thruster_config_pub=n.advertise<motor_control::thrusterStatus>("thruster_config",1000);
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
 	joint_pub=n.advertise<sensor_msgs::JointState>("z_drive_joints",10);
+	trajectory_pub = n.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
 
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg)
@@ -406,11 +413,25 @@ void ZDrive::currentOdomCallBack(const nav_msgs::Odometry& odom_msg)
 	ZDrive::pitch_velocity_current=angular_world_velocity.y();
 	ZDrive::yaw_velocity_current=angular_world_velocity.z();
 
+	if(desired_position_inited==false)
+	{
+		ZDrive::x_desired=ZDrive::x_current;
+		ZDrive::y_desired=ZDrive::y_current;
+		ZDrive::x_velocity_desired=0;
+		ZDrive::y_velocity_desired=0;
+		ZDrive::roll_velocity_desired=0;
+		ZDrive::pitch_velocity_desired=0;
+		ZDrive::yaw_velocity_desired=0;
+		desired_position_inited=true;
+	}
+
 	return;
 }
 
 void ZDrive::desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist)
 {
+	desired_position_inited=true;
+
 	// TWIST part of an odom message is relative to the BODY! frame!
 	// POSE part of the odom message is relative to the WORLD frame!
 	// odom_msg contains all the information about how our robot (base_link) currently relates to the world.
@@ -502,7 +523,11 @@ void ZDrive::run()
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
 	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 
+	uf_common::PoseTwistStamped trajectory_msg;
+
+
 	actionlib::SimpleActionServer<uf_common::MoveToAction> actionserver(n, "moveto", false);
+	actionserver.start();
 
 	dynamixel_servo::DynamixelConfigPosition dynamixel_position_msg;
 	motor_control::thrusterConfig thruster_config_msg;
@@ -555,6 +580,22 @@ void ZDrive::run()
 		tf_brodcaster.sendTransform(tf::StampedTransform(z_drive_root_tf, ros::Time::now(), "base_link", ros::this_node::getName()));
 		tf_brodcaster.sendTransform(tf::StampedTransform(port_tf, ros::Time::now(), ros::this_node::getName(), "port"));
 		tf_brodcaster.sendTransform(tf::StampedTransform(starboard_tf, ros::Time::now(), ros::this_node::getName(), "starboard"));
+
+		trajectory_msg.header.stamp=ros::Time::now();
+		trajectory_msg.header.frame_id="/base_link";
+
+		trajectory_msg.posetwist.pose.position.x=ZDrive::x_desired;
+		trajectory_msg.posetwist.pose.position.y=ZDrive::y_desired;
+
+		tf::Matrix3x3 m;
+		m.setRPY(ZDrive::roll_desired, ZDrive::pitch_desired, ZDrive::yaw_desired);
+		tf::Quaternion q_temp;
+		m.getRotation(q_temp);
+		tf::quaternionTFToMsg(q_temp, trajectory_msg.posetwist.pose.orientation);
+
+		trajectory_pub.publish(trajectory_msg);
+
+
 		loop_rate.sleep();
 	}
 }
@@ -586,7 +627,16 @@ double ZDrive::requiredForceY(double y_current, double y_desired, double y_veloc
 double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desired, double boat_angular_velocity_current, double boat_angular_velocity_desired)
 {
 	// this is the angle (in radian) of the boat relative to the world coordinate frame
-	return p_gain_theta_boat*(boat_angle_current-boat_angle_desired)+d_gain_theta_boat*(boat_angular_velocity_current-boat_angular_velocity_desired);
+	double temp_angle=boat_angle_current-boat_angle_desired;
+	while(temp_angle<-M_PI)
+	{
+		temp_angle+=2*M_PI;
+	}
+	while(temp_angle>M_PI)
+	{
+		temp_angle-=2*M_PI;
+	}
+	return p_gain_theta_boat*(temp_angle)+d_gain_theta_boat*(boat_angular_velocity_current-boat_angular_velocity_desired);
 }
 
 //---------------------- these are the partial derivatives related to a given configuration of the z_drive system (with respect to the costValue/"cost function")  --------------------------

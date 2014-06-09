@@ -62,10 +62,11 @@ world.setGravity((0, 0, -9.81))
 
 body = ode.Body(world)
 M = ode.Mass()
+# this is the mass of the boat 36kg
 M.setBoxTotal(36, 1.27, .46, .46)
 body.setMass(M)
 body.setPosition((0, 0, 0))
-body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi/2))
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
 
 space = ode.HashSpace()
 
@@ -291,15 +292,17 @@ def world_tick():
     body.addTorque(-(20 if body.getPosition()[2] >= 0 else 5) * V(body.getAngularVel()))
     
     #print thrusters
-    
+    # map the thrusters position on the boat
     sub_model.vectors = []
-    for thruster_id in [2, 3]:
-        relpos = v(-.7239, -.3048, 0) if thruster_id == 2 else v(-.7239, +.3048, 0)
-        angle = positions[thruster_id]
-        reldir = v(-math.cos(angle), -math.sin(angle), 0)
-        force = thrusts[thruster_id]
-        body.addRelForceAtRelPos(reldir*force, relpos)
-        sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+    # id2=starboard, id3=port
+    if not killed:
+        for thruster_id in [2, 3]:
+            relpos = v(-.7239, -.3048, 0) if thruster_id == 2 else v(-.7239, +.3048, 0)
+            angle = positions[thruster_id]
+            reldir = v(-math.cos(angle), -math.sin(angle), 0)
+            force = thrusts[thruster_id]
+            body.addRelForceAtRelPos(reldir*force, relpos)
+            sub_model.vectors.append((relpos, relpos - .02*reldir*force))
     
     keys = pygame.key.get_pressed()
     for keycode, force in [
