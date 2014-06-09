@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   actionlib_msgs
   actionlib
+  dynamixel_servo
+  motor_control
 )
 
 ## System dependencies are found with CMake's conventions
@@ -89,7 +91,7 @@ generate_messages(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES z_drive
-#  CATKIN_DEPENDS nav_msgs roscpp tf
+  CATKIN_DEPENDS dynamixel_servo motor_control
 #  DEPENDS system_lib
 )
 
@@ -114,7 +116,7 @@ add_executable(z_drive src/z_drive.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(z_drive_node z_drive_generate_messages_cpp)
+add_dependencies(z_drive z_drive_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(z_drive ${catkin_LIBRARIES})
