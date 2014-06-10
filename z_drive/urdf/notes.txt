@@ -1,0 +1,1 @@
+roslaunch urdf_tutorial display.launch model:=z_drive.urdf gui:=true
