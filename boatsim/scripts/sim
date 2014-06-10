@@ -66,7 +66,8 @@ M = ode.Mass()
 M.setBoxTotal(36, 1.27, .46, .46)
 body.setMass(M)
 body.setPosition((0, 0, 0))
-body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
+# the last unit is the initial rotation of the body position in radians
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
 
 space = ode.HashSpace()
 

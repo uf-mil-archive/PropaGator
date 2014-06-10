@@ -3,6 +3,8 @@
 
 
 #include <ros/ros.h>
+#include <dynamic_reconfigure/server.h>
+#include <z_drive/GainsConfig.h> // dynamic reconfig
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include "dynamixel_servo/DynamixelConfigParam.h" //message to config a Dynamixel servo
@@ -15,6 +17,7 @@
 #include <uf_common/PoseTwistStamped.h>
 #include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/JointState.h>
+#include <sensor_msgs/Joy.h>
 #include <string>
 #include <math.h>
 
@@ -23,7 +26,6 @@
 
 // Per Ros cpp guidelines you should only refer to each element in namespace std that you want. see: http://wiki.ros.org/CppStyleGuide#Namespaces-1
 using std::string;
-
 
 class ZDrive
 {
@@ -145,6 +147,7 @@ private:
 	double pitch_velocity_desired;
 
 	bool desired_position_inited;
+	bool kill_thrusters;
 
 	// these are to just temporarily store the messages that are taken in the callback(s)- for debuging purposes only.
 	// Note: We will then strip out the simplified information that we care about
@@ -155,11 +158,14 @@ private:
 	ros::Subscriber odom_subscriber;
 	ros::Subscriber thruster_status_subscriber;
 	ros::Subscriber dynamixel_status_subscriber;
+	ros::Subscriber joystick_subscriber;
 	ros::Publisher dynamixel_config_full_pub;
 	ros::Publisher dynamixel_config_position_pub;
 	ros::Publisher thruster_config_pub;
 	ros::Publisher z_drive_dbg_pub;
 	ros::Publisher trajectory_pub;
+	dynamic_reconfigure::Server<z_drive::GainsConfig> reconfig_server;
+	dynamic_reconfigure::Server<z_drive::GainsConfig>::CallbackType reconfig_callback;
 	z_drive::ZDriveDbg dbg_msg;
 	tf::TransformBroadcaster tf_brodcaster;
 	tf::Transform z_drive_root_tf;
@@ -178,6 +184,8 @@ protected:
 	void desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist);
 	void dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg);
 	void thrusterStatusCallBack(const motor_control::thrusterStatus& thruster_status_msg);
+	void joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg);
+	void dynamicReconfigCallBack(z_drive::GainsConfig &config, uint32_t level);
 
 	// remember x is forward, y is left right, and z is up
 	// Note: in an ideal system the resultant force/moment would equal the required force/moment, but our system isn't ideal; thus we must calculate both.
@@ -227,16 +235,16 @@ const double ZDrive::d_gain_x=sqrt(4*p_gain_x*boat_mass);
 const double ZDrive::p_gain_y=50;
 const double ZDrive::d_gain_y=sqrt(4*p_gain_y*boat_mass);
 // this is the angle (in radian) of the boat relative to the world coordinate frame
-const double ZDrive::p_gain_theta_boat=70;
+const double ZDrive::p_gain_theta_boat=1;
 const double ZDrive::d_gain_theta_boat=sqrt(4*p_gain_theta_boat*boat_inertia);
 
 // these are gains for the cost function
-const double ZDrive::gain_error_force_x=1000;
+const double ZDrive::gain_error_force_x=100;
 const double ZDrive::gain_error_force_y=1000;
 const double ZDrive::gain_error_moment_z=1000;
 const double ZDrive::gain_thrusters_force=10; // all thrusters will have the same gain amount for the thrusters. This essentially is to penalize the system (in the cost function) for using more energy.
 const double ZDrive::gain_deviation_equilibrum_servo_angle=0; // all servos want to be pointing towards equilibrium/center (to minimize the motion used by the system). Note: since all servos are the same (e.g. same specs) they have the same gain_deviation_equilibrum_servo_angle
-const double ZDrive::gain_deviation_changeof_servo_angle=1; // we want to also minimize the overall amount in which the servos will have to turn (to minimize the motion used by the system). Note: since all servos are the same (e.g. same specs) they have the same gain_deviation_changeof_servo_angle
+const double ZDrive::gain_deviation_changeof_servo_angle=.01; // we want to also minimize the overall amount in which the servos will have to turn (to minimize the motion used by the system). Note: since all servos are the same (e.g. same specs) they have the same gain_deviation_changeof_servo_angle
 
 const string ZDrive::odom_topic="odom";
 const string ZDrive::dynamixel_namespace="dynamixel";
@@ -254,6 +262,8 @@ const int ZDrive::cost_count_max=20;
 ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_required(0.0), estimated_port_thruster_force(0.0), estimated_port_servo_angle(0.0), estimated_starboard_thruster_force(0.0), estimated_starboard_servo_angle(0.0)
 {
 	desired_position_inited=false;
+	// initaly the thrusters should be killed
+	ZDrive::kill_thrusters=true;
 
 	// While this should not be an issue on most computers, this check is added to try and ensure that doubles (like ros float64 msg types) are ieee754 compliant. See: http://goo.gl/mfC8tJ and http://goo.gl/AN8311
 	if(std::numeric_limits<double>::is_iec559==false)
@@ -263,14 +273,16 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 
 	// init values
 	// Note: The Servo Angle limits here will comply with REP103; so 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
-	port_servo_angle_clock_wise_limit=(-50*M_PI)/180; // clockwise is towards starboard
+	port_servo_angle_clock_wise_limit=(-70*M_PI)/180; // clockwise is towards starboard
 	port_servo_angle_counter_clock_wise_limit=(100*M_PI)/180;; //counterclockwise is towards port
-	port_thruster_reverse_limit=-5;
-	port_thruster_foward_limit=5;
+	// the specs on the troling motors say about 18lbs of thrust, which should be about 80.0679 newtons
+	port_thruster_foward_limit=80.0679891;
+	// you don't get full thrust in reverse so about 80%
+	port_thruster_reverse_limit=-.8*port_thruster_foward_limit;
 	starboard_servo_angle_clock_wise_limit=(-100*M_PI)/180; // clockwise is towards starboard
-	starboard_servo_angle_counter_clock_wise_limit=(50*M_PI)/180;; //counterclockwise is towards port
-	starboard_thruster_reverse_limit=-5;
-	starboard_thruster_foward_limit=5;
+	starboard_servo_angle_counter_clock_wise_limit=(70*M_PI)/180;; //counterclockwise is towards port
+	starboard_thruster_foward_limit=port_thruster_foward_limit;
+	starboard_thruster_reverse_limit=port_thruster_reverse_limit;
 	port_servo_angle_offset=M_PI;
 	starboard_servo_angle_offset=M_PI;
 
@@ -289,39 +301,6 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	odom_desired.pose.pose.position.z=0;
 	odom_desired.pose.pose.orientation=tf::createQuaternionMsgFromRollPitchYaw(0,0,0);
 
-	/*
-	// This is temporary and will be the desired odom
-	odom_desired.header.stamp=ros::Time::now();
-	odom_desired.header.frame_id=odom_topic;
-	odom_desired.child_frame_id="base_link";
-	odom_desired.pose.pose.position.x=10;
-	odom_desired.pose.pose.position.y=10;
-	odom_desired.pose.pose.position.z=0;
-	odom_desired.pose.pose.orientation=tf::createQuaternionMsgFromRollPitchYaw(0,0,0);
-	// TWIST part of an odom message is relative to the BODY frame!
-	// POSE part of the odom message is relative to the WORLD frame!
-	ZDrive::x_desired=odom_desired.pose.pose.position.x;
-	ZDrive::y_desired=odom_desired.pose.pose.position.y;
-	// extract the relevant information based on Quaternions
-	tf::Quaternion q_desired;
-	tf::quaternionMsgToTF(odom_desired.pose.pose.orientation, q_desired);
-	tf::Matrix3x3(q_desired).getRPY(ZDrive::roll_desired, ZDrive::pitch_desired, ZDrive::yaw_desired);
-	// the velocity(s) needs to be relative to the world frame
-	// first we will get the linear velocities relative to the world frame
-	tf::Vector3 linear_body_velocity;
-	tf::vector3MsgToTF(odom_desired.twist.twist.linear, linear_body_velocity);
-	tf::Vector3 linear_world_velocity = tf::Matrix3x3(q_desired) * linear_body_velocity;
-	ZDrive::x_velocity_desired=linear_world_velocity.x();
-	ZDrive::y_velocity_desired=linear_world_velocity.y();
-	// now the angular velocities relative to the world frame
-	tf::Vector3 angular_body_velocity;
-	tf::vector3MsgToTF(odom_desired.twist.twist.angular, angular_body_velocity);
-	tf::Vector3 angular_world_velocity =tf::Matrix3x3(q_desired) * angular_body_velocity;
-	ZDrive::roll_velocity_desired=angular_world_velocity.x();
-	ZDrive::pitch_velocity_desired=angular_world_velocity.y();
-	ZDrive::yaw_velocity_desired=angular_world_velocity.z();
-	*/
-
 	//create a parent node in the tree to organize the zdrive components under
 	z_drive_root_tf.setOrigin(tf::Vector3(z_drive_root_x_offset, z_drive_root_y_offset, z_drive_root_z_offset));
 	z_drive_root_tf.setRotation(tf::Quaternion(0,0,0));
@@ -335,7 +314,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	starboard_tf.setRotation(tf::Quaternion(0,0,0));
 
 	// set the update rate (in hz) for which the pd controller runs
-	update_rate=20;
+	update_rate=50;
 
 	// init the id variables for what their corresponding servo's are on the dynamixel bus
 	port_servo_id=0x03;
@@ -348,6 +327,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	odom_subscriber=n.subscribe(odom_topic,1000, &ZDrive::currentOdomCallBack,this);
 	dynamixel_status_subscriber=n.subscribe(dynamixel_fqns+"/"+dynamixel_status_topic, 1000, &ZDrive::dynamixelStatusCallBack, this);
 	thruster_status_subscriber=n.subscribe("thruster_status",1000,&ZDrive::thrusterStatusCallBack ,this);
+	joystick_subscriber=n.subscribe("joy",100,&ZDrive::joystickCallBack,this);
 
 	//Advertise the various publisher(s)
 	dynamixel_config_full_pub=n.advertise<dynamixel_servo::DynamixelConfigParam>(dynamixel_fqns+"/"+"dynamixel_config_full",1000);
@@ -356,6 +336,10 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
 	joint_pub=n.advertise<sensor_msgs::JointState>("z_drive_joints",10);
 	trajectory_pub = n.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
+
+	//configure our dynamic reconfigurable server
+	reconfig_callback=boost::bind(&ZDrive::dynamicReconfigCallBack, this, _1, _2);
+	reconfig_server.setCallback(reconfig_callback);
 
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg)
@@ -385,6 +369,43 @@ void ZDrive::thrusterStatusCallBack(const motor_control::thrusterStatus& thruste
 	}
 	return;
 }
+
+void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
+{
+	//        [0, 1, 2, 3, 4 , 5 , 6   , 7    , 8     , 9           , 10          ]
+	// buttons[A, B, X, Y, LB, RB, BACK, START, XBOX_X, L_STICK_DOWN, R_STICK_DOWN] these are 0/1 values
+	//			[              0             ,              1          , 2 ,               3             ,              4          , 5 ,         6        ,         7        ]
+	// axes: [-L_STICK_RIGHT:+L_STICK_LEFT, -L_STICK_DOWN:L_STICK_UP, LT, -R_STICK_RIGHT:+R_STICK_LEFT, -R_STICK_DOWN:R_STICK_UP, RT, -R_D_PAD:+L_D_PAD, -D_D_PAD:+U_D_PAD] these are [-1:1]
+
+	ZDrive::force_port_required=joystick_msg->axes[3]*100;
+	ZDrive::force_bow_required=joystick_msg->axes[4]*100;
+	ZDrive::moment_z_required=joystick_msg->axes[0]*50;
+
+	//kill_thrusters
+	if(joystick_msg->buttons[8]==1)
+	{
+		ZDrive::kill_thrusters=true;
+	}
+	else if(joystick_msg->buttons[7]==1)
+	{
+		ZDrive::kill_thrusters=false;
+	}
+
+
+	return;
+}
+
+void ZDrive::dynamicReconfigCallBack(z_drive::GainsConfig &config, uint32_t level)
+{
+	ROS_INFO("Reconfigure Request: %d %f %s %s %d",
+	            config.int_param, config.double_param,
+	            config.str_param.c_str(),
+	            config.bool_param?"True":"False",
+	            config.size);
+
+}
+
+
 
 void ZDrive::currentOdomCallBack(const nav_msgs::Odometry& odom_msg)
 {
@@ -509,7 +530,11 @@ void ZDrive::run()
 		//ROS_INFO("Waiting for ZDrive node and Dynamixel node to connect");
 	}
 
-	// fill in an init message
+	uf_common::PoseTwistStamped trajectory_msg;
+	dynamixel_servo::DynamixelConfigPosition dynamixel_position_msg;
+	motor_control::thrusterConfig thruster_config_msg;
+
+	// fill in a full init message for the servos
 	dynamixel_servo::DynamixelConfigParam dynamixel_init_config_msg;
 	dynamixel_init_config_msg.goal_position=(float)(M_PI);
 	dynamixel_init_config_msg.moving_speed=0x0084; // 15rpm
@@ -523,14 +548,20 @@ void ZDrive::run()
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
 	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 
-	uf_common::PoseTwistStamped trajectory_msg;
+	// fill in a init message to the thrusters that kills them initaly
+	thruster_config_msg.thrust=0;
+	// config the port thruster initaly first
+	thruster_config_msg.id=ZDrive::port_servo_id;
+	thruster_config_pub.publish(thruster_config_msg);
+	// config the starboard thruster initaly first
+	thruster_config_msg.id=ZDrive::starboard_servo_id;
+	thruster_config_pub.publish(thruster_config_msg);
 
 
 	actionlib::SimpleActionServer<uf_common::MoveToAction> actionserver(n, "moveto", false);
 	actionserver.start();
 
-	dynamixel_servo::DynamixelConfigPosition dynamixel_position_msg;
-	motor_control::thrusterConfig thruster_config_msg;
+
 	ros::Rate loop_rate(update_rate);
 	while(ros::ok())
 	{
@@ -546,24 +577,45 @@ void ZDrive::run()
 		// now run the control algorithm(s) to extrapolate the information needed for the z_drive
 		minimizeCostFunction();
 
-		// publish a dynamixel_config_position message for the port servo based on the controller's (possibly) new estimates.
-		// Note: the dynamixel_server is written such that it quickly disregards messages where there is no change required in the servo's position.
-		dynamixel_position_msg.id=ZDrive::port_servo_id;
-		dynamixel_position_msg.goal_position=(float)(ZDrive::estimated_port_servo_angle+ZDrive::port_servo_angle_offset);
-		ROS_INFO("Port servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI,ZDrive::estimated_port_thruster_force);
-		dynamixel_config_position_pub.publish(dynamixel_position_msg);
-		thruster_config_msg.id=ZDrive::port_servo_id;
-		thruster_config_msg.thrust=ZDrive::estimated_port_thruster_force;
-		thruster_config_pub.publish(thruster_config_msg);
+		if(ZDrive::kill_thrusters==true)
+		{
+			// kill thrusters and set their position at the z_drive's 0 degree
+			dynamixel_position_msg.id=ZDrive::port_servo_id;
+			dynamixel_position_msg.goal_position=(float)(0.0+ZDrive::port_servo_angle_offset);
+			dynamixel_config_position_pub.publish(dynamixel_position_msg);
+			thruster_config_msg.id=ZDrive::port_servo_id;
+			thruster_config_msg.thrust=0;
+			thruster_config_pub.publish(thruster_config_msg);
+			// do the same for starboard
+			dynamixel_position_msg.id=ZDrive::starboard_servo_id;
+			dynamixel_position_msg.goal_position=(float)(0.0+ZDrive::starboard_servo_angle_offset);
+			dynamixel_config_position_pub.publish(dynamixel_position_msg);
+			thruster_config_msg.id=ZDrive::starboard_servo_id;
+			thruster_config_msg.thrust=0;
+			thruster_config_pub.publish(thruster_config_msg);
+			ROS_INFO("Z_DRIVE THRUSTERS KILLED");
+		}
+		else
+		{
+			// publish a dynamixel_config_position message for the port servo based on the controller's (possibly) new estimates.
+			// Note: the dynamixel_server is written such that it quickly disregards messages where there is no change required in the servo's position.
+			dynamixel_position_msg.id=ZDrive::port_servo_id;
+			dynamixel_position_msg.goal_position=(float)(ZDrive::estimated_port_servo_angle+ZDrive::port_servo_angle_offset);
+			ROS_INFO("Port servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI,ZDrive::estimated_port_thruster_force);
+			dynamixel_config_position_pub.publish(dynamixel_position_msg);
+			thruster_config_msg.id=ZDrive::port_servo_id;
+			thruster_config_msg.thrust=ZDrive::estimated_port_thruster_force;
+			thruster_config_pub.publish(thruster_config_msg);
 
-		// publish a dynamixel_config_position message for the starboard servo based on the controller's (possibly) new estimates.
-		dynamixel_position_msg.id=ZDrive::starboard_servo_id;
-		dynamixel_position_msg.goal_position=(float)(ZDrive::estimated_starboard_servo_angle+ZDrive::starboard_servo_angle_offset);
-		ROS_INFO("Starboard servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI, ZDrive::estimated_starboard_thruster_force);
-		dynamixel_config_position_pub.publish(dynamixel_position_msg);
-		thruster_config_msg.id=ZDrive::starboard_servo_id;
-		thruster_config_msg.thrust=ZDrive::estimated_starboard_thruster_force;
-		thruster_config_pub.publish(thruster_config_msg);
+			// publish a dynamixel_config_position message for the starboard servo based on the controller's (possibly) new estimates.
+			dynamixel_position_msg.id=ZDrive::starboard_servo_id;
+			dynamixel_position_msg.goal_position=(float)(ZDrive::estimated_starboard_servo_angle+ZDrive::starboard_servo_angle_offset);
+			ROS_INFO("Starboard servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI, ZDrive::estimated_starboard_thruster_force);
+			dynamixel_config_position_pub.publish(dynamixel_position_msg);
+			thruster_config_msg.id=ZDrive::starboard_servo_id;
+			thruster_config_msg.thrust=ZDrive::estimated_starboard_thruster_force;
+			thruster_config_pub.publish(thruster_config_msg);
+		}
 
 		// update the joint_state things
 		joint_state.header.stamp = ros::Time::now();
@@ -628,6 +680,7 @@ double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desi
 {
 	// this is the angle (in radian) of the boat relative to the world coordinate frame
 	double temp_angle=boat_angle_current-boat_angle_desired;
+	/*
 	while(temp_angle<-M_PI)
 	{
 		temp_angle+=2*M_PI;
@@ -636,6 +689,7 @@ double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desi
 	{
 		temp_angle-=2*M_PI;
 	}
+	*/
 	return p_gain_theta_boat*(temp_angle)+d_gain_theta_boat*(boat_angular_velocity_current-boat_angular_velocity_desired);
 }
 
@@ -689,6 +743,100 @@ void ZDrive::guessInitalValues()
 	ZDrive::estimated_port_thruster_force=ZDrive::current_port_thruster_force;
 	ZDrive::estimated_starboard_servo_angle=ZDrive::current_starboard_servo_angle;
 	ZDrive::estimated_starboard_thruster_force=ZDrive::current_starboard_thruster_force;
+	double temp_theta_port, temp_theta_starboard, temp_force_port, temp_force_starboard;
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 4; j++)
+		{
+			for (int k = 0; k < 4; k++)
+			{
+				for (int l = 0; l < 4; l++)
+				{
+					switch (i)
+					{
+						case 0:
+							temp_theta_port = ZDrive::port_servo_angle_counter_clock_wise_limit;
+							break;
+						case 1:
+							temp_theta_port = ZDrive::port_servo_angle_clock_wise_limit;
+							break;
+						case 2:
+							temp_theta_port = M_PI / 2.0 + atan(ZDrive::port_servo_x_offset / ZDrive::port_servo_y_offset);
+							break;
+						case 3:
+							temp_theta_port = 0.0;
+							break;
+						default:
+							std::cout << "Case Not Defined" << std::endl;
+							break;
+					}
+					switch (j)
+					{
+						case 0:
+							temp_force_port = ZDrive::port_thruster_foward_limit;
+							break;
+						case 1:
+							temp_force_port = ZDrive::port_thruster_reverse_limit;
+							break;
+						case 2:
+							temp_force_port = 50.0;
+							break;
+						case 3:
+							temp_force_port = -50.0;
+							break;
+						default:
+							std::cout << "Case Not Defined" << std::endl;
+							break;
+					}
+					switch (k)
+					{
+						case 0:
+							temp_theta_starboard = ZDrive::starboard_servo_angle_counter_clock_wise_limit;
+							break;
+						case 1:
+							temp_theta_starboard = ZDrive::starboard_servo_angle_clock_wise_limit;
+							break;
+						case 2:
+							temp_theta_starboard = M_PI / 2
+									- atan(ZDrive::starboard_servo_x_offset / ZDrive::starboard_servo_y_offset);
+							break;
+						case 3:
+							temp_theta_starboard = 0.0;
+							break;
+						default:
+							std::cout << "Case Not Defined" << std::endl;
+							break;
+					}
+					switch (l)
+					{
+						case 0:
+							temp_force_starboard = ZDrive::starboard_thruster_foward_limit;
+							break;
+						case 1:
+							temp_force_starboard = ZDrive::starboard_thruster_reverse_limit;
+							break;
+						case 2:
+							temp_force_starboard = 50.0;
+							break;
+						case 3:
+							temp_force_starboard = -50.0;
+							break;
+						default:
+							std::cout << "Case Not Defined" << std::endl;
+							break;
+					}
+
+					if (calcCost(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard)< calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force))
+					{
+						ZDrive::estimated_port_servo_angle = temp_theta_port;
+						ZDrive::estimated_port_thruster_force = temp_force_port;
+						ZDrive::estimated_starboard_servo_angle = temp_theta_starboard;
+						ZDrive::estimated_starboard_thruster_force = temp_force_starboard;
+					}
+				}
+			}
+		}
+	}
 }
 
 void ZDrive::checkEstimatedValuesAgainsBounds()
@@ -832,9 +980,11 @@ void ZDrive::minimizeCostFunction()
 {
 
 	// we must first get the required forces before we can create an initial guess for the solution to minimize the cost function. (remember we may not be able to archive this in the end, hence the resultant force)
-	ZDrive::force_bow_required=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
-	ZDrive::force_port_required=requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
-	ZDrive::moment_z_required=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
+	//ZDrive::force_bow_required=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
+	//ZDrive::force_port_required=requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
+	//ZDrive::moment_z_required=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
+	// these forces need to be turned into the boat coordinate system
+
 	// Intelligently guess and initialize values for the respective thrusts and angles. This must be done before we can calculate estimates.
 	guessInitalValues();
 
@@ -842,8 +992,9 @@ void ZDrive::minimizeCostFunction()
 	{
 		// each time we calculate an estimate again we get closer and closer to the optimal solution for the desired position
 		calcAngleAndThrustEstimate();
-		publishDbgMsg((double)i);
 	}
+
+	publishDbgMsg();
 
 }
 

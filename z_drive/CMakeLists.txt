@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   genmsg
   actionlib_msgs
   actionlib
+  dynamic_reconfigure
   dynamixel_servo
   motor_control
 )
@@ -78,6 +79,12 @@ generate_messages(
    std_msgs
    nav_msgs
  )
+ 
+# Generate the added dynamic reconfigurable messages
+generate_dynamic_reconfigure_options(
+#  cfg/relative_path_to_file1.cfg
+	cfg/Gains.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
@@ -117,6 +124,7 @@ add_executable(z_drive src/z_drive.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(z_drive z_drive_generate_messages_cpp)
+add_dependencies(z_drive ${PROJECT_NAME}_gencfg)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(z_drive ${catkin_LIBRARIES})
