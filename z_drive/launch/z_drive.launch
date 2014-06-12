@@ -1,9 +1,10 @@
 <launch>
-	<!--include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch" /-->
+	<include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch" />
 	<node pkg="rqt_gui" type="rqt_gui" name="" />
 	<node pkg="boatsim" type="sim" name=""/>
-	<node pkg="joy" type="joy_node" name=""/>
-	<!--node pkg="motor_control" type="thruster_control.py" name=""/-->
-	<node pkg="z_drive" type="z_drive" name="" respawn="true" output="screen" />
+	<node pkg="motor_control" type="thruster_control.py" name=""/>
+	<node pkg="z_drive" type="z_drive" name="" respawn="true" output="screen" >
+        
+    </node>
 
 </launch>
