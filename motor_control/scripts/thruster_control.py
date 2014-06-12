@@ -56,8 +56,10 @@ def motorConfigCallback(config):
     
     if config.id == STARBOARD_THRUSTER:
         starboard_setpoint = config.thrust
-    else:
+    elif config.id == PORT_THRUSTER:
         port_setpoint = config.thrust
+    else
+        rospy.logwarn("Id: %i, is not a known id", config.id);
 
 def convertNewtonsToDuty(newtons):
     #Temporary Conversion
