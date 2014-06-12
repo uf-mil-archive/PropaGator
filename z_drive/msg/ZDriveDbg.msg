@@ -1,3 +1,4 @@
+int32 control_method
 float64 x_current
 float64 x_desired
 float64 y_current

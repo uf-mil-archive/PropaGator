@@ -57,6 +57,7 @@ add_message_files(
 	DIRECTORY msg
 	FILES
 	ZDriveDbg.msg
+	BoatSimZDriveOutsideForce.msg
 )
 
 ## Generate services in the 'srv' folder

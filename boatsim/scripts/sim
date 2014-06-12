@@ -28,6 +28,7 @@ from sim import threed, vector, util
 from sim.vector import v, V
 from motor_control.msg import thrusterConfig
 from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelConfigParam
+from z_drive.msg import BoatSimZDriveOutsideForce
 
 from boatsim import devices
 
@@ -35,7 +36,16 @@ rospy.init_node('boatsim')
 
 thrusts = {2: 0, 3: 0}
 positions = {2: 0, 3: 0}
+z_drive_sim = {'force_x': 0.0, 'force_y': 0.0, 'force_z': 0.0, 'torque_r': 0.0, 'torque_p': 0.0, 'torque_y': 0.0}
 
+def zdriveSimCallback(msg):
+    z_drive_sim['force_x']=msg.outside_force_x
+    z_drive_sim['force_y']=msg.outside_force_y
+    z_drive_sim['force_z']=msg.outside_force_z
+    z_drive_sim['torque_r']=msg.outside_torque_r
+    z_drive_sim['torque_p']=msg.outside_torque_p
+    z_drive_sim['torque_y']=msg.outside_torque_y
+rospy.Subscriber('z_drive_sim_force', BoatSimZDriveOutsideForce, zdriveSimCallback)
 def motorConfigCallback(msg):
     thrusts[msg.id] = msg.thrust
 rospy.Subscriber('thruster_config', thrusterConfig, motorConfigCallback)
@@ -280,7 +290,7 @@ boat_lidar = lidar()
 def world_tick():
     global world_time
     
-    print positions, thrusts
+    print positions, thrusts, z_drive_sim
     
     boat_lidar.get_lidar_range() # Use and publish whoa!
 
@@ -304,6 +314,8 @@ def world_tick():
             force = thrusts[thruster_id]
             body.addRelForceAtRelPos(reldir*force, relpos)
             sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+        body.addRelTorque([z_drive_sim['torque_r'],z_drive_sim['torque_p'],z_drive_sim['torque_y']])
+        body.addRelForce([z_drive_sim['force_x'],z_drive_sim['force_y'],z_drive_sim['force_z']])
     
     keys = pygame.key.get_pressed()
     for keycode, force in [
