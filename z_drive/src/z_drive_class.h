@@ -19,6 +19,7 @@
 #include <actionlib/server/simple_action_server.h>
 #include <sensor_msgs/JointState.h>
 #include <sensor_msgs/Joy.h>
+#include <sensor_msgs/Temperature.h>
 #include <string>
 #include <math.h>
 
@@ -131,6 +132,8 @@ private:
 	double x_velocity_current;
 	double y_current;
 	double y_velocity_current;
+	double z_current;
+	double z_velocity_current;
 	double yaw_current;
 	double yaw_velocity_current;
 	double roll_current;
@@ -143,6 +146,8 @@ private:
 	double x_velocity_desired;
 	double y_desired;
 	double y_velocity_desired;
+	double z_desired;
+	double z_velocity_desired;
 	double yaw_desired;
 	double yaw_velocity_desired;
 	double roll_desired;
@@ -174,11 +179,15 @@ private:
 	z_drive::ZDriveDbg dbg_msg;
 	tf::TransformBroadcaster tf_brodcaster;
 	tf::Transform z_drive_root_tf;
-	tf::Transform port_tf;
-	tf::Transform starboard_tf;
+	tf::Transform port_thruster_tf;
+	tf::Transform starboard_thruster_tf;
+	tf::Transform port_prop_tf;
+	tf::Transform starboard_prop_tf;
 	double update_rate;
 	ros::Publisher joint_pub;
 	sensor_msgs::JointState joint_state;
+	ros::Publisher temperature_pub;
+	sensor_msgs::Temperature temperature_data;
 
 public:
 	ZDrive();
@@ -288,13 +297,17 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	z_drive_root_tf.setOrigin(tf::Vector3(z_drive_root_x_offset, z_drive_root_y_offset, z_drive_root_z_offset));
 	z_drive_root_tf.setRotation(tf::Quaternion(0,0,0));
 
-	port_tf.setOrigin(tf::Vector3(port_servo_x_offset,port_servo_y_offset,port_servo_z_offset));
+	port_thruster_tf.setOrigin(tf::Vector3(port_servo_x_offset,port_servo_y_offset,port_servo_z_offset));
 	// no rotation to start
-	port_tf.setRotation(tf::Quaternion(0,0,0));
+	port_thruster_tf.setRotation(tf::Quaternion(0,0,0));
+	port_prop_tf.setOrigin(tf::Vector3(-.25,0,0));
+	port_prop_tf.setRotation(tf::Quaternion(0,M_PI/2,0));
 
-	starboard_tf.setOrigin(tf::Vector3(starboard_servo_x_offset,starboard_servo_y_offset,starboard_servo_z_offset));
+	starboard_thruster_tf.setOrigin(tf::Vector3(starboard_servo_x_offset,starboard_servo_y_offset,starboard_servo_z_offset));
 	// no rotation to start
-	starboard_tf.setRotation(tf::Quaternion(0,0,0));
+	starboard_thruster_tf.setRotation(tf::Quaternion(0,0,0));
+	starboard_prop_tf.setOrigin(tf::Vector3(-.25,0,0));
+	starboard_prop_tf.setRotation(tf::Quaternion(0,M_PI/2,0));
 
 	// set the update rate (in hz) for which the pd controller runs
 	update_rate=50;
@@ -317,7 +330,8 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	dynamixel_config_position_pub=n.advertise<dynamixel_servo::DynamixelConfigPosition>(dynamixel_fqns+"/"+"dynamixel_config_position",1000);
 	thruster_config_pub=n.advertise<motor_control::thrusterStatus>("thruster_config",1000);
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
-	joint_pub=n.advertise<sensor_msgs::JointState>("z_drive_joints",10);
+	joint_pub=n.advertise<sensor_msgs::JointState>("joint_states",100);
+	temperature_pub=n.advertise<sensor_msgs::Temperature>("temperatures",100);
 	trajectory_pub = n.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
 	z_drive_sim_pub = n.advertise<z_drive::BoatSimZDriveOutsideForce>("z_drive_sim_force",100);
 
@@ -332,11 +346,18 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	{
 		// note: present_position is a float32. Hence the cast is explicitly shown. The dynamixel node is optimized for speed and memory to be near real-time, hence the float32.
 		ZDrive::current_port_servo_angle=(double)dynamixel_status_msg.present_position-port_servo_angle_offset;
-
+		temperature_data.header.stamp = ros::Time::now();
+		temperature_data.header.frame_id="port_thruster";
+		temperature_data.temperature=dynamixel_status_msg.present_temp;
+		temperature_pub.publish(temperature_data);
 	}
 	else if(dynamixel_status_msg.id==starboard_servo_id)
 	{
 		ZDrive::current_starboard_servo_angle=(double)dynamixel_status_msg.present_position-starboard_servo_angle_offset;
+		temperature_data.header.stamp = ros::Time::now();
+		temperature_data.header.frame_id="starboard_thruster";
+		temperature_data.temperature=dynamixel_status_msg.present_temp;
+		temperature_pub.publish(temperature_data);
 	}
 	return;
 }
@@ -364,7 +385,7 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 	// Based REP103 and the Boat; 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
 	if(ZDrive::control_method==0)
 	{
-		if(joystick_msg->axes[0]>=0)// left stick left
+		if(joystick_msg->axes[0]>=0.0)// left stick left
 		{
 			// Note: axes[0] and ZDrive::port_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
 			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[0]*ZDrive::port_servo_angle_counter_clock_wise_limit);
@@ -374,17 +395,17 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 			// clockwise is towards starboard and is negative
 			ZDrive::estimated_port_servo_angle=joystick_msg->axes[0]*ZDrive::port_servo_angle_clock_wise_limit;
 		}
-		if(joystick_msg->axes[1]>=0)// left stick up
+		if(joystick_msg->axes[1]>=0.0)// left stick up
 		{
 			ZDrive::estimated_port_thruster_force=joystick_msg->axes[1]*ZDrive::port_thruster_foward_limit;
 		}
 		else
 		{
 			// Note: axes[1] and ZDrive::port_thruster_reverse_limit are both negative, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_port_thruster_force=abs(joystick_msg->axes[1])*ZDrive::port_thruster_reverse_limit;
+			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[1])*ZDrive::port_thruster_reverse_limit;
 		}
 
-		if (joystick_msg->axes[3] >= 0)// right stick left
+		if (joystick_msg->axes[3] >= 0.0)// right stick left
 		{
 			// Note: axes[3] and ZDrive::starboard_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
 			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[3] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
@@ -393,16 +414,15 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		{
 			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[3] * ZDrive::starboard_servo_angle_clock_wise_limit;
 		}
-		if (joystick_msg->axes[4] >= 0)// right stick up
+		if (joystick_msg->axes[4] >= 0.0)// right stick up
 		{
 			ZDrive::estimated_starboard_thruster_force = joystick_msg->axes[4] * ZDrive::starboard_thruster_foward_limit;
 		}
 		else
 		{
 			// Note: axes[4] and ZDrive::starboard_servo_angle_clock_wise_limit are both negative, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_starboard_thruster_force = abs(joystick_msg->axes[4])*ZDrive::starboard_thruster_reverse_limit;
+			ZDrive::estimated_starboard_thruster_force = fabs(joystick_msg->axes[4])*ZDrive::starboard_thruster_reverse_limit;
 		}
-
 	}
 	else if(ZDrive::control_method==1)
 	{
@@ -410,7 +430,32 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		ZDrive::force_bow_required=joystick_msg->axes[4]*100;
 		ZDrive::moment_z_required=joystick_msg->axes[0]*50;
 	}
-
+	else if(ZDrive::control_method==4)
+	{
+		// the left analog stick up and down is the thrust
+		if(joystick_msg->axes[1]>=0.0)// left stick up
+		{
+			ZDrive::estimated_port_thruster_force=joystick_msg->axes[1]*ZDrive::port_thruster_foward_limit;
+			ZDrive::estimated_starboard_thruster_force=joystick_msg->axes[1]*ZDrive::starboard_thruster_foward_limit;
+		}
+		else
+		{
+			// Note: axes[1] and ZDrive::port_thruster_reverse_limit are both negative, so this must be compensated such that the correct sign is still applied.
+			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[1])*ZDrive::port_thruster_reverse_limit;
+			ZDrive::estimated_starboard_thruster_force=fabs(joystick_msg->axes[1])*ZDrive::starboard_thruster_reverse_limit;
+		}
+		if (joystick_msg->axes[3] >= 0.0)// right stick left
+		{
+			// Note: axes[3] and ZDrive::starboard_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
+			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[3] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[3] * ZDrive::port_servo_angle_counter_clock_wise_limit);
+		}
+		else
+		{
+			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[3] * ZDrive::starboard_servo_angle_clock_wise_limit;
+			ZDrive::estimated_port_servo_angle =joystick_msg->axes[3] * ZDrive::port_servo_angle_clock_wise_limit;
+		}
+	}
 
 	//kill_thrusters
 	if(joystick_msg->buttons[8]==1)
@@ -481,6 +526,7 @@ void ZDrive::currentOdomCallBack(const nav_msgs::Odometry& odom_msg)
 	ZDrive::odom_current=odom_msg;
 	ZDrive::x_current=odom_msg.pose.pose.position.x;
 	ZDrive::y_current=odom_msg.pose.pose.position.y;
+	ZDrive::z_current=odom_msg.pose.pose.position.z;
 	// extract the relevant information based on Quaternions
 	tf::Quaternion q_temp;
 	tf::quaternionMsgToTF(odom_msg.pose.pose.orientation, q_temp);
@@ -492,6 +538,7 @@ void ZDrive::currentOdomCallBack(const nav_msgs::Odometry& odom_msg)
 	tf::Vector3 linear_world_velocity = tf::Matrix3x3(q_temp) * linear_body_velocity;
 	ZDrive::x_velocity_current=linear_world_velocity.x();
 	ZDrive::y_velocity_current=linear_world_velocity.y();
+	ZDrive::z_velocity_current=linear_world_velocity.z();
 	// now the angular velocities relative to the world frame
 	tf::Vector3 angular_body_velocity;
 	tf::vector3MsgToTF(odom_msg.twist.twist.angular, angular_body_velocity);
@@ -504,8 +551,10 @@ void ZDrive::currentOdomCallBack(const nav_msgs::Odometry& odom_msg)
 	{
 		ZDrive::x_desired=ZDrive::x_current;
 		ZDrive::y_desired=ZDrive::y_current;
+		ZDrive::z_desired=ZDrive::z_current;
 		ZDrive::x_velocity_desired=0;
 		ZDrive::y_velocity_desired=0;
+		ZDrive::z_velocity_desired=0;
 		ZDrive::roll_velocity_desired=0;
 		ZDrive::pitch_velocity_desired=0;
 		ZDrive::yaw_velocity_desired=0;
@@ -525,6 +574,7 @@ void ZDrive::desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist)
 	//ZDrive::odom_desired=odom_msg;
 	ZDrive::x_desired=desired_pose_twist.pose.position.x;
 	ZDrive::y_desired=desired_pose_twist.pose.position.y;
+	ZDrive::z_desired=desired_pose_twist.pose.position.z;
 	// extract the relevant information based on Quaternions
 	tf::Quaternion q_temp;
 	tf::quaternionMsgToTF(desired_pose_twist.pose.orientation, q_temp);
@@ -536,6 +586,7 @@ void ZDrive::desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist)
 	tf::Vector3 linear_world_velocity = tf::Matrix3x3(q_temp) * linear_body_velocity;
 	ZDrive::x_velocity_desired=linear_world_velocity.x();
 	ZDrive::y_velocity_desired=linear_world_velocity.y();
+	ZDrive::z_velocity_desired=linear_world_velocity.z();
 	// now the angular velocities relative to the world frame
 	tf::Vector3 angular_body_velocity;
 	tf::vector3MsgToTF(desired_pose_twist.twist.angular, angular_body_velocity);
@@ -573,8 +624,22 @@ void ZDrive::publishDbgMsg(double user_defined_1=0, double user_defined_2=0, dou
 	dbg_msg.y_desired=ZDrive::y_desired;
 	dbg_msg.y_velocity_current=ZDrive::y_velocity_current;
 	dbg_msg.y_velocity_desired=ZDrive::y_velocity_desired;
+	dbg_msg.z_current=ZDrive::z_current;
+	dbg_msg.z_desired=ZDrive::z_desired;
+	dbg_msg.z_velocity_current=ZDrive::z_velocity_current;
+	dbg_msg.z_velocity_desired=ZDrive::z_velocity_desired;
 	dbg_msg.yaw_current=ZDrive::yaw_current;
 	dbg_msg.yaw_desired=ZDrive::yaw_desired;
+	dbg_msg.yaw_velocity_current=ZDrive::yaw_velocity_current;
+	dbg_msg.yaw_velocity_desired=ZDrive::yaw_velocity_desired;
+	dbg_msg.roll_current=ZDrive::roll_current;
+	dbg_msg.roll_desired=ZDrive::roll_desired;
+	dbg_msg.roll_velocity_current=ZDrive::roll_velocity_current;
+	dbg_msg.roll_velocity_desired=ZDrive::roll_velocity_desired;
+	dbg_msg.pitch_current=ZDrive::pitch_current;
+	dbg_msg.pitch_desired=ZDrive::pitch_desired;
+	dbg_msg.pitch_velocity_current=ZDrive::pitch_velocity_current;
+	dbg_msg.pitch_velocity_desired=ZDrive::pitch_velocity_desired;
 	dbg_msg.user_defined_1=user_defined_1;
 	dbg_msg.user_defined_2=user_defined_2;
 	dbg_msg.user_defined_3=user_defined_3;
@@ -634,6 +699,21 @@ void ZDrive::run()
 		// First process callbacks to get the most recent odom and desired position information
 		ros::spinOnce();
 
+		// Update Rviz joint_state(s) based on any new status data that was received in the callback
+		joint_state.header.stamp = ros::Time::now();
+		joint_state.name.resize(4);
+		joint_state.position.resize(4);
+		joint_state.name[0] ="port_servo";
+		joint_state.position[0]=ZDrive::current_port_servo_angle;
+		joint_state.name[1] ="port_thruster_to_prop";
+		joint_state.position[1]=(ZDrive::current_port_thruster_force>=0)?(ZDrive::current_port_thruster_force/ZDrive::port_thruster_foward_limit):(-ZDrive::current_port_thruster_force/ZDrive::port_thruster_reverse_limit); // scale the thruster prismatic joint to 1 so it's easier to see
+		joint_state.name[2] ="starboard_servo";
+		joint_state.position[2]=ZDrive::current_starboard_servo_angle;
+		joint_state.name[3]="starboard_thruster_to_prop";
+		joint_state.position[3]=ZDrive::current_starboard_thruster_force>=0?(ZDrive::current_starboard_thruster_force/ZDrive::starboard_thruster_foward_limit):(-ZDrive::current_starboard_thruster_force/ZDrive::starboard_thruster_reverse_limit); // scale the thruster prismatic joint to 1 so it's easier to see
+		// publish the joint state
+		joint_pub.publish(joint_state);
+
 		if(actionserver.isNewGoalAvailable())
 		{
 			boost::shared_ptr<const uf_common::MoveToGoal> goal = actionserver.acceptNewGoal();
@@ -647,11 +727,11 @@ void ZDrive::run()
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case 1: // xbox_analog_to_required
-				minimizeCostFunction();
+				//minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case 2: //waypoint_driving
-				minimizeCostFunction();
+				//minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case 3: // manual_mode
@@ -703,7 +783,7 @@ void ZDrive::run()
 			// Note: the dynamixel_server is written such that it quickly disregards messages where there is no change required in the servo's position.
 			dynamixel_position_msg.id=ZDrive::port_servo_id;
 			dynamixel_position_msg.goal_position=(float)(ZDrive::estimated_port_servo_angle+ZDrive::port_servo_angle_offset);
-			ROS_INFO("Port servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI,ZDrive::estimated_port_thruster_force);
+			//ROS_INFO("Port servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI,ZDrive::estimated_port_thruster_force);
 			dynamixel_config_position_pub.publish(dynamixel_position_msg);
 			thruster_config_msg.id=ZDrive::port_servo_id;
 			thruster_config_msg.thrust=ZDrive::estimated_port_thruster_force;
@@ -712,7 +792,7 @@ void ZDrive::run()
 			// publish a dynamixel_config_position message for the starboard servo based on the controller's (possibly) new estimates.
 			dynamixel_position_msg.id=ZDrive::starboard_servo_id;
 			dynamixel_position_msg.goal_position=(float)(ZDrive::estimated_starboard_servo_angle+ZDrive::starboard_servo_angle_offset);
-			ROS_INFO("Starboard servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI, ZDrive::estimated_starboard_thruster_force);
+			//ROS_INFO("Starboard servo position in deg: %f\t\t Thrust in newtons: %f", dynamixel_position_msg.goal_position*180/M_PI, ZDrive::estimated_starboard_thruster_force);
 			dynamixel_config_position_pub.publish(dynamixel_position_msg);
 			thruster_config_msg.id=ZDrive::starboard_servo_id;
 			thruster_config_msg.thrust=ZDrive::estimated_starboard_thruster_force;
@@ -721,21 +801,14 @@ void ZDrive::run()
 		// Publish a dbg msg based on what was just sent
 		ZDrive::publishDbgMsg();
 
-		// update the joint_state things
-		joint_state.header.stamp = ros::Time::now();
-		joint_state.name.resize(2);
-		joint_state.position.resize(2);
-		joint_state.name[0] ="port_servo";
-		joint_state.position[0]=1.0;
-		joint_state.name[1] ="starboard_servo";
-		joint_state.position[1]=1.0;
-		// publish the joint state
-		joint_pub.publish(joint_state);
+
 
 		// brodcast the various transforms. Note: base_link is the rotational center of the robot
-		tf_brodcaster.sendTransform(tf::StampedTransform(z_drive_root_tf, ros::Time::now(), "base_link", ros::this_node::getName()));
-		tf_brodcaster.sendTransform(tf::StampedTransform(port_tf, ros::Time::now(), ros::this_node::getName(), "port"));
-		tf_brodcaster.sendTransform(tf::StampedTransform(starboard_tf, ros::Time::now(), ros::this_node::getName(), "starboard"));
+		//tf_brodcaster.sendTransform(tf::StampedTransform(z_drive_root_tf, ros::Time::now(), "base_link", "z_drive_base"));
+		//tf_brodcaster.sendTransform(tf::StampedTransform(port_thruster_tf, ros::Time::now(), "z_drive_base", "port_thruster"));
+		//tf_brodcaster.sendTransform(tf::StampedTransform(port_prop_tf, ros::Time::now(), "port_thruster", "port_prop"));
+		//tf_brodcaster.sendTransform(tf::StampedTransform(starboard_thruster_tf, ros::Time::now(), "z_drive_base", "starboard_thruster"));
+		//tf_brodcaster.sendTransform(tf::StampedTransform(starboard_prop_tf, ros::Time::now(), "starboard_thruster", "starboard_prop"));
 
 		trajectory_msg.header.stamp=ros::Time::now();
 		trajectory_msg.header.frame_id="/base_link";
