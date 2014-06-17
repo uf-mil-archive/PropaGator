@@ -23,6 +23,9 @@ float64 pitch_current
 float64 pitch_desired
 float64 pitch_velocity_current
 float64 pitch_velocity_desired
+float64 friction_force_forward
+float64 friction_force_lateral
+float64 friction_force_rotational
 float64 required_force_x
 float64 required_force_y
 float64 required_moment_z

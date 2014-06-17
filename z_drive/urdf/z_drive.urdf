@@ -98,7 +98,7 @@
 	</joint>
 	
 	<!-- prismatic is a sliding joint that slides along the axis, and has a limited range specified by the upper and lower limits. this will represent the thrust of the motor. -->
-	<joint name="port_thruster_to_prop" type="prismatic">
+	<joint name="port_housing_to_prop" type="prismatic">
 		<parent link="port_thruster"/>
 		<child link="port_prop"/>
 		<!--the prop is centered about the thruster, and will move in and out proportional to thrust -->
@@ -119,7 +119,7 @@
 		<limit lower="0" upper="6.283185" velocity="6.597344565" effort="6.0" />
 	</joint>
 	
-	<joint name="starboard_thruster_to_prop" type="prismatic">
+	<joint name="starboard_housing_to_prop" type="prismatic">
 		<parent link="starboard_thruster"/>
 		<child link="starboard_prop"/>
 		<origin xyz="0 0 0" rpy="0 0 0" />
