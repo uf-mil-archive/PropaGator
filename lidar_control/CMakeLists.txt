@@ -7,6 +7,10 @@ project(lidar_control)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  tf
+  message_generation
+  genmsg
+  dynamixel_servo
 )
 
 ## System dependencies are found with CMake's conventions
@@ -81,7 +85,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES lidar_control
-#  CATKIN_DEPENDS roscpp std_msgs
+  CATKIN_DEPENDS dynamixel_servo
 #  DEPENDS system_lib
 )
 
@@ -102,16 +106,15 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(lidar_control_node src/lidar_control_node.cpp)
-
+add_executable(lidar_control_node src/lidar_control_node.cpp)
+target_link_libraries(lidar_control_node
+  ${catkin_LIBRARIES}
+)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 # add_dependencies(lidar_control_node lidar_control_generate_messages_cpp)
 
-## Specify libraries to link a library or executable target against
-# target_link_libraries(lidar_control_node
-#   ${catkin_LIBRARIES}
-# )
+
 
 #############
 ## Install ##
