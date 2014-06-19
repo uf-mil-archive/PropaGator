@@ -25,9 +25,9 @@ FULL_FORWARD = 145
 FULL_REVERSE = 45
 
 ## Conversion constants
-MAX_NEWTONS = 100.0       #Just guessing
-FORWARD_CONV = (FULL_FORWARD - ZERO) / MAX_NEWTONS
-REVERSE_CONV = (ZERO - FULL_REVERSE) / MAX_NEWTONS
+#MAX_NEWTONS = 100.0       #Just guessing
+#FORWARD_CONV = (FULL_FORWARD - ZERO) / MAX_NEWTONS
+#REVERSE_CONV = (ZERO - FULL_REVERSE) / MAX_NEWTONS
 
 #define some global vars
 starboard_setpoint = 0.0
@@ -62,17 +62,20 @@ def motorConfigCallback(config):
         rospy.logwarn("Id: %i, is not a known id", config.id);
 
 def convertNewtonsToDuty(newtons):
-    #Temporary Conversion
+    #Using a polynomial interpolation of power 3
+    #These values were determined through experiment
     if newtons < 0:
-        newtons = ZERO + newtons * REVERSE_CONV
+        newtons = -0.0055*newtons^3 + 0.224*newtons^2 - 3.9836 * newtons + 86.679
+    elif newtons > 0:
+        newtons = 0.0016*newtons^3 - 0.1027*newtons^2 + 2.812*newtons + 96.116
     else:
-        newtons = ZERO + newtons * FORWARD_CONV
+        newtons = ZERO;
 
     #Make sure its not outta bounds
-    if newtons > 145:
-        newtons = 145
-    elif newtons < 45:
-        newtons = 45
+    if newtons > FULL_FORWARD:
+        newtons = FULL_FORWARD
+    elif newtons < FULL_REVERSE:
+        newtons = FULL_REVERSE
     
     return newtons
 
