@@ -43,8 +43,8 @@ pub = rospy.Publisher('thruster_status', thrusterStatus, queue_size=10)
 
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
-ser = serial.Serial('/dev/ttyACM0', 115200)          
-
+ser = serial.Serial('/dev/ttyACM0', 115200)  
+        
 def stopThrusters():
     ser.write(str(STARBOARD_THRUSTER)+","+str(int(ZERO))+":")
     ser.write(str(PORT_THRUSTER)+","+str(int(ZERO))+":")
@@ -65,9 +65,12 @@ def convertNewtonsToDuty(newtons):
     #Using a polynomial interpolation of power 3
     #These values were determined through experiment
     if newtons < 0:
-        newtons = -0.0055*newtons^3 + 0.224*newtons^2 - 3.9836 * newtons + 86.679
+        newtons*=-1
+        newtons = -0.0055*newtons**3 + 0.224*newtons**2 - 3.9836 * newtons + 86.679
+        rospy.loginfo("Negative: %i", newtons)
     elif newtons > 0:
-        newtons = 0.0016*newtons^3 - 0.1027*newtons^2 + 2.812*newtons + 96.116
+        newtons = 0.0016*newtons**3 - 0.1027*newtons**2 + 2.812*newtons + 96.116
+        rospy.loginfo("Positive: %i", newtons)
     else:
         newtons = ZERO;
 
