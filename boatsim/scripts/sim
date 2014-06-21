@@ -449,22 +449,41 @@ def generate_buoy_pair(world, pos,angle):
     green_pos = (pos[0] + math.cos(math.radians(angle))*(channel_gap/2.),pos[1] + math.sin(math.radians(angle))*(channel_gap/2.))
     red_pos = (pos[0] - math.cos(math.radians(angle))*(channel_gap/2.),pos[1] - math.sin(math.radians(angle))*(channel_gap/2.))
     
-    world.objs.append(Buoys(v(green_pos[0], green_pos[1], 0),(0,1,0)))
-    world.objs.append(Buoys(v(red_pos[0], red_pos[1], 0),(1,0,0)))
+    world.objs.append(Buoys(v(green_pos[0], green_pos[1], 0),(0,1,0), .2))
+    world.objs.append(Buoys(v(red_pos[0], red_pos[1], 0),(1,0,0), .2))
+    world.objs.append(Buoys(v(-1, 5, 0),(1,0,0), .2)) #red
+    world.objs.append(Buoys(v(-4, 4, 0),(1,1,1), .2))
+    world.objs.append(Buoys(v(-7, 3, 0),(1,1,1), .2))
+    world.objs.append(Buoys(v(-10, 2, 0),(0,1,0), .2)) #greeen
+
+    world.objs.append(Buoys(v(-5, 15, 0),(1,0,0), .2)) #red
+    world.objs.append(Buoys(v(-8, 14, 0),(1,1,1), .2))
+    world.objs.append(Buoys(v(-11, 13, 0),(1,1,1), .2))
+    world.objs.append(Buoys(v(-14, 12, 0),(0,1,0), .2)) #greeen
+
+    for i in xrange(2):
+	xrand = random.uniform(-1, -14)
+	yrand = random.uniform(5, 12)
+	world.objs.append(Buoys(v(xrand, yrand, 0),(1,1,0), .1))
+
+    for i in xrange(2):
+	xrand = random.uniform(-1, -14)
+	yrand = random.uniform(5, 12)
+	world.objs.append(Buoys(v(xrand, yrand, 0),(0,0,0), .1))
    
 class Buoys(object):
-    def __init__(self, pos,color):
+    def __init__(self, pos,color,size):
        global buoy_array
        #self.buoys = [(pos + [random.gauss(0, 5), random.gauss(0, 5), 0], color) for i in xrange(10) for color in [(1, 0, 0), (0, 1, 0),(0,0,1)]]
        #self.buoys = [(pos + [i*3,0,0],(i,1-i,0)) for i in xrange(2)]
-       self.buoys = [pos,color] 
+       self.buoys = [pos,color,size] 
     def draw(self):
         q = gluNewQuadric()
-        #for pos, color in self.buoys:
+        #for pos, color, size in self.buoys:
         with threed.GLMatrix:
             glTranslate(*self.buoys[0])
             glColor3f(*self.buoys[1])
-            gluSphere(q, .2, 30, 15)
+            gluSphere(q, self.buoys[2], 30, 15)
 
 w = threed.World()
 
