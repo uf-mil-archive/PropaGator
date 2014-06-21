@@ -1,0 +1,138 @@
+<?xml version="1.0"?>
+<!-- This file describes a simple Unified Robot Description Format (URDF) for the z_drive system -->
+<!-- To see a simple interaction of it, start "roscore" and then run the command "roslaunch urdf_tutorial display.launch model:=z_drive.urdf gui:=true" -->
+<!-- For more info on URDF tags see: http://wiki.ros.org/urdf/XML-->
+<robot name="z_drive">
+	<!-- link is esentialy a part/"rigid body" on the robot that can have a inertia and visual features. see: http://wiki.ros.org/urdf/XML/link -->
+	<!-- base_link is esential the base of your robot, all positions of things are then based off of the base_link. Also note that base_link is needed for odom messages (map->odom->base_link). -->
+	<link name="base_link">
+	</link>
+	
+	<!-- the z_drive_base will be instantiated from the base_link of the robot-->
+	<link name="z_drive_base">
+        <visual>
+            <!-- geometry is the shape of the visual object, and can be a box, cylinder, sphere, or mesh-->
+            <geometry>
+                <!-- box is defined with the properties of length, width, and hegiht (in that respective order).-->
+                <box size="1.778 .889 .4064" />
+            </geometry>
+            <material name="blue">
+                <!-- The color of a material specified by set of four numbers representing red/green/blue/alpha, each in the range of [0,1]. -->
+                <color rgba="0 0 1 .125"/>
+            </material>
+        </visual>
+    </link>
+	
+	<link name="port_thruster">
+		<visual>
+			<geometry>
+				<box size=".1778 0.0762 0.127" />
+			</geometry>
+			<material name="red">
+				<!-- port is red, and we want it semi transparent- hence an alpha value -->
+				<color rgba="1.0 0 0 .5"/> 
+			</material>
+		</visual>
+		<!-- colision is a SIMPLE model of the geometry of the link that is used in the calculation of the movement of the robot to make sure things don't hit. -->
+		<collision>
+			<geometry>
+				<box size=".1778 0.0762 0.127" />
+			</geometry>
+		</collision>
+	</link>
+	
+	<link name="port_prop">
+		<visual>
+			<!-- The prop sits at the end of a thruster's body so we ill need to offsetit. Also we will need to rotate the axis it's on by 90 degrees (pitch axis, pi/2 rad). -->
+			<origin xyz="-.25 0 0" rpy="0 1.57079 0"/>
+			<geometry>
+				<cylinder length="0.0508" radius="0.0762" />
+			</geometry>
+			<!-- since the material red was already defined, we can reuse it here. -->
+			<material name="red" />
+		</visual>
+	</link>
+	
+	<link name="starboard_thruster">
+		<visual>
+			<geometry>
+				<box size=".1778 0.0762 0.127" />
+			</geometry>
+			<material name="green">
+				<color rgba="0 1 0 .5"/> 
+			</material>
+		</visual>
+		<collision>
+			<geometry>
+				<box size=".1778 0.0762 0.127" />
+			</geometry>
+		</collision>
+	</link>
+	
+	<link name="starboard_prop">
+		<visual>
+			<origin xyz="-.25 0 0" rpy="0 1.57079 0"/>
+			<geometry>
+				<cylinder length="0.0508" radius="0.0762" />
+			</geometry>
+			<material name="green" />
+		</visual>
+	</link>
+	
+	<!-- joint is an element that connects links to describes the kinematics, dynamics, and safety limits about some movement. see: http://wiki.ros.org/urdf/XML/joint -->
+	<!-- revolute is a type of joint that rotates around the axis and has a upper and a lower limits. Servos in joint mode are revolute joints, but if it is in wheel mode it is considered a "continuous" joint. -->
+	<joint name="port_servo" type="revolute">
+		<parent link="z_drive_base"/>
+		<child link="port_thruster"/>
+		<!--origin is the offset of the child element from the parent-->
+		<!--port_servo is back .7239m, left of centerline .3048m, -0.254m bellow the base_link/centerpoint of the boat-->
+        <!-- it is also essentialy fliped upside down, hence the roll of pi. -->
+		<origin xyz="-.7239 .3048 -0.254" rpy="3.14159 0 0" />
+		<!-- axis is about which axis the joint state rotates. The axis specifies the rotational axis in the local frame. Since it only rotates in the xy plane, z is 1. -->
+		<axis xyz="0 0 1" />
+		<!-- limit specifies the properties of the joint that cant be exceeded -->
+		<!-- since the servo is in joint mode/"revolute", it can rotate between 0 (lower limit) and 2*pi (uper limit) -->
+		<!-- Since the servo will operate at 12v, this coresponds to a "no load" speed/"velocity" of 63rpm=6.597344565rad/s-->
+		<!-- Since the servo will operate at 12v, this coresponds to a "Stall Torque"/"effort" of 6.0 Newton meters -->
+		<limit lower="0" upper="6.283185" velocity="6.597344565" effort="6.0" />
+	</joint>
+	
+	<!-- prismatic is a sliding joint that slides along the axis, and has a limited range specified by the upper and lower limits. this will represent the thrust of the motor. -->
+	<joint name="port_housing_to_prop" type="prismatic">
+		<parent link="port_thruster"/>
+		<child link="port_prop"/>
+		<!--the prop is centered about the thruster, and will move in and out proportional to thrust -->
+		<origin xyz="0 0 0" rpy="0 0 0" />
+		<!-- since this represents thrust coming OUT of the motor it needs to be orianted about the -x axis -->
+		<axis xyz="-1 0 0" />
+		<!-- since this is a prismatic joint the units here are in meters, m/s, and newtons- where applicable. -->
+		<limit lower="0" upper="1" velocity="1" effort="1" />
+	</joint>
+	
+	<joint name="starboard_servo" type="revolute">
+		<parent link="z_drive_base"/>
+		<child link="starboard_thruster"/>
+        <!--starboard_servo is back .7239m, right of center line .3048m, -0.254m bellow the base_link/centerpoint of the boat-->
+        <!-- it is also essentialy fliped upside down, hence the roll of pi. -->
+		<origin xyz="-.7239 -.3048 -0.254" rpy="3.14159 0 0" />
+		<axis xyz="0 0 1" />
+		<limit lower="0" upper="6.283185" velocity="6.597344565" effort="6.0" />
+	</joint>
+	
+	<joint name="starboard_housing_to_prop" type="prismatic">
+		<parent link="starboard_thruster"/>
+		<child link="starboard_prop"/>
+		<origin xyz="0 0 0" rpy="0 0 0" />
+		<axis xyz="-1 0 0" />
+		<limit lower="0" upper="1" velocity="1" effort="1" />
+	</joint>
+	
+	<!-- A fixed joint is one where all degrees of freedom are locked, and it can't move; so it's not realy a joint but mearly a conection of two links-->
+	<joint name="base_link_to_z_drive_base" type="fixed">
+		<parent link="base_link"/>
+		<child link="z_drive_base"/>
+		<!-- Currently the z_drive_base is at the same origin as the base link, but since the thruster(s) are in the water we will lower the z_drive base  -->
+		<origin xyz="0 0 0"/>
+	</joint>
+	
+</robot>

@@ -26,23 +26,50 @@ from std_msgs.msg import Header
 from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
+from motor_control.msg import thrusterConfig
+from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelConfigParam
+from z_drive.msg import BoatSimZDriveOutsideForce
 
 from boatsim import devices
 
 rospy.init_node('boatsim')
 
-'''
-from visualization_msgs.msg import MarkerArray,Marker
-global buoy_array
-buoy_publisher=rospy.Publisher('buoys',MarkerArray)
-buoy_array=MarkerArray()
-'''
+boat_mass=36.2874
+boat_lenght=1.78
+boat_width=.88
+boat_height=.41
+port_servo_x_offset=-.7239
+port_servo_y_offset=.3048
+starboard_servo_x_offset=-.7239
+starboard_servo_y_offset=-.3048
+friction_coefficient_forward=4.0181
+friction_coefficient_forward_reduction=0.76462
+friction_coefficient_lateral=2.0
+friction_coefficient_lateral_reduction=0.0
+friction_coefficient_rotational=1.3321
+friction_coefficient_rotational_reduction=0.0
 
-thruster_param_names = ['motor_driver_FR', 'motor_driver_FL', 'motor_driver_BR', 'motor_driver_BL']
-thruster_infos = None
-thrusters = [0]*len(thruster_param_names)
-for i in xrange(len(thruster_param_names)):
-    reactor.listenTCP(10030 + i, util.AutoServerFactory(devices.ThrusterProtocol, i, thrusters))
+thrusts = {2: 0, 3: 0}
+positions = {2: 0, 3: 0}
+z_drive_sim = {'force_x': 0.0, 'force_y': 0.0, 'force_z': 0.0, 'torque_r': 0.0, 'torque_p': 0.0, 'torque_y': 0.0}
+
+def zdriveSimCallback(msg):
+    z_drive_sim['force_x']=msg.outside_force_x
+    z_drive_sim['force_y']=msg.outside_force_y
+    z_drive_sim['force_z']=msg.outside_force_z
+    z_drive_sim['torque_r']=msg.outside_torque_r
+    z_drive_sim['torque_p']=msg.outside_torque_p
+    z_drive_sim['torque_y']=msg.outside_torque_y
+rospy.Subscriber('z_drive_sim_force', BoatSimZDriveOutsideForce, zdriveSimCallback)
+def motorConfigCallback(msg):
+    thrusts[msg.id] = msg.thrust
+rospy.Subscriber('thruster_config', thrusterConfig, motorConfigCallback)
+def dynamixelConfigPositionCallback(msg):
+    positions[msg.id] = msg.goal_position
+rospy.Subscriber('dynamixel/dynamixel_config_position', DynamixelConfigPosition, dynamixelConfigPositionCallback)
+def dynamixelConfigFullCallback(msg):
+    pass
+rospy.Subscriber('dynamixel/dynamixel_config_full', DynamixelConfigParam, dynamixelConfigFullCallback)
 
 
 clip = lambda x, (low, high): min(max(x, low), high)
@@ -60,14 +87,16 @@ world.setGravity((0, 0, -9.81))
 
 body = ode.Body(world)
 M = ode.Mass()
-M.setBoxTotal(47, 1.27, .46, .46)
+# this is the mass of the boat "boat_mass", this also sets the inertia based on a box with length_x, length_y, length_z
+M.setBoxTotal(boat_mass, boat_lenght, boat_width, boat_height)
 body.setMass(M)
 body.setPosition((0, 0, 0))
-body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi/2))
+# the last unit is the initial rotation of the body position in radians
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
 
 space = ode.HashSpace()
 
-body_geom = ode.GeomBox(space, (1.27, .46, .46))
+body_geom = ode.GeomBox(space, (boat_lenght, boat_width, boat_height))
 body_geom.setBody(body)
 
 lake_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'lake.obj'))
@@ -80,7 +109,7 @@ def get_water_vel(pos):
 killed = False
 locked = False
 
-odom_pub = rospy.Publisher('/sim_odom', Odometry)
+odom_pub = rospy.Publisher('/odom', Odometry)
 base_tf_br = tf.TransformBroadcaster()
 
 class lidar:
@@ -274,34 +303,43 @@ class lidar:
 boat_lidar = lidar()
 
 def world_tick():
-    global world_time, thruster_infos
+    global world_time
+    
+    #print positions, thrusts, z_drive_sim
     
     boat_lidar.get_lidar_range() # Use and publish whoa!
 
     water_vel = get_water_vel(V(body.getPosition()))
     
     body.addForceAtRelPos((0, 0, buoyancy_force(-body.getPosition()[2], 0.22728849402137372)), (0, 0, .1))
-    body.addForce(-(40 if body.getPosition()[2] >= 0 else 10) * (V(body.getLinearVel())-water_vel))
-    #body.addForce([random.gauss(0, 1) for i in xrange(3)])
-    #body.addTorque([random.gauss(0, 10) for i in xrange(3)])
-    body.addTorque(-(20 if body.getPosition()[2] >= 0 else 5) * V(body.getAngularVel()))
-    
+    # the following frictional forces are from darsen's models
+    #frictional force opposite to the velocity of the boat
+    body_velocity=body.vectorFromWorld(body.getLinearVel())
+    # adds a resistance force for the water proportional to the velocity (where [0] is x, [1] is y, and [2] is z). units in N/(m/s)
+    friction_force_forward=friction_coefficient_forward*body_velocity[0]-friction_coefficient_forward_reduction*(-1.0*pow(body_velocity[0],2) if body_velocity[0]<0.0 else pow(body_velocity[0],2))
+    friction_force_lateral=friction_coefficient_lateral*body_velocity[1]-friction_coefficient_lateral_reduction*(-1.0*pow(body_velocity[1],2) if body_velocity[1]<0.0 else pow(body_velocity[1],2))
+    body.addRelForce([friction_force_forward,friction_force_lateral,body_velocity[2]*-40])
+    # adds a angular resistance force for the water proportional to the velocity
+    # angular_velocity is a 3-tuple ([0]=roll,[1]=pitch,[2]=yaw)
+    angular_velocity=body.vectorFromWorld(body.getAngularVel())
+    friction_force_rotational=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
+    body.addTorque([-20*angular_velocity[0],-20*angular_velocity[1],friction_force_rotational])
+    print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", friction_force_rotational
     #print thrusters
-    
+    # map the thrusters position on the boat
     sub_model.vectors = []
-    if thruster_infos is None:
-        try:
-            thruster_infos = [rospy.get_param(param) for param in thruster_param_names]
-        except:
-            pass
-    else:
-        for info, value in zip(thruster_infos, thrusters):
-            relpos = V(info['position'])
-            reldir = V(info['direction'])
-            force = interpolate.sample_curve((info['output_list'], info['force_list']), value)
-            #print info['id'], force
+    # id2=starboard, id3=port
+    if not killed:
+        for thruster_id in [2, 3]:
+            # set the thrusters position on the boat
+            relpos = v(starboard_servo_x_offset, starboard_servo_y_offset, 0) if thruster_id == 2 else v(port_servo_x_offset, port_servo_y_offset, 0)
+            angle = positions[thruster_id]
+            reldir = v(-math.cos(angle), -math.sin(angle), 0)
+            force = thrusts[thruster_id]
             body.addRelForceAtRelPos(reldir*force, relpos)
             sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+        body.addRelTorque([z_drive_sim['torque_r'],z_drive_sim['torque_p'],z_drive_sim['torque_y']])
+        body.addRelForce([z_drive_sim['force_x'],z_drive_sim['force_y'],z_drive_sim['force_z']])
     
     keys = pygame.key.get_pressed()
     for keycode, force in [

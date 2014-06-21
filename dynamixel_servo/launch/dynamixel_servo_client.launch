@@ -1,0 +1,7 @@
+<launch>
+	<arg name="dynamixel_root_namespace" default="dynamixel" />
+	<group ns="$(arg dynamixel_root_namespace)">
+		<node pkg="dynamixel_servo" type="dynamixel_servo_client" name="client" args="__ns:=$(arg dynamixel_root_namespace)" respawn="false">
+		</node>
+	</group>
+</launch>

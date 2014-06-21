@@ -1,0 +1,10 @@
+dynamixel:
+  servo:
+    lidar:
+      bow: {id: 1}
+    z_drive:
+      port: {id: 3}
+      starboard: {id: 2}
+    ax_12a:
+      test: {id: 4}
+  servo_namespace: servo

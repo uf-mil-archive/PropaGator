@@ -1,0 +1,17 @@
+<launch>
+    <!-- Rviz looks for the "robot_description" by default on the paramater server to load your robot model. NOTE: this is the entire urdf/xml file, hence the "cat" command.-->
+    <!--param name="robot_description" command="cat $(find z_drive)/urdf/z_drive.urdf" /-->
+    <include file="$(find propagator_description)/launch/display.launch" />
+    <!-- to map the "joint_state"(s) the the parts in the models, transformations have to be done; so, the robot_state_publisher takes care of doing that for us.-->
+    <!--node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" /-->
+    <!-- launch the joystick node-->
+    <node pkg="joy" type="joy_node" name=""/>
+    <!-- Now launch the Dynemexel server's launch file-->
+	
+	<node pkg="boatsim" type="sim" name=""/>
+    <!--include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch" /-->
+	<!--node pkg="motor_control" type="thruster_control.py" name=""/-->
+    <node pkg="z_drive" type="z_drive" name="z_drive" respawn="true" output="screen" />
+    <node pkg="rqt_gui" type="rqt_gui" name="" />
+
+</launch>
