@@ -5,8 +5,18 @@ project(propagator_description)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  std_msgs
+  roscpp
+  message_generation
   tf
+  # the urdf package is needed to visualize the urdf/meshes models
   urdf
+  nav_msgs
+  genmsg
+  # the dynamixel_servo package will publish the information (DynamixelStatusParam.msg) we will need for the joint messages
+  dynamixel_servo
+  # the motor_control package will publish the information (ThrusterStatus.msg) we will need to visualize the thrusters
+  motor_control
 )
 
 ## System dependencies are found with CMake's conventions
@@ -82,6 +92,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES propagator_description
 #  CATKIN_DEPENDS tf urdf
+    CATKIN_DEPENDS dynamixel_servo motor_control
 #  DEPENDS system_lib
 )
 
@@ -98,15 +109,15 @@ include_directories(
 
 ## Declare a cpp library
 # add_library(propagator_description
-#   src/${PROJECT_NAME}/propagator_description.cpp
+#   src/propagator_description.cpp
 # )
 
 ## Declare a cpp executable
-# add_executable(propagator_description_node src/propagator_description_node.cpp)
+# add_executable(propagator_description src/propagator_description.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(propagator_description_node propagator_description_generate_messages_cpp)
+# add_dependencies(propagator_description propagator_description_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(propagator_description_node

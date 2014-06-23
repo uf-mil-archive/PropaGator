@@ -318,12 +318,12 @@ def world_tick():
     # adds a resistance force for the water proportional to the velocity (where [0] is x, [1] is y, and [2] is z). units in N/(m/s)
     friction_force_forward=friction_coefficient_forward*body_velocity[0]-friction_coefficient_forward_reduction*(-1.0*pow(body_velocity[0],2) if body_velocity[0]<0.0 else pow(body_velocity[0],2))
     friction_force_lateral=friction_coefficient_lateral*body_velocity[1]-friction_coefficient_lateral_reduction*(-1.0*pow(body_velocity[1],2) if body_velocity[1]<0.0 else pow(body_velocity[1],2))
-    body.addRelForce([friction_force_forward,friction_force_lateral,body_velocity[2]*-40])
+    body.addRelForce([-friction_force_forward,-friction_force_lateral,body_velocity[2]*-40])
     # adds a angular resistance force for the water proportional to the velocity
     # angular_velocity is a 3-tuple ([0]=roll,[1]=pitch,[2]=yaw)
     angular_velocity=body.vectorFromWorld(body.getAngularVel())
     friction_force_rotational=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
-    body.addTorque([-20*angular_velocity[0],-20*angular_velocity[1],friction_force_rotational])
+    body.addTorque([-20*angular_velocity[0],-20*angular_velocity[1],-friction_force_rotational])
     print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", friction_force_rotational
     #print thrusters
     # map the thrusters position on the boat
