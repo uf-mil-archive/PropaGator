@@ -6,7 +6,7 @@
     default="False" />
   <param
     name="robot_description"
-    textfile="$(find propagator_description)/robots/propagator_description.URDF" />
+    textfile="$(find propagator_description)/robots/propagator_description.urdf" />
   <param
     name="use_gui"
     value="$(arg gui)" />
