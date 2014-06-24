@@ -67,18 +67,18 @@ def convertNewtonsToDuty(newtons):
     if newtons < 0:
         newtons*=-1
         newtons = -0.0055*newtons**3 + 0.224*newtons**2 - 3.9836 * newtons + 86.679
-        rospy.loginfo("Negative: %i", newtons)
     elif newtons > 0:
         newtons = 0.0016*newtons**3 - 0.1027*newtons**2 + 2.812*newtons + 96.116
-        rospy.loginfo("Positive: %i", newtons)
     else:
         newtons = ZERO;
 
     #Make sure its not outta bounds
     if newtons > FULL_FORWARD:
         newtons = FULL_FORWARD
+        rospy.logwarn("Input newtons above max achievable speed")
     elif newtons < FULL_REVERSE:
         newtons = FULL_REVERSE
+        rospy.logwarn("Input newtons less than min achievable speed")
     
     return newtons
 
