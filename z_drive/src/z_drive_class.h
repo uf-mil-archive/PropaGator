@@ -933,15 +933,15 @@ void ZDrive::run()
 //---------------------- this is the force/moment that can be provided to the system for a given configuration of the z_drive ---------------
 double ZDrive::resultantForceX(double port_servo_angle,double port_thruster_force,double starboard_servo_angle,double starboard_thruster_force)
 {
-	return (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle))/ZDrive::boat_mass-ZDrive::friction_force_forward;
+	return (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle));
 }
 double ZDrive::resultantForceY(double port_servo_angle, double port_thruster_force, double starboard_servo_angle, double starboard_thruster_force)
 {
-	return (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle))/ZDrive::boat_mass-ZDrive::friction_force_lateral;
+	return (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle));
 }
 double ZDrive::resultantMomentZ(double port_servo_angle, double port_thruster_force, double starboard_servo_angle, double starboard_thruster_force)
 {
-	return -(ZDrive::port_servo_y_offset*port_thruster_force*cos(port_servo_angle) - ZDrive::starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) + ZDrive::port_servo_x_offset*port_thruster_force*sin(port_servo_angle) + ZDrive::starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle))/ZDrive::boat_inertia-ZDrive::friction_force_rotational;
+	return (port_servo_y_offset*port_thruster_force*cos(port_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) - port_servo_x_offset*port_thruster_force*sin(port_servo_angle) - starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle));
 }
 
 //---------------------- this is what we want the system to do, but it may not be able to. ----------------
@@ -974,26 +974,22 @@ double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desi
 double ZDrive::dCost_dPortServoAngle(double port_servo_angle,double port_thruster_force,double starboard_servo_angle,double starboard_thruster_force)
 {
 	// remember according to ros rep 103: x=bow=forward, y=port=left in the boats frame of reference.
-	return
-			gain_deviation_equilibrum_servo_angle*port_servo_angle - (gain_deviation_changeof_servo_angle*(2*current_port_servo_angle - 2*port_servo_angle))/2 +
-			(gain_error_moment_z*(port_servo_x_offset*port_thruster_force*cos(port_servo_angle) + port_servo_y_offset*port_thruster_force*sin(port_servo_angle))*(moment_z_required - (port_servo_y_offset*port_thruster_force*cos(port_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) - port_servo_x_offset*port_thruster_force*sin(port_servo_angle) - starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle))/boat_inertia))/boat_inertia +
-			(gain_error_force_x*port_thruster_force*sin(port_servo_angle)*(force_bow_required - (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle))/boat_mass))/boat_mass -
-			(gain_error_force_y*port_thruster_force*cos(port_servo_angle)*(force_port_required - (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle))/boat_mass))/boat_mass;
+	return gain_deviation_equilibrum_servo_angle*port_servo_angle - gain_deviation_changeof_servo_angle*(current_port_servo_angle - port_servo_angle) + gain_error_moment_z*(port_servo_x_offset*port_thruster_force*cos(port_servo_angle) + port_servo_y_offset*port_thruster_force*sin(port_servo_angle))*(moment_z_required - port_servo_y_offset*port_thruster_force*cos(port_servo_angle) - starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) + port_servo_x_offset*port_thruster_force*sin(port_servo_angle) + starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle)) - gain_error_force_x*port_thruster_force*sin(port_servo_angle)*(port_thruster_force*cos(port_servo_angle) - force_bow_required + starboard_thruster_force*cos(starboard_servo_angle)) + gain_error_force_y*port_thruster_force*cos(port_servo_angle)*(port_thruster_force*sin(port_servo_angle) - force_port_required + starboard_thruster_force*sin(starboard_servo_angle));
 }
 double ZDrive::dCost_dPortThrusterForce(double port_servo_angle,double port_thruster_force,double starboard_servo_angle,double starboard_thruster_force)
 {
 	// remember according to ros rep 103: x=bow=forward, y=port=left
-	return gain_thrusters_force*port_thruster_force - (gain_error_moment_z*(port_servo_y_offset*cos(port_servo_angle) - port_servo_x_offset*sin(port_servo_angle))*(moment_z_required - (port_servo_y_offset*port_thruster_force*cos(port_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) - port_servo_x_offset*port_thruster_force*sin(port_servo_angle) - starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle))/boat_inertia))/boat_inertia - (gain_error_force_y*sin(port_servo_angle)*(force_port_required - (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle))/boat_mass))/boat_mass - (gain_error_force_x*cos(port_servo_angle)*(force_bow_required - (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle))/boat_mass))/boat_mass;
+	return gain_thrusters_force*port_thruster_force + gain_error_force_x*cos(port_servo_angle)*(port_thruster_force*cos(port_servo_angle) - force_bow_required + starboard_thruster_force*cos(starboard_servo_angle)) + gain_error_force_y*sin(port_servo_angle)*(port_thruster_force*sin(port_servo_angle) - force_port_required + starboard_thruster_force*sin(starboard_servo_angle)) - gain_error_moment_z*(port_servo_y_offset*cos(port_servo_angle) - port_servo_x_offset*sin(port_servo_angle))*(moment_z_required - port_servo_y_offset*port_thruster_force*cos(port_servo_angle) - starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) + port_servo_x_offset*port_thruster_force*sin(port_servo_angle) + starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle));
 }
 double ZDrive::dCost_dStarboardServoAngle(double port_servo_angle,double port_thruster_force,double starboard_servo_angle,double starboard_thruster_force)
 {
 	// remember according to ros rep 103: x=bow=forward, y=port=left
-	return gain_deviation_equilibrum_servo_angle*starboard_servo_angle - (gain_deviation_changeof_servo_angle*(2*current_starboard_servo_angle - 2*starboard_servo_angle))/2 + (gain_error_moment_z*(starboard_servo_x_offset*starboard_thruster_force*cos(starboard_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*sin(starboard_servo_angle))*(moment_z_required - (port_servo_y_offset*port_thruster_force*cos(port_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) - port_servo_x_offset*port_thruster_force*sin(port_servo_angle) - starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle))/boat_inertia))/boat_inertia + (gain_error_force_x*starboard_thruster_force*sin(starboard_servo_angle)*(force_bow_required - (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle))/boat_mass))/boat_mass - (gain_error_force_y*starboard_thruster_force*cos(starboard_servo_angle)*(force_port_required - (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle))/boat_mass))/boat_mass;
+	return gain_deviation_equilibrum_servo_angle*starboard_servo_angle - gain_deviation_changeof_servo_angle*(current_starboard_servo_angle - starboard_servo_angle) + gain_error_moment_z*(starboard_servo_x_offset*starboard_thruster_force*cos(starboard_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*sin(starboard_servo_angle))*(moment_z_required - port_servo_y_offset*port_thruster_force*cos(port_servo_angle) - starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) + port_servo_x_offset*port_thruster_force*sin(port_servo_angle) + starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle)) - gain_error_force_x*starboard_thruster_force*sin(starboard_servo_angle)*(port_thruster_force*cos(port_servo_angle) - force_bow_required + starboard_thruster_force*cos(starboard_servo_angle)) + gain_error_force_y*starboard_thruster_force*cos(starboard_servo_angle)*(port_thruster_force*sin(port_servo_angle) - force_port_required + starboard_thruster_force*sin(starboard_servo_angle));
 }
 double ZDrive::dCost_dStarboardThrusterForce(double port_servo_angle,double port_thruster_force,double starboard_servo_angle,double starboard_thruster_force)
 {
 	// remember according to ros rep 103: x=bow=forward, y=port=left
-	return gain_thrusters_force*starboard_thruster_force - (gain_error_moment_z*(starboard_servo_y_offset*cos(starboard_servo_angle) - starboard_servo_x_offset*sin(starboard_servo_angle))*(moment_z_required - (port_servo_y_offset*port_thruster_force*cos(port_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) - port_servo_x_offset*port_thruster_force*sin(port_servo_angle) - starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle))/boat_inertia))/boat_inertia - (gain_error_force_y*sin(starboard_servo_angle)*(force_port_required - (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle))/boat_mass))/boat_mass - (gain_error_force_x*cos(starboard_servo_angle)*(force_bow_required - (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle))/boat_mass))/boat_mass;
+	return gain_thrusters_force*starboard_thruster_force + gain_error_force_x*cos(starboard_servo_angle)*(port_thruster_force*cos(port_servo_angle) - force_bow_required + starboard_thruster_force*cos(starboard_servo_angle)) + gain_error_force_y*sin(starboard_servo_angle)*(port_thruster_force*sin(port_servo_angle) - force_port_required + starboard_thruster_force*sin(starboard_servo_angle)) - gain_error_moment_z*(starboard_servo_y_offset*cos(starboard_servo_angle) - starboard_servo_x_offset*sin(starboard_servo_angle))*(moment_z_required - port_servo_y_offset*port_thruster_force*cos(port_servo_angle) - starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) + port_servo_x_offset*port_thruster_force*sin(port_servo_angle) + starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle));
 }
 
 //---------------------- calcCost function calculates the given "cost" that we have assigned to the system for a given configuration of the z_drive. --------------
@@ -1002,11 +998,11 @@ double ZDrive::calcCost(double port_servo_angle, double port_thruster_force, dou
 	// Note: Doubles are stored in ieee754 format (thus having a sign, exponent, and fraction section), so binary division and multiplication can't be applied here- for optimization.
 	return
 			(gain_deviation_changeof_servo_angle*(pow(current_port_servo_angle - port_servo_angle,2) + pow(current_starboard_servo_angle - starboard_servo_angle,2)))/2+
-			(gain_error_force_x*pow((force_bow_required - (port_thruster_force*cos(port_servo_angle) + starboard_thruster_force*cos(starboard_servo_angle))/boat_mass),2))/2 +
+			(gain_error_force_x*pow((force_bow_required - requiredForceX(ZDrive::x_current,ZDrive::x_desired,ZDrive::x_velocity_current,ZDrive::x_velocity_desired)),2))/2 +
 			(gain_thrusters_force*(pow(port_thruster_force,2) + pow(starboard_thruster_force,2)))/2 +
 			(gain_deviation_equilibrum_servo_angle*(pow(port_servo_angle,2) + pow(starboard_servo_angle,2)))/2 +
-			(gain_error_force_y*pow((force_port_required - (port_thruster_force*sin(port_servo_angle) + starboard_thruster_force*sin(starboard_servo_angle))/boat_mass),2))/2 +
-			(gain_error_moment_z*pow((moment_z_required - (port_servo_y_offset*port_thruster_force*cos(port_servo_angle) + starboard_servo_y_offset*starboard_thruster_force*cos(starboard_servo_angle) - port_servo_x_offset*port_thruster_force*sin(port_servo_angle) - starboard_servo_x_offset*starboard_thruster_force*sin(starboard_servo_angle))/boat_inertia),2))/2;
+			(gain_error_force_y*pow((force_port_required - resultantForceY(ZDrive::y_current,ZDrive::y_desired,ZDrive::y_velocity_current,ZDrive::y_velocity_desired)),2))/2 +
+			(gain_error_moment_z*pow((moment_z_required - resultantMomentZ(ZDrive::yaw_current,ZDrive::yaw_desired,ZDrive::yaw_velocity_current,ZDrive::yaw_velocity_desired)),2))/2;
 }
 
 void ZDrive::guessInitalValues()
