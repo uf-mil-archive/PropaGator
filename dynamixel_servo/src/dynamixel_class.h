@@ -28,8 +28,6 @@
 using std::string;
 using std::vector;
 
-#define DYNAMIXEL_CLASS_DEBUG
-
 class DynamixelServos
 {
 private:
@@ -45,7 +43,7 @@ private:
 	double poll_rate;
 	static const string DEFAULT_PARAM_SERVER_DYNAMIXEL_NAMESPACE;
 	static const string DEFAULT_PARAM_SERVER_SERVO_NAMESPACE;
-	static const float pi=3.14159265359; // since no other math functions are needed from math.h M_PI isn't used
+	static const float pi=3.14159265359; // since no other math functions are needed from math.h M_PI isn't used, but instead defined here. (to keep the namespace cleaner)
 
 public:
 	DynamixelServos();
@@ -596,13 +594,13 @@ bool DynamixelServos::pingServo(uint8_t id)
 
 	if(com_port.comErrorPresent())
 	{
-		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
+		ROS_WARN("Error: %s didn't sendAndReceive to servo id: 0x%X correctly. error_returned: %s",__func__, id, temp.c_str());
 		return false;
 	}
 	else if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
 	{
 		// it could be just a bad status return packet from a servo that mis-behaved previously
-		ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, id, temp.c_str());
+		ROS_WARN("Error: %s didn't sendAndReceive to servo id: 0x%X correctly. error_returned: %s",__func__, id, temp.c_str());
 	}
 	//ROS_INFO("%s sent id: %u the packet: %s",__func__, id, com_port.printSendPacket().c_str());
 	//ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
@@ -665,7 +663,7 @@ void DynamixelServos::setTorqueLimit(const vector<Servo>::iterator servo_to_conf
 	else if(torque_limit==Servo::OFF)
 	{
 		// An uninitialized message will have a default value of 0, which would effectively shutdown the servo; it isn't common to want to shutdown a servo, thus we will protect against this.
-		ROS_WARN("Servo ID %u is explicitly not allowed to set \"Torque Limit\" to 0x%X to prevent people from unintentionally disabling a servo due to uninitialized parameters in a messages.", servo_to_config->getID(), torque_limit);
+		ROS_WARN("Servo id: 0x%X is explicitly not allowed to set \"Torque Limit\" to 0x%X to prevent people from unintentionally disabling a servo due to uninitialized parameters in a messages.", servo_to_config->getID(), torque_limit);
 		ROS_WARN("The %s is dropping the set \"Torque Limit\" message for servo ID 0x%X.",ros::this_node::getName().c_str(), servo_to_config->getID());
 		return;
 	}
@@ -681,7 +679,7 @@ void DynamixelServos::setTorqueLimit(const vector<Servo>::iterator servo_to_conf
 	}
 	else if(torque_limit > servo_to_config->getMaxTorqueAllowed())
 	{
-		ROS_WARN("Error the value 0x%X is larger than the maximum value (0x%x) allowed for \"Torque Limit\" on servo id %u", torque_limit, servo_to_config->getMaxTorqueAllowed(), servo_to_config->getID());
+		ROS_WARN("Error the value 0x%X is larger than the maximum value (0x%x) allowed for \"Torque Limit\" on servo id: 0x%X", torque_limit, servo_to_config->getMaxTorqueAllowed(), servo_to_config->getID());
 		return;
 	}
 
@@ -709,7 +707,7 @@ void DynamixelServos::setGoalAcceleration(const vector<Servo>::iterator servo_to
 {
 	if(goal_acceleration_rad_per_second_squared<0.0 || goal_acceleration_rad_per_second_squared>((8.5826772*pi/180)*Servo::MAX_ACCELERATION))
 	{
-		ROS_WARN("The \"goal_acceleration\" should be specified in radians per second squared, rad/(s^2), between [0.0-2*%f]",(float)((8.5826772*pi/180)*Servo::MAX_ACCELERATION));
+		ROS_WARN("The \"goal_acceleration\" should be specified in radians per second squared, rad/(s^2), between [0.0 to 2*%f] for id: 0x%X",(float)((8.5826772*pi/180)*Servo::MAX_ACCELERATION), servo_to_config->getID());
 		return;
 	}
 	float goal_acceleration_deg_per_second_squared=goal_acceleration_rad_per_second_squared*180/pi;
@@ -779,7 +777,7 @@ void DynamixelServos::setLed(const vector<Servo>::iterator servo_to_config, uint
   }
   else
   {
-    ROS_WARN("Error invalid led state parameter (0x%X) given to setLed", led_state);
+    ROS_WARN("Error id: 0x%X invalid led state parameter (0x%X) given to setLed", servo_to_config->getID(), led_state);
     return;
   }
   string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
@@ -803,7 +801,7 @@ void DynamixelServos::setGoalPosition(const vector<Servo>::iterator servo_to_con
 	if(goal_position_radians<0.0||goal_position_radians>2*pi)
 	{
 		// since goal_position is in radians it must be between 0 and 2*pi
-		ROS_WARN("The \"goal_position\" should be specified in radians between [0.0-2*%f]",pi);
+		ROS_WARN("The \"goal_position\" for id: 0x%X should be specified in radians between [0.0 to 2*%f]",servo_to_config->getID(), pi);
 		return;
 	}
 	// Note: the following conversions have implicit casting involved in each division operation.
@@ -878,12 +876,12 @@ void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_conf
 	params.push_back(Servo::MOVING_SPEED_REG);
 	if(servo_to_config->inJointMode()&&moving_speed>Servo::MAX_JOINT_MODE_MOVING_SPEED)
 	{
-		ROS_WARN("Error invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Joint Mode\"", moving_speed, Servo::MAX_JOINT_MODE_MOVING_SPEED);
+		ROS_WARN("Error id: 0x%X invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Joint Mode\"", servo_to_config->getID(), moving_speed, Servo::MAX_JOINT_MODE_MOVING_SPEED);
 		return;
 	}
 	else if(servo_to_config->inWheelMode()&&moving_speed>Servo::MAX_WHEEL_MODE_MOVING_SPEED)
 	{
-		ROS_WARN("Error invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Wheel Mode\"", moving_speed, Servo::MAX_WHEEL_MODE_MOVING_SPEED);
+		ROS_WARN("Error id: 0x%X invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Wheel Mode\"", servo_to_config->getID(), moving_speed, Servo::MAX_WHEEL_MODE_MOVING_SPEED);
 		return;
 	}
 	else if(moving_speed==servo_to_config->getMinMovingSpeed())

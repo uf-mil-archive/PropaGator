@@ -42,11 +42,11 @@ port_servo_x_offset=-.7239
 port_servo_y_offset=.3048
 starboard_servo_x_offset=-.7239
 starboard_servo_y_offset=-.3048
-friction_coefficient_forward=4.0181
+friction_coefficient_forward=100.0181
 friction_coefficient_forward_reduction=0.76462
-friction_coefficient_lateral=2.0
+friction_coefficient_lateral=200.0
 friction_coefficient_lateral_reduction=0.0
-friction_coefficient_rotational=1.3321
+friction_coefficient_rotational=100.3321
 friction_coefficient_rotational_reduction=0.0
 
 thrusts = {2: 0, 3: 0}
@@ -92,7 +92,8 @@ M.setBoxTotal(boat_mass, boat_lenght, boat_width, boat_height)
 body.setMass(M)
 body.setPosition((0, 0, 0))
 # the last unit is the initial rotation of the body position in radians
-body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
+#body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
 
 space = ode.HashSpace()
 
@@ -322,9 +323,11 @@ def world_tick():
     # adds a angular resistance force for the water proportional to the velocity
     # angular_velocity is a 3-tuple ([0]=roll,[1]=pitch,[2]=yaw)
     angular_velocity=body.vectorFromWorld(body.getAngularVel())
-    friction_force_rotational=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
-    body.addTorque([-20*angular_velocity[0],-20*angular_velocity[1],-friction_force_rotational])
-    print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", friction_force_rotational
+    friction_force_roll=friction_coefficient_rotational*angular_velocity[0]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[0],2) if angular_velocity[0]<0.0 else pow(angular_velocity[0],2))
+    friction_force_pitch=friction_coefficient_rotational*angular_velocity[1]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[1],2) if angular_velocity[1]<0.0 else pow(angular_velocity[1],2))
+    friction_force_yaw=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
+    body.addTorque([friction_force_roll,friction_force_pitch,-friction_force_yaw])
+    print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", -friction_force_yaw
     #print thrusters
     # map the thrusters position on the boat
     sub_model.vectors = []
