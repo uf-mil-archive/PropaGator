@@ -32,6 +32,8 @@
 // Per Ros cpp guidelines you should only refer to each element in namespace std that you want. see: http://wiki.ros.org/CppStyleGuide#Namespaces-1
 using std::string;
 
+#define ZDRIVE_DBG
+
 class ZDrive
 {
 private:
@@ -238,6 +240,7 @@ protected:
 	double requiredMomentZ(double boat_angle_current, double boat_angle_desired, double boat_angular_velocity_current, double boat_angular_velocity_desired);
 	// since the step size varies with each iteration to find the min of the cost function, this will calculate the new step_size amount
 	void minimizeCostFunction();
+	void debugCostFunction();
 	void calcAngleAndThrustEstimate();
 	void guessInitalValues();
 	double calcCost(double port_servo_angle, double port_thruster_force, double starboard_servo_angle, double starboard_thruster_force);
@@ -403,6 +406,7 @@ void ZDrive::thrusterStatusCallBack(const motor_control::thrusterStatus& thruste
 
 void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 {
+	// for mapping see http://wiki.ros.org/joy
 	//        [0, 1, 2, 3, 4 , 5 , 6   , 7    , 8     , 9           , 10          ]
 	// buttons[A, B, X, Y, LB, RB, BACK, START, XBOX_X, L_STICK_DOWN, R_STICK_DOWN] these are 0/1 values
 	//			[              0             ,              1          , 2 ,               3             ,              4          , 5 ,         6        ,         7        ]
@@ -777,11 +781,18 @@ void ZDrive::run()
 	actionlib::SimpleActionServer<uf_common::MoveToAction> actionserver(n, "moveto", false);
 	actionserver.start();
 
-	ros::Rate loop_rate(update_rate);
+	ros::Rate loop_rate(ZDrive::update_rate); // Note: currently the update rate isn't dynamic like it should be, the node has to be shutdown and restarted for a new update rate to take affect
 	while(ros::ok())
 	{
-		// First process callbacks to get the most recent odom and desired position information
+		// First process callbacks to get the most recent odom and position information
 		ros::spinOnce();
+
+		// see if there is a new action that we should execute
+		if(actionserver.isNewGoalAvailable())
+		{
+			boost::shared_ptr<const uf_common::MoveToGoal> goal = actionserver.acceptNewGoal();
+			desiredOdomCallBack(goal->posetwist);
+		}
 
 		// Update Rviz joint_state(s) based on any new status data that was received in the callback
 		joint_state.header.stamp = ros::Time::now();
@@ -798,11 +809,12 @@ void ZDrive::run()
 		// publish the joint state
 		joint_pub.publish(joint_state);
 
-		if(actionserver.isNewGoalAvailable())
-		{
-			boost::shared_ptr<const uf_common::MoveToGoal> goal = actionserver.acceptNewGoal();
-			desiredOdomCallBack(goal->posetwist);
-		}
+		// if we are debugging the code run any required functions, and set any required values
+#ifdef ZDRIVE_DBG
+		debugCostFunction();
+		ZDrive::control_method=ZDrive::WAYPOINT_DRIVING;
+		ROS_INFO("z_drive node has debugging activated");
+#endif
 
 		// Based on the control mode run the required algorithms.
 		switch(ZDrive::control_method)
@@ -818,11 +830,12 @@ void ZDrive::run()
 				minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
-			case ZDrive::MANUAL_MODE: // manual_mode
+			case ZDrive::MANUAL_MODE:
 				// the work required for this mode is done in the dynamic "reconfig_callback"
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
-			case ZDrive::MIRROR_MODE: // extra4
+			case ZDrive::MIRROR_MODE:
+				// the work required for this mode is done in the dynamic "reconfig_callback"
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case ZDrive::MANUAL_TO_REQUIRED: // extra5
@@ -888,7 +901,7 @@ void ZDrive::run()
 			thruster_config_pub.publish(thruster_config_msg);
 		}
 
-		// Publish a dbg msg based on what was just sent
+		// Publish a dbg msg based on what was just sent/evaluated
 		ZDrive::publishDbgMsg();
 
 		trajectory_msg.header.stamp=ros::Time::now();
@@ -905,8 +918,7 @@ void ZDrive::run()
 
 		trajectory_pub.publish(trajectory_msg);
 
-		// if the euclidian norm is less than our tolerance we succeed
-
+		// if the euclidian norm is less than our tolerance, the action from the action server has succeed
 		if(actionserver.isActive() && sqrt(pow(ZDrive::x_current-ZDrive::x_desired,2)+pow(ZDrive::y_current-ZDrive::y_desired,2))<.5)
 		{
 			actionserver.setSucceeded();
@@ -919,6 +931,7 @@ void ZDrive::run()
 			ZDrive::x_desired = ZDrive::x_current;
 			ZDrive::y_desired = ZDrive::y_current;
 			ZDrive::yaw_desired = ZDrive::yaw_current;
+			//
 			ZDrive::x_velocity_desired=0;
 			ZDrive::y_velocity_desired=0;
 			ZDrive::yaw_velocity_desired=0;
@@ -1012,8 +1025,16 @@ void ZDrive::guessInitalValues()
 	ZDrive::estimated_port_thruster_force=ZDrive::current_port_thruster_force;
 	ZDrive::estimated_starboard_servo_angle=ZDrive::current_starboard_servo_angle;
 	ZDrive::estimated_starboard_thruster_force=ZDrive::current_starboard_thruster_force;
+
+#ifdef ZDRIVE_DBG
+	// when we are debugging we don't want these optimized out, hence they will be declared as volatile
+	volatile double dbg_tmp_cost, dbg_est_cost;
 	double temp_theta_port, temp_theta_starboard, temp_force_port, temp_force_starboard;
+#else
+	// the compiler will optimize out the expressions below that are using these variables
 	double dbg_tmp_cost, dbg_est_cost;
+	double temp_theta_port, temp_theta_starboard, temp_force_port, temp_force_starboard;
+#endif
 	for (int i = 0; i < 20; i++)
 	{
 		for (int j = 0; j < 10; j++)
@@ -1331,8 +1352,7 @@ void ZDrive::guessInitalValues()
 					}
 					dbg_tmp_cost=calcCost(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
 					dbg_est_cost=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
-					//std::cout<<"dbg_tmp_cost: "<<dbg_tmp_cost<<"\t\t\tdbg_est_cost: "<<dbg_est_cost<<std::endl;
-					if (calcCost(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard)< calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force))
+					if (dbg_tmp_cost< dbg_est_cost)
 					{
 						ZDrive::estimated_port_servo_angle = temp_theta_port;
 						ZDrive::estimated_port_thruster_force = temp_force_port;
@@ -1481,6 +1501,30 @@ void ZDrive::calcAngleAndThrustEstimate()
 	checkEstimatedValuesAgainsBounds();
 }
 
+void ZDrive::debugCostFunction()
+{
+	// this function essentially sets things manually so it is easier to debug in eclipse and we don't have to worry about callback(s) happening
+	ZDrive::x_desired=0;
+	ZDrive::y_desired=10;
+	ZDrive::z_desired=0;
+	ZDrive::x_velocity_desired=0;
+	ZDrive::y_velocity_desired=0;
+	ZDrive::z_velocity_desired=0;
+	ZDrive::roll_desired=0;
+	ZDrive::pitch_desired=0;
+	ZDrive::yaw_desired=0;
+	ZDrive::roll_velocity_desired=0;
+	ZDrive::pitch_velocity_desired=0;
+	ZDrive::yaw_velocity_desired=0;
+	ZDrive::friction_coefficient_forward=0;
+	ZDrive::friction_coefficient_forward_reduction=0;
+	ZDrive::friction_coefficient_lateral=0;
+	ZDrive::friction_coefficient_lateral_reduction=0;
+	ZDrive::friction_coefficient_rotational=0;
+	ZDrive::friction_coefficient_rotational_reduction=0;
+	ROS_DEBUG("z_drive node has debugging active. NOTE: this means the current and desired positions are overwritten.");
+}
+
 
 void ZDrive::minimizeCostFunction()
 {
@@ -1488,8 +1532,10 @@ void ZDrive::minimizeCostFunction()
 	// we must first get the required forces before we can create an initial guess for the solution to minimize the cost function. (remember we may not be able to archive this in the end, hence the resultant force)
 	if(ZDrive::control_method!=XBOX_ANALOG_TO_REQUIRED && ZDrive::control_method!=MANUAL_TO_REQUIRED)
 	{
+		//double temp_required_force_x=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
+		//std::cout<<
 		ZDrive::force_bow_required=cos(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + sin(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
-		ZDrive::force_port_required=-sin(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + cos(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
+		ZDrive::force_port_required=-  sin(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + cos(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
 		ZDrive::moment_z_required=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
 		// these forces need to be turned into the boat coordinate system
 	}
