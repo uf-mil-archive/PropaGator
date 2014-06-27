@@ -183,6 +183,42 @@ private:
 	static const int MIRROR_MODE=4;
 	static const int MANUAL_TO_REQUIRED=5;
 	static const int TESTING_MODE=6;
+	static const int COST_DBG_MODE=7;
+
+	// for mapping see http://wiki.ros.org/joy
+	// there are two kernel modules that can interface with the xbox controller: "xpad" xor "xboxdrv". The pre-installed module with Ubuntu 13.04 is "xpad"
+	// Note: the joynode message "axes" are continuous from [-1 to 1] and "buttons" are discrete (-1,1)
+	// xpad module maps the following in the joynode message
+	//        [0, 1, 2, 3, 4 , 5 , 6   , 7    , 8       , 9           , 10          ]
+	// buttons[A, B, X, Y, LB, RB, BACK, START, XBOX_BTN, L_STICK_DOWN, R_STICK_DOWN] these are 0/1 values
+	//			[              0             ,              1          , 2 ,               3             ,              4          , 5 ,         6        ,         7        ]
+	// axes: [-L_STICK_RIGHT:+L_STICK_LEFT, -L_STICK_DOWN:L_STICK_UP, LT, -R_STICK_RIGHT:+R_STICK_LEFT, -R_STICK_DOWN:R_STICK_UP, RT, -R_D_PAD:+L_D_PAD, -D_D_PAD:+U_D_PAD] these are [-1:1]
+	// xboxdrv module maps the following in the joynode message
+	//        [0, 1, 2, 3, 4 , 5 , 6   , 7    , 8       , 9           , 10          ]
+	// buttons[A, B, X, Y, LB, RB, BACK, START, XBOX_BTN, L_STICK_DOWN, R_STICK_DOWN] these are 0/1 values
+	//			[              0             ,              1          ,               2             ,              3          , 4 ,  5 ,         6        ,         7        ]
+	// axes: [-L_STICK_RIGHT:+L_STICK_LEFT, -L_STICK_DOWN:L_STICK_UP, -R_STICK_RIGHT:+R_STICK_LEFT, -R_STICK_DOWN:R_STICK_UP, RT,  LT, -R_D_PAD:+L_D_PAD, -D_D_PAD:+U_D_PAD] these are [-1:1]
+	// buttons locations for information
+	static const unsigned int XBOX_A=0;
+	static const unsigned int XBOX_B=1;
+	static const unsigned int XBOX_X=2;
+	static const unsigned int XBOX_Y=3;
+	static const unsigned int XBOX_L_BTN=4;
+	static const unsigned int XBOX_R_BTN=5;
+	static const unsigned int XBOX_BACK=6;
+	static const unsigned int XBOX_START=7;
+	static const unsigned int XBOX_BTN=8;
+	static const unsigned int XBOX_L_STICK_DOWN=9;
+	static const unsigned int XBOX_R_STICK_DOWN=10;
+	// axis[] locations for relative information
+	static const unsigned int XBOX_L_STICK_LAT=0; //latitudinal movement is left right
+	static const unsigned int XBOX_L_STICK_LON=1; //longitudinal movement is up down
+	static const unsigned int XBOX_R_STICK_LAT=2;
+	static const unsigned int XBOX_R_STICK_LON=3;
+	static const unsigned int XBOX_L_TRIGGER=5;
+	static const unsigned int XBOX_R_TRIGGER=4;
+	static const unsigned int XBOX_DPAD_LAT=6;
+	static const unsigned int XBOX_DPAD_LON=7;
 
 
 	// these are to just temporarily store the messages that are taken in the callback(s)- for debuging purposes only.
@@ -413,106 +449,117 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 	// axes: [-L_STICK_RIGHT:+L_STICK_LEFT, -L_STICK_DOWN:L_STICK_UP, LT, -R_STICK_RIGHT:+R_STICK_LEFT, -R_STICK_DOWN:R_STICK_UP, RT, -R_D_PAD:+L_D_PAD, -D_D_PAD:+U_D_PAD] these are [-1:1]
 	// NOTE: THE CONTROLERS PERSPECTIVE FOR L/R ON THE ANALOG STICKS IS REVERSED/upsidedown WHEN COMPARED TO THE BOAT AND REP 103. clockwise is towards starboard and is negative, counter-clockwise is towards port and is positive
 	// Based REP103 and the Boat; 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
-	if(joystick_msg->buttons[0]==1)
+	if(joystick_msg->buttons[XBOX_A]==1)
 	{
 		ZDrive::control_method=ZDrive::XBOX_ANALOG_ONLY; // To stop the boat from running into walls, we need to quickly be able to escape out of a mode, hence xbox_mode
 	}
 
 	if(ZDrive::control_method==ZDrive::XBOX_ANALOG_ONLY)
 	{
-		if(joystick_msg->axes[0]>=0.0)// left stick left
+		if(joystick_msg->axes[XBOX_L_STICK_LAT]>=0.0)// left stick left
 		{
 			// Note: axes[0] and ZDrive::port_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[0]*ZDrive::port_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[XBOX_L_STICK_LAT]*ZDrive::port_servo_angle_counter_clock_wise_limit);
 		}
 		else
 		{
 			// clockwise is towards starboard and is negative
-			ZDrive::estimated_port_servo_angle=joystick_msg->axes[0]*ZDrive::port_servo_angle_clock_wise_limit;
+			ZDrive::estimated_port_servo_angle=joystick_msg->axes[XBOX_L_STICK_LAT]*ZDrive::port_servo_angle_clock_wise_limit;
 		}
-		if(joystick_msg->axes[1]>=0.0)// left stick up
+		if(joystick_msg->axes[XBOX_L_STICK_LON]>=0.0)// left stick up
 		{
-			ZDrive::estimated_port_thruster_force=joystick_msg->axes[1]*ZDrive::port_thruster_foward_limit;
+			ZDrive::estimated_port_thruster_force=joystick_msg->axes[XBOX_L_STICK_LON]*ZDrive::port_thruster_foward_limit;
 		}
 		else
 		{
 			// Note: axes[1] and ZDrive::port_thruster_reverse_limit are both negative, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[1])*ZDrive::port_thruster_reverse_limit;
+			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[XBOX_L_STICK_LON])*ZDrive::port_thruster_reverse_limit;
 		}
 
-		if (joystick_msg->axes[3] >= 0.0)// right stick left
+		if (joystick_msg->axes[XBOX_R_STICK_LAT] >= 0.0)// right stick left
 		{
 			// Note: axes[3] and ZDrive::starboard_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[3] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
 		}
 		else
 		{
-			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[3] * ZDrive::starboard_servo_angle_clock_wise_limit;
+			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_clock_wise_limit;
 		}
-		if (joystick_msg->axes[4] >= 0.0)// right stick up
+		if (joystick_msg->axes[XBOX_R_STICK_LON] >= 0.0)// right stick up
 		{
-			ZDrive::estimated_starboard_thruster_force = joystick_msg->axes[4] * ZDrive::starboard_thruster_foward_limit;
+			ZDrive::estimated_starboard_thruster_force = joystick_msg->axes[XBOX_R_STICK_LON] * ZDrive::starboard_thruster_foward_limit;
 		}
 		else
 		{
 			// Note: axes[4] and ZDrive::starboard_servo_angle_clock_wise_limit are both negative, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_starboard_thruster_force = fabs(joystick_msg->axes[4])*ZDrive::starboard_thruster_reverse_limit;
+			ZDrive::estimated_starboard_thruster_force = fabs(joystick_msg->axes[XBOX_R_STICK_LON])*ZDrive::starboard_thruster_reverse_limit;
 		}
 	}
 	else if(ZDrive::control_method==ZDrive::XBOX_ANALOG_TO_REQUIRED)
 	{
-		ZDrive::force_port_required=joystick_msg->axes[0]*500;//-L_STICK_RIGHT:+L_STICK_LEFT
-		ZDrive::force_bow_required=joystick_msg->axes[4]*500;//-R_STICK_DOWN:R_STICK_UP
+		ZDrive::force_port_required=joystick_msg->axes[XBOX_L_STICK_LAT]*500;//-L_STICK_RIGHT:+L_STICK_LEFT
+		ZDrive::force_bow_required=joystick_msg->axes[XBOX_R_STICK_LON]*500;//-R_STICK_DOWN:R_STICK_UP
 		double tmp=0.0;
-		if(joystick_msg->axes[2]<0.0)//LT pressed
+		if(joystick_msg->axes[XBOX_L_TRIGGER]<0.0)//LT pressed
 		{
-			tmp-=fabs(joystick_msg->axes[2]);
+			tmp-=fabs(joystick_msg->axes[XBOX_L_TRIGGER]);
 		}
-		if(joystick_msg->axes[5]<0.0)//RT pressed
+		if(joystick_msg->axes[XBOX_R_TRIGGER]<0.0)//RT pressed
 		{
-			tmp+=fabs(joystick_msg->axes[5]);
+			tmp+=fabs(joystick_msg->axes[XBOX_R_TRIGGER]);
 		}
 		ZDrive::moment_z_required=tmp*100;//rotate proportional to the amount that the left and right triggers are pressed
 	}
 	else if(ZDrive::control_method==ZDrive::MIRROR_MODE)
 	{
 		// the left analog stick up and down is the thrust
-		if(joystick_msg->axes[1]>=0.0)// left stick up
+		if(joystick_msg->axes[XBOX_L_STICK_LON]>=0.0)// left stick up
 		{
-			ZDrive::estimated_port_thruster_force=joystick_msg->axes[1]*ZDrive::port_thruster_foward_limit;
-			ZDrive::estimated_starboard_thruster_force=joystick_msg->axes[1]*ZDrive::starboard_thruster_foward_limit;
+			ZDrive::estimated_port_thruster_force=joystick_msg->axes[XBOX_L_STICK_LON]*ZDrive::port_thruster_foward_limit;
+			ZDrive::estimated_starboard_thruster_force=joystick_msg->axes[XBOX_L_STICK_LON]*ZDrive::starboard_thruster_foward_limit;
 		}
 		else
 		{
 			// Note: axes[1] and ZDrive::port_thruster_reverse_limit are both negative, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[1])*ZDrive::port_thruster_reverse_limit;
-			ZDrive::estimated_starboard_thruster_force=fabs(joystick_msg->axes[1])*ZDrive::starboard_thruster_reverse_limit;
+			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[XBOX_L_STICK_LON])*ZDrive::port_thruster_reverse_limit;
+			ZDrive::estimated_starboard_thruster_force=fabs(joystick_msg->axes[XBOX_L_STICK_LON])*ZDrive::starboard_thruster_reverse_limit;
 		}
-		if (joystick_msg->axes[3] >= 0.0)// right stick left
+		if (joystick_msg->axes[XBOX_R_STICK_LAT] >= 0.0)// right stick left
 		{
 			// Note: axes[3] and ZDrive::starboard_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[3] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
-			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[3] * ZDrive::port_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::port_servo_angle_counter_clock_wise_limit);
 		}
 		else
 		{
-			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[3] * ZDrive::starboard_servo_angle_clock_wise_limit;
-			ZDrive::estimated_port_servo_angle =joystick_msg->axes[3] * ZDrive::port_servo_angle_clock_wise_limit;
+			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_clock_wise_limit;
+			ZDrive::estimated_port_servo_angle =joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::port_servo_angle_clock_wise_limit;
 		}
 	}
 
 	//kill_thrusters or re-enable them
-	if(joystick_msg->buttons[8]==1)
+	if(joystick_msg->buttons[XBOX_BTN]==1)
 	{
 		ZDrive::kill_thrusters=true;
+
+		int light_command_execution_return = 1;//system("xboxdrvctl --slot=0 --led=14");
+		if(light_command_execution_return<0)
+		{
+			ROS_WARN("Can't create shell (sh) process for xboxdrvctl");
+
+		}
+		else if(light_command_execution_return==0)
+		{
+			ROS_WARN("ERROR no command processor is available for: xboxdrvctl");
+		}
 	}
-	else if(joystick_msg->buttons[7]==1)
+	else if(joystick_msg->buttons[XBOX_START]==1)
 	{
 		ZDrive::kill_thrusters=false;
 	}
 
 	// if the x button is pushed set it so the desired positions and velocities are exactly what they currently are in the real world
-	if(joystick_msg->buttons[2]==1)
+	if(joystick_msg->buttons[XBOX_X]==1)
 	{
 		// stop as quickly as possible at your current position and kill the velocity
 		ZDrive::x_desired = ZDrive::x_current;
@@ -523,7 +570,7 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		ZDrive::yaw_velocity_desired=0;
 	}
 
-	if(joystick_msg->buttons[3]==1)
+	if(joystick_msg->buttons[XBOX_Y]==1)
 	{
 		geometry_msgs::Point marker_position;
 		marker_position.x=ZDrive::x_current;
@@ -811,8 +858,6 @@ void ZDrive::run()
 
 		// if we are debugging the code run any required functions, and set any required values
 #ifdef ZDRIVE_DBG
-		debugCostFunction();
-		ZDrive::control_method=ZDrive::WAYPOINT_DRIVING;
 		ROS_INFO("z_drive node has debugging activated");
 #endif
 
@@ -843,7 +888,7 @@ void ZDrive::run()
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case ZDrive::TESTING_MODE: // testing_mode
-				ZDrive::force_bow_required=cos(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + sin(yaw_current)*requiredForceY(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
+				ZDrive::force_bow_required=cos(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + sin(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
 				ZDrive::force_port_required=-sin(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + cos(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
 				ZDrive::moment_z_required=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
 				sim_msg.outside_force_x=ZDrive::force_bow_required;
@@ -861,6 +906,11 @@ void ZDrive::run()
 				{
 					z_drive_sim_pub.publish(sim_msg);
 				}
+				break;
+			case ZDrive::COST_DBG_MODE:
+				debugCostFunction();
+				minimizeCostFunction();
+				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			default: // not defined
 				ROS_WARN("Unknown ZDrive::control_method: %d", ZDrive::control_method);
@@ -1010,12 +1060,23 @@ double ZDrive::calcCost(double port_servo_angle, double port_thruster_force, dou
 {
 	// Note: Doubles are stored in ieee754 format (thus having a sign, exponent, and fraction section), so binary division and multiplication can't be applied here- for optimization.
 	return
+			gain_error_force_x/2               		* pow((resultantForceX(port_servo_angle, port_thruster_force, starboard_servo_angle, starboard_thruster_force)-force_bow_required),2) +
+			gain_error_force_y/2                    * pow((resultantForceY(port_servo_angle, port_thruster_force, starboard_servo_angle, starboard_thruster_force)-force_port_required),2) +
+			gain_error_moment_z/2                   * pow((resultantMomentZ(port_servo_angle, port_thruster_force, starboard_servo_angle, starboard_thruster_force)-moment_z_required),2)  +
+			gain_thrusters_force/2                  * pow(port_thruster_force,2) +
+			gain_thrusters_force/2                  * pow(starboard_thruster_force,2) +
+			gain_deviation_equilibrum_servo_angle/2 * pow(port_servo_angle,2) +
+			gain_deviation_equilibrum_servo_angle/2 * pow(starboard_servo_angle,2) +
+			gain_deviation_changeof_servo_angle/2   * pow((port_servo_angle - current_port_servo_angle),2) +
+			gain_deviation_changeof_servo_angle/2   * pow((starboard_servo_angle - current_starboard_servo_angle),2);
+			/*
 			(gain_deviation_changeof_servo_angle*(pow(current_port_servo_angle - port_servo_angle,2) + pow(current_starboard_servo_angle - starboard_servo_angle,2)))/2+
-			(gain_error_force_x*pow((force_bow_required - requiredForceX(ZDrive::x_current,ZDrive::x_desired,ZDrive::x_velocity_current,ZDrive::x_velocity_desired)),2))/2 +
+			(gain_error_force_x*pow((force_bow_required - resultantForceX(ZDrive::x_current,ZDrive::x_desired,ZDrive::x_velocity_current,ZDrive::x_velocity_desired)),2))/2 +
 			(gain_thrusters_force*(pow(port_thruster_force,2) + pow(starboard_thruster_force,2)))/2 +
 			(gain_deviation_equilibrum_servo_angle*(pow(port_servo_angle,2) + pow(starboard_servo_angle,2)))/2 +
 			(gain_error_force_y*pow((force_port_required - resultantForceY(ZDrive::y_current,ZDrive::y_desired,ZDrive::y_velocity_current,ZDrive::y_velocity_desired)),2))/2 +
 			(gain_error_moment_z*pow((moment_z_required - resultantMomentZ(ZDrive::yaw_current,ZDrive::yaw_desired,ZDrive::yaw_velocity_current,ZDrive::yaw_velocity_desired)),2))/2;
+			*/
 }
 
 void ZDrive::guessInitalValues()
@@ -1029,7 +1090,7 @@ void ZDrive::guessInitalValues()
 #ifdef ZDRIVE_DBG
 	// when we are debugging we don't want these optimized out, hence they will be declared as volatile
 	volatile double dbg_tmp_cost, dbg_est_cost;
-	double temp_theta_port, temp_theta_starboard, temp_force_port, temp_force_starboard;
+	volatile double temp_theta_port, temp_theta_starboard, temp_force_port, temp_force_starboard;
 #else
 	// the compiler will optimize out the expressions below that are using these variables
 	double dbg_tmp_cost, dbg_est_cost;
@@ -1348,8 +1409,13 @@ void ZDrive::guessInitalValues()
 							std::cout << "Case Not Defined" << std::endl;
 							break;
 
-
 					}
+#ifdef ZDRIVE_DBG
+					// the cost function calculates the resultant force, so this is for easy debuging
+					volatile double temp_resultant_force_x=resultantForceX(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
+					volatile double temp_resultant_force_y=resultantForceY(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
+					volatile double temp_resultant_moment_z=resultantMomentZ(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
+#endif
 					dbg_tmp_cost=calcCost(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
 					dbg_est_cost=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
 					if (dbg_tmp_cost< dbg_est_cost)
@@ -1504,6 +1570,20 @@ void ZDrive::calcAngleAndThrustEstimate()
 void ZDrive::debugCostFunction()
 {
 	// this function essentially sets things manually so it is easier to debug in eclipse and we don't have to worry about callback(s) happening
+	/*
+	ZDrive::x_current=0;
+	ZDrive::y_current=0;
+	ZDrive::z_current=0;
+	ZDrive::x_velocity_current=0;
+	ZDrive::y_velocity_current=0;
+	ZDrive::z_velocity_current=0;
+	ZDrive::roll_current=0;
+	ZDrive::pitch_current=0;
+	ZDrive::yaw_current=0;
+	ZDrive::roll_velocity_current=0;
+	ZDrive::pitch_velocity_current=0;
+	ZDrive::yaw_velocity_current=0;
+	*/
 	ZDrive::x_desired=0;
 	ZDrive::y_desired=10;
 	ZDrive::z_desired=0;
@@ -1512,7 +1592,7 @@ void ZDrive::debugCostFunction()
 	ZDrive::z_velocity_desired=0;
 	ZDrive::roll_desired=0;
 	ZDrive::pitch_desired=0;
-	ZDrive::yaw_desired=0;
+	ZDrive::yaw_desired=M_PI;
 	ZDrive::roll_velocity_desired=0;
 	ZDrive::pitch_velocity_desired=0;
 	ZDrive::yaw_velocity_desired=0;
@@ -1522,6 +1602,16 @@ void ZDrive::debugCostFunction()
 	ZDrive::friction_coefficient_lateral_reduction=0;
 	ZDrive::friction_coefficient_rotational=0;
 	ZDrive::friction_coefficient_rotational_reduction=0;
+	/*
+	ZDrive::current_port_servo_angle=0;
+	ZDrive::current_port_thruster_force=0;
+	ZDrive::estimated_port_servo_angle=0;
+	ZDrive::estimated_port_thruster_force=0;
+	ZDrive::current_starboard_servo_angle=0;
+	ZDrive::current_starboard_thruster_force=0;
+	ZDrive::estimated_starboard_servo_angle=0;
+	ZDrive::estimated_starboard_thruster_force=0;
+	*/
 	ROS_DEBUG("z_drive node has debugging active. NOTE: this means the current and desired positions are overwritten.");
 }
 
@@ -1532,8 +1622,11 @@ void ZDrive::minimizeCostFunction()
 	// we must first get the required forces before we can create an initial guess for the solution to minimize the cost function. (remember we may not be able to archive this in the end, hence the resultant force)
 	if(ZDrive::control_method!=XBOX_ANALOG_TO_REQUIRED && ZDrive::control_method!=MANUAL_TO_REQUIRED)
 	{
-		//double temp_required_force_x=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
-		//std::cout<<
+#ifdef ZDRIVE_DBG
+		volatile double temp_required_force_x=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
+		volatile double temp_required_force_y=requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
+		volatile double temp_moment_z_required=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
+#endif
 		ZDrive::force_bow_required=cos(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + sin(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
 		ZDrive::force_port_required=-  sin(yaw_current)*requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired) + cos(yaw_current)*requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
 		ZDrive::moment_z_required=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);

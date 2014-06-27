@@ -12,12 +12,12 @@
 
 
   <node pkg="skytraq_driver" type="skytraq_driver" name="gps_driver">
-    <param name="port" value="/dev/serial/by-id/usb-FTDI_FT230X_Basic_UART_DA0032VC-if00-port0"/>
+    <param name="port" value="/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0"/>
     <param name="frame_id" value="/gps"/>
   </node>
   <node pkg="skytraq_driver" type="parser" name="gps_parser">
     <param name="frame_id" value="/gps"/>
-  </node>
+  </node> 
   <node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
     args="-0.84 0 -0.14  0 0 0 1  /base_link /gps 100" />
 
