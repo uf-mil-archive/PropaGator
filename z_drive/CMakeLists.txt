@@ -125,6 +125,7 @@ add_executable(z_drive src/z_drive.cpp)
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
 add_dependencies(z_drive z_drive_generate_messages_cpp)
+# needed for the dynamic reconfigurable
 add_dependencies(z_drive ${PROJECT_NAME}_gencfg)
 
 ## Specify libraries to link a library or executable target against

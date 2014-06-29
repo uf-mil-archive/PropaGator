@@ -22,6 +22,10 @@
 #include <sensor_msgs/Temperature.h>
 #include <string>
 #include <math.h>
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <queue>
 // for rviz points
 #include <geometry_msgs/Point.h>
 #include <visualization_msgs/Marker.h>
@@ -174,16 +178,17 @@ private:
 
 	bool desired_position_inited;
 	bool kill_thrusters;
+	bool kill_action;
 
 	// Dynamically reconfigurable control modes for how the boat should drive
 	static const int XBOX_ANALOG_ONLY=0;
 	static const int XBOX_ANALOG_TO_REQUIRED=1;
 	static const int WAYPOINT_DRIVING=2;
 	static const int MANUAL_MODE=3;
-	static const int MIRROR_MODE=4;
+	static const int COST_DBG_MODE=4;
 	static const int MANUAL_TO_REQUIRED=5;
 	static const int TESTING_MODE=6;
-	static const int COST_DBG_MODE=7;
+	static const int MIRROR_MODE=7;
 
 	// for mapping see http://wiki.ros.org/joy
 	// there are two kernel modules that can interface with the xbox controller: "xpad" xor "xboxdrv". The pre-installed module with Ubuntu 13.04 is "xpad"
@@ -239,6 +244,9 @@ private:
 	ros::Publisher z_drive_sim_pub;
 	dynamic_reconfigure::Server<z_drive::GainsConfig> reconfig_server;
 	dynamic_reconfigure::Server<z_drive::GainsConfig>::CallbackType reconfig_callback;
+	z_drive::GainsConfig current_dynamic_config;
+	z_drive::GainsConfig default_dynamic_config;
+	bool update_dynamic_param_server;
 	z_drive::ZDriveDbg dbg_msg;
 	tf::TransformBroadcaster tf_brodcaster;
 	tf::Transform z_drive_root_tf;
@@ -252,6 +260,11 @@ private:
 	ros::Publisher temperature_pub;
 	sensor_msgs::Temperature temperature_data;
 
+	std::vector<double> inital_theta_port;
+	std::vector<double> inital_thrust_port;
+	std::vector<double> inital_theta_starboard;
+	std::vector<double> inital_thrust_starboard;
+
 public:
 	ZDrive();
 	void run();
@@ -262,7 +275,7 @@ protected:
 	void dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg);
 	void thrusterStatusCallBack(const motor_control::thrusterStatus& thruster_status_msg);
 	void joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg);
-	void dynamicReconfigCallBack(z_drive::GainsConfig &config, uint32_t level);
+	void dynamicReconfigCallBack(const z_drive::GainsConfig &config, uint32_t level);
 
 	// remember x is forward, y is left right, and z is up
 	// Note: in an ideal system the resultant force/moment would equal the required force/moment, but our system isn't ideal; thus we must calculate both.
@@ -310,7 +323,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 		boat_mass(36.2874), boat_inertia(7.4623), port_servo_x_offset(-.7239), port_servo_y_offset(.3048), port_servo_z_offset(0.0), starboard_servo_x_offset(-.7239), starboard_servo_y_offset(-.3048), starboard_servo_z_offset(0.0),
 		p_gain_x(50), p_gain_y(50), p_gain_theta_boat(1.0), gain_error_force_x(100), gain_error_force_y(1000), gain_error_moment_z(1000), gain_thrusters_force(10), gain_deviation_equilibrum_servo_angle(0), gain_deviation_changeof_servo_angle(.01),
 		cost_count_max(20), friction_coefficient_forward(0.0), friction_coefficient_forward_reduction(0.0), friction_coefficient_lateral(0.0), friction_coefficient_lateral_reduction(0.0), friction_coefficient_rotational(0.0), friction_coefficient_rotational_reduction(0.0),
-		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0)
+		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false)
 {
 	d_gain_x=sqrt(4*p_gain_x*boat_mass);
 	d_gain_y=sqrt(4*p_gain_y*boat_mass);
@@ -404,6 +417,48 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	reconfig_callback=boost::bind(&ZDrive::dynamicReconfigCallBack, this, _1, _2);
 	reconfig_server.setCallback(reconfig_callback);
 
+	// the following is a quick hack for darsan to test things
+	std::ifstream fin("/home/propagator/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
+	if (!fin)
+	{
+		ROS_WARN("Error opening ~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
+	}
+	else
+	{
+		string file_line="";
+
+		std::vector<double> data;
+		float tmp0=0;
+		float tmp1=0;
+		float tmp2=0;
+		float tmp3=0;
+		int i=0;
+		while(fin.eof()!=true)
+		{
+			i++;
+			getline(fin,file_line);
+
+			if(sscanf(file_line.c_str(),"%f%f%f%f",&tmp0,&tmp1,&tmp2,&tmp3)!=4)
+			{
+				ROS_WARN("Line %d doesn't have the correct number of args %f, %f, %f, %f",i, tmp0,tmp1,tmp2,tmp3);
+			}
+			else
+			{
+				//ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
+				//std::vector<double>::iterator it=data.begin();
+				ZDrive::inital_theta_port.push_back((double)tmp0);
+				ZDrive::inital_thrust_port.push_back((double)tmp1);
+				ZDrive::inital_theta_starboard.push_back((double)tmp2);
+				ZDrive::inital_thrust_starboard.push_back((double)tmp3);
+				ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
+			}
+			data.clear();
+		}
+
+		fin.close();
+
+	}
+
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg)
 {
@@ -442,6 +497,7 @@ void ZDrive::thrusterStatusCallBack(const motor_control::thrusterStatus& thruste
 
 void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 {
+	// Note: we first process the buttons that relate to the dyn_param server (giving priority to driving in analog mode to rescue the boat)
 	// for mapping see http://wiki.ros.org/joy
 	//        [0, 1, 2, 3, 4 , 5 , 6   , 7    , 8     , 9           , 10          ]
 	// buttons[A, B, X, Y, LB, RB, BACK, START, XBOX_X, L_STICK_DOWN, R_STICK_DOWN] these are 0/1 values
@@ -452,6 +508,14 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 	if(joystick_msg->buttons[XBOX_A]==1)
 	{
 		ZDrive::control_method=ZDrive::XBOX_ANALOG_ONLY; // To stop the boat from running into walls, we need to quickly be able to escape out of a mode, hence xbox_mode
+		ZDrive::update_dynamic_param_server=true;
+		ZDrive::current_dynamic_config.control_method=ZDrive::XBOX_ANALOG_ONLY;
+	}
+	else if(joystick_msg->buttons[XBOX_BACK]==1)
+	{
+		ZDrive::update_dynamic_param_server=true;
+		ZDrive::control_method=ZDrive::default_dynamic_config.control_method;
+		ZDrive::current_dynamic_config=ZDrive::default_dynamic_config;
 	}
 
 	if(ZDrive::control_method==ZDrive::XBOX_ANALOG_ONLY)
@@ -541,6 +605,8 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 	if(joystick_msg->buttons[XBOX_BTN]==1)
 	{
 		ZDrive::kill_thrusters=true;
+		ZDrive::current_dynamic_config.kill_thrusters=true;
+		ZDrive::update_dynamic_param_server=true;
 
 		int light_command_execution_return = 1;//system("xboxdrvctl --slot=0 --led=14");
 		if(light_command_execution_return<0)
@@ -552,15 +618,32 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		{
 			ROS_WARN("ERROR no command processor is available for: xboxdrvctl");
 		}
+		//
+		// while the following is a hack, it is recommended to use because there is no c++ api for dynamic_reconfigure yet. See: http://goo.gl/u63HdR and http://wiki.ros.org/dynamic_reconfigure
+		/*
+		if((system(NULL)))
+		{
+			// 1 second timeout
+			int return_status=system("rosrun dynamic_reconfigure dynparam set -t 1 /z_drive _control_method:=0");
+			ROS_INFO("Command return status: %d", return_status);
+		}
+		else
+		{
+			ROS_WARN("No processor available to run the command");
+		}
+		*/
 	}
 	else if(joystick_msg->buttons[XBOX_START]==1)
 	{
 		ZDrive::kill_thrusters=false;
+		ZDrive::current_dynamic_config.kill_thrusters=false;
+		ZDrive::update_dynamic_param_server=true;
 	}
 
 	// if the x button is pushed set it so the desired positions and velocities are exactly what they currently are in the real world
 	if(joystick_msg->buttons[XBOX_X]==1)
 	{
+		ZDrive::kill_action=true;
 		// stop as quickly as possible at your current position and kill the velocity
 		ZDrive::x_desired = ZDrive::x_current;
 		ZDrive::y_desired = ZDrive::y_current;
@@ -568,6 +651,10 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		ZDrive::x_velocity_desired=0;
 		ZDrive::y_velocity_desired=0;
 		ZDrive::yaw_velocity_desired=0;
+	}
+	else
+	{
+		ZDrive::kill_action=false;
 	}
 
 	if(joystick_msg->buttons[XBOX_Y]==1)
@@ -578,12 +665,16 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		marker_position.z=ZDrive::z_current;
 	}
 
+
 	return;
 }
 
-void ZDrive::dynamicReconfigCallBack(z_drive::GainsConfig &config, uint32_t level)
+void ZDrive::dynamicReconfigCallBack(const z_drive::GainsConfig &config, uint32_t level)
 {
+	// the config message is passed by reference for speed so we can't directly set one equal to the other, hence this hack to make the code cleaner.
+	ZDrive::current_dynamic_config=z_drive::GainsConfig(config);
 	ZDrive::control_method=config.control_method;
+	ZDrive::kill_thrusters=config.kill_thrusters;
 	ZDrive::update_rate=config.update_rate;
 	ZDrive::boat_mass=config.boat_mass;
 	ZDrive::boat_inertia=config.boat_inertia;
@@ -638,6 +729,15 @@ void ZDrive::dynamicReconfigCallBack(z_drive::GainsConfig &config, uint32_t leve
 		ZDrive::force_bow_required=(double)config.manual_force_bow_required;
 		ZDrive::force_port_required=(double)config.manual_force_port_required;
 		ZDrive::moment_z_required=(double)config.manual_moment_z_required;
+	}
+	else if(config.control_method==WAYPOINT_DRIVING||config.control_method==COST_DBG_MODE)
+	{
+		ZDrive::x_desired = ZDrive::x_current;
+		ZDrive::y_desired = ZDrive::y_current;
+		ZDrive::yaw_desired = ZDrive::yaw_current;
+		ZDrive::x_velocity_desired=0;
+		ZDrive::y_velocity_desired=0;
+		ZDrive::yaw_velocity_desired=0;
 	}
 }
 
@@ -731,6 +831,7 @@ void ZDrive::desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist)
 
 void ZDrive::publishDbgMsg(double user_defined_1=0, double user_defined_2=0, double user_defined_3=0, double user_defined_4=0, double user_defined_5=0)
 {
+
 	dbg_msg.control_method=ZDrive::control_method;
 	dbg_msg.cost_value=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
 	dbg_msg.current_port_servo_angle=ZDrive::current_port_servo_angle;
@@ -828,6 +929,10 @@ void ZDrive::run()
 	actionlib::SimpleActionServer<uf_common::MoveToAction> actionserver(n, "moveto", false);
 	actionserver.start();
 
+	// init the dynamic configs so we can update the dyn_param server (the reconfig server isn't fully active yet until this point in the code)
+	reconfig_server.getConfigDefault(ZDrive::current_dynamic_config);
+	reconfig_server.getConfigDefault(ZDrive::default_dynamic_config);
+
 	ros::Rate loop_rate(ZDrive::update_rate); // Note: currently the update rate isn't dynamic like it should be, the node has to be shutdown and restarted for a new update rate to take affect
 	while(ros::ok())
 	{
@@ -879,8 +984,10 @@ void ZDrive::run()
 				// the work required for this mode is done in the dynamic "reconfig_callback"
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
-			case ZDrive::MIRROR_MODE:
+			case ZDrive::COST_DBG_MODE://COST_DBG_MODE
 				// the work required for this mode is done in the dynamic "reconfig_callback"
+				debugCostFunction();
+				minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case ZDrive::MANUAL_TO_REQUIRED: // extra5
@@ -907,7 +1014,7 @@ void ZDrive::run()
 					z_drive_sim_pub.publish(sim_msg);
 				}
 				break;
-			case ZDrive::COST_DBG_MODE:
+			case ZDrive::MIRROR_MODE:
 				debugCostFunction();
 				minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
@@ -975,7 +1082,7 @@ void ZDrive::run()
 		}
 
 		// if the user cancels the current action, perform the necessary cleanup.
-		if(actionserver.isActive() &&actionserver.isPreemptRequested())
+		if((actionserver.isActive() &&actionserver.isPreemptRequested())||(actionserver.isActive() && ZDrive::kill_action==true))
 		{
 			// stop as quickly as possible at your current position and kill the velocity
 			ZDrive::x_desired = ZDrive::x_current;
@@ -986,6 +1093,14 @@ void ZDrive::run()
 			ZDrive::y_velocity_desired=0;
 			ZDrive::yaw_velocity_desired=0;
 			actionserver.setPreempted();
+		}
+
+
+		if(ZDrive::update_dynamic_param_server==true)
+		{
+
+			reconfig_server.updateConfig(ZDrive::current_dynamic_config);
+			ZDrive::update_dynamic_param_server=false;
 		}
 
 		loop_rate.sleep();
@@ -1030,6 +1145,7 @@ double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desi
 		temp_angle-=2*M_PI;
 	}
 	*/
+
 	return p_gain_theta_boat*(temp_angle)+d_gain_theta_boat*(boat_angular_velocity_desired-boat_angular_velocity_current);
 }
 
@@ -1096,326 +1212,30 @@ void ZDrive::guessInitalValues()
 	double dbg_tmp_cost, dbg_est_cost;
 	double temp_theta_port, temp_theta_starboard, temp_force_port, temp_force_starboard;
 #endif
-	for (int i = 0; i < 20; i++)
+	std::vector<double>::iterator i;
+	std::vector<double>::iterator j;
+	std::vector<double>::iterator k;
+	std::vector<double>::iterator l;
+
+	for (i = ZDrive::inital_theta_port.begin(); i!=ZDrive::inital_theta_port.end(); i++)
 	{
-		for (int j = 0; j < 10; j++)
+		for (j = ZDrive::inital_thrust_port.begin(); j!=ZDrive::inital_thrust_port.end(); j++)
 		{
-			for (int k = 0; k < 20; k++)
+			for (k = ZDrive::inital_theta_starboard.begin(); k!=ZDrive::inital_theta_starboard.end(); k++)
 			{
-				for (int l = 0; l < 10; l++)
+				for (l = ZDrive::inital_thrust_starboard.begin(); l!=ZDrive::inital_thrust_starboard.end(); l++)
 				{
-					switch (i)
-					{
-						/*
-						case 0:
-							temp_theta_port = ZDrive::port_servo_angle_counter_clock_wise_limit;
-							break;
-						case 1:
-							temp_theta_port = ZDrive::port_servo_angle_clock_wise_limit;
-							break;
-						case 2:
-							temp_theta_port = atan(ZDrive::port_servo_y_offset / ZDrive::port_servo_x_offset);
-							break;
-						case 3:
-							temp_theta_port = 0.0;
-							break;
-						case 4:
-							temp_theta_port = M_PI + atan(ZDrive::port_servo_y_offset / ZDrive::port_servo_x_offset);
-							break;
-						default:
-							std::cout << "Case Not Defined" << std::endl;
-							break;*/
-						/*-0.3491
-   -0.2664
-   -0.1837
-   -0.1010
-   -0.0184
-    0.0643
-    0.1470
-    0.2296
-    0.3123
-    0.3950
-    0.4777
-    0.5603
-    0.6430
-    0.7257
-    0.8084
-    0.8910
-    0.9737
-    1.0564
-    1.1391
-    1.2217 */
-						case 0:
-							temp_theta_port = 0.2664;//-4/6 * M_PI;
-							break;
-						case 1:
-							temp_theta_port = 0.1837;//-3/6 * M_PI;
-							break;
-						case 2:
-							temp_theta_port = 0.1010;//-2/6 * M_PI;
-							break;
-						case 3:
-							temp_theta_port = 0.0184;//-1/6 * M_PI;
-							break;
-						case 4:
-							temp_theta_port = -0.0643;//0;
-							break;
-						case 5:
-							temp_theta_port = -0.1470;//1/6 * M_PI;
-							break;
-						case 6:
-							temp_theta_port = -0.2296;//2/6 * M_PI;
-							break;
-						case 7:
-							temp_theta_port = -0.3123;//3/6 * M_PI;
-							break;
-						case 8:
-							temp_theta_port = -0.3950;//4/6 * M_PI;
-							break;
-						case 9:
-							temp_theta_port = -0.4777; //atan(ZDrive::port_servo_y_offset / ZDrive::port_servo_x_offset);
-							break;
-						case 10:
-							temp_theta_port = -0.5603;//-4/6 * M_PI;
-							break;
-						case 11:
-							temp_theta_port = -0.6430;//-3/6 * M_PI;
-							break;
-						case 12:
-							temp_theta_port = -0.7257;//-2/6 * M_PI;
-							break;
-						case 13:
-							temp_theta_port = -0.8084;//-1/6 * M_PI;
-							break;
-						case 14:
-							temp_theta_port = -0.8910;//0;
-							break;
-						case 15:
-							temp_theta_port = -0.9737;//1/6 * M_PI;
-							break;
-						case 16:
-							temp_theta_port = -1.0564;//2/6 * M_PI;
-							break;
-						case 17:
-							temp_theta_port = -1.1054;//3/6 * M_PI;
-							break;
-						case 18:
-							temp_theta_port = -1.1391;//4/6 * M_PI;
-							break;
-						case 19:
-							temp_theta_port = -1.2217; //atan(ZDrive::port_servo_y_offset / ZDrive::port_servo_x_offset);
-								break;
-						default:
-								std::cout << "Case Not Defined" << std::endl;
-								break;
-					}
-					switch (j)
-					{
-						/*
-
-						 *
-						case 0:
-							temp_force_port = ZDrive::port_thruster_foward_limit;
-							break;
-						case 1:
-							temp_force_port = ZDrive::port_thruster_reverse_limit;
-							break;
-						case 2:
-							temp_force_port = 50.0;
-							break;
-						case 3:
-							temp_force_port = -50.0;
-							break;
-						case 4:
-							temp_force_port = 0;
-							break;
-						default:
-							std::cout << "Case Not Defined" << std::endl;
-							break;*/
-
-						case 0:
-							temp_force_port = 39.25;//-50;
-							break;
-						case 1:
-							temp_force_port = 30;//-30;
-							break;
-						case 2:
-							temp_force_port = 20;//-10;
-							break;
-						case 3:
-							temp_force_port = 10;//0;
-							break;
-						case 4:
-							temp_force_port = 5;//10;
-							break;
-						case 5:
-							temp_force_port = 0;//30;
-							break;
-						case 6:
-							temp_force_port = -5;//50;
-							break;
-						case 7:
-							temp_force_port = -10;//70;
-							break;
-						case 8:
-							temp_force_port = -15;//80;
-							break;
-						case 9:
-							temp_force_port = -23.65;
-							break;
-						default:
-							std::cout << "Case Not Defined" << std::endl;
-							break;
-					}
-					switch (k)
-					{
-						/*
-						case 0:
-							temp_theta_starboard = ZDrive::starboard_servo_angle_counter_clock_wise_limit;
-							break;
-						case 1:
-							temp_theta_starboard = ZDrive::starboard_servo_angle_clock_wise_limit;
-							break;
-						case 2:
-							temp_theta_starboard = atan(ZDrive::starboard_servo_y_offset / ZDrive::starboard_servo_x_offset);
-							break;
-						case 3:
-							temp_theta_starboard = 0.0;
-							break;
-						case 4:
-							temp_theta_port = -M_PI + atan(ZDrive::starboard_servo_y_offset / ZDrive::starboard_servo_x_offset);
-							break;
-						default:
-							std::cout << "Case Not Defined" << std::endl;
-							break;*/
-
-								case 0:
-									temp_theta_starboard = -0.2664;//-4/6 * M_PI;
-									break;
-								case 1:
-									temp_theta_starboard = -0.1837;//-3/6 * M_PI;
-									break;
-								case 2:
-									temp_theta_starboard = -0.1010;//-2/6 * M_PI;
-									break;
-								case 3:
-									temp_theta_starboard = -0.0184;//-1/6 * M_PI;
-									break;
-								case 4:
-									temp_theta_starboard = 0.0643;//0;
-									break;
-								case 5:
-									temp_theta_starboard = 0.1470;//1/6 * M_PI;
-									break;
-								case 6:
-									temp_theta_starboard = 0.2296;//2/6 * M_PI;
-									break;
-								case 7:
-									temp_theta_starboard = 0.3123;//3/6 * M_PI;
-									break;
-								case 8:
-									temp_theta_starboard = 0.3950;//4/6 * M_PI;
-									break;
-								case 9:
-									temp_theta_starboard = 0.4777; //atan(ZDrive::port_servo_y_offset / ZDrive::port_servo_x_offset);
-									break;
-								case 10:
-									temp_theta_starboard = 0.5603;//-4/6 * M_PI;
-									break;
-								case 11:
-									temp_theta_starboard = 0.6430;//-3/6 * M_PI;
-									break;
-								case 12:
-									temp_theta_starboard = 0.7257;//-2/6 * M_PI;
-									break;
-								case 13:
-									temp_theta_starboard = 0.8084;//-1/6 * M_PI;
-									break;
-								case 14:
-									temp_theta_starboard = 0.8910;//0;
-									break;
-								case 15:
-									temp_theta_starboard = 0.9737;//1/6 * M_PI;
-									break;
-								case 16:
-									temp_theta_starboard = 1.0564;//2/6 * M_PI;
-									break;
-								case 17:
-									temp_theta_starboard = 1.1054;//3/6 * M_PI;
-									break;
-								case 18:
-									temp_theta_starboard = 1.1391;//4/6 * M_PI;
-									break;
-								case 19:
-									temp_theta_starboard = 1.2217; //atan(ZDrive::port_servo_y_offset / ZDrive::port_servo_x_offset);
-										break;
-								default:
-										std::cout << "Case Not Defined" << std::endl;
-										break;
-					}
-					switch (l)
-					{
-						/*
-						case 0:
-							temp_force_starboard = ZDrive::starboard_thruster_foward_limit;
-							break;
-						case 1:
-							temp_force_starboard = ZDrive::starboard_thruster_reverse_limit;
-							break;
-						case 2:
-							temp_force_starboard = 50.0;
-							break;
-						case 3:
-							temp_force_starboard = -50.0;
-							break;
-						case 4:
-							temp_force_starboard = 0;
-							break;
-						default:
-							std::cout << "Case Not Defined" << std::endl;
-							break;*/
-
-						case 0:
-							temp_force_starboard = 39.25;//-50;
-							break;
-						case 1:
-							temp_force_starboard = 30;//-30;
-							break;
-						case 2:
-							temp_force_starboard = 20;//-10;
-							break;
-						case 3:
-							temp_force_starboard = 10;//0;
-							break;
-						case 4:
-							temp_force_starboard = 5;//10;
-							break;
-						case 5:
-							temp_force_starboard = 0;//30;
-							break;
-						case 6:
-							temp_force_starboard = -5;//50;
-							break;
-						case 7:
-							temp_force_starboard = -10;//70;
-							break;
-						case 8:
-							temp_force_starboard = -15;//80;
-							break;
-						case 9:
-							temp_force_starboard = -23.65;
-							break;
-						default:
-							std::cout << "Case Not Defined" << std::endl;
-							break;
-
-					}
+					temp_theta_port=*i;
+					temp_force_port=*j;
+					temp_theta_starboard=*k;
+					temp_force_starboard=*l;
 #ifdef ZDRIVE_DBG
 					// the cost function calculates the resultant force, so this is for easy debuging
 					volatile double temp_resultant_force_x=resultantForceX(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
 					volatile double temp_resultant_force_y=resultantForceY(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
 					volatile double temp_resultant_moment_z=resultantMomentZ(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
 #endif
+
 					dbg_tmp_cost=calcCost(temp_theta_port, temp_force_port, temp_theta_starboard, temp_force_starboard);
 					dbg_est_cost=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
 					if (dbg_tmp_cost< dbg_est_cost)
@@ -1424,7 +1244,10 @@ void ZDrive::guessInitalValues()
 						ZDrive::estimated_port_thruster_force = temp_force_port;
 						ZDrive::estimated_starboard_servo_angle = temp_theta_starboard;
 						ZDrive::estimated_starboard_thruster_force = temp_force_starboard;
+						//publishDbgMsg(temp_theta_port,temp_force_port,temp_theta_starboard ,temp_force_starboard);
 					}
+
+
 				}
 			}
 		}
@@ -1584,6 +1407,7 @@ void ZDrive::debugCostFunction()
 	ZDrive::pitch_velocity_current=0;
 	ZDrive::yaw_velocity_current=0;
 	*/
+	/*
 	ZDrive::x_desired=0;
 	ZDrive::y_desired=10;
 	ZDrive::z_desired=0;
@@ -1596,6 +1420,7 @@ void ZDrive::debugCostFunction()
 	ZDrive::roll_velocity_desired=0;
 	ZDrive::pitch_velocity_desired=0;
 	ZDrive::yaw_velocity_desired=0;
+	*/
 	ZDrive::friction_coefficient_forward=0;
 	ZDrive::friction_coefficient_forward_reduction=0;
 	ZDrive::friction_coefficient_lateral=0;
