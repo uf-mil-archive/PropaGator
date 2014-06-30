@@ -32,7 +32,7 @@ void loop() {
   unsigned long current_time = millis();
   if(current_time - previous_time > WRITE_RATE)
   {
-    // Read the voltage of the batteries and write it out
+    /* Read the voltage of the batteries and write it out
     Serial.print("Voltage:");
     Serial.println(analogRead(VOLTAGE_PIN));
     
@@ -49,6 +49,7 @@ void loop() {
     
     //Reset time
     previous_time = millis();
+    */
   }
   
     //Wait for serial to be avaliable
