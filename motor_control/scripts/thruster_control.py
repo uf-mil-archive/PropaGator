@@ -118,7 +118,7 @@ def motorConfigCallback(config):
     elif config.id == PORT_THRUSTER:
         port_setpoint = thrust        
 
-#   ConverNewtonsToDuty
+#   ConvertNewtonsToDuty
 # Input: floating point (Newtons)
 # Output: floating point (degrees)
 # Description: Converts a value in newtons to a degree value suitable for the
@@ -173,7 +173,7 @@ def thrusterCtrl():
     global starboard_current
     
     #Setup ros
-    rospy.init_node('thruster_control', anonymous=True)
+    rospy.init_node('thruster_control')
     rospy.Subscriber("thruster_config", thrusterConfig, motorConfigCallback)
     r = rospy.Rate(1000)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)

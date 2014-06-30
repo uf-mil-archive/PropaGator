@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(motor_control)
+project(arduino_serial_comm)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  roscpp
   rospy
   std_msgs
   message_generation
@@ -45,11 +44,11 @@ catkin_python_setup()
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-add_message_files(
-   FILES
-   thrusterStatus.msg
-   thrusterConfig.msg
-)
+# add_message_files(
+#   FILES
+#   Message1.msg
+#   Message2.msg
+# )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -82,8 +81,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES motor_control
-#  CATKIN_DEPENDS roscpp rospy std_msgs
+#  LIBRARIES arduino_serial_comm
+#  CATKIN_DEPENDS rospy std_msgs
   DEPENDS message_runtime
 )
 
@@ -99,21 +98,21 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(motor_control
-#   src/${PROJECT_NAME}/motor_control.cpp
+# add_library(arduino_serial_comm
+#   src/${PROJECT_NAME}/arduino_serial_comm.cpp
 # )
 
 ## Declare a cpp executable
-#add_executable(motor_dir_ctrl src/motor_dir_ctrl.py)
+# add_executable(arduino_serial_comm_node src/arduino_serial_comm_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(motor_control_node motor_control_generate_messages_cpp)
+# add_dependencies(arduino_serial_comm_node arduino_serial_comm_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
-#target_link_libraries(motor_dir_ctrl
+# target_link_libraries(arduino_serial_comm_node
 #   ${catkin_LIBRARIES}
-#)
+# )
 
 #############
 ## Install ##
@@ -130,7 +129,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS motor_control motor_control_node
+# install(TARGETS arduino_serial_comm arduino_serial_comm_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -155,12 +154,10 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_motor_control.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_arduino_serial_comm.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
-
-
