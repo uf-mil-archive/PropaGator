@@ -38,8 +38,10 @@ PORT_THRUSTER = 3
 ZERO_DEG = 91               #Zero in degrees
 MAX_DEG = 145               #full forward in degrees
 MIN_DEG = 45                #full reverse in degrees
-MAX_NEWTONS = 39.24135      #Full forward in newtons
-MIN_NEWTONS = -23.65047     #Full reverse in newtons
+#MAX_NEWTONS = 39.24135      #Full forward in newtons
+#MIN_NEWTONS = -23.65047     #Full reverse in newtons
+MAX_NEWTONS = 10            #Full forward Jacksons motors
+MIN_NEWTONS =-10            #Full reverse Jacksons
 
 #These are the valuse that the thrusters 
 # attempt to achieve in newtons
@@ -105,11 +107,11 @@ def motorConfigCallback(config):
     #Check if we are more than 0.25 newtons out of bounds
     if thrust > MAX_NEWTONS:
         if thrust > (MAX_NEWTONS + 0.25):
-            rospy.logwarn("Attempted to set thruster %i to %f which is significantly above maximum (39.24135N) output thrust cliped to max. achivable value", config.id, thrust)
+            rospy.logwarn("Attempted to set thruster %i to %f which is significantly above maximum (%fN) output thrust cliped to max. achivable value", config.id, thrust, MAX_NEWTONS)
         thrust = MAX_NEWTONS;
     elif thrust < MIN_NEWTONS:
         if thrust < (MIN_NEWTONS - 0.25):
-            rospy.logwarn("Attempted to set thruster %i to %f which is significantly below minimum (-23.65047N) output thrust cliped to min. achivable value", config.id, thrust)
+            rospy.logwarn("Attempted to set thruster %i to %f which is significantly below minimum (%fN) output thrust cliped to min. achivable value", config.id, thrust, MIN_NEWTONS)
         thrust = MIN_NEWTONS
     
     #Set the setpoints
