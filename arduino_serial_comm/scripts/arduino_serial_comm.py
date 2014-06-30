@@ -23,10 +23,10 @@ from std_msgs.msg import String
 
 #Define serial vars
 #WARNING: you'll need permissions to access /dev/ttyACM0 file, or chmod it
-#Baud rate = 115200 about as fast as the arduino will go
+#Baud rate = 57600 about as fast as the arduino will go
 #Port is /dev/ttyACM0 which is the default for the arduino to attach to
 #
-ser = serial.Serial(baudrate=115200, timeout=0.001) 
+ser = serial.Serial(baudrate=57600, timeout=0.001) 
 
 # writeCallback
 # Input: std_msgs.msg.String
@@ -81,6 +81,8 @@ def arduino_serial_comm():
 
     #Main loop
     while not rospy.is_shutdown():
+        ser.flush()
+        ser.readline()
         #Wait till next cycle
         r.sleep()
     
