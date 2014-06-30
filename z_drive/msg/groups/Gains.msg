@@ -1,0 +1,6 @@
+DGains d
+PGains p
+ErrorGains error
+float64 thrusters_force
+float64 deviation_equilibrum_servo_angle
+float64 deviation_changeof_servo_angle

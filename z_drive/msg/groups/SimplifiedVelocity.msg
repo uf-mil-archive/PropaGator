@@ -1,0 +1,6 @@
+PitchVelocity pitch_velocity
+RollVelocity roll_velocity
+XVelocity x_velocity
+YawVelocity yaw_velocity
+YVelocity y_velocity
+ZVelocity z_velocity

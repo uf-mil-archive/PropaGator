@@ -1,0 +1,2 @@
+float64 clock_wise_limit
+float64 counter_clock_wise_limit
