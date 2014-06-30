@@ -26,7 +26,7 @@ from std_msgs.msg import String
 #Baud rate = 57600 about as fast as the arduino will go
 #Port is /dev/ttyACM0 which is the default for the arduino to attach to
 #
-ser = serial.Serial(baudrate=57600, timeout=0.001) 
+ser = serial.Serial(baudrate=115200, timeout=0.001) 
 
 # writeCallback
 # Input: std_msgs.msg.String
@@ -61,7 +61,7 @@ def arduino_serial_comm():
     #Setup ros
     rospy.init_node('arduino_serial_comm', anonymous=True)
     rospy.Subscriber("arduino_write", String, writeCallback)
-    r = rospy.Rate(1000)          #1000 hz(1ms Period)... I think
+    r = rospy.Rate(200)          #1000 hz(1ms Period)... I think
     #pub_timer = rospy.Timer(PUB_RATE, pubStatus)
 
     #Get params
@@ -82,7 +82,7 @@ def arduino_serial_comm():
     #Main loop
     while not rospy.is_shutdown():
         ser.flush()
-        ser.readline()
+        rospy.loginfo(ser.readline())
         #Wait till next cycle
         r.sleep()
     

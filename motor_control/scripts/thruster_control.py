@@ -61,7 +61,7 @@ pub = rospy.Publisher('thruster_status', thrusterStatus, queue_size=10)
 
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
-ser = serial.Serial('/dev/ttyACM0', 57600) 
+ser = serial.Serial('/dev/ttyACM0', 115200) 
 
 #       stopThrusters
 # Input: none
@@ -209,6 +209,7 @@ def thrusterCtrl():
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
         ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToDuty(port_current)))+":")
+        time.sleep(0.001)
         ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToDuty(starboard_current)))+":")
 
         #Wait till next cycle
