@@ -61,7 +61,7 @@ pub = rospy.Publisher('thruster_status', thrusterStatus, queue_size=10)
 
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
-ser = serial.Serial('/dev/ttyACM0', 115200) 
+ser = serial.Serial('/dev/ttyACM0', 57600) 
 
 #       stopThrusters
 # Input: none
