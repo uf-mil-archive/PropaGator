@@ -217,6 +217,6 @@ public:
       &getNodeHandle(), &getPrivateNodeHandle());
   }
 };
-PLUGINLIB_DECLARE_CLASS(z_drive2, nodelet, z_drive2::Nodelet, nodelet::Nodelet);
+PLUGINLIB_EXPORT_CLASS(z_drive2::Nodelet, nodelet::Nodelet);
 
 }
