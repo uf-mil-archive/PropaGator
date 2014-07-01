@@ -106,13 +106,18 @@ struct State {
   State update(Control const & control, double dt, const Parameters & p) const {
     assert(thrusters.size() == p.thrusters.size());
     
+    std::vector<Thruster> res_thrusters;
+    for(unsigned int i = 0; i < thrusters.size(); i++) {
+      res_thrusters.push_back(thrusters[i].update(control.thrusters[i], dt, p.thrusters[i]));
+    }
+    
     Vec<3> force_body = Vec<3>::Zero();
     Vec<3> torque_body = Vec<3>::Zero();
     for(unsigned int i = 0; i < thrusters.size(); i++) {
-      State::Thruster const & ts = thrusters[i];
+      State::Thruster const & ts = res_thrusters[i];
       Parameters::Thruster const & tp = p.thrusters[i];
       
-      Vec<3> thrust_thruster = Vec<3>(cos(ts.angle), sin(ts.angle), 0);
+      Vec<3> thrust_thruster = ts.thrust * Vec<3>(cos(ts.angle), sin(ts.angle), 0);
       Vec<3> thrust_body = tp.orientation._transformVector(thrust_thruster);
       
       force_body += thrust_body;
@@ -121,11 +126,6 @@ struct State {
     
     Vec<3> acceleration = orientation._transformVector(1/p.mass * force_body);
     Vec<3> angular_acceleration = orientation._transformVector(p.moment_of_inertia.inverse() * torque_body);
-    
-    std::vector<Thruster> res_thrusters;
-    for(unsigned int i = 0; i < thrusters.size(); i++) {
-      res_thrusters.push_back(thrusters[i].update(control.thrusters[i], dt, p.thrusters[i]));
-    }
     
     return State(
       position + velocity * dt + acceleration * pow(dt, 2)/2,
@@ -146,7 +146,7 @@ Control compute_control_policy(State const & state, double dt, Parameters const 
     if(fabs(dthrust * dt) > fabs(desired_thrust_change)) {
       dthrust = desired_thrust_change / dt;
     }
-    res.push_back(Control::Thruster(dthrust, 0));
+    res.push_back(Control::Thruster(0, dthrust));
   }
   return Control(res);
 }
@@ -158,12 +158,12 @@ Control compute_vel_policy(State const & state, double dt, Parameters const & p)
   BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
     // simulate final velocity of trajectory taken while bringing thrust down to 0
     // then determine control now that will result in final velocity being closer to 0
-    State x = state.update(control, dt, p);
-    while(!x.thrusts_approximately_zero()) {
-      x = x.update(compute_control_policy(x, dt, p), dt, p);
+    State s = state.update(control, dt, p);
+    while(!s.thrusts_approximately_zero()) {
+      s = s.update(compute_control_policy(s, dt, p), dt, p);
     }
     
-    double error = x.velocity.norm();
+    double error = std::max(s.velocity.norm(), s.angular_velocity.norm());
     
     if(!res || error < res->first) {
       res = std::make_pair(error, control);
@@ -177,12 +177,26 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
   boost::optional<std::pair<double, Control> > res;
   
   BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
-    State x = state.update(control, dt, p);
-    while(x.velocity.norm() >= 1e-3 || !x.thrusts_approximately_zero()) {
-      x = x.update(compute_vel_policy(x, dt, p), dt, p);
+    //std::cout << std::endl;
+    State s = state.update(control, dt, p);
+    while(s.velocity.norm() >= 1e-2 || !s.thrusts_approximately_zero()) {
+      Control a = compute_vel_policy(s, dt, p);
+      /*std::cout << "  Thruster states:" << std::endl;
+      BOOST_FOREACH(State::Thruster const & thruster, s.thrusters) {
+        std::cout << "  " << thruster.angle << " " << thruster.thrust << std::endl;
+      }
+      std::cout << "  Position: " << s.position.transpose() << std::endl;
+      std::cout << "  Velocity: " << s.orientation.inverse()._transformVector(s.velocity).transpose() << std::endl;
+      std::cout << "  Angular velocity: " << s.angular_velocity.transpose() << std::endl;
+      std::cout << "  Thruster commands:" << std::endl;
+      BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
+        std::cout << "  " << thruster.dangle << " " << thruster.dthrust << std::endl;
+      }
+      std::cout << std::endl;*/
+      s = s.update(a, dt, p);
     }
     
-    double error = (x.position - desired_pos).norm();
+    double error = (s.position - desired_pos).norm();
     
     if(!res || error < res->first) {
       res = std::make_pair(error, control);
@@ -202,6 +216,56 @@ public:
     getName(getName),
     nh(*nh_),
     private_nh(*private_nh_)  {
+    
+    // XXX
+    Parameters p;
+    p.mass = 40;
+    p.moment_of_inertia <<
+      40, 0, 0,
+      0, 40, 0,
+      0, 0, 40;
+    {
+      Parameters::Thruster t;
+      t.orientation = Quaternion::Identity();
+      t.angle_min = -1.6; t.angle_max = +1.6;
+      t.dangle_min = -3.2; t.dangle_max = +3.2;
+      t.thrust_min = -23.65; t.thrust_max = 39.25;
+      t.dthrust_min = -100; t.dthrust_max = +100;
+      
+      t.position = Vec<3>(-1, +1, 0);
+      p.thrusters.push_back(t);
+      t.position = Vec<3>(-1, -1, 0);
+      p.thrusters.push_back(t);
+    }
+    
+    State s(
+      Vec<3>::Zero(),
+      Quaternion::Identity(),
+      Vec<3>(0, 1, 0),
+      Vec<3>::Zero(),
+      std::vector<State::Thruster>{
+        State::Thruster(0, 0),
+        State::Thruster(0, 0)});
+    
+    double dt = 1e-2;
+    
+    while(true) {
+      std::cout << "Thruster states:" << std::endl;
+      BOOST_FOREACH(State::Thruster const & thruster, s.thrusters) {
+        std::cout << thruster.angle << " " << thruster.thrust << std::endl;
+      }
+      std::cout << "Position: " << s.position.transpose() << std::endl;
+      std::cout << "Velocity: " << s.velocity.transpose() << std::endl;
+      std::cout << "Angular velocity: " << s.angular_velocity.transpose() << std::endl;
+      //Control a = compute_pos_policy(s, Vec<3>(1, 0, 0), dt, p);
+      Control a = compute_vel_policy(s, dt, p);
+      std::cout << "Thruster commands:" << std::endl;
+      BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
+        std::cout << thruster.dangle << " " << thruster.dthrust << std::endl;
+      }
+      s = s.update(a, dt, p);
+      std::cout << std::endl;
+    }
   }
 };
 
