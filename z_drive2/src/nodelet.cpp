@@ -48,16 +48,17 @@ struct Control {
     return Control(std::vector<Thruster>(p.thrusters.size(), Thruster(0, 0)));
   }
   static std::vector<Control> SpanningSet(Parameters const & p) {
-    std::vector<std::vector<Thruster> > res;
-    res.push_back(std::vector<Thruster>());
+    std::vector<Control> res;
+    res.push_back(Control(std::vector<Thruster>()));
     
     for(unsigned int i = 0; i < p.thrusters.size(); i++) {
-      std::vector<std::vector<Thruster> > new_res;
-      BOOST_FOREACH(std::vector<Thruster> e, res) {
-        new_res.push_back(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_min, p.thrusters[i].dthrust_min)}));
-        new_res.push_back(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_min, p.thrusters[i].dthrust_max)}));
-        new_res.push_back(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_max, p.thrusters[i].dthrust_min)}));
-        new_res.push_back(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_max, p.thrusters[i].dthrust_max)}));
+      std::vector<Control> new_res;
+      BOOST_FOREACH(Control const & ee, res) {
+        std::vector<Thruster> const & e = ee.thrusters;
+        new_res.push_back(Control(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_min, p.thrusters[i].dthrust_min)})));
+        new_res.push_back(Control(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_min, p.thrusters[i].dthrust_max)})));
+        new_res.push_back(Control(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_max, p.thrusters[i].dthrust_min)})));
+        new_res.push_back(Control(concat(e, std::vector<Thruster>{Thruster(p.thrusters[i].dangle_max, p.thrusters[i].dthrust_max)})));
       }
       res = std::move(new_res);
     }
@@ -152,49 +153,69 @@ Control compute_control_policy(State const & state, double dt, Parameters const 
 
 Control compute_vel_policy(State const & state, double dt, Parameters const & p) {
   // compute control to bring velocity to 0 as fast as possible, with thrust being 0 at that point
-  std::vector<Control::Thruster> res;
-  // simulate final velocity of trajectory taken while bringing thrust down to 0
-  // then determine control now that will result in final velocity being closer to 0
-  State state2 = state.update(Control::Zero(p), dt, p);
-  State x = state2;
-  while(!x.thrusts_approximately_zero()) {
-    x = x.update(compute_control_policy(x, dt, p), dt, p);
+  boost::optional<std::pair<double, Control> > res;
+  
+  BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
+    // simulate final velocity of trajectory taken while bringing thrust down to 0
+    // then determine control now that will result in final velocity being closer to 0
+    State x = state.update(control, dt, p);
+    while(!x.thrusts_approximately_zero()) {
+      x = x.update(compute_control_policy(x, dt, p), dt, p);
+    }
+    
+    double error = x.velocity.norm();
+    
+    if(!res || error < res->first) {
+      res = std::make_pair(error, control);
+    }
   }
-  // XXX
-  return Control(res);
+  
+  return res->second;
 }
 
 Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, Parameters const & p) {
-  State x = state;
-  while(true) {
-    x = x.update(compute_vel_policy(x, dt, p), dt, p);
+  boost::optional<std::pair<double, Control> > res;
+  
+  BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
+    State x = state.update(control, dt, p);
+    while(x.velocity.norm() >= 1e-3 || !x.thrusts_approximately_zero()) {
+      x = x.update(compute_vel_policy(x, dt, p), dt, p);
+    }
+    
+    double error = (x.position - desired_pos).norm();
+    
+    if(!res || error < res->first) {
+      res = std::make_pair(error, control);
+    }
   }
+  
+  return res->second;
 }
 
 class NodeImpl {
-  private:
-    boost::function<const std::string&()> getName;
-    ros::NodeHandle &nh;
-    ros::NodeHandle &private_nh;
-  public:
-    NodeImpl(boost::function<const std::string&()> getName, ros::NodeHandle *nh_, ros::NodeHandle *private_nh_) :
-        getName(getName),
-        nh(*nh_),
-        private_nh(*private_nh_)  {
-    }
+private:
+  boost::function<const std::string&()> getName;
+  ros::NodeHandle &nh;
+  ros::NodeHandle &private_nh;
+public:
+  NodeImpl(boost::function<const std::string&()> getName, ros::NodeHandle *nh_, ros::NodeHandle *private_nh_) :
+    getName(getName),
+    nh(*nh_),
+    private_nh(*private_nh_)  {
+  }
 };
 
 class Nodelet : public nodelet::Nodelet {
-public:
-    Nodelet() { }
-    
-    virtual void onInit() {
-        nodeimpl = boost::in_place(boost::bind(&Nodelet::getName, this),
-          &getNodeHandle(), &getPrivateNodeHandle());
-    }
-
 private:
-    boost::optional<NodeImpl> nodeimpl;
+  boost::optional<NodeImpl> nodeimpl;
+
+public:
+  Nodelet() {
+  }
+  void onInit() {
+    nodeimpl = boost::in_place(boost::bind(&Nodelet::getName, this),
+      &getNodeHandle(), &getPrivateNodeHandle());
+  }
 };
 PLUGINLIB_DECLARE_CLASS(z_drive2, nodelet, z_drive2::Nodelet, nodelet::Nodelet);
 
