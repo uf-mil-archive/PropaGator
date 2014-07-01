@@ -28,5 +28,5 @@
   <include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch"/>
   <include file="$(find boat_launch)/launch/navigation.launch"/>
   <!--node pkg="motor_control" type="thruster_control.py" name="thruster_mapper"/-->
-  <!--include file="$(find propagator_description/launch/display.launch"/-->
+  <include file="$(find propagator_description)/launch/display.launch"/>
 </launch>

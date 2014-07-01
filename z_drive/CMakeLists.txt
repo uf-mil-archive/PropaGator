@@ -74,8 +74,10 @@ add_message_files(
   FILES
   BoatRelativeForces.msg
   CurrentPropulsionData.msg
+  SimplifiedOdom.msg
   SimplifiedPosition.msg
   SimplifiedVelocity.msg
+  OtherOdomInfo.msg
   EstimatedPropulsionData.msg
   FrictionalResistance.msg
   Gains.msg
