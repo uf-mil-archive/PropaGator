@@ -1,0 +1,7 @@
+<library path="lib/libz_drive2_nodelet">
+  <class name="z_drive2/nodelet" type="z_drive2::Nodelet" base_class_type="nodelet::Nodelet">
+    <description> 
+      Odometry estimator
+    </description>
+  </class>
+</library>
