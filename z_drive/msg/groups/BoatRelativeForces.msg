@@ -1,3 +1,3 @@
-BoatRelatedForceGlobal resultant_global
+BoatRelatedForceLocal resultant_local
 BoatRelatedForceGlobal required_global
 BoatRelatedForceLocal required_local

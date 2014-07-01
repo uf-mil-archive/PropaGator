@@ -177,6 +177,7 @@ private:
 	bool desired_position_inited;
 	bool kill_thrusters;
 	bool kill_action;
+	bool new_action;
 
 	// we would like an idea of how long it takes to do specific computations in some functions, and will use this variable for that.
 	double computational_time;
@@ -188,8 +189,8 @@ private:
 	static const int MANUAL_MODE=3;
 	static const int COST_DBG_MODE=4;
 	static const int MANUAL_TO_REQUIRED=5;
-	static const int TESTING_MODE=6;
-	static const int MIRROR_MODE=7;
+	static const int TESTING_MODE=7;
+	static const int MIRROR_MODE=6;
 
 	// This is a variable to allow the control metthod to be changed dynamicaly
 	int control_method;
@@ -329,7 +330,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 		boat_mass(36.2874), boat_inertia(7.4623), port_servo_x_offset(-.7239), port_servo_y_offset(.3048), port_servo_z_offset(0.0), starboard_servo_x_offset(-.7239), starboard_servo_y_offset(-.3048), starboard_servo_z_offset(0.0),
 		p_gain_x(50), p_gain_y(50), p_gain_theta_boat(1.0), gain_error_force_x(100), gain_error_force_y(1000), gain_error_moment_z(1000), gain_thrusters_force(10), gain_deviation_equilibrum_servo_angle(0), gain_deviation_changeof_servo_angle(.01),
 		cost_count_max(20), friction_coefficient_forward(0.0), friction_coefficient_forward_reduction(0.0), friction_coefficient_lateral(0.0), friction_coefficient_lateral_reduction(0.0), friction_coefficient_rotational(0.0), friction_coefficient_rotational_reduction(0.0),
-		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false), computational_time(0)
+		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false), computational_time(0), new_action(false)
 {
 	d_gain_x=sqrt(4*p_gain_x*boat_mass);
 	d_gain_y=sqrt(4*p_gain_y*boat_mass);
@@ -471,7 +472,7 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	if(dynamixel_status_msg.id==port_servo_id)
 	{
 		// note: present_position is a float32. Hence the cast is explicitly shown. The dynamixel node is optimized for speed and memory to be near real-time, hence the float32.
-		ZDrive::current_port_servo_angle=-1.0*(double)dynamixel_status_msg.present_position+port_servo_angle_offset;
+		ZDrive::current_port_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/2.0+port_servo_angle_offset;
 		temperature_data.header.stamp = ros::Time::now();
 		temperature_data.header.frame_id="port_thruster";
 		temperature_data.temperature=dynamixel_status_msg.present_temp;
@@ -479,7 +480,7 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	}
 	else if(dynamixel_status_msg.id==starboard_servo_id)
 	{
-		ZDrive::current_starboard_servo_angle=-1.0*(double)dynamixel_status_msg.present_position+starboard_servo_angle_offset;
+		ZDrive::current_starboard_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/2.0+starboard_servo_angle_offset;
 		temperature_data.header.stamp = ros::Time::now();
 		temperature_data.header.frame_id="starboard_thruster";
 		temperature_data.temperature=dynamixel_status_msg.present_temp;
@@ -865,6 +866,45 @@ void ZDrive::desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist)
 
 void ZDrive::publishDbgMsg(double user_defined_1=0, double user_defined_2=0, double user_defined_3=0, double user_defined_4=0, double user_defined_5=0)
 {
+	dbg_msg.runtime_data.active_control_method=ZDrive::control_method;
+	dbg_msg.runtime_data.kill_wp=ZDrive::kill_action;
+	dbg_msg.runtime_data.kill_thrusters=ZDrive::kill_thrusters;
+	dbg_msg.runtime_data.previous_control_method=ZDrive::prev_control_method;
+	dbg_msg.runtime_data.new_wp=ZDrive::new_action;
+
+
+	dbg_msg.forces.required_global.x=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
+	dbg_msg.forces.required_global.y=requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
+	dbg_msg.forces.required_global.z=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
+	dbg_msg.forces.required_local.bow=ZDrive::force_bow_required;
+	dbg_msg.forces.required_local.port=ZDrive::force_port_required;
+	dbg_msg.forces.required_local.yaw=ZDrive::moment_z_required;
+	dbg_msg.forces.resultant_local.bow=resultantForceX(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);;
+	dbg_msg.forces.resultant_local.port=resultantForceY(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+	dbg_msg.forces.resultant_local.yaw=resultantMomentZ(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+
+	dbg_msg.position.x.current=ZDrive::x_current;
+	dbg_msg.position.x.desired=ZDrive::x_desired;
+	dbg_msg.position.y.current=ZDrive::y_current;
+	dbg_msg.position.y.desired=ZDrive::y_desired;
+	dbg_msg.position.yaw.current=ZDrive::yaw_current;
+	dbg_msg.position.yaw.desired=ZDrive::yaw_desired;
+
+	dbg_msg.velocity.x_velocity.current=ZDrive::x_velocity_current;
+	dbg_msg.velocity.x_velocity.desired=ZDrive::x_velocity_desired;
+	dbg_msg.velocity.y_velocity.current=ZDrive::y_velocity_current;
+	dbg_msg.velocity.y_velocity.desired=ZDrive::y_velocity_desired;
+	dbg_msg.velocity.yaw_velocity.current=ZDrive::yaw_velocity_current;
+	dbg_msg.velocity.yaw_velocity.desired=ZDrive::yaw_velocity_desired;
+
+	dbg_msg.propulsion_current.port.angle=ZDrive::current_port_servo_angle;
+	dbg_msg.propulsion_current.port.force=ZDrive::current_port_thruster_force;
+	dbg_msg.propulsion_current.starboard.angle=ZDrive::current_starboard_servo_angle;
+	dbg_msg.propulsion_current.starboard.force=current_starboard_thruster_force;
+	dbg_msg.propulsion_desired.port.angle=ZDrive::estimated_port_servo_angle;
+	dbg_msg.propulsion_desired.port.force=ZDrive::estimated_port_thruster_force;
+	dbg_msg.propulsion_desired.starboard.angle=ZDrive::estimated_starboard_servo_angle;
+	dbg_msg.propulsion_desired.starboard.force=ZDrive::estimated_starboard_thruster_force;
 
 	dbg_msg.control_method=ZDrive::control_method;
 	dbg_msg.cost_value=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
@@ -946,10 +986,10 @@ void ZDrive::run()
 
 	// config the port servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::port_servo_id;
-	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 	// config the starboard servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
-	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 
 	// fill in a init message to the thrusters that kills them initaly
 	thruster_config_msg.thrust=0;
@@ -984,6 +1024,10 @@ void ZDrive::run()
 		{
 			boost::shared_ptr<const uf_common::MoveToGoal> goal = actionserver.acceptNewGoal();
 			desiredOdomCallBack(goal->posetwist);
+			ZDrive::new_action=true;
+		}
+		else{
+			ZDrive::new_action=false;
 		}
 
 		// Update Rviz joint_state(s) based on any new status data that was received in the callback
@@ -1027,6 +1071,7 @@ void ZDrive::run()
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case ZDrive::MANUAL_TO_REQUIRED: // extra5
+
 				minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
@@ -1064,10 +1109,10 @@ void ZDrive::run()
 		// Note: the dynamixel_server is written such that it quickly disregards messages where there is no change required in the servo's position.
 		// Note: this doen't hurt to do when the thrusters are killed, because the boat's position wont move.
 		dynamixel_position_msg.id=ZDrive::port_servo_id;
-		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_port_servo_angle+ZDrive::port_servo_angle_offset);
+		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_port_servo_angle*2.0+ZDrive::port_servo_angle_offset);
 		dynamixel_config_position_pub.publish(dynamixel_position_msg);
 		dynamixel_position_msg.id=ZDrive::starboard_servo_id;
-		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_starboard_servo_angle+ZDrive::starboard_servo_angle_offset);
+		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_starboard_servo_angle*2.0+ZDrive::starboard_servo_angle_offset);
 		dynamixel_config_position_pub.publish(dynamixel_position_msg);
 
 

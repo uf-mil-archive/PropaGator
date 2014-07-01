@@ -40,8 +40,8 @@ MAX_DEG = 145               #full forward in degrees
 MIN_DEG = 45                #full reverse in degrees
 #MAX_NEWTONS = 39.24135      #Full forward in newtons
 #MIN_NEWTONS = -23.65047     #Full reverse in newtons
-MAX_NEWTONS = 10            #Full forward Jacksons motors
-MIN_NEWTONS =-10            #Full reverse Jacksons
+MAX_NEWTONS =  26.684118     #Full forward Jacksons motors
+MIN_NEWTONS =  -16.0823196           #Full reverse Jacksons
 
 #These are the valuse that the thrusters 
 # attempt to achieve in newtons
@@ -63,7 +63,7 @@ pub = rospy.Publisher('thruster_status', thrusterStatus, queue_size=10)
 
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
-ser = serial.Serial('/dev/ttyACM0', 115200) 
+ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00', 115200) 
 
 #       stopThrusters
 # Input: none
@@ -183,6 +183,9 @@ def thrusterCtrl():
     #Initilize the motors to 0
     stopThrusters()
 
+    starboard_last_value = ZERO_DEG;
+    port_last_value = ZERO_DEG;
+    
     #Main loop
     while not rospy.is_shutdown():
         #Simple ramping function
@@ -210,10 +213,15 @@ def thrusterCtrl():
         #Write to the serial bus
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
-        ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToDuty(port_current)))+":")
-        time.sleep(0.001)
-        ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToDuty(starboard_current)))+":")
+        if port_last_value != port_current:
+            ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToDuty(port_current)))+":")
 
+        time.sleep(0.001)
+        if starboard_last_value != starboard_current:
+            ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToDuty(starboard_current)))+":")
+
+        starboard_last_value = starboard_current;
+        port_last_value = port_current;
         #Wait till next cycle
         r.sleep()
     

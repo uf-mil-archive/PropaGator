@@ -1,5 +1,5 @@
 int32 active_control_method
 int32 previous_control_method
 bool kill_thrusters
-bool kill_action
-bool wp_active
+bool kill_wp
+bool new_wp

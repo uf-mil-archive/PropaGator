@@ -66,8 +66,8 @@ d_gain_x = 60;%(4*k1x*m)^.5;
 p_gain_y = 100;
 d_gain_y = 60;%(4*k1y*m)^.5;
 
-p_gain_theta_boat = 50;
-d_gain_theta_boat = 25;%(4*k1m*I)^.5;
+p_gain_theta_boat = 100;
+d_gain_theta_boat = 60;%(4*k1m*I)^.5;
 
 pdGain.xp = 100;
 

@@ -27,7 +27,6 @@ void setup() {
 
 
 void loop() {
-  
   //Update time
   unsigned long current_time = millis();
   if(current_time - previous_time > WRITE_RATE)
@@ -46,10 +45,10 @@ void loop() {
     Serial.print(PORT_ID);
     Serial.print("\tValue:");
     Serial.println(port_servo.read());
-    
+    */
     //Reset time
     previous_time = millis();
-    */
+    
   }
   
     //Wait for serial to be avaliable
@@ -58,10 +57,11 @@ void loop() {
     int servoID = Serial.parseInt();        //Get Servo ID
     int thrust = Serial.parseInt();         //Get thrust
     Serial.read();                          //Remove :
-
+    
+    
     if(servoID == STARBOARD_ID){
       starboard_servo.write((int)thrust);   //Write the thrust out
-    }
+  }
     else if (servoID == PORT_ID){
       port_servo.write((int)thrust);        //Write the thrust out
     }

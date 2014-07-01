@@ -42,6 +42,7 @@ float64 estimated_starboard_servo_angle
 float64 estimated_starboard_thruster_force
 float64 cost_value
 float64 step
+RunningModes runtime_data
 duration computational_time
 BoatRelativeForces forces
 CurrentPropulsionData propulsion_current
