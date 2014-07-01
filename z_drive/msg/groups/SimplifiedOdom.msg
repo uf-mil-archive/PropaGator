@@ -1,0 +1,3 @@
+SimplifiedPosition position
+SimplifiedVelocity velocity
+OtherOdomInfo extra

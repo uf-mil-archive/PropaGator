@@ -58,6 +58,10 @@ private:
 	double starboard_servo_x_offset;
 	double starboard_servo_y_offset;
 	double starboard_servo_z_offset;
+	// the servo(s) are an a belt drive. also the servos are in joint mode. in joint mode the servo can't smoothly transition from 360->0, it will go 360->359...1->0; hence the belt drive can eliminate this.
+	// This functions assume that 0 radians corresponds to 0 rad on the servo, so we will adjust the results we estimate and get so that it is.
+	double port_servo_angle_offset;
+	double starboard_servo_angle_offset;
 
 	// These are the tunable gain parameters for the "pd" controller. (Note: it is not a "pid" controller)
 	double p_gain_x;
@@ -99,9 +103,6 @@ private:
 	double step_multiplier;
 	double step;
 
-	// This is a variable to allow the control metthod to be changed dynamicaly
-	int control_method;
-
 	// These values will converge closer and closer to the optimal solution- hence why they are an estimate- with every iteration of calcAngleAndThrustEstimate.
 	double estimated_port_servo_angle;
 	double estimated_port_thruster_force;
@@ -118,17 +119,16 @@ private:
 	// Note: The Servo Angle limits here will comply with REP103; so 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
 	double port_servo_angle_clock_wise_limit;
 	double port_servo_angle_counter_clock_wise_limit;
+	double port_servo_gear_reduction;
 	double port_thruster_reverse_limit;
 	double port_thruster_foward_limit;
 	double starboard_servo_angle_clock_wise_limit;
 	double starboard_servo_angle_counter_clock_wise_limit;
+	double starboard_servo_gear_reduction;
 	double starboard_thruster_reverse_limit;
 	double starboard_thruster_foward_limit;
 
-	// the servo(s) are an a belt drive. also the servos are in joint mode. in joint mode the servo can't smoothly transition from 360->0, it will go 360->359...1->0; hence the belt drive can eliminate this.
-	// This function assumes that 0rad corresponds to 0 rad on the servo, so we will adjust the results we estimate and get so that it is.
-	double port_servo_angle_offset;
-	double starboard_servo_angle_offset;
+
 
 	// These are the ID(s) of the servo(s) in the z_drive- since each servo on a dynamixel bus must have a unique id.
 	// Note: The id field in a DynamixelStatusParam msg is a uint8, so the id(s) here are also uint8(s) to avoid type casting.
@@ -179,6 +179,10 @@ private:
 	bool desired_position_inited;
 	bool kill_thrusters;
 	bool kill_action;
+	bool new_action;
+
+	// we would like an idea of how long it takes to do specific computations in some functions, and will use this variable for that.
+	double computational_time;
 
 	// Dynamically reconfigurable control modes for how the boat should drive
 	static const int XBOX_ANALOG_ONLY=0;
@@ -187,8 +191,15 @@ private:
 	static const int MANUAL_MODE=3;
 	static const int COST_DBG_MODE=4;
 	static const int MANUAL_TO_REQUIRED=5;
-	static const int TESTING_MODE=6;
-	static const int MIRROR_MODE=7;
+	static const int MIRROR_MODE_JACKSON=6;
+	static const int XBOX_ANALOG_ONLY_JACKSON=7;
+	static const int TESTING_MODE=8;
+	static const int EXTRA_9=9;
+
+	// This is a variable to allow the control metthod to be changed dynamicaly
+	int control_method;
+	// since we have the ability to quickly change the control mode with the xbox control (so we dont run into things), we also want the ability to know how to restore the mode we just escaped out of.
+	int prev_control_method=0;
 
 	// for mapping see http://wiki.ros.org/joy
 	// there are two kernel modules that can interface with the xbox controller: "xpad" xor "xboxdrv". The pre-installed module with Ubuntu 13.04 is "xpad"
@@ -232,6 +243,7 @@ private:
 	nav_msgs::Odometry odom_desired;
 
 	ros::NodeHandle n;
+	static const double update_rate=50.0; // rate that the controller runs at in Hz
 	ros::Subscriber odom_subscriber;
 	ros::Subscriber thruster_status_subscriber;
 	ros::Subscriber dynamixel_status_subscriber;
@@ -254,7 +266,6 @@ private:
 	tf::Transform starboard_thruster_tf;
 	tf::Transform port_prop_tf;
 	tf::Transform starboard_prop_tf;
-	double update_rate;
 	ros::Publisher joint_pub;
 	sensor_msgs::JointState joint_state;
 	ros::Publisher temperature_pub;
@@ -323,7 +334,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 		boat_mass(36.2874), boat_inertia(7.4623), port_servo_x_offset(-.7239), port_servo_y_offset(.3048), port_servo_z_offset(0.0), starboard_servo_x_offset(-.7239), starboard_servo_y_offset(-.3048), starboard_servo_z_offset(0.0),
 		p_gain_x(50), p_gain_y(50), p_gain_theta_boat(1.0), gain_error_force_x(100), gain_error_force_y(1000), gain_error_moment_z(1000), gain_thrusters_force(10), gain_deviation_equilibrum_servo_angle(0), gain_deviation_changeof_servo_angle(.01),
 		cost_count_max(20), friction_coefficient_forward(0.0), friction_coefficient_forward_reduction(0.0), friction_coefficient_lateral(0.0), friction_coefficient_lateral_reduction(0.0), friction_coefficient_rotational(0.0), friction_coefficient_rotational_reduction(0.0),
-		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false)
+		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false), computational_time(0), new_action(false), port_servo_gear_reduction(2.0), starboard_servo_gear_reduction(2.0)
 {
 	d_gain_x=sqrt(4*p_gain_x*boat_mass);
 	d_gain_y=sqrt(4*p_gain_y*boat_mass);
@@ -342,15 +353,16 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 
 	// init values
 	// Note: The Servo Angle limits here will comply with REP103; so 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
-	port_servo_angle_clock_wise_limit=(-70*M_PI)/180; // clockwise is towards starboard
-	port_servo_angle_counter_clock_wise_limit=(100*M_PI)/180; //counterclockwise is towards port
+	port_servo_angle_clock_wise_limit=(-90*M_PI)/180; // clockwise is towards starboard
+	port_servo_angle_counter_clock_wise_limit=(90*M_PI)/180; //counterclockwise is towards port
+	//TODO: update based on new motors
 	// the specs on the troling motors say about 18lbs of thrust, which should be about 80.0679 newtons
 	port_thruster_foward_limit=80.0679891;
 	// you don't get full thrust in reverse so about 80%
 	port_thruster_reverse_limit=-.8*port_thruster_foward_limit;
 
-	starboard_servo_angle_clock_wise_limit=(-100*M_PI)/180; // clockwise is towards starboard
-	starboard_servo_angle_counter_clock_wise_limit=(70*M_PI)/180; //counterclockwise is towards port
+	starboard_servo_angle_clock_wise_limit=(-90*M_PI)/180; // clockwise is towards starboard
+	starboard_servo_angle_counter_clock_wise_limit=(90*M_PI)/180; //counterclockwise is towards port
 	starboard_thruster_foward_limit=port_thruster_foward_limit;
 	starboard_thruster_reverse_limit=port_thruster_reverse_limit;
 	port_servo_angle_offset=M_PI;
@@ -388,7 +400,6 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	starboard_prop_tf.setRotation(tf::Quaternion(0,M_PI/2,0));
 
 	// set the update rate (in hz) for which the pd controller runs
-	update_rate=50;
 
 	// init the id variables for what their corresponding servo's are on the dynamixel bus
 	port_servo_id=0x03;
@@ -462,10 +473,12 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg)
 {
+	// Note: we are basically having to account for how the dynimixel is mounted on the boat, and translate it into the boats world- hence the multiplyer and the offset.
+	// we also have to account for any gearing hence the division
 	if(dynamixel_status_msg.id==port_servo_id)
 	{
 		// note: present_position is a float32. Hence the cast is explicitly shown. The dynamixel node is optimized for speed and memory to be near real-time, hence the float32.
-		ZDrive::current_port_servo_angle=-1.0*(double)dynamixel_status_msg.present_position+port_servo_angle_offset;
+		ZDrive::current_port_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/port_servo_gear_reduction+port_servo_angle_offset;
 		temperature_data.header.stamp = ros::Time::now();
 		temperature_data.header.frame_id="port_thruster";
 		temperature_data.temperature=dynamixel_status_msg.present_temp;
@@ -473,7 +486,7 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	}
 	else if(dynamixel_status_msg.id==starboard_servo_id)
 	{
-		ZDrive::current_starboard_servo_angle=-1.0*(double)dynamixel_status_msg.present_position+starboard_servo_angle_offset;
+		ZDrive::current_starboard_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/starboard_servo_gear_reduction+starboard_servo_angle_offset;
 		temperature_data.header.stamp = ros::Time::now();
 		temperature_data.header.frame_id="starboard_thruster";
 		temperature_data.temperature=dynamixel_status_msg.present_temp;
@@ -507,15 +520,63 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 	// Based REP103 and the Boat; 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
 	if(joystick_msg->buttons[XBOX_A]==1)
 	{
-		ZDrive::control_method=ZDrive::XBOX_ANALOG_ONLY; // To stop the boat from running into walls, we need to quickly be able to escape out of a mode, hence xbox_mode
-		ZDrive::update_dynamic_param_server=true;
-		ZDrive::current_dynamic_config.control_method=ZDrive::XBOX_ANALOG_ONLY;
+		if(ZDrive::control_method!=XBOX_ANALOG_ONLY)
+		{
+			ROS_INFO("Switching to XBOX_ANALOG_ONLY mode");
+			ZDrive::prev_control_method=ZDrive::control_method;
+			ZDrive::control_method=ZDrive::XBOX_ANALOG_ONLY; // To stop the boat from running into walls, we need to quickly be able to escape out of a mode, hence xbox_mode
+			ZDrive::update_dynamic_param_server=true;
+			ZDrive::current_dynamic_config.control_method=ZDrive::XBOX_ANALOG_ONLY;
+		}
 	}
 	else if(joystick_msg->buttons[XBOX_BACK]==1)
 	{
+		// reinit the dyn param server with default values
+		ROS_INFO("Reinitializing the dynamic parameter server with the default values specified in the config (.cfg) file XBOX_ANALOG_ONLY mode");
+		ZDrive::prev_control_method=ZDrive::control_method;
 		ZDrive::update_dynamic_param_server=true;
 		ZDrive::control_method=ZDrive::default_dynamic_config.control_method;
 		ZDrive::current_dynamic_config=ZDrive::default_dynamic_config;
+	}
+	else if(joystick_msg->buttons[XBOX_B]==1)
+	{
+		if(ZDrive::control_method!=ZDrive::prev_control_method)
+		{
+			// restore the previous control method
+			ROS_INFO("Switching back to control mode: %d", ZDrive::prev_control_method);
+			int temp_control_method=ZDrive::control_method;
+			ZDrive::control_method=ZDrive::prev_control_method;
+			ZDrive::prev_control_method=temp_control_method;
+			ZDrive::update_dynamic_param_server=true;
+			ZDrive::current_dynamic_config.control_method=ZDrive::control_method;
+		}
+	}
+	else if(joystick_msg->buttons[XBOX_X]==1)
+	{
+		// if the x button is pushed set it so the desired positions and velocities are exactly what they currently are in the real world
+		ROS_INFO("Setting the desired waypoint to where the boat currently is (subsequently killing any previously active way points");
+		ZDrive::kill_action=true;
+		// stop as quickly as possible at your current position and kill the velocity
+		ZDrive::x_desired = ZDrive::x_current;
+		ZDrive::y_desired = ZDrive::y_current;
+		ZDrive::z_desired = ZDrive::z_current;
+		ZDrive::x_velocity_desired=0;
+		ZDrive::y_velocity_desired=0;
+		ZDrive::z_velocity_desired=0;
+		ZDrive::roll_desired=ZDrive::roll_current;
+		ZDrive::pitch_desired=ZDrive::pitch_current;
+		ZDrive::yaw_desired = ZDrive::yaw_current;
+		ZDrive::roll_velocity_desired=0;
+		ZDrive::pitch_velocity_desired=0;
+		ZDrive::yaw_velocity_desired=0;
+	}
+	else if(joystick_msg->buttons[XBOX_Y]==1)
+	{
+		// create a point to display in rviz
+		geometry_msgs::Point marker_position;
+		marker_position.x=ZDrive::x_current;
+		marker_position.y=ZDrive::y_current;
+		marker_position.z=ZDrive::z_current;
 	}
 
 	if(ZDrive::control_method==ZDrive::XBOX_ANALOG_ONLY)
@@ -559,6 +620,47 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 			ZDrive::estimated_starboard_thruster_force = fabs(joystick_msg->axes[XBOX_R_STICK_LON])*ZDrive::starboard_thruster_reverse_limit;
 		}
 	}
+	if(ZDrive::control_method==ZDrive::XBOX_ANALOG_ONLY_JACKSON) // similar to XBOX_ANALOG_ONLY, but left and right are reversed
+	{
+		if(joystick_msg->axes[XBOX_L_STICK_LAT]>=0.0)// left stick left
+		{
+			// Note: axes[0] and ZDrive::port_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
+			ZDrive::estimated_port_servo_angle=(joystick_msg->axes[XBOX_L_STICK_LAT]*ZDrive::port_servo_angle_counter_clock_wise_limit);
+		}
+		else
+		{
+			// clockwise is towards starboard and is negative
+			ZDrive::estimated_port_servo_angle=-joystick_msg->axes[XBOX_L_STICK_LAT]*ZDrive::port_servo_angle_clock_wise_limit;
+		}
+		if(joystick_msg->axes[XBOX_L_STICK_LON]>=0.0)// left stick up
+		{
+			ZDrive::estimated_port_thruster_force=joystick_msg->axes[XBOX_L_STICK_LON]*ZDrive::port_thruster_foward_limit;
+		}
+		else
+		{
+			// Note: axes[1] and ZDrive::port_thruster_reverse_limit are both negative, so this must be compensated such that the correct sign is still applied.
+			ZDrive::estimated_port_thruster_force=fabs(joystick_msg->axes[XBOX_L_STICK_LON])*ZDrive::port_thruster_reverse_limit;
+		}
+
+		if (joystick_msg->axes[XBOX_R_STICK_LAT] >= 0.0)// right stick left
+		{
+			// Note: axes[3] and ZDrive::starboard_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
+			ZDrive::estimated_starboard_servo_angle =(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
+		}
+		else
+		{
+			ZDrive::estimated_starboard_servo_angle =-joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_clock_wise_limit;
+		}
+		if (joystick_msg->axes[XBOX_R_STICK_LON] >= 0.0)// right stick up
+		{
+			ZDrive::estimated_starboard_thruster_force = joystick_msg->axes[XBOX_R_STICK_LON] * ZDrive::starboard_thruster_foward_limit;
+		}
+		else
+		{
+			// Note: axes[4] and ZDrive::starboard_servo_angle_clock_wise_limit are both negative, so this must be compensated such that the correct sign is still applied.
+			ZDrive::estimated_starboard_thruster_force = fabs(joystick_msg->axes[XBOX_R_STICK_LON])*ZDrive::starboard_thruster_reverse_limit;
+		}
+	}
 	else if(ZDrive::control_method==ZDrive::XBOX_ANALOG_TO_REQUIRED)
 	{
 		ZDrive::force_port_required=joystick_msg->axes[XBOX_L_STICK_LAT]*500;//-L_STICK_RIGHT:+L_STICK_LEFT
@@ -574,7 +676,7 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		}
 		ZDrive::moment_z_required=tmp*100;//rotate proportional to the amount that the left and right triggers are pressed
 	}
-	else if(ZDrive::control_method==ZDrive::MIRROR_MODE)
+	else if(ZDrive::control_method==ZDrive::MIRROR_MODE_JACKSON)
 	{
 		// the left analog stick up and down is the thrust
 		if(joystick_msg->axes[XBOX_L_STICK_LON]>=0.0)// left stick up
@@ -591,80 +693,62 @@ void ZDrive::joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg)
 		if (joystick_msg->axes[XBOX_R_STICK_LAT] >= 0.0)// right stick left
 		{
 			// Note: axes[3] and ZDrive::starboard_servo_angle_counter_clock_wise_limit are both +, so this must be compensated such that the correct sign is still applied.
-			ZDrive::estimated_starboard_servo_angle =-(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
-			ZDrive::estimated_port_servo_angle=-(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::port_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_starboard_servo_angle =(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_counter_clock_wise_limit);
+			ZDrive::estimated_port_servo_angle=(joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::port_servo_angle_counter_clock_wise_limit);
 		}
 		else
 		{
-			ZDrive::estimated_starboard_servo_angle =joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_clock_wise_limit;
-			ZDrive::estimated_port_servo_angle =joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::port_servo_angle_clock_wise_limit;
+			ZDrive::estimated_starboard_servo_angle =-joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::starboard_servo_angle_clock_wise_limit;
+			ZDrive::estimated_port_servo_angle =-joystick_msg->axes[XBOX_R_STICK_LAT] * ZDrive::port_servo_angle_clock_wise_limit;
 		}
 	}
 
-	//kill_thrusters or re-enable them
+	// Note: we specificly check for these buttons lasts because we want to ensure that we can kill thrusters
 	if(joystick_msg->buttons[XBOX_BTN]==1)
 	{
-		ZDrive::kill_thrusters=true;
-		ZDrive::current_dynamic_config.kill_thrusters=true;
-		ZDrive::update_dynamic_param_server=true;
+		if(kill_thrusters==false)
+		{
+			ZDrive::kill_thrusters=true;
+			ZDrive::current_dynamic_config.kill_thrusters=true;
+			ZDrive::update_dynamic_param_server=true;
 
-		int light_command_execution_return = 1;//system("xboxdrvctl --slot=0 --led=14");
-		if(light_command_execution_return<0)
-		{
-			ROS_WARN("Can't create shell (sh) process for xboxdrvctl");
-
+			// TODO: blink the lights on the xbox controler
+			int light_command_execution_return = 1;//system("xboxdrvctl --slot=0 --led=14");
+			if(light_command_execution_return<0)
+			{
+				ROS_WARN("Can't create shell (sh) process for xboxdrvctl");
+			}
+			else if(light_command_execution_return==0)
+			{
+				ROS_WARN("ERROR no command processor is available for: xboxdrvctl");
+			}
+			//
+			// while the following is a hack, it is recommended to use because there is no c++ api for dynamic_reconfigure yet. See: http://goo.gl/u63HdR and http://wiki.ros.org/dynamic_reconfigure
+			/*
+			if((system(NULL)))
+			{
+				// 1 second timeout
+				int return_status=system("rosrun dynamic_reconfigure dynparam set -t 1 /z_drive _control_method:=0");
+				ROS_INFO("Command return status: %d", return_status);
+			}
+			else
+			{
+				ROS_WARN("No processor available to run the command");
+			}
+			*/
 		}
-		else if(light_command_execution_return==0)
-		{
-			ROS_WARN("ERROR no command processor is available for: xboxdrvctl");
-		}
-		//
-		// while the following is a hack, it is recommended to use because there is no c++ api for dynamic_reconfigure yet. See: http://goo.gl/u63HdR and http://wiki.ros.org/dynamic_reconfigure
-		/*
-		if((system(NULL)))
-		{
-			// 1 second timeout
-			int return_status=system("rosrun dynamic_reconfigure dynparam set -t 1 /z_drive _control_method:=0");
-			ROS_INFO("Command return status: %d", return_status);
-		}
-		else
-		{
-			ROS_WARN("No processor available to run the command");
-		}
-		*/
 	}
 	else if(joystick_msg->buttons[XBOX_START]==1)
 	{
-		ZDrive::kill_thrusters=false;
-		ZDrive::current_dynamic_config.kill_thrusters=false;
-		ZDrive::update_dynamic_param_server=true;
+		//re-enable the thrusters only if they were previoulsy killed otherwise don't waste time
+		if(kill_thrusters==true)
+		{
+			ROS_INFO("Re-enabaling the thrusters since they were previously killed");
+			ZDrive::kill_thrusters=false;
+			ZDrive::current_dynamic_config.kill_thrusters=false;
+			ZDrive::update_dynamic_param_server=true;
+		}
 	}
-
-	// if the x button is pushed set it so the desired positions and velocities are exactly what they currently are in the real world
-	if(joystick_msg->buttons[XBOX_X]==1)
-	{
-		ZDrive::kill_action=true;
-		// stop as quickly as possible at your current position and kill the velocity
-		ZDrive::x_desired = ZDrive::x_current;
-		ZDrive::y_desired = ZDrive::y_current;
-		ZDrive::yaw_desired = ZDrive::yaw_current;
-		ZDrive::x_velocity_desired=0;
-		ZDrive::y_velocity_desired=0;
-		ZDrive::yaw_velocity_desired=0;
-	}
-	else
-	{
-		ZDrive::kill_action=false;
-	}
-
-	if(joystick_msg->buttons[XBOX_Y]==1)
-	{
-		geometry_msgs::Point marker_position;
-		marker_position.x=ZDrive::x_current;
-		marker_position.y=ZDrive::y_current;
-		marker_position.z=ZDrive::z_current;
-	}
-
 
 	return;
 }
@@ -673,17 +757,22 @@ void ZDrive::dynamicReconfigCallBack(const z_drive::GainsConfig &config, uint32_
 {
 	// the config message is passed by reference for speed so we can't directly set one equal to the other, hence this hack to make the code cleaner.
 	ZDrive::current_dynamic_config=z_drive::GainsConfig(config);
+	if(config.control_method!=ZDrive::control_method)
+	{
+		ZDrive::prev_control_method=ZDrive::control_method;
+	}
 	ZDrive::control_method=config.control_method;
 	ZDrive::kill_thrusters=config.kill_thrusters;
-	ZDrive::update_rate=config.update_rate;
 	ZDrive::boat_mass=config.boat_mass;
 	ZDrive::boat_inertia=config.boat_inertia;
 	ZDrive::port_servo_x_offset=config.port_servo_x_offset;
 	ZDrive::port_servo_y_offset=config.port_servo_y_offset;
 	ZDrive::port_servo_z_offset=config.port_servo_z_offset;
+	ZDrive::port_servo_gear_reduction=config.port_servo_gear_reduction;
 	ZDrive::starboard_servo_x_offset=config.starboard_servo_x_offset;
 	ZDrive::starboard_servo_y_offset=config.starboard_servo_y_offset;
 	ZDrive::starboard_servo_z_offset=config.starboard_servo_z_offset;
+	ZDrive::starboard_servo_gear_reduction=config.starboard_servo_gear_reduction;
 	ZDrive::p_gain_x=config.p_gain_x;
 	ZDrive::d_gain_x=config.d_gain_x;
 	ZDrive::p_gain_y=config.p_gain_y;
@@ -831,7 +920,103 @@ void ZDrive::desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist)
 
 void ZDrive::publishDbgMsg(double user_defined_1=0, double user_defined_2=0, double user_defined_3=0, double user_defined_4=0, double user_defined_5=0)
 {
+	dbg_msg.forces.required_global.x=requiredForceX(ZDrive::x_current, ZDrive::x_desired, ZDrive::x_velocity_current, ZDrive::x_velocity_desired);
+	dbg_msg.forces.required_global.y=requiredForceY(ZDrive::y_current, ZDrive::y_desired, ZDrive::y_velocity_current, ZDrive::y_velocity_desired);
+	dbg_msg.forces.required_global.z=requiredMomentZ(ZDrive::yaw_current, ZDrive::yaw_desired, ZDrive::yaw_velocity_current, ZDrive::yaw_velocity_desired);
+	dbg_msg.forces.required_local.bow=ZDrive::force_bow_required;
+	dbg_msg.forces.required_local.port=ZDrive::force_port_required;
+	dbg_msg.forces.required_local.yaw=ZDrive::moment_z_required;
+	dbg_msg.forces.resultant_local.bow=resultantForceX(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);;
+	dbg_msg.forces.resultant_local.port=resultantForceY(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+	dbg_msg.forces.resultant_local.yaw=resultantMomentZ(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
 
+	dbg_msg.friction.forward.coefficient=ZDrive::friction_coefficient_forward;
+	dbg_msg.friction.forward.coefficient_reduction=ZDrive::friction_coefficient_forward_reduction;
+	dbg_msg.friction.forward.force=ZDrive::friction_force_forward;
+	dbg_msg.friction.lateral.coefficient=ZDrive::friction_coefficient_lateral;
+	dbg_msg.friction.lateral.coefficient_reduction=ZDrive::friction_coefficient_lateral_reduction;
+	dbg_msg.friction.lateral.force=ZDrive::friction_force_lateral;
+	dbg_msg.friction.rotational.coefficient=ZDrive::friction_coefficient_rotational;
+	dbg_msg.friction.rotational.coefficient_reduction=ZDrive::friction_coefficient_rotational_reduction;
+	dbg_msg.friction.rotational.force=ZDrive::friction_force_rotational;
+
+	dbg_msg.gains.p.x=ZDrive::p_gain_x;
+	dbg_msg.gains.p.y=ZDrive::p_gain_y;
+	dbg_msg.gains.p.theta_boat=ZDrive::p_gain_theta_boat;
+	dbg_msg.gains.d.x=ZDrive::d_gain_x;
+	dbg_msg.gains.d.y=ZDrive::d_gain_y;
+	dbg_msg.gains.d.theta_boat=ZDrive::d_gain_theta_boat;
+	dbg_msg.gains.error.force_x=ZDrive::gain_error_force_x;
+	dbg_msg.gains.error.force_y=ZDrive::gain_error_force_y;
+	dbg_msg.gains.error.moment_z=ZDrive::gain_error_moment_z;
+	dbg_msg.gains.deviation_changeof_servo_angle=ZDrive::gain_deviation_changeof_servo_angle;
+	dbg_msg.gains.deviation_equilibrum_servo_angle=ZDrive::gain_deviation_equilibrum_servo_angle;
+	dbg_msg.gains.thrusters_force=ZDrive::gain_thrusters_force;
+
+	dbg_msg.limit.port_servo.clock_wise_limit=ZDrive::port_servo_angle_clock_wise_limit;
+	dbg_msg.limit.port_servo.counter_clock_wise_limit=ZDrive::port_servo_angle_counter_clock_wise_limit;
+	dbg_msg.limit.port_servo.gear_reduction=ZDrive::port_servo_gear_reduction;
+	dbg_msg.limit.starboard_servo.clock_wise_limit=ZDrive::starboard_servo_angle_clock_wise_limit;
+	dbg_msg.limit.starboard_servo.counter_clock_wise_limit=ZDrive::starboard_servo_angle_counter_clock_wise_limit;
+	dbg_msg.limit.starboard_servo.gear_reduction=ZDrive::starboard_servo_gear_reduction;
+	dbg_msg.limit.port_thruster.foward=ZDrive::port_thruster_foward_limit;
+	dbg_msg.limit.port_thruster.reverse=ZDrive::port_thruster_reverse_limit;
+	dbg_msg.limit.starboard_thruster.foward=ZDrive::starboard_thruster_foward_limit;
+	dbg_msg.limit.starboard_thruster.reverse=ZDrive::starboard_thruster_reverse_limit;
+
+	dbg_msg.odom.position.x.current = ZDrive::x_current;
+	dbg_msg.odom.position.x.desired = ZDrive::x_desired;
+	dbg_msg.odom.position.y.current = ZDrive::y_current;
+	dbg_msg.odom.position.y.desired = ZDrive::y_desired;
+	dbg_msg.odom.position.yaw.current = ZDrive::yaw_current;
+	dbg_msg.odom.position.yaw.desired = ZDrive::yaw_desired;
+	dbg_msg.odom.velocity.x_velocity.current = ZDrive::x_velocity_current;
+	dbg_msg.odom.velocity.x_velocity.desired = ZDrive::x_velocity_desired;
+	dbg_msg.odom.velocity.y_velocity.current = ZDrive::y_velocity_current;
+	dbg_msg.odom.velocity.y_velocity.desired = ZDrive::y_velocity_desired;
+	dbg_msg.odom.velocity.yaw_velocity.current = ZDrive::yaw_velocity_current;
+	dbg_msg.odom.velocity.yaw_velocity.desired = ZDrive::yaw_velocity_desired;
+	dbg_msg.odom.extra.z.current = ZDrive::z_current;
+	dbg_msg.odom.extra.z.desired = z_desired;
+	dbg_msg.odom.extra.roll.current = ZDrive::roll_current;
+	dbg_msg.odom.extra.roll.desired = ZDrive::roll_desired;
+	dbg_msg.odom.extra.pitch.current = ZDrive::pitch_current;
+	dbg_msg.odom.extra.pitch.desired = ZDrive::pitch_desired;
+	dbg_msg.odom.extra.z_velocity.current = ZDrive::z_velocity_current;
+	dbg_msg.odom.extra.z_velocity.desired = ZDrive::z_velocity_desired;
+	dbg_msg.odom.extra.roll_velocity.current = ZDrive::roll_velocity_current;
+	dbg_msg.odom.extra.roll_velocity.desired = ZDrive::roll_velocity_desired;
+	dbg_msg.odom.extra.pitch_velocity.current = ZDrive::pitch_velocity_current;
+	dbg_msg.odom.extra.pitch_velocity.desired = ZDrive::pitch_velocity_desired;
+
+	dbg_msg.offsets.port.angle_offset=ZDrive::port_servo_angle_offset;
+	dbg_msg.offsets.port.x_offset=ZDrive::port_servo_x_offset;
+	dbg_msg.offsets.port.y_offset=ZDrive::port_servo_y_offset;
+	dbg_msg.offsets.port.z_offset=ZDrive::port_servo_z_offset;
+	dbg_msg.offsets.starboard.angle_offset=ZDrive::starboard_servo_angle_offset;
+	dbg_msg.offsets.starboard.x_offset=ZDrive::starboard_servo_x_offset;
+	dbg_msg.offsets.starboard.y_offset=ZDrive::starboard_servo_y_offset;
+	dbg_msg.offsets.starboard.z_offset=ZDrive::starboard_servo_z_offset;
+
+
+	dbg_msg.propulsion_current.port.angle=ZDrive::current_port_servo_angle;
+	dbg_msg.propulsion_current.port.force=ZDrive::current_port_thruster_force;
+	dbg_msg.propulsion_current.starboard.angle=ZDrive::current_starboard_servo_angle;
+	dbg_msg.propulsion_current.starboard.force=current_starboard_thruster_force;
+	dbg_msg.propulsion_desired.port.angle=ZDrive::estimated_port_servo_angle;
+	dbg_msg.propulsion_desired.port.force=ZDrive::estimated_port_thruster_force;
+	dbg_msg.propulsion_desired.starboard.angle=ZDrive::estimated_starboard_servo_angle;
+	dbg_msg.propulsion_desired.starboard.force=ZDrive::estimated_starboard_thruster_force;
+
+	dbg_msg.runtime_data.active_control_method=ZDrive::control_method;
+	dbg_msg.runtime_data.kill_wp=ZDrive::kill_action;
+	dbg_msg.runtime_data.kill_thrusters=ZDrive::kill_thrusters;
+	dbg_msg.runtime_data.previous_control_method=ZDrive::prev_control_method;
+	dbg_msg.runtime_data.new_wp=ZDrive::new_action;
+
+	dbg_msg.cost_value=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+
+	/*
 	dbg_msg.control_method=ZDrive::control_method;
 	dbg_msg.cost_value=calcCost(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
 	dbg_msg.current_port_servo_angle=ZDrive::current_port_servo_angle;
@@ -842,12 +1027,12 @@ void ZDrive::publishDbgMsg(double user_defined_1=0, double user_defined_2=0, dou
 	dbg_msg.estimated_port_thruster_force=ZDrive::estimated_port_thruster_force;
 	dbg_msg.estimated_starboard_servo_angle=ZDrive::estimated_starboard_servo_angle;
 	dbg_msg.estimated_starboard_thruster_force=ZDrive::estimated_starboard_thruster_force;
-	dbg_msg.required_force_x=ZDrive::force_bow_required;
-	dbg_msg.required_force_y=ZDrive::force_port_required;
-	dbg_msg.required_moment_z=ZDrive::moment_z_required;
-	dbg_msg.resultant_force_x=resultantForceX(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
-	dbg_msg.resultant_force_y=resultantForceY(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
-	dbg_msg.resultant_moment_z=resultantMomentZ(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+	dbg_msg.required_force_bow=ZDrive::force_bow_required;
+	dbg_msg.required_force_port=ZDrive::force_port_required;
+	dbg_msg.required_moment_yaw=ZDrive::moment_z_required;
+	dbg_msg.resultant_force_bow=resultantForceX(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+	dbg_msg.resultant_force_port=resultantForceY(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
+	dbg_msg.resultant_moment_yaw=resultantMomentZ(ZDrive::estimated_port_servo_angle, ZDrive::estimated_port_thruster_force, ZDrive::estimated_starboard_servo_angle, ZDrive::estimated_starboard_thruster_force);
 	dbg_msg.step=ZDrive::step;
 	dbg_msg.x_current=ZDrive::x_current;
 	dbg_msg.x_desired=ZDrive::x_desired;
@@ -876,6 +1061,7 @@ void ZDrive::publishDbgMsg(double user_defined_1=0, double user_defined_2=0, dou
 	dbg_msg.friction_force_forward=ZDrive::friction_force_forward;
 	dbg_msg.friction_force_lateral=ZDrive::friction_force_lateral;
 	dbg_msg.friction_force_rotational=ZDrive::friction_force_rotational;
+	*/
 	dbg_msg.user_defined_1=user_defined_1;
 	dbg_msg.user_defined_2=user_defined_2;
 	dbg_msg.user_defined_3=user_defined_3;
@@ -912,10 +1098,10 @@ void ZDrive::run()
 
 	// config the port servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::port_servo_id;
-	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 	// config the starboard servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
-	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 
 	// fill in a init message to the thrusters that kills them initaly
 	thruster_config_msg.thrust=0;
@@ -933,9 +1119,15 @@ void ZDrive::run()
 	reconfig_server.getConfigDefault(ZDrive::current_dynamic_config);
 	reconfig_server.getConfigDefault(ZDrive::default_dynamic_config);
 
+	// this is to get an idea of how long it takes to run the control algorithms
+	double computational_time=0;
+
 	ros::Rate loop_rate(ZDrive::update_rate); // Note: currently the update rate isn't dynamic like it should be, the node has to be shutdown and restarted for a new update rate to take affect
 	while(ros::ok())
 	{
+		// reinit the timer to see how long this entire loop takes
+		computational_time= ros::Time::now().toSec();
+
 		// First process callbacks to get the most recent odom and position information
 		ros::spinOnce();
 
@@ -944,9 +1136,14 @@ void ZDrive::run()
 		{
 			boost::shared_ptr<const uf_common::MoveToGoal> goal = actionserver.acceptNewGoal();
 			desiredOdomCallBack(goal->posetwist);
+			ZDrive::new_action=true;
+		}
+		else{
+			ZDrive::new_action=false;
 		}
 
 		// Update Rviz joint_state(s) based on any new status data that was received in the callback
+		// Note:: the names of these states are defined in the urdf files under the propagator_description node
 		joint_state.header.stamp = ros::Time::now();
 		joint_state.name.resize(4);
 		joint_state.position.resize(4);
@@ -960,11 +1157,6 @@ void ZDrive::run()
 		joint_state.position[3]=ZDrive::current_starboard_thruster_force>=0?(ZDrive::current_starboard_thruster_force/ZDrive::starboard_thruster_foward_limit):(-ZDrive::current_starboard_thruster_force/ZDrive::starboard_thruster_reverse_limit); // scale the thruster prismatic joint to 1 so it's easier to see
 		// publish the joint state
 		joint_pub.publish(joint_state);
-
-		// if we are debugging the code run any required functions, and set any required values
-#ifdef ZDRIVE_DBG
-		ROS_INFO("z_drive node has debugging activated");
-#endif
 
 		// Based on the control mode run the required algorithms.
 		switch(ZDrive::control_method)
@@ -990,8 +1182,14 @@ void ZDrive::run()
 				minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
-			case ZDrive::MANUAL_TO_REQUIRED: // extra5
+			case ZDrive::MANUAL_TO_REQUIRED:
 				minimizeCostFunction();
+				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
+				break;
+			case ZDrive::MIRROR_MODE_JACKSON:
+				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
+				break;
+			case ZDrive::XBOX_ANALOG_ONLY_JACKSON:
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
 				break;
 			case ZDrive::TESTING_MODE: // testing_mode
@@ -1014,7 +1212,7 @@ void ZDrive::run()
 					z_drive_sim_pub.publish(sim_msg);
 				}
 				break;
-			case ZDrive::MIRROR_MODE:
+			case ZDrive::EXTRA_9:
 				debugCostFunction();
 				minimizeCostFunction();
 				z_drive_sim_pub.publish(z_drive::BoatSimZDriveOutsideForce());
@@ -1027,15 +1225,14 @@ void ZDrive::run()
 		// publish a dynamixel_config_position message for the port servo based on the controller's (possibly) new estimates.
 		// Note: the dynamixel_server is written such that it quickly disregards messages where there is no change required in the servo's position.
 		// Note: this doen't hurt to do when the thrusters are killed, because the boat's position wont move.
+		// Note: the multiplier and the offset account for how the servo is mounted, and the gearing represents any gearing between the servo on motor
 		dynamixel_position_msg.id=ZDrive::port_servo_id;
-		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_port_servo_angle+ZDrive::port_servo_angle_offset);
+		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_port_servo_angle*port_servo_gear_reduction+ZDrive::port_servo_angle_offset);
 		dynamixel_config_position_pub.publish(dynamixel_position_msg);
 		dynamixel_position_msg.id=ZDrive::starboard_servo_id;
-		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_starboard_servo_angle+ZDrive::starboard_servo_angle_offset);
+		dynamixel_position_msg.goal_position=(float)(-1.0*ZDrive::estimated_starboard_servo_angle*starboard_servo_gear_reduction+ZDrive::starboard_servo_angle_offset);
 		dynamixel_config_position_pub.publish(dynamixel_position_msg);
 
-
-		// Based on the algorithms that were just run, publish out to the thrusters
 		if(ZDrive::kill_thrusters==true)
 		{
 			// kill thrusters so the boat stops moving
@@ -1048,7 +1245,7 @@ void ZDrive::run()
 			thruster_config_pub.publish(thruster_config_msg);
 			ROS_INFO("Z_DRIVE THRUSTERS KILLED");
 		}
-		else // thrusters arn't killed so set them
+		else // thrusters arn't killed so, based on the algorithms that were just run, publish out to the thrusters
 		{
 			thruster_config_msg.id=ZDrive::port_servo_id;
 			thruster_config_msg.thrust=ZDrive::estimated_port_thruster_force;
@@ -1058,12 +1255,14 @@ void ZDrive::run()
 			thruster_config_pub.publish(thruster_config_msg);
 		}
 
-		// Publish a dbg msg based on what was just sent/evaluated
+		// since the majority of the code in the main loop has finished stop timing
+		computational_time=ros::Time::now().toSec()-computational_time;
+		// Publish a dbg msg with everything that was just sent/evaluated/computed
 		ZDrive::publishDbgMsg();
 
+		// the main z_drive algorithm has now finished running, so do the required housekeeping tasks and update visual display information
 		trajectory_msg.header.stamp=ros::Time::now();
 		trajectory_msg.header.frame_id="/base_link";
-
 		trajectory_msg.posetwist.pose.position.x=ZDrive::x_desired;
 		trajectory_msg.posetwist.pose.position.y=ZDrive::y_desired;
 
@@ -1075,15 +1274,16 @@ void ZDrive::run()
 
 		trajectory_pub.publish(trajectory_msg);
 
+		// Inform the action server
 		// if the euclidian norm is less than our tolerance, the action from the action server has succeed
+		// TODO: add in the yaw component
 		if(actionserver.isActive() && sqrt(pow(ZDrive::x_current-ZDrive::x_desired,2)+pow(ZDrive::y_current-ZDrive::y_desired,2))<.5)
 		{
 			actionserver.setSucceeded();
 		}
-
-		// if the user cancels the current action, perform the necessary cleanup.
-		if((actionserver.isActive() &&actionserver.isPreemptRequested())||(actionserver.isActive() && ZDrive::kill_action==true))
+		else if((actionserver.isActive() &&actionserver.isPreemptRequested())||(actionserver.isActive() && ZDrive::kill_action==true))
 		{
+			// if the user cancels the current action, perform the necessary cleanup.
 			// stop as quickly as possible at your current position and kill the velocity
 			ZDrive::x_desired = ZDrive::x_current;
 			ZDrive::y_desired = ZDrive::y_current;
@@ -1093,15 +1293,17 @@ void ZDrive::run()
 			ZDrive::y_velocity_desired=0;
 			ZDrive::yaw_velocity_desired=0;
 			actionserver.setPreempted();
+			ZDrive::kill_action=false;
 		}
 
-
+		// update the dynparam server and display of the dynparam server- if need be.
 		if(ZDrive::update_dynamic_param_server==true)
 		{
-
 			reconfig_server.updateConfig(ZDrive::current_dynamic_config);
 			ZDrive::update_dynamic_param_server=false;
 		}
+
+
 
 		loop_rate.sleep();
 	}

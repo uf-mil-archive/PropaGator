@@ -5,67 +5,101 @@ project(z_drive)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  nav_msgs
+  #cpp related ros stuff
   roscpp
-  tf
+  #general msg stuff
   std_msgs
   message_generation
-  urdf
   genmsg
-  actionlib_msgs
-  actionlib
-  dynamic_reconfigure
+  #uf-mil created messages
   dynamixel_servo
   motor_control
+  uf_common
+  #transform messages that everything uses
+  tf
+  #visualization msgs
+  sensor_msgs
+  urdf
+  # configurability related msgs
+  dynamic_reconfigure
+  #driving related messages
+  actionlib_msgs
+  actionlib
+  nav_msgs
+  #extra stuff that is still being tested
+  geometry_msgs
+  visualization_msgs
 )
 
-## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+#first we will define the low level messages to be made, so the can be rolled up properly in other messages under this node
+add_message_files(
+  DIRECTORY msg/groups/external_forces
+  FILES
+  WaterFriction.msg
+)
 
+add_message_files(
+  DIRECTORY msg/groups/gains
+  FILES
+  DGains.msg  ErrorGains.msg  PGains.msg
+)
 
-## Uncomment this if the package has a setup.py. This macro ensures
-## modules and global scripts declared therein get installed
-## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-# catkin_python_setup()
+add_message_files(
+  DIRECTORY msg/groups/operational_info
+  FILES
+  RunningModes.msg
+)
 
-################################################
-## Declare ROS messages, services and actions ##
-################################################
+add_message_files(
+  DIRECTORY msg/groups/propulsion_system
+  FILES
+  Offset.msg  RuntimeData.msg  ServoLimits.msg  ThrusterLimits.msg
+)
 
-## To declare and build messages, services or actions from within this
-## package, follow these steps:
-## * Let MSG_DEP_SET be the set of packages whose message types you use in
-##   your messages/services/actions (e.g. std_msgs, actionlib_msgs, ...).
-## * In the file package.xml:
-##   * add a build_depend and a run_depend tag for each package in MSG_DEP_SET
-##   * If MSG_DEP_SET isn't empty the following dependencies might have been
-##     pulled in transitively but can be declared for certainty nonetheless:
-##     * add a build_depend tag for "message_generation"
-##     * add a run_depend tag for "message_runtime"
-## * In this file (CMakeLists.txt):
-##   * add "message_generation" and every package in MSG_DEP_SET to
-##     find_package(catkin REQUIRED COMPONENTS ...)
-##   * add "message_runtime" and every package in MSG_DEP_SET to
-##     catkin_package(CATKIN_DEPENDS ...)
-##   * uncomment the add_*_files sections below as needed
-##     and list every .msg/.srv/.action file to be processed
-##   * uncomment the generate_messages entry below
-##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
+add_message_files(
+  DIRECTORY msg/groups/odom_information
+  FILES
+  PitchOrientation.msg  RollOrientation.msg  XPosition.msg  YawVelocity.msg     YPosition.msg  ZPosition.msg
+  PitchVelocity.msg     RollVelocity.msg     XVelocity.msg  YaxOrientation.msg  YVelocity.msg  ZVelocity.msg
+)
+
+add_message_files(
+  DIRECTORY msg/groups/boat_relative_info
+  FILES
+  BoatRelatedForceLocal.msg BoatRelatedForceGlobal.msg
+)
+
+add_message_files(
+  DIRECTORY msg/groups
+  FILES
+  BoatRelativeForces.msg
+  CurrentPropulsionData.msg
+  SimplifiedOdom.msg
+  SimplifiedPosition.msg
+  SimplifiedVelocity.msg
+  OtherOdomInfo.msg
+  EstimatedPropulsionData.msg
+  FrictionalResistance.msg
+  Gains.msg
+  PropulsionSystemLimits.msg
+  PropulstionSystemOffsets.msg
+  
+)
+
 
 ## Generate messages in the 'msg' folder
 add_message_files(
 	DIRECTORY msg
 	FILES
+	#message that rolls up all the ZDrive dbg msgs
 	ZDriveDbg.msg
+	#msg related to simulator based things
 	BoatSimZDriveOutsideForce.msg
+
+	
 )
 
-## Generate services in the 'srv' folder
-# add_service_files(
-#   FILES
-#   Service1.srv
-#   Service2.srv
-# )
+
 
 ## Generate actions in the 'action' folder
 # add_action_files(
@@ -99,7 +133,10 @@ generate_dynamic_reconfigure_options(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES z_drive
-  CATKIN_DEPENDS dynamixel_servo motor_control
+  CATKIN_DEPENDS
+	dynamixel_servo
+	motor_control
+	uf_common
 #  DEPENDS system_lib
 )
 
@@ -165,16 +202,3 @@ target_link_libraries(z_drive ${catkin_LIBRARIES})
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
-
-#############
-## Testing ##
-#############
-
-## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_z_drive.cpp)
-# if(TARGET ${PROJECT_NAME}-test)
-#   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
-# endif()
-
-## Add folders to be run by python nosetests
-# catkin_add_nosetests(test)
