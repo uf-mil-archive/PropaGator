@@ -35,13 +35,19 @@ PORT_THRUSTER = 3
 ## Output value:    45       91      145        Degrees
 ## Pulse width:     1.04    ~1.49    2.07       ms
 ## Newton input:   -23.65047 0       39.24135   N
-ZERO_DEG = 91               #Zero in degrees
-MAX_DEG = 145               #full forward in degrees
-MIN_DEG = 45                #full reverse in degrees
+#ZERO_DEG = 91               #Zero in degrees
+#MAX_DEG = 145               #full forward in degrees
+#MIN_DEG = 45                #full reverse in degrees
 #MAX_NEWTONS = 39.24135      #Full forward in newtons
 #MIN_NEWTONS = -23.65047     #Full reverse in newtons
-MAX_NEWTONS =  26.684118     #Full forward Jacksons motors
-MIN_NEWTONS =  -16.0823196           #Full reverse Jacksons
+MAX_NEWTONS =  100.0     #Full forward Jacksons motors
+MIN_NEWTONS =  -100.0           #Full reverse Jacksons
+ABS_MAX_PW = 2400
+ABS_MIN_PW = 544
+ZERO_PW = 1500
+REV_CONV = (ZERO_PW - ABS_MIN_PW) / (0 - MIN_NEWTONS)
+FWD_CONV = (ABS_MAX_PW - ZERO_PW) / MAX_NEWTONS
+
 
 #These are the valuse that the thrusters 
 # attempt to achieve in newtons
@@ -58,12 +64,12 @@ UPDATE_RATE = 1000                      #Update every 1000 Hz
 RAMP_RATE = 1.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
 
 #Pub
-pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
-
+newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
+pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
 
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
-ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00', 115200) 
+#ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00', 115200) 
 
 #       stopThrusters
 # Input: none
@@ -76,8 +82,8 @@ def stopThrusters():
     global port_current
     
     #Write zero to thrusters
-    ser.write(str(STARBOARD_THRUSTER)+","+str(int(ZERO_DEG))+":")
-    ser.write(str(PORT_THRUSTER)+","+str(int(ZERO_DEG))+":")
+    #ser.write(str(STARBOARD_THRUSTER)+","+str(int(ZERO_DEG))+":")
+    #ser.write(str(PORT_THRUSTER)+","+str(int(ZERO_DEG))+":")
 
     #Zero internal varibles
     starboard_setpoint = 0.0;
@@ -120,14 +126,15 @@ def motorConfigCallback(config):
     elif config.id == PORT_THRUSTER:
         port_setpoint = thrust        
 
-#   ConvertNewtonsToDuty
+#   convertNewtonsToPW
 # Input: floating point (Newtons)
 # Output: floating point (degrees)
 # Description: Converts a value in newtons to a degree value suitable for the
 #               arduino servo class. From testing a degree 3 polynomial 
 #               Interpolation is used to convert newtons in the positive
 #               and negative region to Degrees
-def convertNewtonsToDuty(newtons):
+def convertNewtonsToPW(newtons):
+    print(newtons)
     out = newtons
     # These equations were determined experimentally
     # Degree 3 polynomials were used to map newton inputs to
@@ -135,20 +142,25 @@ def convertNewtonsToDuty(newtons):
     #   Forward_deg = 0.0016x^3 - 0.1027x^2 + 2.812X + 96.116
     #   Reverse_deg = 0.0055x^3 + 0.224X^2 + 3.9836x + 86.679
     # Where x is equal to the inputed newtons
+
+    # PW = (PW_RANGE/NEWTON_RANGE)*NEWTONS + PW_ZER0
     if out < 0:
-        out = 0.0055*out**3 + 0.224*out**2 + 3.9836 * out + 86.679
+        #out = 0.0055*out**3 + 0.224*out**2 + 3.9836 * out + 86.679
+        out = REV_CONV * out + ZERO_PW
     elif out > 0:
-        out = 0.0016*out**3 - 0.1027*out**2 + 2.812*out + 96.116
+        #out = 0.0016*out**3 - 0.1027*out**2 + 2.812*out + 96.116
+        out = FWD_CONV * out + ZERO_PW
     else:
-        out = ZERO_DEG;
+        #out = ZERO_DEG;
+        out = ZERO_PW
 
     #Bounds should be taken care of in the motor callback
     #Just in case we double check the bounds after conversion
-    if out > MAX_DEG:
-        out = MAX_DEG 
-    elif out < MIN_DEG:
-        out = MIN_DEG
-        
+    if out > ABS_MAX_PW:
+        out = ABS_MAX_PW 
+    elif out < ABS_MIN_PW:
+        out = ABS_MIN_PW
+    print("out: " + str(out));
     return out
 
 # pubStatus
@@ -159,10 +171,10 @@ def convertNewtonsToDuty(newtons):
 #               (pub_timer) defined in main
 #               The output rate is determined by PUB_RATE
 def pubStatus(event):
-    thruster = thrusterStatus(STARBOARD_THRUSTER, starboard_current)
-    pub.publish(thruster)
-    thruster = thrusterStatus(PORT_THRUSTER, port_current)
-    pub.publish(thruster)
+    thruster = thrusterNewtons(STARBOARD_THRUSTER, starboard_current)
+    newton_pub.publish(thruster)
+    thruster = thrusterNewtons(PORT_THRUSTER, port_current)
+    newton_pub.publish(thruster)
 
 #   thrusterCtrl
 # Input: None
@@ -183,8 +195,8 @@ def thrusterCtrl():
     #Initilize the motors to 0
     stopThrusters()
 
-    starboard_last_value = ZERO_DEG;
-    port_last_value = ZERO_DEG;
+    starboard_last_value = ZERO_PW;
+    port_last_value = ZERO_PW;
     
     #Main loop
     while not rospy.is_shutdown():
@@ -214,11 +226,16 @@ def thrusterCtrl():
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
         if port_last_value != port_current:
-            ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToDuty(port_current)))+":")
+            #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
+            msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
+            pwm_pub.publish(msg);
+            
 
         time.sleep(0.001)
         if starboard_last_value != starboard_current:
-            ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToDuty(starboard_current)))+":")
+            #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
+            msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
+            pwm_pub.publish(msg)
 
         starboard_last_value = starboard_current;
         port_last_value = port_current;
