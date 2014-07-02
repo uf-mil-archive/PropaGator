@@ -21,8 +21,8 @@
 
 import rospy
 import serial
-from motor_control.msg import thrusterConfig
-from motor_control.msg import thrusterStatus
+from motor_control.msg import thrusterPWM
+from motor_control.msg import thrusterNewtons
 import time
 
 #Define some constants
@@ -58,7 +58,7 @@ UPDATE_RATE = 1000                      #Update every 1000 Hz
 RAMP_RATE = 1.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
 
 #Pub
-pub = rospy.Publisher('thruster_status', thrusterStatus, queue_size=10)
+pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
 
 
 #Define serial vars
@@ -176,7 +176,7 @@ def thrusterCtrl():
     
     #Setup ros
     rospy.init_node('thruster_control')
-    rospy.Subscriber("thruster_config", thrusterConfig, motorConfigCallback)
+    rospy.Subscriber("thruster_config", thrusterNewtons, motorConfigCallback)
     r = rospy.Rate(1000)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)
     

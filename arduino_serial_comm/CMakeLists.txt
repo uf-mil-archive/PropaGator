@@ -83,7 +83,10 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES arduino_serial_comm
 #  CATKIN_DEPENDS rospy std_msgs
-  DEPENDS message_runtime
+  CATKIN_DEPENDS
+  message_runtime
+  motor_control
+#  DEPENDS system_lib
 )
 
 ###########
