@@ -4,7 +4,7 @@
 ##                          arduino_serial_comm node
 ##
 ## Purpose:
-##  This Script controls all communications with the onboard arduino
+##  This Script controls all communications with the onboard arduino Uno
 ##
 ## Configuration parameters:
 ##  
@@ -26,7 +26,7 @@ from std_msgs.msg import String
 #Baud rate = 57600 about as fast as the arduino will go
 #Port is /dev/ttyACM0 which is the default for the arduino to attach to
 #
-ser = serial.Serial(baudrate=115200, timeout=0.001) 
+ser = serial.Serial(baudrate=9600, timeout=0.01) 
 
 # writeCallback
 # Input: std_msgs.msg.String
