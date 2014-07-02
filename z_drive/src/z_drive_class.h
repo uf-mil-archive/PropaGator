@@ -1337,7 +1337,7 @@ double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desi
 {
 	// this is the angle (in radians) of the boat relative to the world coordinate frame
 	double temp_angle=boat_angle_desired-boat_angle_current;
-	/*
+
 	while(temp_angle<-M_PI)
 	{
 		temp_angle+=2*M_PI;
@@ -1346,7 +1346,7 @@ double ZDrive::requiredMomentZ(double boat_angle_current, double boat_angle_desi
 	{
 		temp_angle-=2*M_PI;
 	}
-	*/
+
 
 	return p_gain_theta_boat*(temp_angle)+d_gain_theta_boat*(boat_angular_velocity_desired-boat_angular_velocity_current);
 }

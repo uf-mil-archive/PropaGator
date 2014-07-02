@@ -32,8 +32,8 @@ for i = 1:length(a)
     data(i).estimated_starboard_servo_angle = estimated_starboard_servo_angle(a(i):b(i));
     data(i).estimated_starboard_thruster_force = estimated_starboard_thruster_force(a(i):b(i));
     
-    data(i).force_bow_required = cos(data(i).yaw_current).*data(i).required_force_x + sin(data(i).yaw_current).*data(i).required_force_y;
-	data(i).force_port_required = -sin(data(i).yaw_current).*data(i).required_force_x + cos(data(i).yaw_current).*data(i).required_force_y;
+    data(i).force_bow_required = cos(data(i).yaw_current).*data(i).required_force_x - sin(data(i).yaw_current).*data(i).required_force_y;
+	data(i).force_port_required = sin(data(i).yaw_current).*data(i).required_force_x + cos(data(i).yaw_current).*data(i).required_force_y;
     data(i).moment_up_required = data(i).required_moment_z;
     
     data(i).bow_desired_from_boat = cos(data(i).yaw_current).*(data(i).x_desired - data(i).x_current) + sin(data(i).yaw_current).*(data(i).y_desired - data(i).y_current);

@@ -54,13 +54,13 @@ for l = 1:length(data)
     plot(required(l).ForceX)
     title('X Force Required')
     hold on
-    plot(data(l).required_force_x,'r')
+    plot(data(l).force_bow_required,'r')
 
     figure()
     plot(required(l).ForceY)
     title('Y Force Required')
     hold on
-    plot(data(l).required_force_y,'r')
+    plot(data(l).force_port_required,'r')
 
     figure()
     plot(required(l).MomentZ)
