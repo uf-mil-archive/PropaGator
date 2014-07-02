@@ -1248,10 +1248,34 @@ void ZDrive::run()
 		else // thrusters arn't killed so, based on the algorithms that were just run, publish out to the thrusters
 		{
 			thruster_config_msg.id=ZDrive::port_servo_id;
-			thruster_config_msg.thrust=ZDrive::estimated_port_thruster_force;
+			// clip the  thrust value if need be
+			if(ZDrive::estimated_port_thruster_force>ZDrive::port_thruster_foward_limit)
+			{
+				ZDrive::estimated_port_thruster_force=ZDrive::port_thruster_foward_limit;
+			}
+			else if(ZDrive::estimated_port_thruster_force<ZDrive::port_thruster_reverse_limit)
+			{
+				ZDrive::estimated_port_thruster_force=ZDrive::port_thruster_reverse_limit;
+			}
+			else
+			{
+				thruster_config_msg.thrust=ZDrive::estimated_port_thruster_force;
+			}
 			thruster_config_pub.publish(thruster_config_msg);
 			thruster_config_msg.id=ZDrive::starboard_servo_id;
-			thruster_config_msg.thrust=ZDrive::estimated_starboard_thruster_force;
+			// clip the  thrust value if need be
+			if (ZDrive::estimated_starboard_thruster_force > ZDrive::starboard_thruster_foward_limit)
+			{
+				ZDrive::estimated_starboard_thruster_force = ZDrive::starboard_thruster_foward_limit;
+			}
+			else if (ZDrive::estimated_starboard_thruster_force < ZDrive::starboard_thruster_reverse_limit)
+			{
+				ZDrive::estimated_starboard_thruster_force = ZDrive::starboard_thruster_reverse_limit;
+			}
+			else
+			{
+				thruster_config_msg.thrust = ZDrive::estimated_starboard_thruster_force;
+			}
 			thruster_config_pub.publish(thruster_config_msg);
 		}
 
