@@ -353,16 +353,16 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 
 	// init values
 	// Note: The Servo Angle limits here will comply with REP103; so 0 radians coincides with the bow, +pi/2 coincides with port, and -pi/2 coincides with starboard.
-	port_servo_angle_clock_wise_limit=(-90*M_PI)/180; // clockwise is towards starboard
-	port_servo_angle_counter_clock_wise_limit=(90*M_PI)/180; //counterclockwise is towards port
+	port_servo_angle_clock_wise_limit=(-89*M_PI)/180; // clockwise is towards starboard
+	port_servo_angle_counter_clock_wise_limit=(89*M_PI)/180; //counterclockwise is towards port
 	//TODO: update based on new motors
 	// the specs on the troling motors say about 18lbs of thrust, which should be about 80.0679 newtons
-	port_thruster_foward_limit=80.0679891;
+	port_thruster_foward_limit=25;
 	// you don't get full thrust in reverse so about 80%
-	port_thruster_reverse_limit=-.8*port_thruster_foward_limit;
+	port_thruster_reverse_limit=-25;
 
-	starboard_servo_angle_clock_wise_limit=(-90*M_PI)/180; // clockwise is towards starboard
-	starboard_servo_angle_counter_clock_wise_limit=(90*M_PI)/180; //counterclockwise is towards port
+	starboard_servo_angle_clock_wise_limit=(-89*M_PI)/180; // clockwise is towards starboard
+	starboard_servo_angle_counter_clock_wise_limit=(89*M_PI)/180; //counterclockwise is towards port
 	starboard_thruster_foward_limit=port_thruster_foward_limit;
 	starboard_thruster_reverse_limit=port_thruster_reverse_limit;
 	port_servo_angle_offset=M_PI;
