@@ -203,7 +203,23 @@ void WriteThruster(long thrust)
   }
   else
   {
+    //Serial.println("Writing thruster");
+    if(thrust < 1500 && servos[current_thruster].readMicroseconds() > 1500)
+    {
+      //Serial.println("Reverse");
+      servos[current_thruster].writeMicroseconds(1500);
+      //Serial.println(servos[current_thruster].readMicroseconds());
+      delay(3000);
+      //Serial.println("-20");
+      //servos[current_thruster].writeMicroseconds(1308);
+      //delay(1000);
+      //Serial.println(-10);
+      //servos[current_thruster].writeMicroseconds(1404);
+      //delay(1000);
+    }
+    //Serial.println("Actual value");
     servos[current_thruster].writeMicroseconds(thrust);
+    //Serial.println("Actuall Thrust");
   }
   current_state = WAIT_FOR_START;
 }

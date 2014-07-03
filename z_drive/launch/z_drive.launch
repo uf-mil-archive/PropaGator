@@ -5,7 +5,7 @@
     <!-- to map the "joint_state"(s) the the parts in the models, transformations have to be done; so, the robot_state_publisher takes care of doing that for us.-->
     <!--node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" /-->
     <!-- launch the joystick node-->
-    <node pkg="joy" type="joy_node" name=""/>
+    <!--node pkg="joy" type="joy_node" name=""/-->
     <!-- Now launch the Dynemexel server's launch file-->
 	
 	<node pkg="boatsim" type="sim" name=""/>

@@ -32,6 +32,7 @@ const int THRUST_REVERSE_MIN_TURN_ON=1308;
 const int BAUDRATE = 9600;
 
 //#define DEBUG
+#define SEND_STATUS
 
 void setup() {
   // only if the packet size is correct should we attach on the port
@@ -377,15 +378,23 @@ void loop() {
     }
   }
   
+  
   /*
   char status_value[VALUE_SIZE];
   char status_id[ID_SIZE];
   // now print the status messages
   // send the starboard thrust
+#ifdef DEBUG
+  Serial.println();
+  Serial.print("Starboard Status Message: ");
+#endif
   int current_starboard_thrust=servos[STARBOARD_ID].readMicroseconds();
   uitoa(current_starboard_thrust, status_value, VALUE_SIZE);
   uitoa(STARBOARD_ID,status_id,ID_SIZE);
-  Serial.print("MTR_STAT");
+  for(int i=0;i<HEADER_SIZE;i++)
+  {
+    Serial.print(THRUST_STATUS_HEADER[i]);
+  }
   for(int i=0;i<ID_SIZE;i++)
   {
     Serial.print(status_id[i]);
@@ -395,12 +404,17 @@ void loop() {
   {
     Serial.print(status_value[i]);
   }
-  Serial.println();
   //send the port thrust
+#ifdef DEBUG
+  Serial.print(" Port Status Message: ");
+#endif
   int current_port_thrust=servos[PORT_ID].readMicroseconds();
   uitoa(current_port_thrust, status_value, VALUE_SIZE);
   uitoa(PORT_ID,status_id,ID_SIZE);
-  Serial.print("MTR_STAT");
+  for(int i=0;i<HEADER_SIZE;i++)
+  {
+    Serial.print(THRUST_STATUS_HEADER[i]);
+  }
   for(int i=0;i<ID_SIZE;i++)
   {
     Serial.print(status_id[i]);
@@ -409,18 +423,28 @@ void loop() {
   {
     Serial.print(status_value[i]);
   }
-  Serial.println();
   //send the batery voltage
+#ifdef DEBUG
+  Serial.print(" Battaery Status Message: ");
+#endif
+  int current_battery_voltage=analogRead(BATTERY_PIN);
+  uitoa(current_battery_voltage, status_value, VALUE_SIZE);
+  uitoa(BATTERY_PIN,status_id,ID_SIZE);
+  for(int i=0;i<HEADER_SIZE;i++)
+  {
+    Serial.print(BATTERY_STATUS_HEADER[i]);
+  }
+  for(int i=0;i<ID_SIZE;i++)
+  {
+    Serial.print(status_id[i]);
+  }
+  for(int i=0;i<VALUE_SIZE;i++)
+  {
+    Serial.print(status_value[i]);
+  }
+#ifdef DEBUG
+  Serial.println();
+#endif
   */
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
 
 }
