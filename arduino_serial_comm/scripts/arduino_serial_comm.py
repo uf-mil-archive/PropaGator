@@ -59,6 +59,8 @@ from motor_control.msg import thrusterPWM
 PORT_ID = 3
 STARBOARD_ID = 2
 
+PWM_ZERO = 1479
+
 ##message protocol
 HEADER_SIZE = 8;
 HEADER_LOCATION = 0;
@@ -138,7 +140,9 @@ voltage_status_pub = rospy.Publisher('voltage_status', Int16, queue_size=10)
 #Baud rate = 9600 about as fast as the arduino will go
 #Port is /dev/ttyACM0 which is the default for the arduino to attach to
 #
-ser = serial.Serial(baudrate=9600, timeout=0.01) 
+ser = serial.Serial(baudrate=9600, timeout=0.01)
+last_publish_time = None
+MAX_PUBLISH_RATE = None
 
 # Generate arduino msgs
 # input: request : a request_ids key
@@ -339,11 +343,15 @@ def WriteDataToArduino(cmd):
     #Wait to write
     #Write the request
     while not ser.writable():pass
+    print("Writing: " + cmd)
     ser.write(cmd)
+    time.sleep(.5)
 
 def WriteThruster(msg):
     global waiting_for_mtr_config_handshake
     global last_written_config
+    
+    #now = rospy.
     
     #if not waiting_for_mtr_config_handshake:
     if True:
@@ -352,8 +360,7 @@ def WriteThruster(msg):
     
       if msg.pulse_width < 1:
         cmd += '00000';
-        while not ser.writable():pass
-        ser.write(cmd);
+        WriteDataToArduino(cmd)
         return;
       elif msg.pulse_width < 10:
         cmd += "0000"
@@ -369,15 +376,14 @@ def WriteThruster(msg):
       
     
       cmd += str(msg.pulse_width);
-      cmd += '*';
+      #cmd += '*';
       #Set waiting for handshake
       waiting_for_mtr_config_handshake = True
       last_written_config = cmd
     
       #Write
       #Wait till I can write
-      print("Writing: " + cmd)
-      ser.write(cmd)
+      WriteDataToArduino(cmd)
     
 
     
@@ -434,12 +440,19 @@ def arduino_serial_comm():
         
 
     time.sleep(1)
-    rospy.Subscriber("thruster_pwm_config", thrusterPWM, WriteThruster)
+    rospy.Subscriber("thruster_pwm_config", thrusterPWM, WriteThruster, queue_size = 2)
     
 	#Setup some buffers
     last_voltage = 0;
-    last_port_pwm = 1500;
-    last_starboard_pwm = 1500;
+    last_port_pwm = PWM_ZERO;
+    last_starboard_pwm = PWM_ZERO;
+    
+    #Change this l8r
+    WriteDataToArduino("MTR_CONF00301479")
+    WriteDataToArduino("MTR_CONF00201479")
+    
+    #Zero motors on start up
+    
     
 #    #Main loop
     while not rospy.is_shutdown():
