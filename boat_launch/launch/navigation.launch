@@ -21,7 +21,7 @@
     <param name="frame_id" value="/gps"/>
   </node> 
   <node pkg="tf" type="static_transform_publisher" name="gps_broadcaster"
-    args="-0.84 0 -0.14  0 0 0 1  /base_link /gps 100" />
+    args="-0.84 0 +0.2  0 0 0 1  /base_link /gps 100" />
 
   <node pkg="nodelet" type="nodelet" args="standalone odom_estimator/nodelet" name="odom_estimator" respawn="true">
     <remap from="odom" to="imu_odom"/>

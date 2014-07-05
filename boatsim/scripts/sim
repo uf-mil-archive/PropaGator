@@ -341,6 +341,7 @@ def world_tick():
             force = thrusts[thruster_id]
             body.addRelForceAtRelPos(reldir*force, relpos)
             sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+            print "force: ", force, " angle: ", angle1
         body.addRelTorque([z_drive_sim['torque_r'],z_drive_sim['torque_p'],z_drive_sim['torque_y']])
         body.addRelForce([z_drive_sim['force_x'],z_drive_sim['force_y'],z_drive_sim['force_z']])
     
