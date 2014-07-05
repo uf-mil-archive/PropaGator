@@ -65,6 +65,27 @@ struct Control {
     
     return res;
   }
+  static std::vector<std::vector<Control> > SmallSpanningSet(Parameters const & p) {
+    std::vector<std::vector<Control> > res;
+    for(unsigned int i = 0; i < p.thrusters.size(); i++) {
+      Control a = Zero(p); a.thrusters[i].dangle = p.thrusters[i].dangle_min;
+      Control b = Zero(p); b.thrusters[i].dangle = p.thrusters[i].dangle_max;
+      res.push_back(std::vector<Control>{a, b});
+      Control c = Zero(p); c.thrusters[i].dthrust = p.thrusters[i].dthrust_min;
+      Control d = Zero(p); d.thrusters[i].dthrust = p.thrusters[i].dthrust_max;
+      res.push_back(std::vector<Control>{c, d});
+    }
+    return res;
+  }
+  Control operator+(Control const & other) const {
+    std::vector<Thruster> x;
+    assert(thrusters.size() == other.thrusters.size());
+    for(unsigned int i = 0; i < thrusters.size(); i++) {
+      Thruster const & ours = thrusters[i]; Thruster const & theirs = other.thrusters[i];
+      x.push_back(Thruster(ours.dangle + theirs.dangle, ours.dthrust + theirs.dthrust));
+    }
+    return Control(x);
+  }
 };
 
 struct State {
@@ -153,24 +174,28 @@ Control compute_control_policy(State const & state, double dt, Parameters const 
 
 Control compute_vel_policy(State const & state, double dt, Parameters const & p) {
   // compute control to bring velocity to 0 as fast as possible, with thrust being 0 at that point
-  boost::optional<std::pair<double, Control> > res;
+  Control res = Control::Zero(p);
   
-  BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
-    // simulate final velocity of trajectory taken while bringing thrust down to 0
-    // then determine control now that will result in final velocity being closer to 0
-    State s = state.update(control, dt, p);
-    while(!s.thrusts_approximately_zero()) {
-      s = s.update(compute_control_policy(s, dt, p), dt, p);
+  BOOST_FOREACH(std::vector<Control> const & controls, Control::SmallSpanningSet(p)) {
+    boost::optional<std::pair<double, Control> > best;
+    BOOST_FOREACH(Control const & control, controls) {
+      // simulate final velocity of trajectory taken while bringing thrust down to 0
+      // then determine control now that will result in final velocity being closer to 0
+      State s = state.update(control, dt, p);
+      while(!s.thrusts_approximately_zero()) {
+        s = s.update(compute_control_policy(s, dt, p), dt, p);
+      }
+      
+      double error = std::max(s.velocity.norm(), s.angular_velocity.norm());
+      
+      if(!best || error < best->first) {
+        best = std::make_pair(error, control);
+      }
     }
-    
-    double error = std::max(s.velocity.norm(), s.angular_velocity.norm());
-    
-    if(!res || error < res->first) {
-      res = std::make_pair(error, control);
-    }
+    res = res + best->second;
   }
   
-  return res->second;
+  return res;
 }
 
 Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, Parameters const & p) {
@@ -241,15 +266,18 @@ public:
     State s(
       Vec<3>::Zero(),
       Quaternion::Identity(),
-      Vec<3>(0, 1, 0),
+      Vec<3>(0, 0, 0),
       Vec<3>::Zero(),
       std::vector<State::Thruster>{
         State::Thruster(0, 0),
         State::Thruster(0, 0)});
     
-    double dt = 1e-2;
+    double dt = 1/20.;
     
+    double t = 0;
     while(true) {
+      std::cout << std::endl;
+      std::cout << "Time: " << t << std::endl;
       std::cout << "Thruster states:" << std::endl;
       BOOST_FOREACH(State::Thruster const & thruster, s.thrusters) {
         std::cout << thruster.angle << " " << thruster.thrust << std::endl;
@@ -257,13 +285,14 @@ public:
       std::cout << "Position: " << s.position.transpose() << std::endl;
       std::cout << "Velocity: " << s.velocity.transpose() << std::endl;
       std::cout << "Angular velocity: " << s.angular_velocity.transpose() << std::endl;
-      //Control a = compute_pos_policy(s, Vec<3>(1, 0, 0), dt, p);
-      Control a = compute_vel_policy(s, dt, p);
+      Control a = compute_pos_policy(s, Vec<3>(1, 0, 0), dt, p);
+      //Control a = compute_vel_policy(s, dt, p);
       std::cout << "Thruster commands:" << std::endl;
       BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
         std::cout << thruster.dangle << " " << thruster.dthrust << std::endl;
       }
       s = s.update(a, dt, p);
+      t += dt;
       std::cout << std::endl;
     }
   }
