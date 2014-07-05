@@ -42,8 +42,8 @@ PORT_THRUSTER = 3
 #MIN_NEWTONS = -23.65047     #Full reverse in newtons
 MAX_NEWTONS =  100.0     #Full forward Jacksons motors
 MIN_NEWTONS =  -100.0           #Full reverse Jacksons
-ABS_MAX_PW = 2400
-ABS_MIN_PW = 544
+ABS_MAX_PW = 2000
+ABS_MIN_PW = 1000
 ZERO_PW = 1500
 REV_CONV = (ZERO_PW - ABS_MIN_PW) / (0 - MIN_NEWTONS)
 FWD_CONV = (ABS_MAX_PW - ZERO_PW) / MAX_NEWTONS
@@ -119,9 +119,10 @@ def motorConfigCallback(config):
         if thrust < (MIN_NEWTONS - 0.25):
             rospy.logwarn("Attempted to set thruster %i to %f which is significantly below minimum (%fN) output thrust cliped to min. achivable value", config.id, thrust, MIN_NEWTONS)
         thrust = MIN_NEWTONS
-    
     #Set the setpoints
     if config.id == STARBOARD_THRUSTER:
+        #print(config.thrust)
+        #print(thrust)
         starboard_setpoint = thrust
     elif config.id == PORT_THRUSTER:
         port_setpoint = thrust        
@@ -134,8 +135,8 @@ def motorConfigCallback(config):
 #               Interpolation is used to convert newtons in the positive
 #               and negative region to Degrees
 def convertNewtonsToPW(newtons):
-    print(newtons)
     out = newtons
+    #print("Convert %i to PWM", out)
     # These equations were determined experimentally
     # Degree 3 polynomials were used to map newton inputs to
     # the coresponding forward and reverse deg representaitons:
@@ -147,12 +148,15 @@ def convertNewtonsToPW(newtons):
     if out < 0:
         #out = 0.0055*out**3 + 0.224*out**2 + 3.9836 * out + 86.679
         out = REV_CONV * out + ZERO_PW
+        #print("Reverse: %i" % out)
     elif out > 0:
         #out = 0.0016*out**3 - 0.1027*out**2 + 2.812*out + 96.116
         out = FWD_CONV * out + ZERO_PW
+        #print("Forward: %i" % out)
     else:
         #out = ZERO_DEG;
         out = ZERO_PW
+        #print("Zero: %i" % ZERO_PW)
 
     #Bounds should be taken care of in the motor callback
     #Just in case we double check the bounds after conversion
@@ -160,7 +164,7 @@ def convertNewtonsToPW(newtons):
         out = ABS_MAX_PW 
     elif out < ABS_MIN_PW:
         out = ABS_MIN_PW
-    print("out: " + str(out));
+    #print "Bounded out: %i" % out
     return out
 
 # pubStatus
@@ -225,17 +229,19 @@ def thrusterCtrl():
         #Write to the serial bus
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
-        if port_last_value != port_current:
+        #if port_last_value != port_current:
             #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
-            msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
-            pwm_pub.publish(msg);
+        msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
+        #print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
+        pwm_pub.publish(msg);
             
 
         time.sleep(0.001)
-        if starboard_last_value != starboard_current:
+        #if starboard_last_value != starboard_current:
             #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
-            msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
-            pwm_pub.publish(msg)
+        msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
+        #print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
+        pwm_pub.publish(msg)
 
         starboard_last_value = starboard_current;
         port_last_value = port_current;
@@ -244,7 +250,6 @@ def thrusterCtrl():
     
     #Clean up
     stopThrusters()         #Stop motors
-    ser.close()             #Close serial port
 
 if __name__ == '__main__':
     try:

@@ -1,0 +1,10 @@
+<launch>
+
+  <group ns="first" >
+    <node pkg="z_drive" type="z_drive" name="z_drive"/>
+    <remap from="p_gain_x" to="z_drive/p_gain_x"/>
+  </group>
+
+
+
+</launch>

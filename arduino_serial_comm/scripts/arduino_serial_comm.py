@@ -18,11 +18,11 @@
 ##      Purpose to define the connected device (if we use a different arduino this needs to change)
 ##
 ## New MSG protocol
-##     | Header | ID  | Data  |
-##	   |01234567| 012 | 34567 |
+##     | Header | ID  | Data  | * |
+##	   |01234567| 012 | 34567 | * |
 ##
-##     |MTR_CONF| 002 | ##### | is write out to starboard
-##	   |MTR_CONF| 003 | ##### | is write out to port
+##     |MTR_CONF| 002 | ##### | * | is write out to starboard
+##	   |MTR_CONF| 003 | ##### | * |is write out to port
 ##
 ##	   |M
 ## 
@@ -59,35 +59,37 @@ from motor_control.msg import thrusterPWM
 PORT_ID = 3
 STARBOARD_ID = 2
 
-PWM_ZERO = 1479
+PWM_ZERO = 1500
 
 ##message protocol
 HEADER_SIZE = 8;
 HEADER_LOCATION = 0;
-ID_SIZE = 3;
+ID_SIZE = 2;
 ID_LOCATION = 8;
 DATA_SIZE = 5;
-DATA_LOCATION = 11;
+DATA_LOCATION = 10;
+MSG_DELIM = '*'
+DELIM_LOCATION = 15
 MSG_SIZE = 16;
 
 HEADER_MOTOR_CONFIG = "MTR_CONF"
 HEADER_MOTOR_STATUS = "MTR_STAT"
 HEADER_VOLTAGE 		= "BAT_STAT"
 HEADER_ERROR		= "GEN_EROR"
-HEADER_VALUES = [HEADER_MOTOR_CONFIG,
-				 HEADER_MOTOR_STATUS,
-				 HEADER_VOLTAGE,
-				 HEADER_ERROR]
 
 DATA_ERROR = "ERROR"
 waiting_for_valid_header = False;
 valid_header_buffer = "Eight888*"
 
 READ_TIMEOUT = rospy.Duration(0.500)    #Wait for 500ms durring read time
+message_buffer = ""
 
-#Vars for waiting for handshake
-waiting_for_mtr_config_handshake = False
-last_written_config = ""
+#Keeps count of how many config msgs are in waiting
+#inc every time a conf msg is sent
+#dec every time a conf msg is recieved
+num_config_msg = 0
+#Max number of tollerable config fails
+MAX_FAILED_CONFIG_MSGS = 10
 
 ## Enumerators directly from the thruster_arduino.ino file
 ##
@@ -114,7 +116,7 @@ last_written_config = ""
 ##
 ## Python implimentation
 #request id's
-#Maps request strings to the start or all of the required arduino mesage
+#Maps request strings to the start or all of the required arduino message
 #request_ids = {"get_voltage"         : "+1",
 #               "get_baudrate"        : "+2",
 #               "set_port_pwm"        : "+3_1",
@@ -140,7 +142,7 @@ voltage_status_pub = rospy.Publisher('voltage_status', Int16, queue_size=10)
 #Baud rate = 9600 about as fast as the arduino will go
 #Port is /dev/ttyACM0 which is the default for the arduino to attach to
 #
-ser = serial.Serial(baudrate=9600, timeout=0.01)
+ser = serial.Serial(baudrate=115200, timeout=0.01)
 last_publish_time = None
 MAX_PUBLISH_RATE = None
 
@@ -177,54 +179,7 @@ MAX_PUBLISH_RATE = None
 #    return msg
     
 
-# PubThrusterPWM
-# Input: event (not actually used)
-# Output: none
-# Description: Periodically outputs the thruster values
-#               This is the callback function to a rospytimer
-#               (thruster_pub_timer) defined in main
-#               The output rate is determined by thruster_pwm_status_publish_rate
-#def PubThrusterPWM():
-#    #Request port PWM
-#    msg = thrusterPWM();
-#    data = ReadDataFromArduino(GenerateArduinoMsg("get_port_pwm"))
-#    if data == None:
-#        return
-#    msg.id = 3;
-#    msg.pulse_width = int(data[0])      #Do some error checking l8r
-#    thruster_pwm_status_pub.publish(msg)
-#
-#    data = ReadDataFromArduino(GenerateArduinoMsg("get_starboard_pwm"))
-#    if data == None:
-#        return
-#    msg.id = 2;
-#    msg.pulse_width = int(data[0])      #Do some error checking l8r
-#    thruster_pwm_status_pub.publish(msg)
 
-def PubThrusterPWM(port, starboard):
-  msg = thrusterPWM(PORT_ID, port)
-  thruster_pwm_status_pub.publish(msg)
-  msg = thrusterPWM(STARBOARD_ID, starboard)
-  thruster_pwm_status_pub.publish(msg)
-
-# PubVoltage
-# Input: event (not actually used)
-# Output: none
-# Description: Periodically outputs the voltage values
-#               This is the callback function to a rospytimer
-#               (voltage_pub_timer) defined in main
-#               The output rate is determined by voltage_status_publish_rate
-#def PubVoltage():
-#    msg = Int16();
-#    data = ReadDataFromArduino(GenerateArduinoMsg("get_voltage"))
-#    if data == None:
-#        return
-#    msg.data = int(data[0])
-#    voltage_status_pub.publish(msg)
-
-def PubVoltage(voltage):
-    msg = Int16(voltage)
-    voltage_status_pub.publish(msg)
 #
 # ReadDataFrom arduino
 #
@@ -269,121 +224,146 @@ def PubVoltage(voltage):
 
 # Read from the arduino_port
 def ReadFromArduino():
-    global waiting_for_mtr_config_handshake
-    global waiting_for_valid_header
-    global valid_header_buffer
+    global message_buffer
     
-    header = ""
-    code = ""
-    data = ""
-    print("read")
-    start = rospy.get_rostime() #Timeout start time
-    complete_read = False
+#    print "Bytes to read: %i" % ser.inWaiting()
+    if(ser.inWaiting() == 0):
+	  return None
     
-    #While there is data in the buffer and no timeout
-    while(ser.inWaiting() != 0 and (rospy.get_rostime() - start) < READ_TIMEOUT):
-	    #Make sure we are insync
-        if waiting_for_valid_header:
-           print("Header brocken")
-           valid_header_buffer = valid_header_buffer[1:8] + ser.read()
-           for value in HEADER_VALUES:
-               if valid_header_buffer == value:
-                  header = valid_header_buffer;
-                  waiting_for_valid_header = False
-                  break;
-        
-        #Normal read         
-        if not waiting_for_valid_header:
-	       #Wait for the complete msg
-           if (ser.inWaiting() > MSG_SIZE) or (header != "" and (ser.inWaiting > (MSG_SIZE - HEADER_SIZE))):
-               #Get header
-               if(header == ""):
-                  for byte in xrange(HEADER_LOCATION, HEADER_LOCATION + HEADER_SIZE):
-                      header += ser.read();
-               #Get ID
-               for byte in xrange(ID_LOCATION, ID_LOCATION + ID_SIZE):
-                  code += ser.read();
-               #Get data
-               for byte in xrange(DATA_LOCATION, DATA_LOCATION + DATA_SIZE):
-                  data += ser.read();
-               #Completed read
-               complete_read = True
-               break;
+    #Read in only full msgs
+    raw_data = ser.read(ser.inWaiting()).split(MSG_DELIM)
+#    print("Read: " + str(raw_data))
+    #Check for msg skew
+    #This won't work if we read less than a full msg across two calls to this function
+    #I assume that at least one full message read has occured
+    first_msg_size = len(raw_data[0])
+    if first_msg_size != MSG_SIZE - 1:
+#      print("Imcomplete start msg")
+	  #We didn't start reading at the begining of a msg
+      #Make sure something didn't go wrong i.e. serial buffer overflow
+      if len(message_buffer) + first_msg_size == MSG_SIZE - 1:
+		#Data is good reconstruct msg and put it back into the list
+        raw_data[0] = message_buffer + raw_data[0]
+#        print "Repaired message: %s" % raw_data[0]
+      else:
+#        print "Bad data at start"
+		#Something is wrong so tell the user
+        rospy.logwarn("Droping bad message\n\tBuffer from last read: %s\n\tFirst msg from this read: %s\n\tDid the serial buffer overflow or did you just start the node?", message_buffer, raw_data[0])
+        raw_data.pop(0)		#Remove bad data
+    #Always pop buffer because:
+    #	If it finished transmition the * at the end would have caused an additional "" added to the end of raw_data list
+    #		So we need to remove it and set the buffer to "" so that we don't add anything to the next msgs
+    #	If it is was somewhere in the middle of transition then we need to remove the invalid msg and put it in the buffer
+    #If there was only one message and it was bad this pop won't be able to pop anything!
+    if len(raw_data) != 0:
+	  message_buffer = raw_data.pop()
     
-    ##Check for a valid_header
-    valid_header = False
-    if(complete_read):
-        for value in HEADER_VALUES:
-           if header == value:
-               valid_header = True
-               break;
-        #Check for a valid header   
-        if not valid_header:
-           waiting_for_valid_header = True
-           rospy.logerr("Invalid header, %s, in arduino msg, if this made us miss a handshake the node will hang", header)
-           return None
-		 
-	    #Check to see if we had an error
-        if header == HEADER_ERROR:
-           rospy.logerr("Arduino threw a genreal error; ID: %s\t Data: %s\n\tThis will cause the node to hang if it missed a handshake" , code, data)
-           return None
-                
-    if (not complete_read) or waiting_for_valid_header:
-       return None
-    else:
-       if data == DATA_ERROR:
-           rospy.logerr("Arduino sent back a data error, Header: %s, ID: %s", header, code)
-           if(header == HEADER_MOTOR_CONFIG):
-               waiting_for_mtr_config_handshake = False
-           return None
-       print ([header, code, data])
-       return [header, code, data]
+    return raw_data
+    
+def ProcessMessages(msgs):
+  global num_config_msg
+  #Loop through all msgs
+  for msg in msgs:
+#	print(msg)
+	#look for valid header
+	valid_header = False
+	header = msg[0:(HEADER_SIZE)]
+#	print("Looking for \"%s\"") % header
+	for key, action in HEADER_VALUES.items():
+	  if key == header:
+		valid_header = True
+		data = msg[DATA_LOCATION:DATA_LOCATION+DATA_SIZE]
+#		print "Found a \"%s\" msg with id %s and data %s" % (header, msg[ID_LOCATION:ID_LOCATION+ID_SIZE], data) 
+		if data != DATA_ERROR:
+		  action(msg[ID_LOCATION:ID_LOCATION+ID_SIZE], msg[DATA_LOCATION:DATA_LOCATION+DATA_SIZE])
+		else:
+		  rospy.logerr("Recieved data error from arduino: %s", msg)
+		  num_config_msg -= 1
+		break
+	if not valid_header:
+	  rospy.logerr("Recieved a bad header from arduino: %s", msg)
+
+def MsgMtrConfig(id, thrust):
+  global num_config_msg
+  num_config_msg -= 1
+#  print(num_config_msg)
+  if num_config_msg < 0:
+	rospy.logerr("Recieved more thrust configuration confirmations than sent thrust configuration msgs by %i", num_config_msg * -1)
+
+def MsgError(id, error):
+  rospy.logerr("Arduino threw a general error: ID: %s, Error: ", id, error)
+# PubThrusterPWM
+# Input: event (not actually used)
+# Output: none
+# Description: Periodically outputs the thruster values
+#               This is the callback function to a rospytimer
+#               (thruster_pub_timer) defined in main
+#               The output rate is determined by thruster_pwm_status_publish_rate
+#def PubThrusterPWM():
+#    #Request port PWM
+#    msg = thrusterPWM();
+#    data = ReadDataFromArduino(GenerateArduinoMsg("get_port_pwm"))
+#    if data == None:
+#        return
+#    msg.id = 3;
+#    msg.pulse_width = int(data[0])      #Do some error checking l8r
+#    thruster_pwm_status_pub.publish(msg)
+#
+#    data = ReadDataFromArduino(GenerateArduinoMsg("get_starboard_pwm"))
+#    if data == None:
+#        return
+#    msg.id = 2;
+#    msg.pulse_width = int(data[0])      #Do some error checking l8r
+#    thruster_pwm_status_pub.publish(msg)
+
+def PubThrusterPWM(id, thrust):
+  msg = thrusterPWM(int(id), int(thrust))
+  thruster_pwm_status_pub.publish(msg)
+
+# PubVoltage
+# Input: event (not actually used)
+# Output: none
+# Description: Periodically outputs the voltage values
+#               This is the callback function to a rospytimer
+#               (voltage_pub_timer) defined in main
+#               The output rate is determined by voltage_status_publish_rate
+#def PubVoltage():
+#    msg = Int16();
+#    data = ReadDataFromArduino(GenerateArduinoMsg("get_voltage"))
+#    if data == None:
+#        return
+#    msg.data = int(data[0])
+#    voltage_status_pub.publish(msg)
+
+def PubVoltage(id, voltage):
+    msg = Int16(int(voltage))
+    voltage_status_pub.publish(msg)
+    
+HEADER_VALUES = {HEADER_MOTOR_CONFIG	:	MsgMtrConfig,
+				 HEADER_MOTOR_STATUS	:	PubThrusterPWM,
+				 HEADER_VOLTAGE			:	PubVoltage,
+				 HEADER_ERROR			:	MsgError}
 
 def WriteDataToArduino(cmd):
     #Wait to write
     #Write the request
-    while not ser.writable():pass
     print("Writing: " + cmd)
     ser.write(cmd)
-    time.sleep(.5)
+#    time.sleep(0.07)		#As fast as I can let it go without it occuring massive amounts of bad data
 
-def WriteThruster(msg):
-    global waiting_for_mtr_config_handshake
-    global last_written_config
-    
-    #now = rospy.
-    
-    #if not waiting_for_mtr_config_handshake:
-    if True:
-      cmd = HEADER_MOTOR_CONFIG + "00"
-      cmd += str(msg.id)
-    
-      if msg.pulse_width < 1:
-        cmd += '00000';
-        WriteDataToArduino(cmd)
-        return;
-      elif msg.pulse_width < 10:
-        cmd += "0000"
-      elif msg.pulse_width < 100:
-        cmd += "000"
-      elif msg.pulse_width < 1000:
-        cmd += "00"
-      elif msg.pulse_width < 10000:
-        cmd += '0'
-      elif msg.pulse_width > 99999:
-        rospy.logwarn("Invalid thrust did not write")
-        return None
-      
-    
-      cmd += str(msg.pulse_width);
-      #cmd += '*';
-      #Set waiting for handshake
-      waiting_for_mtr_config_handshake = True
-      last_written_config = cmd
-    
-      #Write
-      #Wait till I can write
-      WriteDataToArduino(cmd)
+
+def WriteThruster(id, pulse_width):
+    global num_config_msg
+    #Make sure pulse width is valid
+    assert 0 <= pulse_width < 100000
+    #Format msg
+    cmd = '%s%02i%05i*' % (HEADER_MOTOR_CONFIG, id, pulse_width)    
+    #Write
+    #Wait till I can write
+    print("Writing: %s" % cmd)
+    WriteDataToArduino(cmd)
+    #inc num_config_msg written
+    num_config_msg += 1
     
 
     
@@ -399,6 +379,8 @@ def WriteThruster(msg):
 #    WriteDataToArduino(cmd)
 
 
+thrusters = {}
+
 #
 #   arduino_serial_comm
 # Input: None
@@ -410,11 +392,12 @@ def arduino_serial_comm():
     global waiting_for_mtr_config_handshake  
     #Setup ros
     rospy.init_node('arduino_serial_comm', anonymous=True)
-    r = rospy.Rate(100)          #Length of time per cycle
+    r = rospy.Rate(20)          #Length of time per cycle
 #
 #    ##Get params
     #Port that the arduino is attached to defaults to /dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00
-    ser.port = rospy.get_param('~arduino_port', '/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00')
+    ser.port = rospy.get_param('~arduino_port', '/dev/serial/by-id/usb'
+		 '-Arduino__www.arduino.cc__0043_55332333130351803192-if00')
 #
  #   
     ##Timing vars
@@ -435,69 +418,39 @@ def arduino_serial_comm():
         #Catch serial errors (Generally dne or permission denied)
         #If error is Errno 2 (No such file or directory) we could
         #attempt to increment through ttyACM0 - to ttyACMX
-        rospy.logerr("Arduino serial error: \n\t%s\n Try changing the arduino_port parameter or check permisions on %s", e.__str__(), ser.port)        
+        rospy.logerr("Arduino serial error: \n\t%s\n Try changing the arduino_port" 
+					 "parameter or check permisions on %s", e.__str__(), ser.port)        
         raise(e)    #We didn't actually handel the error so send it on up the chain (this will probably just terminate the program)
         
 
-    time.sleep(1)
-    rospy.Subscriber("thruster_pwm_config", thrusterPWM, WriteThruster, queue_size = 2)
+    def got_message(msg):
+        thrusters[msg.id] = msg.pulse_width
+    rospy.Subscriber("thruster_pwm_config", thrusterPWM, got_message, queue_size = 100)
     
 	#Setup some buffers
     last_voltage = 0;
     last_port_pwm = PWM_ZERO;
     last_starboard_pwm = PWM_ZERO;
     
-    #Change this l8r
-    WriteDataToArduino("MTR_CONF00301479")
-    WriteDataToArduino("MTR_CONF00201479")
-    
     #Zero motors on start up
-    
+    thrusters = {
+      2: PWM_ZERO,
+      3: PWM_ZERO,
+    }
     
 #    #Main loop
     while not rospy.is_shutdown():
- #       now = rospy.get_rostime()
- #       if (now - voltage_pub_last_time) > voltage_pub_period:
- #           #reset time
- #           voltage_pub_last_time = now
- #           #Write out voltage
- #           #PubVoltage(last_voltage)
-#
-#        if (now - thruster_pub_last_time) > thruster_pub_period:
-#            #reset time
-#            thruster_pub_last_time = now
-#            #Write out thrust
-#            PubThrusterPWM(last_port_pwm, last_starboard_pwm)
-            
-        #Read the arduino msg and interpret it if there is anything
-#        if ser.inWaiting() != 0:
-#            msg = ReadFromArduino()
-#            if msg != None:
-#                print(msg)
-#                conocated_msg = (msg[0] + msg[1] + msg[2])
-#                #Motor Config
-#                if(msg[0] == HEADER_MOTOR_CONFIG):
-#                    if waiting_for_mtr_config_handshake:
-#                       waiting_for_mtr_config_handshake = False
-#                       if last_written_config != conocated_msg:
-#                          rospy.logwarn("Arduino handshake didn't match: Wrote: %s Recieved: %s", last_written_config, conocated_msg)
-#                    else:
-#                       rospy.logerr("Unexpect motor config msg from arduino, we weren't waiting for motor config handshake");
-#                       
-#                #Motor Status
-#                if msg[0] == HEADER_MOTOR_STATUS:
-#                    if msg[1] == PORT_ID:
-#                        last_port_pwm = int(msg[2])
-#                    elif msg[1] == STARBOARD_ID:
-#                        last_starboard_pwm = int(msg[2])
-#                        
-                #Voltage status
-#                if msg[0] == HEADER_VOLTAGE:
-#                    last_voltage = msg[2]
-#			  
-        #Wait for next cycle
+        for id_, pulse_width in dict(thrusters).iteritems():
+            WriteThruster(id_, pulse_width)
+        #Read and process messages
+        msgs = ReadFromArduino()
+        if msgs != None:
+           ProcessMessages(msgs)
+           
+        if num_config_msg > MAX_FAILED_CONFIG_MSGS: pass
+#           rospy.logerr("Arduino is not responding")
         r.sleep()
-#    
+           
     #Clean up
     ser.close()             #Close serial port
 #
