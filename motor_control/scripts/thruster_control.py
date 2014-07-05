@@ -60,7 +60,7 @@ starboard_current = 0.0
 
 #Timing Variables
 PUB_RATE = rospy.Duration(0.01)
-UPDATE_RATE = 1000                      #Update every 1000 Hz
+UPDATE_RATE = 100                      #Update at 100 Hz
 RAMP_RATE = 1.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
 
 #Pub
@@ -74,17 +74,18 @@ pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
 #       stopThrusters
 # Input: none
 # Output: none
-# Description: Sets both thrusters to ZERO_DEG imediatly        
+# Description: Sets both thrusters to ZERO_PWM imediatly        
 def stopThrusters():
     global starboard_setpoint
     global port_setpoint
     global starboard_current
     global port_current
-    
-    #Write zero to thrusters
-    #ser.write(str(STARBOARD_THRUSTER)+","+str(int(ZERO_DEG))+":")
-    #ser.write(str(PORT_THRUSTER)+","+str(int(ZERO_DEG))+":")
 
+    msg = thrusterPWM(PORT_THRUSTER, ZERO_PW)
+    pwm_pub.publish(msg)
+    msg = thrusterPWM(STARBOARD_THRUSTER, ZERO_PW)
+    pwm_pub.publish(msg)       
+    
     #Zero internal varibles
     starboard_setpoint = 0.0;
     port_setpoint = 0.0;
@@ -226,14 +227,12 @@ def thrusterCtrl():
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
         if port_last_value != port_current:
-            #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
             msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
             pwm_pub.publish(msg);
             
 
         time.sleep(0.001)
         if starboard_last_value != starboard_current:
-            #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
             msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
             pwm_pub.publish(msg)
 
@@ -244,7 +243,6 @@ def thrusterCtrl():
     
     #Clean up
     stopThrusters()         #Stop motors
-    ser.close()             #Close serial port
 
 if __name__ == '__main__':
     try:
