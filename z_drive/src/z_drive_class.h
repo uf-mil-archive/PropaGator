@@ -270,8 +270,8 @@ private:
 	sensor_msgs::JointState joint_state;
 	ros::Publisher temperature_pub;
 	sensor_msgs::Temperature temperature_data;
-	ros::Publisher marker_pub;
-	visualization_msgs::Marker marker_data;
+	//ros::Publisher marker_pub;
+	//visualization_msgs::Marker marker_data;
 
 	std::vector<double> inital_theta_port;
 	std::vector<double> inital_thrust_port;
@@ -419,13 +419,13 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	//Advertise the various publisher(s)
 	dynamixel_config_full_pub=n.advertise<dynamixel_servo::DynamixelConfigParam>(dynamixel_fqns+"/"+"dynamixel_config_full",1000);
 	dynamixel_config_position_pub=n.advertise<dynamixel_servo::DynamixelConfigPosition>(dynamixel_fqns+"/"+"dynamixel_config_position",1000);
-	thruster_config_pub=n.advertise<motor_control::thrusterStatus>("thruster_config",1000);
+	thruster_config_pub=n.advertise<motor_control::thrusterStatus>("thruster_config",100);
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
 	joint_pub=n.advertise<sensor_msgs::JointState>("joint_states",100);
 	temperature_pub=n.advertise<sensor_msgs::Temperature>("temperatures",100);
 	trajectory_pub = n.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
 	z_drive_sim_pub = n.advertise<z_drive::BoatSimZDriveOutsideForce>("z_drive_sim_force",100);
-	marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
+	//marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 10);
 
 	//configure our dynamic reconfigurable server
 	reconfig_callback=boost::bind(&ZDrive::dynamicReconfigCallBack, this, _1, _2);
@@ -1288,6 +1288,7 @@ void ZDrive::run()
 		// Publish a dbg msg with everything that was just sent/evaluated/computed
 		ZDrive::publishDbgMsg();
 
+		/*
 		if(ZDrive::new_action==true)
 		{
 			marker_data.header.frame_id="/base_link";
@@ -1303,17 +1304,9 @@ void ZDrive::run()
 			marker_data.pose.position.x=ZDrive::x_desired;
 			marker_data.pose.position.y=ZDrive::y_desired;
 			marker_data.pose.position.z=ZDrive::z_desired;
-			marker_data.pose.orientation.
-
-
+			//marker_data.pose.orientation.
 		}
-
-
-
-
-
-
-
+		*/
 
 
 		// the main z_drive algorithm has now finished running, so do the required housekeeping tasks and update visual display information
