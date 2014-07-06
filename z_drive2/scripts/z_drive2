@@ -1,0 +1,150 @@
+#!/usr/bin/python
+
+from __future__ import division
+
+import math
+import itertools
+
+from twisted.internet import reactor
+import numpy
+import scipy.optimize
+
+import txros
+from txros import util
+from uf_common.orientation_helpers import xyz_array
+
+from geometry_msgs.msg import WrenchStamped
+
+from motor_control.msg import thrusterConfig
+from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelConfigParam
+
+
+def lstsq_box(A, b, x_mins, x_maxs):
+    return scipy.optimize.fmin_slsqp(
+        func=lambda x: numpy.linalg.norm(A.dot(x) - b)**2,
+        x0=(x_mins + x_maxs)/2,
+        bounds=zip(x_mins, x_maxs),
+        fprime=lambda x: 2*A.T.dot(A.dot(x) - b),
+        disp=0,
+    )
+
+def _fit(thrusters, wrench):
+    wrench = numpy.concatenate(wrench)
+    
+    calc_direction = lambda angle: numpy.array([math.cos(angle), math.sin(angle), 0])
+    wrench_from_efforts = numpy.array([numpy.concatenate([
+        calc_direction(thruster['angle']), # force = direction * effort
+        numpy.cross(thruster['position'], calc_direction(thruster['angle'])), # torque = (position X direction) * effort
+    ]) for thruster in thrusters]).T
+    
+    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1])
+    pseudowrench = pseudowrench_from_wrench.dot(wrench)
+    pseudowrench_from_efforts = pseudowrench_from_wrench.dot(wrench_from_efforts)
+    
+    efforts = lstsq_box(pseudowrench_from_efforts, pseudowrench,
+        numpy.array([thruster['thrust_range'][0] for thruster in thrusters]),
+        numpy.array([thruster['thrust_range'][1] for thruster in thrusters]))
+    error = numpy.linalg.norm(pseudowrench_from_efforts.dot(efforts) - pseudowrench)
+    return efforts, (max(0.1, error), sum(abs(effort)**(3/2) for effort in efforts))
+
+def clip(x, (inf, sup)):
+    if x < inf: return inf
+    if x > sup: return sup
+    return x
+
+def wrap_angle(x):
+    while x < -math.pi: x += 2*math.pi
+    while x > +math.pi: x -= 2*math.pi
+    return x
+
+class Node(object):
+    def __init__(self):
+        self.nh = txros.NodeHandle.from_argv('testnode', anonymous=True)
+        self.wrench_sub = self.nh.subscribe('wrench', WrenchStamped, self._wrench_cb)
+        #self.pub = self.nh.advertise('point2', PointStamped, latching=True)
+        
+        self.wrench = numpy.zeros(3), numpy.zeros(3)
+        
+        self.thrusters = [
+            dict( # port
+                id=3,
+                position=numpy.array([-.7239*0, +.3048, -.5]),
+                angle=0,
+                angle_range=(math.radians(-90), math.radians(90)),
+                thrust_range=(-50, +50),
+                dangle_range=(-3.2e-1, +3.2e-1),
+                spinning_to=None,
+            ),
+            dict( # starboard
+                id=2,
+                position=numpy.array([-.7239*0, -.3048, -.5]),
+                angle=0,
+                angle_range=(math.radians(-90), math.radians(90)),
+                thrust_range=(-50, +50),
+                dangle_range=(-3.2e-1, +3.2e-1),
+                spinning_to=None,
+            ),
+        ]
+        
+        self.thrust_pub = self.nh.advertise('thruster_config', thrusterConfig)
+        self.servo_pub = self.nh.advertise('dynamixel/dynamixel_config_position', DynamixelConfigPosition)
+        
+        self.think()
+    
+    def _wrench_cb(self, msg):
+        self.wrench = xyz_array(msg.wrench.force), xyz_array(msg.wrench.torque)
+    
+    def gen_new_thrusters(self, delta_angles):
+        x = map(dict, self.thrusters) # clone
+        for thruster, delta_angle in zip(x, delta_angles):
+            thruster['angle'] = thruster['angle'] + delta_angle
+        return x
+    
+    @util.cancellableInlineCallbacks
+    def think(self):
+        dt = 1/50
+        tt = 0
+        while True:
+            tt += dt
+            self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
+            allowed = []
+            for thruster in self.thrusters:
+                if thruster['spinning_to'] is None:
+                    x = thruster['dangle_range']
+                elif abs(thruster['spinning_to'] - thruster['angle']) < 0.1:
+                    print 'done'
+                    thruster['spinning_to'] = None
+                    x = thruster['dangle_range']
+                else:
+                    print 'spinning'
+                    x = [clip(wrap_angle(thruster['spinning_to'] - thruster['angle'])/dt, thruster['dangle_range'])]
+                allowed.append(x)
+            dangles = min(itertools.product(*allowed),
+                key=lambda dangles: _fit(self.gen_new_thrusters(numpy.array(dangles) * dt), self.wrench)[1])
+            self.thrusters = self.gen_new_thrusters(numpy.array(dangles) * dt)
+            for thruster in self.thrusters:
+                #print clip(thruster['angle'], thruster['angle_range']), thruster['angle']
+                if clip(thruster['angle'], thruster['angle_range']) != thruster['angle'] and thruster['spinning_to'] is None:
+                    print 'bad', thruster['angle'], (thruster['angle'] + math.pi/2) % math.pi - math.pi/2
+                    thruster['spinning_to'] = (thruster['angle'] + math.pi/2) % math.pi - math.pi/2
+                    thruster['angle'] = clip(thruster['angle'], thruster['angle_range'])
+            
+            efforts, error = _fit(self.thrusters, self.wrench)
+            for thruster, effort in zip(self.thrusters, efforts):
+                self.servo_pub.publish(DynamixelConfigPosition(
+                    id=thruster['id'],
+                    goal_position=2*thruster['angle'] + math.pi,
+                ))
+                self.thrust_pub.publish(thrusterConfig(
+                    id=thruster['id'],
+                    thrust=effort,
+                ))
+            
+            print self.wrench
+            print [t['angle'] for t in self.thrusters], efforts, error
+            print
+            
+            yield util.sleep(dt)
+Node()
+
+reactor.run()
