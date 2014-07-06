@@ -120,6 +120,7 @@ protected:
 	float previous_continuious_position_in_radians;
 	float current_continuious_position_in_radians;
 	float continuious_angle_goal;
+	float continuous_velocity_goal;
 	bool continuious_angle_mode;
 	dynamixel_uint16_t previous_cw_angle_limit;
 	dynamixel_uint16_t previous_ccw_angle_limit;
@@ -134,6 +135,7 @@ public:
 		previous_continuious_position_in_radians(0.0),
 		current_continuious_position_in_radians(0.0),
 		continuious_angle_goal(0.0),
+		continuous_velocity_goal(0.0),
 		previous_cw_angle_limit(0x0000),
 		previous_ccw_angle_limit(0x0FFF),
 		continuious_angle_mode(false),
@@ -426,39 +428,23 @@ void Servo::setPresentPosition(dynamixel_uint16_t input_position)
 	//			MX-64T Logo
 	//
 	static const float PI=3.14159265359;
-	float offset=0.0;
-	if(continuious_angle_mode==true)
+	if(continuious_angle_mode)
 	{
-		if(rotatingClockWise()&&input_position>present_position)
-		{
-			// going clockwise it will hit the transition from 0 to 4095, This should be the only time input_position is > than present_position
-			// rep 103 makes clockwise negative
-			offset=-(present_position-0+4095-input_position)*(360.0/Servo::ENCODER_RESOLUTION);
-		}
-		else if(rotatingClockWise())
-		{
-			offset=-(present_position-input_position)*(360.0/Servo::ENCODER_RESOLUTION);
-		}
-		else if(rotatingCounterClockWise()&&input_position<present_position)
-		{
-			//going counterclockwise it will go from 4095 -> to -> 0
-			// rep 103 makes counter clockwise positive
-			offset=(4095-present_position+input_position-0)*(360.0/Servo::ENCODER_RESOLUTION);
-		}
-		else if(rotatingCounterClockWise())
-		{
-			offset=(input_position-present_position)*(360.0/Servo::ENCODER_RESOLUTION);
-		}
+		previous_continuious_position_in_radians = current_continuious_position_in_radians;
+		double angle_within_revolution = input_position*(360.0/Servo::ENCODER_RESOLUTION)*(PI/180);
+		double change = angle_within_revolution - previous_continuious_position_in_radians;
+		while(change < -PI) change += 2*PI;
+		while(change > +PI) change -= 2*PI;
+		current_continuious_position_in_radians = previous_continuious_position_in_radians + change;
+		return;
 	}
+	float offset=0.0;
 	//assing the representation of the register
 	present_position=input_position;
 	// also extrapolate the radian data
 	previous_continuious_position_in_radians=current_continuious_position_in_radians;
-	float position_degrees=0.0;
-	float position_radians=0.0;
-	position_degrees=input_position*(360.0/Servo::ENCODER_RESOLUTION);
+	float position_degrees=input_position*(360.0/Servo::ENCODER_RESOLUTION);
 	current_continuious_position_in_radians=position_degrees*(PI/180)+offset;
-	return;
 }
 float Servo::getPresentPositionInRadians()
 {
