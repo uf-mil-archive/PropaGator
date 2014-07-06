@@ -91,6 +91,10 @@ num_config_msg = 0
 #Max number of tollerable config fails
 MAX_FAILED_CONFIG_MSGS = 10
 
+#Watchdog timer for message recieved
+#May need to disable while opening port
+#MAX_TIME_BETWEEN_READS = rospy.Duration(1)		#Wait one second
+
 ## Enumerators directly from the thruster_arduino.ino file
 ##
 ##Constants for data request
@@ -438,13 +442,22 @@ def arduino_serial_comm():
       3: PWM_ZERO,
     }
     
+    last_message_recieve_time = rospy.get_rostime()
+    
 #    #Main loop
     while not rospy.is_shutdown():
+        #time_since_last_message = rospy.get_rostime() - last_message_recieve_time
+        #if time_since_last_message > MAX_TIME_BETWEEN_READS:
+        #    rospy.logerr("Haven't heard from arduino in %i, closing and opening port.", time_since_last_message)
+        #    ser.close()
+        #    ser.open()
+            
         for id_, pulse_width in dict(thrusters).iteritems():
             WriteThruster(id_, pulse_width)
         #Read and process messages
         msgs = ReadFromArduino()
         if msgs != None:
+           last_message_recieve_time = rospy.get_rostime()
            ProcessMessages(msgs)
            
         if num_config_msg > MAX_FAILED_CONFIG_MSGS: pass

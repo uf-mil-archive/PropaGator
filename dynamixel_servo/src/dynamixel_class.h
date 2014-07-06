@@ -70,7 +70,7 @@ protected:
 	void setControlMode(const vector<Servo>::iterator servo_to_config, dynamixel_servo::DynamixelFullConfig::_control_mode_type  control_mode);
 
 	vector<uint8_t> servoRead(uint8_t id, uint8_t location, uint8_t num_bytes_to_read);
-	float approximateSpeedControl(const vector<Servo>::iterator servo_to_approximate);
+	float approximateSpeedControl(Servo & servo_to_approximate);
 
 	void watchDogRoutine();
 
@@ -357,9 +357,9 @@ void DynamixelServos::run()
 					i->is_moving=read_return[16];
 					status_message.is_moving=i->is_moving;
 					status_pub.publish(status_message);
-					if(i->continuious_angle_mode==true)
+					if(i->continuious_angle_mode)
 					{
-						setMovingSpeed(i,approximateSpeedControl(i));// if in continuous rotation mode make sure the servo is still good
+						setMovingSpeed(i,approximateSpeedControl(*i));// if in continuous rotation mode make sure the servo is still good
 					}
 				}
 				else
@@ -642,9 +642,11 @@ void DynamixelServos::configCallbackContinuiousAngle(const dynamixel_servo::Dyna
 	if (binary_search(servos.begin(), servos.end(), msg->id))
 	{
 		vector<Servo>::iterator servo_to_config = find(servos.begin(), servos.end(), msg->id);
+		servo_to_config->continuious_angle_goal = msg->goal_position;
+		servo_to_config->continuous_velocity_goal = msg->goal_velocity;
 		if(servo_to_config->continuious_angle_mode)
 		{
-			//setMovingSpeed(servo_to_config, msg->moving_speed);
+			setMovingSpeed(servo_to_config, approximateSpeedControl(*servo_to_config)); // XXX
 		}
 		else
 		{
@@ -984,6 +986,11 @@ void DynamixelServos::setGoalPosition(const vector<Servo>::iterator servo_to_con
 		return;
 
 	}
+	else if(servo_to_config->continuious_angle_mode)
+	{
+		servo_to_config->continuious_angle_goal=goal_position_radians;
+		return;
+	}
 	else if(servo_to_config->inWheelMode())
 	{
 		ROS_INFO("Setting the \"goal_position\" to %f for id: 0x%X while in \"wheel mode\" has no affect.",goal_position_radians, servo_to_config->getID());
@@ -1078,7 +1085,7 @@ void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_conf
 	else if(servo_to_config->inWheelMode()&&moving_speed_rad_per_sec<0.0)
 	{
 		// According to ros rep 103 cw is in the negative direction hence the following conversion
-		moving_speed=Servo::WHEEL_MODE_MOVING_SPEED_ZERO_CW+(uint16_t)((moving_speed_rad_per_sec*Servo::RAD_PER_SECOND_TO_RPM)/Servo::MOVING_SPEED_PER_UNIT_IN_RPM);
+		moving_speed=Servo::WHEEL_MODE_MOVING_SPEED_ZERO_CW+(uint16_t)((-moving_speed_rad_per_sec*Servo::RAD_PER_SECOND_TO_RPM)/Servo::MOVING_SPEED_PER_UNIT_IN_RPM);
 	}
 
 	if(servo_to_config->moving_speed==moving_speed)
@@ -1180,46 +1187,16 @@ vector<uint8_t> DynamixelServos::servoRead(uint8_t id, uint8_t location, uint8_t
 	return com_port.getReturnPacketParamaters();
 }
 
-float DynamixelServos::approximateSpeedControl(const vector<Servo>::iterator servo)
+float DynamixelServos::approximateSpeedControl(Servo & servo)
 {
-	// The Dynamixel's moving speed has an approximate unit of .11443 rpm, given its resolution of 1023. Thus it can essential move +- 12.25869244063695 rad/s in wheel mode
-	// 			since there are 2*pi~6.28 radians in a rotation
-	// Remeber rep 103 ccw is + and cw is -
-	float goal_position=servo->getGoalPositionInRadians();
-	float current_position=servo->getPresentPositionInRadians();
-
-	if(goal_position==current_position)
-	{
-		return 0.0; // don't move we have our goal
+	float position_error = servo.continuious_angle_goal - servo.current_continuious_position_in_radians;
+	
+	float desired_velocity = 3 * position_error + servo.continuous_velocity_goal;
+	if(fabs(desired_velocity) > Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99) {
+		desired_velocity *= Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99/fabs(desired_velocity);
 	}
-	float position_delta = fabs(goal_position-current_position);
-	int number_of_rotations_left = (int)(position_delta / (2 * M_PI));
-	float current_speed = servo->getPresentSpeedRadPerSec();
-	float estimated_speed = 0.0;
-
-	if(number_of_rotations_left>1)
-	{
-		estimated_speed=Servo::MAX_MOVING_SPEED_IN_RAD_SEC;
-	}
-	else
-	{
-		// we have less than 1 rotation left to get to the point, start slowing down.
-		estimated_speed=position_delta;
-	}
-
-	if (current_position < goal_position)
-	{
-		// counter clockwise rotation is needed to hit the goal (this rotation is positive);
-		estimated_speed=fabs(estimated_speed);//it should already be positive, but just incase
-	}
-	else //current_position > goal_positio
-	{
-		// clockwise rotation is needed to hit the goal (this rotation is negative);
-		estimated_speed=-fabs(estimated_speed);
-	}
-	return estimated_speed;
-
-
+	std::cout << position_error << " " << desired_velocity << std::endl;
+	return desired_velocity;
 }
 
 

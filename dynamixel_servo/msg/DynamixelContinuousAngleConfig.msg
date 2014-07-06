@@ -13,3 +13,5 @@ uint8 id
 #       Note: the goal position doesn't correspond directly to the registers on the servo
 #       "goal_position" will be in radians (per rep 103), hence it is a float32.
 float32 goal_position
+
+float32 goal_velocity
