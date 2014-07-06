@@ -1,5 +1,6 @@
 #include <boost/bind.hpp>
 #include <boost/foreach.hpp>
+#include <boost/thread.hpp>
 
 #include <nodelet/nodelet.h>
 #include <pluginlib/class_list_macros.h>
@@ -7,6 +8,7 @@
 #include <tf_conversions/tf_eigen.h>
 
 #include <odom_estimator/util.h>
+#include <nav_msgs/Odometry.h>
 
 using odom_estimator::Vec;
 using odom_estimator::SqMat;
@@ -68,12 +70,14 @@ struct Control {
   static std::vector<std::vector<Control> > SmallSpanningSet(Parameters const & p) {
     std::vector<std::vector<Control> > res;
     for(unsigned int i = 0; i < p.thrusters.size(); i++) {
-      Control a = Zero(p); a.thrusters[i].dangle = p.thrusters[i].dangle_min;
-      Control b = Zero(p); b.thrusters[i].dangle = p.thrusters[i].dangle_max;
-      res.push_back(std::vector<Control>{a, b});
-      Control c = Zero(p); c.thrusters[i].dthrust = p.thrusters[i].dthrust_min;
-      Control d = Zero(p); d.thrusters[i].dthrust = p.thrusters[i].dthrust_max;
-      res.push_back(std::vector<Control>{c, d});
+      Control a1 = Zero(p); a1.thrusters[i].dangle = p.thrusters[i].dangle_min;
+      Control a2 = Zero(p); a2.thrusters[i].dangle = 0;
+      Control a3 = Zero(p); a3.thrusters[i].dangle = p.thrusters[i].dangle_max;
+      res.push_back(std::vector<Control>{a1, a2, a3});
+      Control b1 = Zero(p); b1.thrusters[i].dthrust = p.thrusters[i].dthrust_min;
+      Control b2 = Zero(p); b2.thrusters[i].dthrust = 0;
+      Control b3 = Zero(p); b3.thrusters[i].dthrust = p.thrusters[i].dthrust_max;
+      res.push_back(std::vector<Control>{b1, b2, b3});
     }
     return res;
   }
@@ -204,8 +208,10 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
   BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
     //std::cout << std::endl;
     State s = state.update(control, dt, p);
+    int i = 0;
     while(s.velocity.norm() >= 1e-2 || !s.thrusts_approximately_zero()) {
-      Control a = compute_vel_policy(s, dt, p);
+      i++;
+      Control a = compute_vel_policy(s, 0.1, p);
       /*std::cout << "  Thruster states:" << std::endl;
       BOOST_FOREACH(State::Thruster const & thruster, s.thrusters) {
         std::cout << "  " << thruster.angle << " " << thruster.thrust << std::endl;
@@ -213,13 +219,15 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
       std::cout << "  Position: " << s.position.transpose() << std::endl;
       std::cout << "  Velocity: " << s.orientation.inverse()._transformVector(s.velocity).transpose() << std::endl;
       std::cout << "  Angular velocity: " << s.angular_velocity.transpose() << std::endl;
-      std::cout << "  Thruster commands:" << std::endl;
+      std::cout << "  Thruster commands:" << std::endl; */
       BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
-        std::cout << "  " << thruster.dangle << " " << thruster.dthrust << std::endl;
+        std::cout << "  " << thruster.dangle << " " << thruster.dthrust;
       }
-      std::cout << std::endl;*/
+      std::cout << std::endl;
       s = s.update(a, dt, p);
     }
+    
+    std::cout << i << " iterations" << std::endl;
     
     double error = (s.position - desired_pos).norm();
     
@@ -236,12 +244,19 @@ private:
   boost::function<const std::string&()> getName;
   ros::NodeHandle &nh;
   ros::NodeHandle &private_nh;
+  boost::thread think_thread_inst;
+  ros::Publisher pub;
 public:
   NodeImpl(boost::function<const std::string&()> getName, ros::NodeHandle *nh_, ros::NodeHandle *private_nh_) :
     getName(getName),
     nh(*nh_),
     private_nh(*private_nh_)  {
-    
+    pub = nh.advertise<nav_msgs::Odometry>("test", 10);
+    think_thread_inst = boost::thread(boost::bind(&NodeImpl::think_thread, this));
+  }
+  
+  void think_thread() {
+    sleep(3);
     // XXX
     Parameters p;
     p.mass = 40;
@@ -272,7 +287,7 @@ public:
         State::Thruster(0, 0),
         State::Thruster(0, 0)});
     
-    double dt = 1/20.;
+    double dt = 1e-2;
     
     double t = 0;
     while(true) {
@@ -285,7 +300,7 @@ public:
       std::cout << "Position: " << s.position.transpose() << std::endl;
       std::cout << "Velocity: " << s.velocity.transpose() << std::endl;
       std::cout << "Angular velocity: " << s.angular_velocity.transpose() << std::endl;
-      Control a = compute_pos_policy(s, Vec<3>(1, 0, 0), dt, p);
+      Control a = compute_pos_policy(s, Vec<3>(1, 1, 0), dt, p);
       //Control a = compute_vel_policy(s, dt, p);
       std::cout << "Thruster commands:" << std::endl;
       BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
@@ -294,6 +309,12 @@ public:
       s = s.update(a, dt, p);
       t += dt;
       std::cout << std::endl;
+      
+      nav_msgs::Odometry msg;
+      msg.header.frame_id = "/enu";
+      tf::pointEigenToMsg(s.position, msg.pose.pose.position);
+      tf::quaternionEigenToMsg(s.orientation, msg.pose.pose.orientation);
+      pub.publish(msg);
     }
   }
 };
