@@ -9,8 +9,9 @@
 #include "dynamixel_servo/DynamixelConfigParam.h" //message to config a Dynamixel servo
 #include "dynamixel_servo/DynamixelConfigPosition.h" //simplified message to just set the position of a servo.
 #include "dynamixel_servo/DynamixelStatusParam.h" //message for the status of a Dynamixel servo
-#include "motor_control/thrusterConfig.h"
-#include "motor_control/thrusterStatus.h"
+#include "motor_control/thrusterNewtons.h"
+//#include "motor_control/thrusterConfig.h"
+//#include "motor_control/thrusterStatus.h"
 #include "z_drive/ZDriveDbg.h"
 #include "z_drive/BoatSimZDriveOutsideForce.h"
 #include <z_drive/GainsConfig.h> // dynamic reconfig
@@ -286,7 +287,7 @@ protected:
 	void currentOdomCallBack(const nav_msgs::Odometry& odom_msg);
 	void desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist);
 	void dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg);
-	void thrusterStatusCallBack(const motor_control::thrusterStatus& thruster_status_msg);
+	void thrusterStatusCallBack(const motor_control::thrusterNewtons& thruster_status_msg);
 	void joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg);
 	void dynamicReconfigCallBack(const z_drive::GainsConfig &config, uint32_t level);
 
@@ -419,7 +420,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	//Advertise the various publisher(s)
 	dynamixel_config_full_pub=n.advertise<dynamixel_servo::DynamixelConfigParam>(dynamixel_fqns+"/"+"dynamixel_config_full",1000);
 	dynamixel_config_position_pub=n.advertise<dynamixel_servo::DynamixelConfigPosition>(dynamixel_fqns+"/"+"dynamixel_config_position",1000);
-	thruster_config_pub=n.advertise<motor_control::thrusterStatus>("thruster_config",100);
+	thruster_config_pub=n.advertise<motor_control::thrusterNewtons>("thruster_config",100);
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
 	joint_pub=n.advertise<sensor_msgs::JointState>("joint_states",100);
 	temperature_pub=n.advertise<sensor_msgs::Temperature>("temperatures",100);
@@ -460,11 +461,11 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 			{
 				//ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
 				//std::vector<double>::iterator it=data.begin();
-				ZDrive::inital_theta_port.push_back((double)tmp0);
-				ZDrive::inital_thrust_port.push_back((double)tmp1);
-				ZDrive::inital_theta_starboard.push_back((double)tmp2);
-				ZDrive::inital_thrust_starboard.push_back((double)tmp3);
-				ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
+				//ZDrive::inital_theta_port.push_back((double)tmp0);
+				//ZDrive::inital_thrust_port.push_back((double)tmp1);
+				//ZDrive::inital_theta_starboard.push_back((double)tmp2);
+				//ZDrive::inital_thrust_starboard.push_back((double)tmp3);
+				//ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
 			}
 			data.clear();
 		}
@@ -472,6 +473,25 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 		fin.close();
 
 	}
+	ZDrive::inital_theta_port.push_back((double)-1.0);
+	ZDrive::inital_thrust_port.push_back((double)5.0);
+	ZDrive::inital_theta_starboard.push_back((double)1.0);
+	ZDrive::inital_thrust_starboard.push_back((double)5.0);
+	
+	ZDrive::inital_theta_port.push_back((double)-.5);
+	ZDrive::inital_thrust_port.push_back((double)10.0);
+	ZDrive::inital_theta_starboard.push_back((double).5);
+	ZDrive::inital_thrust_starboard.push_back((double)10.0);
+	
+	ZDrive::inital_theta_port.push_back((double)-.25);
+	ZDrive::inital_thrust_port.push_back((double)-10.0);
+	ZDrive::inital_theta_starboard.push_back((double).25);
+	ZDrive::inital_thrust_starboard.push_back((double)-10.0);
+	
+	ZDrive::inital_theta_port.push_back((double)-.75);
+	ZDrive::inital_thrust_port.push_back((double)-5.0);
+	ZDrive::inital_theta_starboard.push_back((double).75);
+	ZDrive::inital_thrust_starboard.push_back((double)-5.0);
 
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg)
@@ -481,7 +501,7 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	if(dynamixel_status_msg.id==port_servo_id)
 	{
 		// note: present_position is a float32. Hence the cast is explicitly shown. The dynamixel node is optimized for speed and memory to be near real-time, hence the float32.
-		ZDrive::current_port_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/port_servo_gear_reduction+port_servo_angle_offset;
+		ZDrive::current_port_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/port_servo_gear_reduction+port_servo_angle_offset/port_servo_gear_reduction;
 		temperature_data.header.stamp = ros::Time::now();
 		temperature_data.header.frame_id="port_thruster";
 		temperature_data.temperature=dynamixel_status_msg.present_temp;
@@ -489,7 +509,7 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	}
 	else if(dynamixel_status_msg.id==starboard_servo_id)
 	{
-		ZDrive::current_starboard_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/starboard_servo_gear_reduction+starboard_servo_angle_offset;
+		ZDrive::current_starboard_servo_angle=-1.0*((double)dynamixel_status_msg.present_position)/starboard_servo_gear_reduction+starboard_servo_angle_offset/starboard_servo_gear_reduction;
 		temperature_data.header.stamp = ros::Time::now();
 		temperature_data.header.frame_id="starboard_thruster";
 		temperature_data.temperature=dynamixel_status_msg.present_temp;
@@ -498,7 +518,7 @@ void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam
 	return;
 }
 
-void ZDrive::thrusterStatusCallBack(const motor_control::thrusterStatus& thruster_status_msg)
+void ZDrive::thrusterStatusCallBack(const motor_control::thrusterNewtons& thruster_status_msg)
 {
 	if(thruster_status_msg.id==port_servo_id)
 	{
@@ -1089,7 +1109,7 @@ void ZDrive::run()
 
 	uf_common::PoseTwistStamped trajectory_msg;
 	dynamixel_servo::DynamixelConfigPosition dynamixel_position_msg;
-	motor_control::thrusterConfig thruster_config_msg;
+	motor_control::thrusterNewtons thruster_config_msg;
 	z_drive::BoatSimZDriveOutsideForce sim_msg;
 
 	// fill in a full init message for the servos

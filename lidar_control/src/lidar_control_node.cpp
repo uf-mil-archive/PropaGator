@@ -5,9 +5,10 @@
 
 ros::Publisher dynamixel_config_full_pub;
 ros::Publisher dynamixel_config_position_pub;
-
-const float MIN_ANGLE = 2.357;
-const float MAX_ANGLE = 3.891;
+//Min 150.1171		2.620039
+//Max 222.8027		3.888641
+const float MIN_ANGLE = 2.625;//2.357;
+const float MAX_ANGLE = 3.14159;//3.891;
 
 int dir = 1;
 
@@ -16,7 +17,7 @@ int main(int argc, char** argv)
 	//Initilize ROS
     ros::init(argc, argv, "lidar_control_node");
     ros::NodeHandle n;
-    ros::Rate sleep_time(1);
+    ros::Rate sleep_time(1.5);
 
     //Initilze publishers
     dynamixel_config_full_pub = n.advertise<dynamixel_servo::DynamixelConfigParam>("/dynamixel/dynamixel_config_full", 1000);
