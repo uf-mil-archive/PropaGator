@@ -3,6 +3,7 @@
 #
 #It should be noted that the values returned in this message are as they would apper in the Dynamixel's registers, thus
 #		they are not in the standard units specified by ROS REP 103. http://www.ros.org/reps/rep-0103.html
+#       Please refer to the Dynamixxel MX-64T's manual for mor information
 #
 #The Baud rate is an EPROM address value on each servo and must match value on the ROS parameter server.
 #		Note: all servos on the bus need to have the same baud rate.

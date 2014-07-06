@@ -1,5 +1,5 @@
-#This file contains only the most basic paramater that most nodes will be concerned with setting, the goal_position of the servo.
-#
+# This file contains only the most basic paramater that most nodes will be concerned with setting, the goal_position of the servo.
+# Note: This message type is specifically for when the Dynamixel Servo(s) are in "JOINT" mode
 #The Baud rate is an EPROM adress value on each servo and must match value on the ROS parameter server.
 #		Note: all servos on the bus need to have the same baud rate.
 

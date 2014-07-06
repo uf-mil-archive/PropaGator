@@ -1,7 +1,7 @@
 #include <ros/ros.h>
-#include "dynamixel_servo/DynamixelConfigParam.h"
-#include "dynamixel_servo/DynamixelConfigPosition.h"
-#include "dynamixel_servo/DynamixelStatusParam.h"
+#include "dynamixel_servo/DynamixelFullConfig.h"
+#include "dynamixel_servo/DynamixelJointConfig.h"
+#include "dynamixel_servo/DynamixelStatus.h"
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
 #include "dynamixel_servo/DynamixelControlTableParam.h"
 
@@ -35,8 +35,8 @@ int main(int argc, char** argv)
     ros::Rate sleep_time(1);
 
     //Initilze publishers
-    ros::Publisher dynamixel_config_full_pub = n.advertise<dynamixel_servo::DynamixelConfigParam>("/dynamixel/dynamixel_config_full", 10);
-    ros::Publisher dynamixel_config_position_pub = n.advertise<dynamixel_servo::DynamixelConfigPosition>("/dynamixel/dynamixel_config_position", 10);
+    ros::Publisher dynamixel_config_full_pub = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_config_full", 10);
+    ros::Publisher dynamixel_config_position_pub = n.advertise<dynamixel_servo::DynamixelJointConfig>("/dynamixel/dynamixel_config_position", 10);
     ros::Publisher dynamixel_control_table_pub = n.advertise<dynamixel_servo::DynamixelControlTableRequest>("/dynamixel/dynamixel_control_table_request", 10);
 
     //Initilze the subscribers
@@ -81,8 +81,9 @@ int main(int argc, char** argv)
     {
     	dir *= -1;
 
-    	dynamixel_servo::DynamixelConfigPosition msg;
+    	dynamixel_servo::DynamixelJointConfig msg;
     	msg.id = servo_id;
+
     	if(dir == 1)
     		msg.goal_position = max_angle;
     	else

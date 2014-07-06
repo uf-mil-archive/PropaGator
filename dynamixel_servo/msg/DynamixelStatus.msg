@@ -17,7 +17,7 @@ float32 goal_position
 
 #		32(0X20)	Moving Speed(L)			Lowest byte of Moving Speed
 #		33(0X21)	Moving Speed(H)			Highest byte of Moving Speed
-uint16 moving_speed
+float32 moving_speed
 
 #		34(0X22)	Torque Limit(L)			Lowest byte of Torque Limit
 #		35(0X23)	Torque Limit(H)			Highest byte of Torque Limit
@@ -30,7 +30,7 @@ float32 present_position
 
 #		38(0X26)	Present Speed(L)		Lowest byte of Present Speed
 #		39(0X27)	Present Speed(H)		Highest byte of Present Speed
-uint16 present_speed
+float32 present_speed
 
 #		40(0X28)	Present Load(L)			Lowest byte of Current Load
 #		41(0X29)	Present Load(H)			Highest byte of Current Load
