@@ -47,11 +47,13 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
 	DIRECTORY msg
 	FILES
-	DynamixelConfigParam.msg
-	DynamixelConfigPosition.msg
-	DynamixelStatusParam.msg
+	DynamixelControlTablePost.msg
 	DynamixelControlTableRequest.msg
-	DynamixelControlTableParam.msg
+	DynamixelFullConfig.msg
+	DynamixelJointConfig.msg
+	DynamixelStatus.msg
+	DynamixelWheelConfig.msg
+	DynamixelContinuousAngleConfig.msg 
 )
 
 ## Generate services in the 'srv' folder

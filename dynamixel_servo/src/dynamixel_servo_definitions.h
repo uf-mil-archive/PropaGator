@@ -88,7 +88,7 @@ protected:
 	uint8_t alarm_shutdown;
 	// note 1 byte is skipped here per FIRMWARE version 36
 	dynamixel_uint16_t multi_turn_offset;
-	uint8_t resolution_divider;
+	uint8_t resolution_divider; //When resolution is lowered, revolutions (in both directions) can be increased (up to 28 turns in each direction when in multi turn mode). Range (1~4)
 	// note 1 byte is skipped here per FIRMWARE version 36
 	//----------------------------------------------------
 	uint8_t torque_enable;
@@ -115,6 +115,15 @@ protected:
 	uint8_t torque_control_mode;
 	dynamixel_uint16_t goal_torque;
 	uint8_t goal_acceleration;
+
+	// the following are variables to help with continuous angle mode, and the ability to change modes while still keeping their safety limits
+	float previous_continuious_position_in_radians;
+	float current_continuious_position_in_radians;
+	float continuious_angle_goal;
+	bool continuious_angle_mode;
+	dynamixel_uint16_t previous_cw_angle_limit;
+	dynamixel_uint16_t previous_ccw_angle_limit;
+
 public:
 	// While the following may look messy, it is technical faster to initialize variables in initializer lists
 	//		Also note the presence of default arguments in the class definition- allowing for more concise code.
@@ -122,6 +131,12 @@ public:
 	Servo(uint8_t input_id=0x00, string input_system_membership="", string input_description="", uint8_t input_baud=0x22) :
 		system_membership(input_system_membership),
 		description(input_description),
+		previous_continuious_position_in_radians(0.0),
+		current_continuious_position_in_radians(0.0),
+		continuious_angle_goal(0.0),
+		previous_cw_angle_limit(0x0000),
+		previous_ccw_angle_limit(0x0FFF),
+		continuious_angle_mode(false),
 		// these are the default values according to the manual
 		//---------------- Start of eeprom ------------------
 		model_num(0x0136),
@@ -164,12 +179,16 @@ public:
 		goal_acceleration(0x00)
 	{};
 	void setID(uint8_t input_id){id=input_id;};
+	void setPresentPosition(dynamixel_uint16_t position);
+	float getPresentPositionInRadians();
+	void setGoalPosition(dynamixel_uint16_t position);
+	float getGoalPositionInRadians();
 	uint8_t getID(){return id;};
 	void setSystemMembership(string input){system_membership=input;};
 	string getSystemMembership(){return system_membership;};
 	void setDescription(string input){description=input;};
 	string getDescription(){return description;};
-	bool inJointMode(){return !inWheelMode();}
+
 	uint16_t getMinAngle(){return cw_angle_limit;};
 	uint16_t getMaxAngle(){return ccw_angle_limit;};
 	// When the power is first turned on, the Dynamixel "Torque Limit" reg (ram address 0x22 and 0x23) is initially set to the same value in "Max Torque" (eprom address 0x0E and 0x0F)- which may not necessarily be 0x3FF.
@@ -177,12 +196,16 @@ public:
 	// 	Note: The naming convention in the Dynamixel manuals is not the best.
 	uint16_t getMaxTorqueDefaultValue(){return max_torque;};
 	uint16_t getMaxTorqueAllowed(){return 0x03FF;};
+	bool inMultiTurnMode(){return (cw_angle_limit==4095&&ccw_angle_limit==4095)?true:false;};
 	bool inWheelMode(){return (cw_angle_limit==0&&ccw_angle_limit==0)?true:false;};
-	// When in wheel mode the 10th bit indicates the direction, if it's set (i.e. a 1 ) the direction of rotation is clockwise.
+	bool inJointMode(){return (inWheelMode()==false&&inMultiTurnMode()==false)?true:false;};
+	// When in wheel mode the 10th bit indicates the direction, if it's set (i.e. it's a 1 ) the direction of rotation is clockwise. Note: the index of the bits starts at 0.
 	bool rotatingClockWise(){return (inWheelMode() && (moving_speed&0b10000000000))?true:false;};
 	bool rotatingCounterClockWise(){return (inWheelMode() && !(moving_speed&0b10000000000))?true:false;};
+	float getMovingSpeedRadPerSec();
+	float getPresentSpeedRadPerSec();
 	uint16_t getMinMovingSpeed()
-	{
+	{// returns the min moving speed RELATIVE to the direction the servo is spinning (in rpm)- conversion to ros's rep 103 with rad/s should take place higher up!
 		if(inWheelMode()&&rotatingCounterClockWise())
 		{
 			return 0x0000;
@@ -193,8 +216,8 @@ public:
 		}
 		return 0x0000;
 	};
-	uint16_t GetMaxMovingSpeed()
-	{
+	uint16_t getMaxMovingSpeed()
+	{// returns the max moving speed RELATIVE to the direction the servo is spinning (in rpm)
 		if(inWheelMode()&&rotatingCounterClockWise())
 		{
 			return 0x03FF;
@@ -205,6 +228,32 @@ public:
 		}
 		return 0x03FF;
 	};
+	float getMaxMovingSpeedInRadSec()
+	{
+		// for ros rep 103 ccw is + and cw is negative.
+		// If the direction of rotation isn't fully definable (like in Joint or multi-turn mode) a positive number will be returned.
+		if(inWheelMode()&&rotatingCounterClockWise())
+		{
+			return MOVING_SPEED_RESOLUTION*MOVING_SPEED_PER_UNIT_IN_RPM*RPM_TO_RAD_PER_SECOND;
+		}
+		else if (inWheelMode()&&rotatingClockWise())
+		{
+			return -(MOVING_SPEED_RESOLUTION*MOVING_SPEED_PER_UNIT_IN_RPM*RPM_TO_RAD_PER_SECOND);
+		}
+		// joint mode and multiturn mode
+		return MOVING_SPEED_RESOLUTION*MOVING_SPEED_PER_UNIT_IN_RPM*RPM_TO_RAD_PER_SECOND;
+	}
+	uint16_t getZeroMovingSpeed()
+	{
+		//If a value in the range of 1024~2047 is used, it is stopped by setting to 1024 while rotating to CW direction.
+		if(inWheelMode()&&rotatingCounterClockWise())
+		{
+			return WHEEL_MODE_MOVING_SPEED_ZERO_CW;//1024
+		}
+		//If a value in the range of 0~1023 is used, it is stopped by setting to 0 while rotating to CCW direction.
+		return 0x0000;
+	}
+
 
 	//----------- dynamixel memory map locations -----------------
 	//	Note: While the address locations could be specified with a uint8_t, uint16_t is used- if required- to maintain consistency
@@ -266,13 +315,24 @@ public:
 	//----------- General Dynamixel Constants -----------------
 	static const uint8_t ON;
 	static const uint8_t OFF;
+	static const uint16_t ENCODER_RESOLUTION;
 	static const uint16_t MAX_GOAL_POSITION;
 	//static const uint16_t MAX_GOAL_POSITION_AX12A;
 	static const uint16_t MAX_JOINT_MODE_MOVING_SPEED;
+	static const uint16_t MAX_MULTTURN_MODE_MOVING_SPEED;
 	static const uint16_t MAX_WHEEL_MODE_MOVING_SPEED;
+	static const uint16_t WHEEL_MODE_MOVING_SPEED_ZERO_CW;
+	static const uint16_t WHEEL_MODE_MOVING_SPEED_ZERO_CCW;
+	static const uint16_t MOVING_SPEED_RESOLUTION;
+	static const float MOVING_SPEED_PER_UNIT_IN_RPM;
 	static const uint8_t MAX_ACCELERATION;
 	static const uint8_t MIN_ACCELERATION;
 	static const float ACCELERATION_PER_UNIT_IN_DEGREES;
+	static const float MAX_MOVING_SPEED_IN_RAD_SEC;
+
+	//----------- General Constants -----------------
+	static const float RPM_TO_RAD_PER_SECOND;
+	static const float RAD_PER_SECOND_TO_RPM;
 };
 
 //const float Servo::ACCELERATION_PER_UNIT_IN_DEGREES=8.5826772;
@@ -329,12 +389,152 @@ const uint8_t Servo::GOAL_ACCELERATION_REG=0x49;
 //----------- General Dynamixel Constants -----------------
 const uint8_t Servo::ON=0x01;
 const uint8_t Servo::OFF=0x00;
+const uint16_t Servo::ENCODER_RESOLUTION=0xFFF;
 const uint16_t Servo::MAX_GOAL_POSITION=0xFFF; // the maximum allowed value 0xFFF (4095) to be set for the goal position
 //const uint16_t Servo::MAX_GOAL_POSITION_AX12A=0x3FF;// Note: An AX-12A can have a MAX_GOAL_POSITION of 0x3ff
 const uint16_t Servo::MAX_JOINT_MODE_MOVING_SPEED=0x3FF;
+const uint16_t Servo::MAX_MULTTURN_MODE_MOVING_SPEED=0x3FF;
 const uint16_t Servo::MAX_WHEEL_MODE_MOVING_SPEED=0x7FF;
+const uint16_t Servo::MOVING_SPEED_RESOLUTION=0x3FF;
+const uint16_t Servo::WHEEL_MODE_MOVING_SPEED_ZERO_CW=0x400;
+const uint16_t Servo::WHEEL_MODE_MOVING_SPEED_ZERO_CCW=0x000;
+const float Servo::MOVING_SPEED_PER_UNIT_IN_RPM=.11443;
 const uint8_t Servo::MAX_ACCELERATION=0xFE;
 const uint8_t Servo::MIN_ACCELERATION=0x01;// since 0x00 is the same as max acceleration the min acceleration is 0x01
 const float Servo::ACCELERATION_PER_UNIT_IN_DEGREES=8.5826772;
+const float Servo::MAX_MOVING_SPEED_IN_RAD_SEC=MAX_MULTTURN_MODE_MOVING_SPEED*MOVING_SPEED_PER_UNIT_IN_RPM*RPM_TO_RAD_PER_SECOND;
+
+
+//----------- General Constants -----------------
+const float Servo::RPM_TO_RAD_PER_SECOND=0.104719755;
+const float Servo::RAD_PER_SECOND_TO_RPM=9.54929659643;
+
+void Servo::setPresentPosition(dynamixel_uint16_t input_position)
+{
+	//an approximation of how the position amount increaseses for a given direction is below.
+	//				2048
+	//
+	//		2412				1561
+	//
+	//3122						1072
+	//
+	//		3612				636
+	//
+	//				4095,0
+	//
+	//
+	//			MX-64T Logo
+	//
+	static const float PI=3.14159265359;
+	float offset=0.0;
+	if(continuious_angle_mode==true)
+	{
+		if(rotatingClockWise()&&input_position>present_position)
+		{
+			// going clockwise it will hit the transition from 0 to 4095, This should be the only time input_position is > than present_position
+			// rep 103 makes clockwise negative
+			offset=-(present_position-0+4095-input_position)*(360.0/Servo::ENCODER_RESOLUTION);
+		}
+		else if(rotatingClockWise())
+		{
+			offset=-(present_position-input_position)*(360.0/Servo::ENCODER_RESOLUTION);
+		}
+		else if(rotatingCounterClockWise()&&input_position<present_position)
+		{
+			//going counterclockwise it will go from 4095 -> to -> 0
+			// rep 103 makes counter clockwise positive
+			offset=(4095-present_position+input_position-0)*(360.0/Servo::ENCODER_RESOLUTION);
+		}
+		else if(rotatingCounterClockWise())
+		{
+			offset=(input_position-present_position)*(360.0/Servo::ENCODER_RESOLUTION);
+		}
+	}
+	//assing the representation of the register
+	present_position=input_position;
+	// also extrapolate the radian data
+	previous_continuious_position_in_radians=current_continuious_position_in_radians;
+	float position_degrees=0.0;
+	float position_radians=0.0;
+	position_degrees=input_position*(360.0/Servo::ENCODER_RESOLUTION);
+	current_continuious_position_in_radians=position_degrees*(PI/180)+offset;
+	return;
+}
+float Servo::getPresentPositionInRadians()
+{
+	if(continuious_angle_mode==true)
+	{
+		return current_continuious_position_in_radians;
+	}
+
+	static const float PI=3.14159265359;
+	float position_degrees=0.0;
+	if(inMultiTurnMode())
+	{// only in multi_turn mode is this special
+		//per the manual Present position = (Real Position / Resolution Divider) + Multi-turn Offset
+		position_degrees=(present_position/resolution_divider+multi_turn_offset)*(360.0/Servo::ENCODER_RESOLUTION);
+	}
+	else
+	{
+		position_degrees=present_position*(360.0/Servo::ENCODER_RESOLUTION);
+	}
+	return position_degrees*(PI/180);//return radians
+}
+float Servo::getGoalPositionInRadians()
+{
+	if(continuious_angle_mode==true)
+	{
+		return continuious_angle_goal;
+	}
+	static const float PI=3.14159265359;
+	float position_degrees=0.0;
+	float position_radians=0.0;
+	position_degrees=goal_position*(360.0/Servo::ENCODER_RESOLUTION);
+	return position_degrees*(PI/180);
+}
+float Servo::getMovingSpeedRadPerSec()
+{
+	// 1 rad/s is approximately 9.5493 rpm, conversely .1047 rad/s is 1 rpm. see: http://goo.gl/52oeiy
+	// The Dynamixel's moving speed has an approximate unit of .11443 rpm, given its resolution of 1023. Thus it can essential move +- 112.25869244063695 rad/s in wheel mode
+	// the compiler will inline the folowing statement, but it is here to show the conversion
+	if (moving_speed==getZeroMovingSpeed())
+	{
+		return 0.0;
+	}
+	else if(rotatingCounterClockWise()||inJointMode()||inMultiTurnMode())
+	{
+		// according to rep 103 ccw is positive
+		return (float)(moving_speed/9.54929659643);
+	}
+	// its clockwise
+	// According to ros rep 103 cw is in the negative direction hence the following conversion
+	return (float)(-moving_speed/9.54929659643);
+}
+
+float Servo::getPresentSpeedRadPerSec()
+{
+	// If a value is in the rage of 0~1023 then the motor rotates to the CCW direction.
+	// If a value is in the rage of 1024~2047 then the motor rotates to the CW direction.
+	// The 10th bit becomes the direction bit to control the direction; 0 and 1024 are equal.
+	// The value unit is about 0.11rpm.
+	//inWheelMode() && (moving_speed&0b10000000000))?true:false;
+	if(present_speed==0b00000000000||present_speed==0b10000000000)
+	{
+		return 0.0;
+
+	}
+
+	else if (inWheelMode()&&(present_speed&0b10000000000))
+	{
+		// clockwise rep 103 says its negative
+		return -(present_speed-1024)*(.11443);
+	}
+	return present_speed*(.11443);
+
+}
+
+
+
+
 
 #endif /*DYNAMIXEL_SERVO_DEFINITIONS_H_*/

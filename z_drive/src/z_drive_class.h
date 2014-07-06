@@ -6,9 +6,9 @@
 #include <dynamic_reconfigure/server.h>
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
-#include "dynamixel_servo/DynamixelConfigParam.h" //message to config a Dynamixel servo
-#include "dynamixel_servo/DynamixelConfigPosition.h" //simplified message to just set the position of a servo.
-#include "dynamixel_servo/DynamixelStatusParam.h" //message for the status of a Dynamixel servo
+#include "dynamixel_servo/DynamixelFullConfig.h" //message to config a Dynamixel servo
+#include "dynamixel_servo/DynamixelJointConfig.h" //simplified message to just set the position of a servo.
+#include "dynamixel_servo/DynamixelStatus.h" //message for the status of a Dynamixel servo
 #include "motor_control/thrusterConfig.h"
 #include "motor_control/thrusterStatus.h"
 #include "z_drive/ZDriveDbg.h"
@@ -54,6 +54,7 @@ private:
 	double port_servo_x_offset;
 	double port_servo_y_offset;
 	double port_servo_z_offset;
+    
 	// starboard_servo is back .7239m, right of center line .3048m, 0m above the water
 	double starboard_servo_x_offset;
 	double starboard_servo_y_offset;
@@ -197,9 +198,8 @@ private:
 	static const int EXTRA_9=9;
 
 	// This is a variable to allow the control metthod to be changed dynamicaly
-	int control_method;
-	// since we have the ability to quickly change the control mode with the xbox control (so we dont run into things), we also want the ability to know how to restore the mode we just escaped out of.
-	int prev_control_method=0;
+	int control_method; // since we have the ability to quickly change the control mode with the xbox control (so we dont run into things), we also want the ability to know how to restore the mode we just escaped out of.
+	int prev_control_method;
 
 	// for mapping see http://wiki.ros.org/joy
 	// there are two kernel modules that can interface with the xbox controller: "xpad" xor "xboxdrv". The pre-installed module with Ubuntu 13.04 is "xpad"
@@ -285,7 +285,7 @@ public:
 protected:
 	void currentOdomCallBack(const nav_msgs::Odometry& odom_msg);
 	void desiredOdomCallBack(const  uf_common::PoseTwist desired_pose_twist);
-	void dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg);
+	void dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatus& dynamixel_status_msg);
 	void thrusterStatusCallBack(const motor_control::thrusterStatus& thruster_status_msg);
 	void joystickCallBack(const sensor_msgs::Joy::ConstPtr& joystick_msg);
 	void dynamicReconfigCallBack(const z_drive::GainsConfig &config, uint32_t level);
@@ -336,7 +336,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 		boat_mass(36.2874), boat_inertia(7.4623), port_servo_x_offset(-.7239), port_servo_y_offset(.3048), port_servo_z_offset(0.0), starboard_servo_x_offset(-.7239), starboard_servo_y_offset(-.3048), starboard_servo_z_offset(0.0),
 		p_gain_x(50), p_gain_y(50), p_gain_theta_boat(1.0), gain_error_force_x(100), gain_error_force_y(1000), gain_error_moment_z(1000), gain_thrusters_force(10), gain_deviation_equilibrum_servo_angle(0), gain_deviation_changeof_servo_angle(.01),
 		cost_count_max(20), friction_coefficient_forward(0.0), friction_coefficient_forward_reduction(0.0), friction_coefficient_lateral(0.0), friction_coefficient_lateral_reduction(0.0), friction_coefficient_rotational(0.0), friction_coefficient_rotational_reduction(0.0),
-		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false), computational_time(0), new_action(false), port_servo_gear_reduction(2.0), starboard_servo_gear_reduction(2.0)
+		friction_force_forward(0.0), friction_force_lateral(0.0), friction_force_rotational(0.0), update_dynamic_param_server(false), computational_time(0), new_action(false), port_servo_gear_reduction(2.0), starboard_servo_gear_reduction(2.0), control_method(0), prev_control_method(0)
 {
 	d_gain_x=sqrt(4*p_gain_x*boat_mass);
 	d_gain_y=sqrt(4*p_gain_y*boat_mass);
@@ -417,8 +417,8 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	joystick_subscriber=n.subscribe("joy",100,&ZDrive::joystickCallBack,this);
 
 	//Advertise the various publisher(s)
-	dynamixel_config_full_pub=n.advertise<dynamixel_servo::DynamixelConfigParam>(dynamixel_fqns+"/"+"dynamixel_config_full",1000);
-	dynamixel_config_position_pub=n.advertise<dynamixel_servo::DynamixelConfigPosition>(dynamixel_fqns+"/"+"dynamixel_config_position",1000);
+	dynamixel_config_full_pub=n.advertise<dynamixel_servo::DynamixelFullConfig>(dynamixel_fqns+"/"+"dynamixel_config_full",1000);
+	dynamixel_config_position_pub=n.advertise<dynamixel_servo::DynamixelJointConfig>(dynamixel_fqns+"/"+"dynamixel_config_position",1000);
 	thruster_config_pub=n.advertise<motor_control::thrusterStatus>("thruster_config",100);
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
 	joint_pub=n.advertise<sensor_msgs::JointState>("joint_states",100);
@@ -432,7 +432,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	reconfig_server.setCallback(reconfig_callback);
 
 	// the following is a quick hack for darsan to test things
-	std::ifstream fin("/home/propagator/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
+	std::ifstream fin("/home/steve/Documents/google_drive/sppalecek@gmail.com/UF/propagator/ros/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
 	if (!fin)
 	{
 		ROS_WARN("Error opening ~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
@@ -474,7 +474,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	}
 
 }
-void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatusParam& dynamixel_status_msg)
+void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatus& dynamixel_status_msg)
 {
 	// Note: we are basically having to account for how the dynimixel is mounted on the boat, and translate it into the boats world- hence the multiplyer and the offset.
 	// we also have to account for any gearing hence the division
@@ -1088,14 +1088,15 @@ void ZDrive::run()
 	}
 
 	uf_common::PoseTwistStamped trajectory_msg;
-	dynamixel_servo::DynamixelConfigPosition dynamixel_position_msg;
+	dynamixel_servo::DynamixelJointConfig dynamixel_position_msg;
 	motor_control::thrusterConfig thruster_config_msg;
 	z_drive::BoatSimZDriveOutsideForce sim_msg;
 
 	// fill in a full init message for the servos
-	dynamixel_servo::DynamixelConfigParam dynamixel_init_config_msg;
+	dynamixel_servo::DynamixelFullConfig dynamixel_init_config_msg;
+	dynamixel_init_config_msg.control_mode=dynamixel_servo::DynamixelFullConfig::JOINT;
 	dynamixel_init_config_msg.goal_position=(float)(M_PI);
-	dynamixel_init_config_msg.moving_speed=0x0084; // 15rpm
+	dynamixel_init_config_msg.moving_speed=12.252211335; // 117rpm
 	dynamixel_init_config_msg.torque_limit=0x03FF;
 	dynamixel_init_config_msg.goal_acceleration=(8.5826772*M_PI/180)*0xFD;
 
