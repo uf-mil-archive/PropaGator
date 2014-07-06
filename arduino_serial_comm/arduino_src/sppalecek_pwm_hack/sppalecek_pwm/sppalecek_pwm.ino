@@ -28,8 +28,8 @@ const int DELIM_SIZE = 1;
 const char MSG_DELIM = '*';
 
 const int THRUST_ZERO=1500;           //1479
-const int THRUST_FORWARD_MAX=1575;    //1910
-const int THRUST_REVERSE_MAX=1350;    //1048
+const int THRUST_FORWARD_MAX=2000;    //1910
+const int THRUST_REVERSE_MAX=1000;    //1048
 
 const long BAUDRATE = 115200;
 

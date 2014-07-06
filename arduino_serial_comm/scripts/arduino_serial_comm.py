@@ -47,6 +47,9 @@
 ##  * Add error ouputs/warnings
 ##  * Get servo id's from rosparam      
 ##
+##
+## Causes of error
+##  * Unconecting serial port while node is running will cause the node to read invalid data
 
 import rospy
 import serial
@@ -91,6 +94,9 @@ num_config_msg = 0
 #Max number of tollerable config fails
 MAX_FAILED_CONFIG_MSGS = 10
 
+#Watchdog for replies from arduino
+MAX_TIME_BETWEEN_READS = rospy.Duration(1)
+
 ## Enumerators directly from the thruster_arduino.ino file
 ##
 ##Constants for data request
@@ -100,7 +106,7 @@ MAX_FAILED_CONFIG_MSGS = 10
 ##  REPORT_VOLTAGE,
 ##  REPORT_BAUD,
 ##  WRITE_THRUST,
-##  READ_THRUST
+##  READ_THRUSTls
 ##};
 ##
 ##//Error codes
@@ -243,20 +249,25 @@ def ReadFromArduino():
       #Make sure something didn't go wrong i.e. serial buffer overflow
       if len(message_buffer) + first_msg_size == MSG_SIZE - 1:
 		#Data is good reconstruct msg and put it back into the list
+        #It would be a good idea at this point to check if we built a good msg
         raw_data[0] = message_buffer + raw_data[0]
 #        print "Repaired message: %s" % raw_data[0]
       else:
 #        print "Bad data at start"
 		#Something is wrong so tell the user
-        rospy.logwarn("Droping bad message\n\tBuffer from last read: %s\n\tFirst msg from this read: %s\n\tDid the serial buffer overflow or did you just start the node?", message_buffer, raw_data[0])
+        rospy.logwarn("Droping bad message because the last buffer + new msg does not equal MSG size\n\tBuffer from last read: %s\n\tFirst msg from this read: %s\n\tDid the serial buffer overflow or did you just start the node?", message_buffer, raw_data[0])
         raw_data.pop(0)		#Remove bad data
     #Always pop buffer because:
     #	If it finished transmition the * at the end would have caused an additional "" added to the end of raw_data list
     #		So we need to remove it and set the buffer to "" so that we don't add anything to the next msgs
     #	If it is was somewhere in the middle of transition then we need to remove the invalid msg and put it in the buffer
     #If there was only one message and it was bad this pop won't be able to pop anything!
-    if len(raw_data) != 0:
+    if len(raw_data) !=0:
 	  message_buffer = raw_data.pop()
+    
+    #Make sure the poped data wasn't the only thing read
+    if len(raw_data) == 0:
+        return None
     
     return raw_data
     
@@ -437,18 +448,39 @@ def arduino_serial_comm():
       2: PWM_ZERO,
       3: PWM_ZERO,
     }
-    
+
+    last_recieve_time = rospy.get_rostime()    
+
 #    #Main loop
     while not rospy.is_shutdown():
+        #Watchdog timer
+        time_since_last_recieve = rospy.get_rostime() - last_recieve_time
+        if time_since_last_recieve > MAX_TIME_BETWEEN_READS:
+            rospy.logerr("Arduino hasn't responded in %i seconds. Attepmting to close and reopen port", time_since_last_recieve.to_sec())
+            ser.close()
+            ser.open()
+            #Wait for MAX_TIME_BETWEEN_READS
+            last_recieve_time = rospy.get_rostime()   
+       
+        #Write thruster values
         for id_, pulse_width in dict(thrusters).iteritems():
             WriteThruster(id_, pulse_width)
+
         #Read and process messages
         msgs = ReadFromArduino()
+        print(msgs)
         if msgs != None:
+           #reset watchdog
+           last_recieve_time = rospy.get_rostime()
+
            ProcessMessages(msgs)
-           
-        if num_config_msg > MAX_FAILED_CONFIG_MSGS: pass
-#           rospy.logerr("Arduino is not responding")
+        
+        #Watch dog for droped mtr_conf messages
+        #Currently this always drops
+        #if num_config_msg > MAX_FAILED_CONFIG_MSGS:
+           #rospy.logerr("Arduino is not has droped %i mtr configuration msgs", num_config_msg)
+        
+        #Use up the rest of the loop time
         r.sleep()
            
     #Clean up

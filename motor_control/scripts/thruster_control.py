@@ -230,21 +230,10 @@ def thrusterCtrl():
         #Write to the serial bus
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
-<<<<<<< HEAD
-        if port_last_value != port_current:
-            msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
-            pwm_pub.publish(msg);
-            
-
-        time.sleep(0.001)
-        if starboard_last_value != starboard_current:
-            msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
-            pwm_pub.publish(msg)
-=======
         #if port_last_value != port_current:
             #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
         msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
-        #print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
+        print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
         pwm_pub.publish(msg);
             
 
@@ -252,9 +241,8 @@ def thrusterCtrl():
         #if starboard_last_value != starboard_current:
             #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
         msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
-        #print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
+        print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
         pwm_pub.publish(msg)
->>>>>>> upstream/master
 
         starboard_last_value = starboard_current;
         port_last_value = port_current;

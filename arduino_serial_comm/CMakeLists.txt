@@ -6,6 +6,7 @@ project(arduino_serial_comm)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   rospy
+  roscpp
   std_msgs
   message_generation
 )
@@ -106,16 +107,17 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(arduino_serial_comm_node src/arduino_serial_comm_node.cpp)
+ add_executable(test_arduino src/test_arduino.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(arduino_serial_comm_node arduino_serial_comm_generate_messages_cpp)
+ add_dependencies(test_arduino arduino_serial_comm_generate_messages_cpp)
+# add_dependencies(
 
 ## Specify libraries to link a library or executable target against
-# target_link_libraries(arduino_serial_comm_node
-#   ${catkin_LIBRARIES}
-# )
+ target_link_libraries(test_arduino
+   ${catkin_LIBRARIES}
+ )
 
 #############
 ## Install ##
