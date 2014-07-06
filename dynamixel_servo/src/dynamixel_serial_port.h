@@ -116,7 +116,7 @@ public:
 	static const uint8_t INST_PING=0x01; // Used for obtaining a Status Packet
 	static const uint8_t INST_READ=0x02; // Reading values in the Control Table
 	static const uint8_t INST_WRITE=0x03; // Writing values to the Control Table
-	static const uint8_t INST_REG_WRITE=0x04; // Similar to WRITE_DATA, but the servo stays in standby mode until the ACION instruction is given
+	static const uint8_t INST_REG_WRITE=0x04; // Similar to WRITE_DATA, but the servo stays in standby mode until the ACTION instruction is given
 	static const uint8_t INST_ACTION=0x05; // Triggers the action registered by the REG_WRITE instruction
 	static const uint8_t INST_RESET=0x06; // Changes the control table values of the Dynamixel servo to the Factory Default Value settings
 	static const uint8_t INST_SYNC_WRITE=0x83; // Used for controlling many Dynamixel actuators at the same time

@@ -18,11 +18,14 @@
 #include "ros/ros.h"
 #include "dynamixel_serial_port.h" //header file to talk to the dynamixel(s) through the serial port
 #include "dynamixel_servo_definitions.h"
-#include "dynamixel_servo/DynamixelConfigParam.h" //message for ALL available configurable location on a mx-64t servo that our project will need
-#include "dynamixel_servo/DynamixelConfigPosition.h" //simplified message to just set the position of a servo.
-#include "dynamixel_servo/DynamixelStatusParam.h" //message status return parameters
+#include "dynamixel_servo/DynamixelFullConfig.h" //message for ALL available configurable location on a mx-64t servo that our project will need
+#include "dynamixel_servo/DynamixelJointConfig.h" //simplified message to just set the position of a servo.
+#include "dynamixel_servo/DynamixelStatus.h" //message status return parameters
 #include "dynamixel_servo/DynamixelControlTableRequest.h" //message control table request
-#include "dynamixel_servo/DynamixelControlTableParam.h" //message control table return paramaters
+#include "dynamixel_servo/DynamixelControlTablePost.h" //message control table return paramaters
+#include "dynamixel_servo/DynamixelWheelConfig.h"
+#include "dynamixel_servo/DynamixelContinuousAngleConfig.h"
+
 
 // Per Ros cpp guidelines you should only refer to each element in namespace std that you want. see: http://wiki.ros.org/CppStyleGuide#Namespaces-1
 using std::string;
@@ -37,13 +40,15 @@ private:
 	ros::NodeHandle n;
 	ros::Publisher status_pub;
 	ros::Subscriber full_config_subscriber;
-	ros::Subscriber position_config_subscriber;
+	ros::Subscriber joint_config_subscriber;
 	ros::Subscriber control_table_request_subscriber;
+	ros::Subscriber wheel_config_subscriber;
+	ros::Subscriber continuous_angle_config_subscriber;
 	ros::Publisher control_table_request_publisher;
 	double poll_rate;
 	static const string DEFAULT_PARAM_SERVER_DYNAMIXEL_NAMESPACE;
 	static const string DEFAULT_PARAM_SERVER_SERVO_NAMESPACE;
-	static const float pi=3.14159265359; // since no other math functions are needed from math.h M_PI isn't used, but instead defined here. (to keep the namespace cleaner)
+	static const float PI=3.14159265359; // since no other math functions are needed from math.h M_PI isn't used, but instead defined here. (to keep the namespace cleaner)
 
 public:
 	DynamixelServos();
@@ -53,15 +58,19 @@ public:
 protected:
 	bool pingServo(uint8_t id);
 	void controlTableRequestCallback(const dynamixel_servo::DynamixelControlTableRequest::ConstPtr& msg);
-	void configCallbackFull(const dynamixel_servo::DynamixelConfigParam::ConstPtr& msg);
-	void configCallbackPositionOnly(const dynamixel_servo::DynamixelConfigPosition::ConstPtr& msg);
+	void configCallbackFull(const dynamixel_servo::DynamixelFullConfig::ConstPtr& msg);
+	void configCallbackJoint(const dynamixel_servo::DynamixelJointConfig::ConstPtr& msg);
+	void configCallbackWheel(const dynamixel_servo::DynamixelWheelConfig::ConstPtr& msg);
+	void configCallbackContinuiousAngle(const dynamixel_servo::DynamixelContinuousAngleConfig::ConstPtr& msg);
 	void setTorqueLimit(const vector<Servo>::iterator servo_to_config, uint16_t torque_limit);
 	void setGoalAcceleration(const vector<Servo>::iterator servo_to_config, float goal_acceleration_rad_per_second_squared);
 	void setLed(const vector<Servo>::iterator servo_to_config, uint8_t led_state);
 	void setGoalPosition(const vector<Servo>::iterator servo_to_config, float goal_position);
-	void setMovingSpeed(const vector<Servo>::iterator servo_to_config, uint16_t moving_speed);
+	void setMovingSpeed(const vector<Servo>::iterator servo_to_config, float moving_speed);
+	void setControlMode(const vector<Servo>::iterator servo_to_config, dynamixel_servo::DynamixelFullConfig::_control_mode_type  control_mode);
 
 	vector<uint8_t> servoRead(uint8_t id, uint8_t location, uint8_t num_bytes_to_read);
+	float approximateSpeedControl(Servo & servo_to_approximate);
 
 	void watchDogRoutine();
 
@@ -267,11 +276,13 @@ DynamixelServos::DynamixelServos()
 	}
 
 	// Now that everything is setup on the server we will allow subscriptions and advertise the posts
-	status_pub= n.advertise<dynamixel_servo::DynamixelStatusParam>("dynamixel_status_post", 1000);
+	status_pub= n.advertise<dynamixel_servo::DynamixelStatus>("dynamixel_status_post", 1000);
 	control_table_request_subscriber= n.subscribe("dynamixel_control_table_request", 1000, &DynamixelServos::controlTableRequestCallback, this);
-	control_table_request_publisher=n.advertise<dynamixel_servo::DynamixelControlTableParam>("dynamixel_control_table_post",1000);
-	full_config_subscriber= n.subscribe("dynamixel_config_full", 1000, &DynamixelServos::configCallbackFull,this);
-	position_config_subscriber=n.subscribe("dynamixel_config_position", 1000, &DynamixelServos::configCallbackPositionOnly,this);
+	control_table_request_publisher=n.advertise<dynamixel_servo::DynamixelControlTablePost>("dynamixel_control_table_post",1000);
+	full_config_subscriber= n.subscribe("dynamixel_full_config", 1000, &DynamixelServos::configCallbackFull,this);
+	joint_config_subscriber=n.subscribe("dynamixel_joint_config", 1000, &DynamixelServos::configCallbackJoint,this);
+	wheel_config_subscriber=n.subscribe("dynamixel_wheel_config", 1000, &DynamixelServos::configCallbackWheel,this);
+	continuous_angle_config_subscriber=n.subscribe("dynamixel_continuous_config", 1000, &DynamixelServos::configCallbackContinuiousAngle,this);
 }
 
 void DynamixelServos::run()
@@ -286,13 +297,18 @@ void DynamixelServos::run()
 		{
 			init_msg->id=i->getID();
 			controlTableRequestCallback(init_msg);
+			// changing the control mode from joint to wheel or joint to multi-turn mode clears the previous safty limits, so try to keep track of this
+			i->previous_cw_angle_limit=i->cw_angle_limit;
+			i->previous_ccw_angle_limit=i->ccw_angle_limit;
+			// also init the position information for the continuous rotation in software
+			i->previous_continuious_position_in_radians=i->current_continuious_position_in_radians;
 		}
 
 		ROS_INFO("%s is running with a handle on port: %s",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
 
 		ros::Rate loop_rate(poll_rate);
 		vector<uint8_t> read_return;
-		dynamixel_servo::DynamixelStatusParam status_message;
+		dynamixel_servo::DynamixelStatus status_message;
 
 		// This will be used as a watchdog timer to make sure that there are no errors on the port or with the servo(s), if there are it will try to recover.
 		double watch_dog_count=0;
@@ -314,19 +330,21 @@ void DynamixelServos::run()
 					// Since a bus read is slower than the cpu cycles required to update a servo struct, don't waste the new information gathered.
 					status_message.id=i->getID();
 					i->goal_position=dynamixel_uint16_t(read_return[1],read_return[0]);
-					position_degrees=i->goal_position*(360.0/Servo::MAX_GOAL_POSITION);
-					position_radians=position_degrees*(pi/180);
-					status_message.goal_position=position_radians;
+					//position_degrees=i->goal_position*(360.0/Servo::MAX_GOAL_POSITION);
+					//position_radians=position_degrees*(PI/180);
+					status_message.goal_position=i->getGoalPositionInRadians();
 					i->moving_speed=dynamixel_uint16_t(read_return[3],read_return[2]);
-					status_message.moving_speed=i->moving_speed;
+					status_message.moving_speed=i->getMovingSpeedRadPerSec();
 					i->torque_limit=dynamixel_uint16_t(read_return[5],read_return[4]);
 					status_message.torque_limit=i->torque_limit;
-					i->present_position=dynamixel_uint16_t(read_return[7],read_return[6]);
-					position_degrees=i->present_position*(360.0/Servo::MAX_GOAL_POSITION);
-					position_radians=position_degrees*(pi/180);
-					status_message.present_position=position_radians;
+					//i->present_position=dynamixel_uint16_t(read_return[7],read_return[6]);
+					//position_degrees=i->present_position*(360.0/Servo::MAX_GOAL_POSITION);
+					//position_radians=position_degrees*(PI/180);
+					i->setPresentPosition(dynamixel_uint16_t(read_return[7],read_return[6]));
+					status_message.present_position=i->getPresentPositionInRadians();
+
 					i->present_speed=dynamixel_uint16_t(read_return[9],read_return[8]);
-					status_message.present_speed=i->present_speed;
+					status_message.present_speed=i->getPresentSpeedRadPerSec();
 					i->present_load=dynamixel_uint16_t(read_return[11],read_return[10]);
 					status_message.present_load=i->present_load;
 					i->present_voltage=read_return[12];
@@ -339,6 +357,10 @@ void DynamixelServos::run()
 					i->is_moving=read_return[16];
 					status_message.is_moving=i->is_moving;
 					status_pub.publish(status_message);
+					if(i->continuious_angle_mode)
+					{
+						setMovingSpeed(i,approximateSpeedControl(*i));// if in continuous rotation mode make sure the servo is still good
+					}
 				}
 				else
 				{
@@ -521,7 +543,8 @@ void DynamixelServos::controlTableRequestCallback(const dynamixel_servo::Dynamix
 			servo_to_update->goal_position=dynamixel_uint16_t(control_table[Servo::GOAL_POSITION_REG+1],control_table[Servo::GOAL_POSITION_REG]);
 			servo_to_update->moving_speed=dynamixel_uint16_t(control_table[Servo::MOVING_SPEED_REG+1],control_table[Servo::MOVING_SPEED_REG]);
 			servo_to_update->torque_limit=dynamixel_uint16_t(control_table[Servo::TORQUE_LIMIT_REG+1],control_table[Servo::TORQUE_LIMIT_REG]);
-			servo_to_update->present_position=dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]);
+			//servo_to_update->present_position=dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]);
+			servo_to_update->setPresentPosition(dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]));
 			servo_to_update->present_speed=dynamixel_uint16_t(control_table[Servo::PRESENT_SPEED_REG+1],control_table[Servo::PRESENT_SPEED_REG]);
 			servo_to_update->present_load=dynamixel_uint16_t(control_table[Servo::PRESENT_LOAD_REG+1],control_table[Servo::PRESENT_LOAD_REG]);
 			servo_to_update->present_voltage=control_table[Servo::PRESENT_VOLTAGE_REG];
@@ -536,7 +559,7 @@ void DynamixelServos::controlTableRequestCallback(const dynamixel_servo::Dynamix
 			servo_to_update->goal_acceleration=control_table[Servo::GOAL_ACCELERATION_REG];
 
 			// now generate the message and publish it
-			dynamixel_servo::DynamixelControlTableParam control_table_message;
+			dynamixel_servo::DynamixelControlTablePost control_table_message;
 			control_table_message.model_num=servo_to_update->model_num;
 			control_table_message.firmware_ver=servo_to_update->firmware_ver;
 			control_table_message.id=servo_to_update->id;
@@ -576,6 +599,8 @@ void DynamixelServos::controlTableRequestCallback(const dynamixel_servo::Dynamix
 			control_table_message.goal_torque=servo_to_update->goal_torque;
 			control_table_message.goal_acceleration=servo_to_update->goal_acceleration;
 
+
+
 			control_table_request_publisher.publish(control_table_message);
 		}
 	}
@@ -606,13 +631,73 @@ bool DynamixelServos::pingServo(uint8_t id)
 	//ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
 	return true;
 }
+void DynamixelServos::configCallbackContinuiousAngle(const dynamixel_servo::DynamixelContinuousAngleConfig::ConstPtr& msg)
+{
+	if (msg->id == 0x00)
+	{
+		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from sending configs to the wrong servo due to uninitialized ID parameters in the messages.");
+		ROS_WARN("The %s is dropping the \"continuous angle\" config message for servo ID 0x%X.", ros::this_node::getName().c_str(), msg->id);
+		return;
+	}
+	if (binary_search(servos.begin(), servos.end(), msg->id))
+	{
+		vector<Servo>::iterator servo_to_config = find(servos.begin(), servos.end(), msg->id);
+		servo_to_config->continuious_angle_goal = msg->goal_position;
+		servo_to_config->continuous_velocity_goal = msg->goal_velocity;
+		if(servo_to_config->continuious_angle_mode)
+		{
+			setMovingSpeed(servo_to_config, approximateSpeedControl(*servo_to_config)); // XXX
+		}
+		else
+		{
+			ROS_WARN("Servo ID 0x%X is not currently in \"continuous angle mode\"; changing the mode in which the servo operates can clear the clockwise and counterclockwise safety limits.", msg->id);
+			ROS_WARN("If you would like to change the mode it operates in, use a full config message or configure it outside of ros.");
+		}
+	}
+	else
+	{
+		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the \"continuous angle mode\" config message will be dropped.",msg->id);
+		return;
+	}
+	return;
 
-void DynamixelServos::configCallbackPositionOnly(const dynamixel_servo::DynamixelConfigPosition::ConstPtr& msg)
+}
+
+void DynamixelServos::configCallbackWheel(const dynamixel_servo::DynamixelWheelConfig::ConstPtr& msg)
+{
+	if (msg->id == 0x00)
+	{
+		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from sending configs to the wrong servo due to uninitialized ID parameters in the messages.");
+		ROS_WARN("The %s is dropping the \"wheel mode\" config message for servo ID 0x%X.", ros::this_node::getName().c_str(), msg->id);
+		return;
+	}
+	if (binary_search(servos.begin(), servos.end(), msg->id))
+	{
+		vector<Servo>::iterator servo_to_config = find(servos.begin(), servos.end(), msg->id);
+		if(servo_to_config->inWheelMode())
+		{
+			setMovingSpeed(servo_to_config, msg->moving_speed);
+		}
+		else
+		{
+			ROS_WARN("Servo ID 0x%X is not currently in \"wheel mode\"; changing the mode in which the servo operates can clear the clock wise and counter clockwise safty limits.", msg->id);
+			ROS_WARN("If you would like to change the mode it operates in, use a full config message or configure it outside of ros.");
+		}
+	}
+	else
+	{
+		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the \"wheel mode\" config message will be dropped.",msg->id);
+		return;
+	}
+	return;
+}
+
+void DynamixelServos::configCallbackJoint(const dynamixel_servo::DynamixelJointConfig::ConstPtr& msg)
 {
 	if(msg->id==0x00)
 	{
 		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from sending configs to the wrong servo due to uninitialized ID parameters in the messages.");
-		ROS_WARN("The %s is dropping the config message for servo ID 0x%X.",ros::this_node::getName().c_str(), msg->id);
+		ROS_WARN("The %s is dropping the \"joint mode\" config message for servo ID 0x%X.",ros::this_node::getName().c_str(), msg->id);
 		return;
 	}
 	if(binary_search(servos.begin(),servos.end(),msg->id))
@@ -622,23 +707,26 @@ void DynamixelServos::configCallbackPositionOnly(const dynamixel_servo::Dynamixe
 	}
 	else
 	{
-		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the config message will be dropped.",msg->id);
+		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the \"joint mode\" config message will be dropped.",msg->id);
 		return;
 	}
 	return;
 }
 
-void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelConfigParam::ConstPtr& msg)
+void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelFullConfig::ConstPtr& msg)
 {
 	if(msg->id==0x00)
 	{
 		ROS_WARN("Servo ID 0x00 is explicitly not allowed to prevent people from sending configs to the wrong servo due to uninitialized ID parameters in the messages.");
-		ROS_WARN("The %s is dropping the config message for servo ID 0x%X.",ros::this_node::getName().c_str(), msg->id);
+		ROS_WARN("The %s is dropping the full config message for servo ID 0x%X.",ros::this_node::getName().c_str(), msg->id);
 		return;
 	}
 	if(binary_search(servos.begin(),servos.end(),msg->id))
 	{
+		// find the relevant servo
 		vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),msg->id);
+		// now that we have it see if we need to change the mode
+		setControlMode(servo_to_config, msg->control_mode);
 		setLed(servo_to_config,msg->led);
 		setGoalPosition(servo_to_config,msg->goal_position);
 		setMovingSpeed(servo_to_config,msg->moving_speed);
@@ -647,9 +735,81 @@ void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelConfigP
 	}
 	else
 	{
-		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the config message will be dropped.",msg->id);
+		ROS_WARN("The dynamixel_servo_server wasn't originally configured to know about ID: 0x%X, so the full config message will be dropped.",msg->id);
 		return;
 	}
+	return;
+}
+
+void DynamixelServos::setControlMode(const vector<Servo>::iterator servo_to_config, dynamixel_servo::DynamixelFullConfig::_control_mode_type  control_mode)
+{
+	// don't tie up the bus needlessly with a config that is already done
+	if(control_mode==dynamixel_servo::DynamixelFullConfig::JOINT&&servo_to_config->inJointMode())
+	{
+		return;
+	}
+	else if(control_mode==dynamixel_servo::DynamixelFullConfig::WHEEL&&servo_to_config->inWheelMode())
+	{
+		return;
+	}
+	else if(control_mode==dynamixel_servo::DynamixelFullConfig::MULTI_TURN&&servo_to_config->inMultiTurnMode())
+	{
+		return;
+	}
+	else if(control_mode==dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE&&servo_to_config->continuious_angle_mode)
+	{
+		return;
+	}
+	// It doesn't look like the config has been put on the servo yet, so write it.
+	dynamixel_uint16_t cw_angle_limit_temp;
+	dynamixel_uint16_t ccw_angle_limit_temp;
+	if(servo_to_config->inJointMode()&&(control_mode==dynamixel_servo::DynamixelFullConfig::WHEEL||control_mode==dynamixel_servo::DynamixelFullConfig::MULTI_TURN||dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE))// the rest of this if statement is redundant but is here to show clarity
+	{
+		ROS_WARN("Servo ID 0x%X is being taken out of \"joint mode\" and will have the safety limits of 0x%04X (Clockwise) and 0x%04X (CounterClockwise) cleared.",servo_to_config->id, servo_to_config->cw_angle_limit.two_byte_value,servo_to_config->ccw_angle_limit.two_byte_value);
+		servo_to_config->previous_cw_angle_limit = servo_to_config->cw_angle_limit;
+		servo_to_config->previous_ccw_angle_limit = servo_to_config->ccw_angle_limit;
+		if(control_mode==dynamixel_servo::DynamixelFullConfig::WHEEL||control_mode==dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE)
+		{
+			cw_angle_limit_temp=0x0000;
+			ccw_angle_limit_temp=0x0000;
+		}
+		else if(control_mode==dynamixel_servo::DynamixelFullConfig::MULTI_TURN)
+		{
+			cw_angle_limit_temp=0x0FFF; // 4095
+			ccw_angle_limit_temp=0x0FFF; // 4095
+		}
+	}
+	else if(servo_to_config->inJointMode()==false&&control_mode==dynamixel_servo::DynamixelFullConfig::JOINT)
+	{
+		ROS_WARN("Servo ID 0x%X is being put in \"joint mode\" and will have the safety limits of 0x%04X (Clockwise) and 0x%04X (CounterClockwise) restored.",servo_to_config->id, servo_to_config->previous_cw_angle_limit.two_byte_value,servo_to_config->previous_cw_angle_limit.two_byte_value);
+		cw_angle_limit_temp=servo_to_config->previous_cw_angle_limit;
+		ccw_angle_limit_temp=servo_to_config->previous_ccw_angle_limit;
+	}
+	vector<uint8_t> params;
+	params.push_back(Servo::CW_ANGLE_LIMIT_EPROM);
+	params.push_back(cw_angle_limit_temp.bytes.low_byte);
+	params.push_back(cw_angle_limit_temp.bytes.hi_byte);
+	params.push_back(ccw_angle_limit_temp.bytes.low_byte);
+	params.push_back(ccw_angle_limit_temp.bytes.hi_byte);
+
+	string temp = com_port.sendAndReceive(servo_to_config->getID(), DynamixelSerialPort::INST_WRITE, params);
+
+	if (temp != DynamixelSerialPort::DYNAMIXEL_COMUNICATION_SUCCESSFUL)
+	{
+	     ROS_WARN("Error: %s didn't sendAndReceive to servo %u correctly. error_returned: %s",__func__, servo_to_config->getID(), temp.c_str());
+	}
+	else
+	{
+		servo_to_config->cw_angle_limit=cw_angle_limit_temp;
+		servo_to_config->ccw_angle_limit=ccw_angle_limit_temp;
+		// Modify the servo struct accordingly since communication was successful
+		if (control_mode == dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE)
+		{
+			servo_to_config->continuious_angle_mode=true;
+		}
+	}
+	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+	//ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
 	return;
 }
 
@@ -705,12 +865,12 @@ void DynamixelServos::setTorqueLimit(const vector<Servo>::iterator servo_to_conf
 
 void DynamixelServos::setGoalAcceleration(const vector<Servo>::iterator servo_to_config, float goal_acceleration_rad_per_second_squared)
 {
-	if(goal_acceleration_rad_per_second_squared<0.0 || goal_acceleration_rad_per_second_squared>((8.5826772*pi/180)*Servo::MAX_ACCELERATION))
+	if(goal_acceleration_rad_per_second_squared<0.0 || goal_acceleration_rad_per_second_squared>((8.5826772*PI/180)*Servo::MAX_ACCELERATION))
 	{
-		ROS_WARN("The \"goal_acceleration\" should be specified in radians per second squared, rad/(s^2), between [0.0 to 2*%f] for id: 0x%X",(float)((8.5826772*pi/180)*Servo::MAX_ACCELERATION), servo_to_config->getID());
+		ROS_WARN("The \"goal_acceleration\" should be specified in radians per second squared, rad/(s^2), between [0.0 to 2*%f] for id: 0x%X",(float)((8.5826772*PI/180)*Servo::MAX_ACCELERATION), servo_to_config->getID());
 		return;
 	}
-	float goal_acceleration_deg_per_second_squared=goal_acceleration_rad_per_second_squared*180/pi;
+	float goal_acceleration_deg_per_second_squared=goal_acceleration_rad_per_second_squared*180/PI;
 	uint8_t goal_acceleration=(uint8_t)(goal_acceleration_deg_per_second_squared/8.5826772);
 	if(goal_acceleration<Servo::MIN_ACCELERATION)
 	{
@@ -798,24 +958,47 @@ void DynamixelServos::setLed(const vector<Servo>::iterator servo_to_config, uint
 
 void DynamixelServos::setGoalPosition(const vector<Servo>::iterator servo_to_config, float goal_position_radians)
 {
-	if(goal_position_radians<0.0||goal_position_radians>2*pi)
+	// Note: the following conversions have implicit casting involved in each division operation.
+	float goal_position_degrees=goal_position_radians*(180/PI); // see: http://goo.gl/0t2IRV
+	uint16_t goal_position;
+
+	if(servo_to_config->inJointMode())
 	{
-		// since goal_position is in radians it must be between 0 and 2*pi
-		ROS_WARN("The \"goal_position\" for id: 0x%X should be specified in radians between [0.0 to 2*%f]",servo_to_config->getID(), pi);
+		if(goal_position_radians<0.0||goal_position_radians>2*PI)
+		{
+			// since goal_position is in radians it must be between 0 and 2*PI
+			ROS_WARN("The \"goal_position\" for id: 0x%X should be specified in radians between [0.0 to 2*%f]",servo_to_config->getID(), PI);
+			return;
+		}
+		goal_position = (uint16_t) (goal_position_degrees/(360.0/Servo::ENCODER_RESOLUTION)); // only the result of the math operation is explicitly cast to a uint16
+		// verify there weren't any odd issues due to casting
+		if(goal_position>Servo::MAX_GOAL_POSITION)
+		{
+			goal_position=Servo::MAX_GOAL_POSITION;
+		}
+		else if (goal_position<0x0000)
+		{
+			goal_position=0x0000;
+		}
+	}
+	else if(servo_to_config->inMultiTurnMode())
+	{
+		return;
+
+	}
+	else if(servo_to_config->continuious_angle_mode)
+	{
+		servo_to_config->continuious_angle_goal=goal_position_radians;
 		return;
 	}
-	// Note: the following conversions have implicit casting involved in each division operation.
-	float goal_position_degrees=goal_position_radians*(180/pi); // see: http://goo.gl/0t2IRV
-	uint16_t goal_position= (uint16_t) (goal_position_degrees/(360.0/Servo::MAX_GOAL_POSITION)); // only the result of the math operation is explicitly cast to a uint16
-	// verify there weren't any odd issues due to casting
-	if(goal_position>Servo::MAX_GOAL_POSITION)
+	else if(servo_to_config->inWheelMode())
 	{
-		goal_position=Servo::MAX_GOAL_POSITION;
+		ROS_INFO("Setting the \"goal_position\" to %f for id: 0x%X while in \"wheel mode\" has no affect.",goal_position_radians, servo_to_config->getID());
+		return;
 	}
-	else if (goal_position<0x0000)
-	{
-		goal_position=0x0000;
-	}
+
+
+
 
 	if(servo_to_config->goal_position==goal_position)
 	{
@@ -861,8 +1044,50 @@ void DynamixelServos::setGoalPosition(const vector<Servo>::iterator servo_to_con
 	return;
 }
 
-void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_config, uint16_t moving_speed)
+void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_config, float moving_speed_rad_per_sec)
 {
+	// 1 rad/s is approximately 9.5493 rpm, conversely .1047 rad/s is 1 rpm. see: http://goo.gl/52oeiy
+	// The Dynamixel's moving speed has an approximate unit of .11443 rpm, given its resolution of 1023. Thus it can essential move +- 12.25869244063695 rad/s in wheel mode
+	// the compiler will inline the folowing statement, but it is here to show the conversion
+	static const float moving_speed_max=Servo::MOVING_SPEED_RESOLUTION*Servo::MOVING_SPEED_PER_UNIT_IN_RPM*Servo::RPM_TO_RAD_PER_SECOND;
+	if(servo_to_config->inJointMode()||servo_to_config->inMultiTurnMode())
+	{
+		if(moving_speed_rad_per_sec<0.0||(moving_speed_rad_per_sec>moving_speed_max))
+		{
+			ROS_WARN("The \"moving_speed\" for id: 0x%X should be specified in radians per second between [0 to %f] not %f for joint and multi-turn mode",servo_to_config->getID(), moving_speed_max,moving_speed_rad_per_sec);
+			return;
+		}
+	}
+	else if(servo_to_config->inWheelMode())
+	{
+		if(moving_speed_rad_per_sec<-moving_speed_max||moving_speed_rad_per_sec>moving_speed_max)
+		{
+			ROS_WARN("The \"moving_speed\" for id: 0x%X should be specified in radians per second between [%f to %f] not %f for wheel mode",servo_to_config->getID(), -moving_speed_max, moving_speed_max, moving_speed_rad_per_sec);
+			return;
+		}
+	}
+	else
+	{
+		ROS_WARN("Can't set the \"moving_speed\" for id: 0x%X because it's in an unknown mode",servo_to_config->getID());
+		return;
+	}
+
+	uint16_t moving_speed;
+	if (moving_speed_rad_per_sec==0)
+	{
+		moving_speed=servo_to_config->getZeroMovingSpeed();
+	}
+	else if(moving_speed_rad_per_sec>0.0)
+	{
+		// according to rep 103 ccw is positive
+		moving_speed=Servo::WHEEL_MODE_MOVING_SPEED_ZERO_CCW+(uint16_t)((moving_speed_rad_per_sec*Servo::RAD_PER_SECOND_TO_RPM)/Servo::MOVING_SPEED_PER_UNIT_IN_RPM);
+	}
+	else if(servo_to_config->inWheelMode()&&moving_speed_rad_per_sec<0.0)
+	{
+		// According to ros rep 103 cw is in the negative direction hence the following conversion
+		moving_speed=Servo::WHEEL_MODE_MOVING_SPEED_ZERO_CW+(uint16_t)((-moving_speed_rad_per_sec*Servo::RAD_PER_SECOND_TO_RPM)/Servo::MOVING_SPEED_PER_UNIT_IN_RPM);
+	}
+
 	if(servo_to_config->moving_speed==moving_speed)
 	{
 		// Don't tie up the bus if it is known to be the same value (the bus is slower than a few cpu instructions)
@@ -878,6 +1103,12 @@ void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_conf
 	{
 		ROS_WARN("Error id: 0x%X invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Joint Mode\"", servo_to_config->getID(), moving_speed, Servo::MAX_JOINT_MODE_MOVING_SPEED);
 		return;
+	}
+	else if(servo_to_config->inMultiTurnMode()&&moving_speed>Servo::MAX_MULTTURN_MODE_MOVING_SPEED)
+	{
+		ROS_WARN("Error id: 0x%X invalid \"Moving Speed\" parameter (0x%04X) exceeds the max value allowed (0x%04X) for \"Mult-turn Mode\"", servo_to_config->getID(), moving_speed, Servo::MAX_MULTTURN_MODE_MOVING_SPEED);
+		return;
+
 	}
 	else if(servo_to_config->inWheelMode()&&moving_speed>Servo::MAX_WHEEL_MODE_MOVING_SPEED)
 	{
@@ -897,7 +1128,7 @@ void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_conf
 	}
 	else if(servo_to_config->inWheelMode())
 	{
-		if(moving_speed<servo_to_config->getMinMovingSpeed()||moving_speed>servo_to_config->GetMaxMovingSpeed())
+		if(moving_speed<servo_to_config->getMinMovingSpeed()||moving_speed>servo_to_config->getMaxMovingSpeed())
 		{
 			// remember the bit position is 0 indexed
 			ROS_INFO("Servo %u will change its direction of rotation since it's in \"Wheel Mode\" and the 10th bit is changing; \"Moving Speed\" is being set to 0x%X",servo_to_config->getID(), moving_speed);
@@ -918,8 +1149,8 @@ void DynamixelServos::setMovingSpeed(const vector<Servo>::iterator servo_to_conf
 		// Modify the servo struct accordingly since communication was successful
 		servo_to_config->moving_speed=moving_speed_params;
 	}
-	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
-	//ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
+	ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
+	ROS_INFO("%s received from id: %u the packet: %s",__func__,servo_to_config->getID(), com_port.printReceivePacket().c_str());
 	return;
 }
 
@@ -954,6 +1185,18 @@ vector<uint8_t> DynamixelServos::servoRead(uint8_t id, uint8_t location, uint8_t
 	// ROS_INFO("%s received from id: %u the packet: %s", __func__, id, com_port.printReceivePacket().c_str());
 
 	return com_port.getReturnPacketParamaters();
+}
+
+float DynamixelServos::approximateSpeedControl(Servo & servo)
+{
+	float position_error = servo.continuious_angle_goal - servo.current_continuious_position_in_radians;
+	
+	float desired_velocity = 3 * position_error + servo.continuous_velocity_goal;
+	if(fabs(desired_velocity) > Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99) {
+		desired_velocity *= Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99/fabs(desired_velocity);
+	}
+	std::cout << position_error << " " << desired_velocity << std::endl;
+	return desired_velocity;
 }
 
 

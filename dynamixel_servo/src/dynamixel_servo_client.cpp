@@ -1,9 +1,9 @@
 #include <iostream>
 #include "ros/ros.h"
 #include "dynamixel_servo_definitions.h" // This includes all the parameter values and constants one might need to know about a servo
-#include "dynamixel_servo/DynamixelConfigParam.h"
-#include "dynamixel_servo/DynamixelConfigPosition.h"
-#include "dynamixel_servo/DynamixelStatusParam.h"
+#include "dynamixel_servo/DynamixelFullConfig.h"
+#include "dynamixel_servo/DynamixelJointConfig.h"
+#include "dynamixel_servo/DynamixelStatus.h"
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
 
 #define USING_AX12A
@@ -15,12 +15,12 @@ int main(int argc, char **argv)
 {
   ros::init(argc, argv, "dynamixel_servo_client");
   ros::NodeHandle n;
-  ros::Publisher dynamixel_config_request = n.advertise<dynamixel_servo::DynamixelConfigParam>("dynamixel_config_full", 1000);
+  ros::Publisher dynamixel_config_request = n.advertise<dynamixel_servo::DynamixelFullConfig>("dynamixel_config_full", 1000);
   ros::Publisher dynamixel_control_table_request = n.advertise<dynamixel_servo::DynamixelControlTableRequest>("dynamixel_control_table_request",1000);
   ros::Rate loop_rate(10);// rate to run the loop in HZ
   uint8_t servo_count = 4;
   dynamixel_servo::DynamixelControlTableRequest dynamixel_control_table_request_msg;
-  dynamixel_servo::DynamixelConfigParam config_msg;
+  dynamixel_servo::DynamixelFullConfig config_msg;
   // init the messages with a valid id to start
   dynamixel_control_table_request_msg.id=2;
   config_msg.id=1;
