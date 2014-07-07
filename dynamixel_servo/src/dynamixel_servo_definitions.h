@@ -405,6 +405,7 @@ const uint8_t Servo::MAX_ACCELERATION=0xFE;
 const uint8_t Servo::MIN_ACCELERATION=0x01;// since 0x00 is the same as max acceleration the min acceleration is 0x01
 const float Servo::ACCELERATION_PER_UNIT_IN_DEGREES=8.5826772;
 const float Servo::MAX_MOVING_SPEED_IN_RAD_SEC=MAX_MULTTURN_MODE_MOVING_SPEED*MOVING_SPEED_PER_UNIT_IN_RPM*RPM_TO_RAD_PER_SECOND;
+//const float
 
 
 //----------- General Constants -----------------

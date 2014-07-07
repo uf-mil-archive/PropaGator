@@ -5,10 +5,12 @@
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
 #include "dynamixel_servo/DynamixelControlTableParam.h"
 
+ros::Publisher dynamixel_config_full_pub;
+ros::Publisher dynamixel_config_position_pub;
 //Min 150.1171		2.620039
 //Max 222.8027		3.888641
-//const float MIN_ANGLE = 2.625;//2.357;
-//const float MAX_ANGLE = 3.14159;//3.891;
+const float MIN_ANGLE = 2.625;//2.357;
+const float MAX_ANGLE = 3.14159;//3.891;
 
 //Temporary globals
 float abs_max_angle(0), abs_min_angle(0);
@@ -31,8 +33,7 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "lidar_control_node");
     //Initilze the node handle
     ros::NodeHandle n;
-    //This is the frequency of the node (default 1 Hz)
-    ros::Rate sleep_time(1);
+    ros::Rate sleep_time(1.5);
 
     //Initilze publishers
     ros::Publisher dynamixel_config_full_pub = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_config_full", 10);

@@ -543,8 +543,8 @@ void DynamixelServos::controlTableRequestCallback(const dynamixel_servo::Dynamix
 			servo_to_update->goal_position=dynamixel_uint16_t(control_table[Servo::GOAL_POSITION_REG+1],control_table[Servo::GOAL_POSITION_REG]);
 			servo_to_update->moving_speed=dynamixel_uint16_t(control_table[Servo::MOVING_SPEED_REG+1],control_table[Servo::MOVING_SPEED_REG]);
 			servo_to_update->torque_limit=dynamixel_uint16_t(control_table[Servo::TORQUE_LIMIT_REG+1],control_table[Servo::TORQUE_LIMIT_REG]);
-			//servo_to_update->present_position=dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]);
-			servo_to_update->setPresentPosition(dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]));
+			servo_to_update->present_position=dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]);
+			//servo_to_update->setPresentPosition(dynamixel_uint16_t(control_table[Servo::PRESENT_POSITION_REG+1],control_table[Servo::PRESENT_POSITION_REG]));
 			servo_to_update->present_speed=dynamixel_uint16_t(control_table[Servo::PRESENT_SPEED_REG+1],control_table[Servo::PRESENT_SPEED_REG]);
 			servo_to_update->present_load=dynamixel_uint16_t(control_table[Servo::PRESENT_LOAD_REG+1],control_table[Servo::PRESENT_LOAD_REG]);
 			servo_to_update->present_voltage=control_table[Servo::PRESENT_VOLTAGE_REG];

@@ -40,8 +40,8 @@ PORT_THRUSTER = 3
 #MIN_DEG = 45                #full reverse in degrees
 #MAX_NEWTONS = 39.24135      #Full forward in newtons
 #MIN_NEWTONS = -23.65047     #Full reverse in newtons
-MAX_NEWTONS =  100.0     #Full forward Jacksons motors
-MIN_NEWTONS =  -100.0           #Full reverse Jacksons
+MAX_NEWTONS =  100.0         #Full forward Jacksons motors
+MIN_NEWTONS =  -100.0        #Full reverse Jacksons
 ABS_MAX_PW = 2000
 ABS_MIN_PW = 1000
 ZERO_PW = 1500
@@ -61,7 +61,7 @@ starboard_current = 0.0
 #Timing Variables
 PUB_RATE = rospy.Duration(0.01)
 UPDATE_RATE = 100                      #Update at 100 Hz
-RAMP_RATE = 1.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
+RAMP_RATE = 10.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
 
 #Pub
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
@@ -194,7 +194,7 @@ def thrusterCtrl():
     #Setup ros
     rospy.init_node('thruster_control')
     rospy.Subscriber("thruster_config", thrusterNewtons, motorConfigCallback)
-    r = rospy.Rate(1000)          #1000 hz(1ms Period)... I think
+    r = rospy.Rate(UPDATE_RATE)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)
     
     #Initilize the motors to 0
@@ -226,6 +226,8 @@ def thrusterCtrl():
             starboard_current += RAMP_RATE
             if starboard_current > starboard_setpoint:
                 starboard_current = starboard_setpoint
+
+        print "Port setpoint %i : actual value %i" % (port_setpoint, port_current)
         
         #Write to the serial bus
         #Generate messages in the form of #,#:
@@ -233,7 +235,7 @@ def thrusterCtrl():
         #if port_last_value != port_current:
             #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
         msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
-        print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
+        #print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
         pwm_pub.publish(msg);
             
 
@@ -241,7 +243,7 @@ def thrusterCtrl():
         #if starboard_last_value != starboard_current:
             #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
         msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
-        print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
+        #print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
         pwm_pub.publish(msg)
 
         starboard_last_value = starboard_current;
