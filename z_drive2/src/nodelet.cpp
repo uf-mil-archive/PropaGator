@@ -300,8 +300,8 @@ public:
       std::cout << "Position: " << s.position.transpose() << std::endl;
       std::cout << "Velocity: " << s.velocity.transpose() << std::endl;
       std::cout << "Angular velocity: " << s.angular_velocity.transpose() << std::endl;
-      Control a = compute_pos_policy(s, Vec<3>(1, 1, 0), dt, p);
-      //Control a = compute_vel_policy(s, dt, p);
+      //Control a = compute_pos_policy(s, Vec<3>(1, 1, 0), dt, p);
+      Control a = compute_vel_policy(s, dt, p);
       std::cout << "Thruster commands:" << std::endl;
       BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
         std::cout << thruster.dangle << " " << thruster.dthrust << std::endl;
