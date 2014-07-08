@@ -1109,7 +1109,6 @@ void ZDrive::run()
 	}
 	if(dynamixel_config_full_pub.getNumSubscribers() == 0)
 	{
-		brak;
 		ROS_ERROR("Connection to subscribers of dynamixel config full pub failed due to timeout");
 	}
 
