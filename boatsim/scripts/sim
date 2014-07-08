@@ -27,7 +27,7 @@ from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
 from motor_control.msg import thrusterNewtons
-from dynamixel_servo.msg import DynamixelJointConfig, DynamixelFullConfig
+from dynamixel_servo.msg import DynamixelJointConfig, DynamixelFullConfig, DynamixelStatus
 from z_drive.msg import BoatSimZDriveOutsideForce
 
 from boatsim import devices
@@ -63,12 +63,32 @@ def zdriveSimCallback(msg):
 rospy.Subscriber('z_drive_sim_force', BoatSimZDriveOutsideForce, zdriveSimCallback)
 def motorConfigCallback(msg):
     thrusts[msg.id] = msg.thrust
+    #so the thrusters dont have to run, just echo the message back
+    echo_pub = rospy.Publisher('/thruster_status', thrusterNewtons)
+    status_echo_msg=thrusterNewtons()
+    status_echo_msg.id=msg.id
+    status_echo_msg.thrust=msg.thrust
+    echo_pub.publish(status_echo_msg)
 rospy.Subscriber('thruster_config', thrusterNewtons, motorConfigCallback)
 def dynamixelConfigPositionCallback(msg):
     positions[msg.id] = msg.goal_position
+    #so the dynamixel_server doesn't have to run, just echo the message back
+    echo_pub = rospy.Publisher('/dynamixel/dynamixel_status_post', DynamixelStatus)
+    status_echo_msg=DynamixelStatus()
+    status_echo_msg.id=msg.id
+    status_echo_msg.present_position=msg.goal_position
+    status_echo_msg.goal_position=msg.goal_position
+    echo_pub.publish(status_echo_msg)
 rospy.Subscriber('dynamixel/dynamixel_config_position', DynamixelJointConfig, dynamixelConfigPositionCallback)
 def dynamixelConfigFullCallback(msg):
     positions[msg.id] = msg.goal_position
+     #so the dynamixel_server doesn't have to run, just echo the message back
+    echo_pub = rospy.Publisher('/dynamixel/dynamixel_status_post', DynamixelStatus)
+    status_echo_msg=DynamixelStatus()
+    status_echo_msg.id=msg.id
+    status_echo_msg.present_position=msg.goal_position
+    status_echo_msg.goal_position=msg.goal_position
+    echo_pub.publish(status_echo_msg)
 rospy.Subscriber('dynamixel/dynamixel_full_config', DynamixelFullConfig, dynamixelConfigFullCallback)
 
 
