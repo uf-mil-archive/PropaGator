@@ -27,7 +27,7 @@ from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
 from motor_control.msg import thrusterNewtons
-from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelFullConfig
+from dynamixel_servo.msg import DynamixelJointConfig, DynamixelFullConfig
 from z_drive.msg import BoatSimZDriveOutsideForce
 
 from boatsim import devices
