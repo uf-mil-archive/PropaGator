@@ -124,7 +124,7 @@ class Node(object):
         try:
             while True:
                 tt += dt
-                self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
+                #self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
                 
                 optimal_angles = get_optimal_angles(self.thrusters, self.wrench)
                 
@@ -134,12 +134,12 @@ class Node(object):
                     while allowed_angle > thruster['angle_range'][1]: allowed_angle -= math.pi
                     while allowed_angle < thruster['angle_range'][0]: allowed_angle += math.pi
                     assert thruster['angle_range'][0] <= allowed_angle <= thruster['angle_range'][1]
-                    possibilities = []
-                    for i in itertools.count():
+                    possibilities = [allowed_angle]
+                    for i in itertools.count(1):
                         x = allowed_angle + math.pi * i
                         if x > thruster['angle_range'][1]: break
                         possibilities.append(x)
-                    for i in itertools.count():
+                    for i in itertools.count(1):
                         x = allowed_angle - math.pi * i
                         if x < thruster['angle_range'][0]: break
                         possibilities.append(x)
@@ -150,6 +150,8 @@ class Node(object):
                     
                     desired_angle = min([p for p in possibilities if abs(p - thruster['angle']) <= max_dist],
                         key=lambda angle: abs(angle))
+                    
+                    assert thruster['angle_range'][0] <= desired_angle <= thruster['angle_range'][1]
                     
                     dangle = clip((desired_angle - thruster['angle']) / dt, thruster['dangle_range'])
                     dangles.append(dangle)
