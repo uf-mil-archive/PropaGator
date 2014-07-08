@@ -61,7 +61,7 @@ protected:
 	void configCallbackFull(const dynamixel_servo::DynamixelFullConfig::ConstPtr& msg);
 	void configCallbackJoint(const dynamixel_servo::DynamixelJointConfig::ConstPtr& msg);
 	void configCallbackWheel(const dynamixel_servo::DynamixelWheelConfig::ConstPtr& msg);
-	void configCallbackContinuiousAngle(const dynamixel_servo::DynamixelContinuousAngleConfig::ConstPtr& msg);
+	void configCallbackContinuousAngle(const dynamixel_servo::DynamixelContinuousAngleConfig::ConstPtr& msg);
 	void setTorqueLimit(const vector<Servo>::iterator servo_to_config, uint16_t torque_limit);
 	void setGoalAcceleration(const vector<Servo>::iterator servo_to_config, float goal_acceleration_rad_per_second_squared);
 	void setLed(const vector<Servo>::iterator servo_to_config, uint8_t led_state);
@@ -282,7 +282,7 @@ DynamixelServos::DynamixelServos()
 	full_config_subscriber= n.subscribe("dynamixel_full_config", 1000, &DynamixelServos::configCallbackFull,this);
 	joint_config_subscriber=n.subscribe("dynamixel_joint_config", 1000, &DynamixelServos::configCallbackJoint,this);
 	wheel_config_subscriber=n.subscribe("dynamixel_wheel_config", 1000, &DynamixelServos::configCallbackWheel,this);
-	continuous_angle_config_subscriber=n.subscribe("dynamixel_continuous_config", 1000, &DynamixelServos::configCallbackContinuiousAngle,this);
+	continuous_angle_config_subscriber=n.subscribe("dynamixel_continuous_config", 1000, &DynamixelServos::configCallbackContinuousAngle,this);
 }
 
 void DynamixelServos::run()
@@ -301,7 +301,7 @@ void DynamixelServos::run()
 			i->previous_cw_angle_limit=i->cw_angle_limit;
 			i->previous_ccw_angle_limit=i->ccw_angle_limit;
 			// also init the position information for the continuous rotation in software
-			i->previous_continuious_position_in_radians=i->current_continuious_position_in_radians;
+			i->previous_continuous_position_in_radians=i->current_continuous_position_in_radians=PI;
 		}
 
 		ROS_INFO("%s is running with a handle on port: %s",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
@@ -357,7 +357,7 @@ void DynamixelServos::run()
 					i->is_moving=read_return[16];
 					status_message.is_moving=i->is_moving;
 					status_pub.publish(status_message);
-					if(i->continuious_angle_mode)
+					if(i->continuous_angle_mode)
 					{
 						setMovingSpeed(i,approximateSpeedControl(*i));// if in continuous rotation mode make sure the servo is still good
 					}
@@ -631,7 +631,7 @@ bool DynamixelServos::pingServo(uint8_t id)
 	//ROS_INFO("%s received from id: %u the packet: %s",__func__,id, com_port.printReceivePacket().c_str());
 	return true;
 }
-void DynamixelServos::configCallbackContinuiousAngle(const dynamixel_servo::DynamixelContinuousAngleConfig::ConstPtr& msg)
+void DynamixelServos::configCallbackContinuousAngle(const dynamixel_servo::DynamixelContinuousAngleConfig::ConstPtr& msg)
 {
 	if (msg->id == 0x00)
 	{
@@ -642,9 +642,9 @@ void DynamixelServos::configCallbackContinuiousAngle(const dynamixel_servo::Dyna
 	if (binary_search(servos.begin(), servos.end(), msg->id))
 	{
 		vector<Servo>::iterator servo_to_config = find(servos.begin(), servos.end(), msg->id);
-		servo_to_config->continuious_angle_goal = msg->goal_position;
+		servo_to_config->continuous_angle_goal = msg->goal_position;
 		servo_to_config->continuous_velocity_goal = msg->goal_velocity;
-		if(servo_to_config->continuious_angle_mode)
+		if(servo_to_config->continuous_angle_mode)
 		{
 			setMovingSpeed(servo_to_config, approximateSpeedControl(*servo_to_config)); // XXX
 		}
@@ -725,12 +725,13 @@ void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelFullCon
 	{
 		// find the relevant servo
 		vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),msg->id);
+		servo_to_config->continuous_angle_goal = msg->goal_position;
 		servo_to_config->continuous_velocity_goal = msg->goal_velocity;
 		// now that we have it see if we need to change the mode
 		setControlMode(servo_to_config, msg->control_mode);
 		setLed(servo_to_config,msg->led);
 		setGoalPosition(servo_to_config,msg->goal_position);
-		if(!servo_to_config->continuious_angle_mode) {
+		if(!servo_to_config->continuous_angle_mode) {
 			setMovingSpeed(servo_to_config,msg->moving_speed);
 		}
 		setTorqueLimit(servo_to_config,msg->torque_limit);
@@ -760,7 +761,7 @@ void DynamixelServos::setControlMode(const vector<Servo>::iterator servo_to_conf
 	{
 		return;
 	}
-	else if(control_mode==dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE&&servo_to_config->continuious_angle_mode)
+	else if(control_mode==dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE&&servo_to_config->continuous_angle_mode)
 	{
 		return;
 	}
@@ -809,7 +810,7 @@ void DynamixelServos::setControlMode(const vector<Servo>::iterator servo_to_conf
 		// Modify the servo struct accordingly since communication was successful
 		if (control_mode == dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE)
 		{
-			servo_to_config->continuious_angle_mode=true;
+			servo_to_config->continuous_angle_mode=true;
 		}
 	}
 	//ROS_INFO("%s sent id: %u the packet: %s",__func__, servo_to_config->getID(), com_port.printSendPacket().c_str());
@@ -990,9 +991,9 @@ void DynamixelServos::setGoalPosition(const vector<Servo>::iterator servo_to_con
 		return;
 
 	}
-	else if(servo_to_config->continuious_angle_mode)
+	else if(servo_to_config->continuous_angle_mode)
 	{
-		servo_to_config->continuious_angle_goal=goal_position_radians;
+		servo_to_config->continuous_angle_goal=goal_position_radians;
 		return;
 	}
 	else if(servo_to_config->inWheelMode())
@@ -1193,7 +1194,7 @@ vector<uint8_t> DynamixelServos::servoRead(uint8_t id, uint8_t location, uint8_t
 
 float DynamixelServos::approximateSpeedControl(Servo & servo)
 {
-	float position_error = servo.continuious_angle_goal - servo.current_continuious_position_in_radians;
+	float position_error = servo.continuous_angle_goal - servo.current_continuous_position_in_radians;
 	
 	float desired_velocity = 3 * position_error + servo.continuous_velocity_goal;
 	if(fabs(desired_velocity) > Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99) {

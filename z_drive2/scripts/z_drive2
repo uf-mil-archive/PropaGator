@@ -171,6 +171,7 @@ class Node(object):
                     dangles.append(dangle)
                 for thruster, dangle in zip(self.thrusters, dangles):
                     thruster['angle'] += dangle * dt
+                    thruster['dangle'] = dangle
                 
                 efforts, error = _fit(self.thrusters, self.wrench)
                 for thruster, effort in zip(self.thrusters, efforts):

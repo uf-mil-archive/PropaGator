@@ -117,11 +117,11 @@ protected:
 	uint8_t goal_acceleration;
 
 	// the following are variables to help with continuous angle mode, and the ability to change modes while still keeping their safety limits
-	float previous_continuious_position_in_radians;
-	float current_continuious_position_in_radians;
-	float continuious_angle_goal;
+	float previous_continuous_position_in_radians;
+	float current_continuous_position_in_radians;
+	float continuous_angle_goal;
 	float continuous_velocity_goal;
-	bool continuious_angle_mode;
+	bool continuous_angle_mode;
 	dynamixel_uint16_t previous_cw_angle_limit;
 	dynamixel_uint16_t previous_ccw_angle_limit;
 
@@ -132,13 +132,13 @@ public:
 	Servo(uint8_t input_id=0x00, string input_system_membership="", string input_description="", uint8_t input_baud=0x22) :
 		system_membership(input_system_membership),
 		description(input_description),
-		previous_continuious_position_in_radians(0.0),
-		current_continuious_position_in_radians(0.0),
-		continuious_angle_goal(0.0),
+		previous_continuous_position_in_radians(0.0),
+		current_continuous_position_in_radians(0.0),
+		continuous_angle_goal(0.0),
 		continuous_velocity_goal(0.0),
 		previous_cw_angle_limit(0x0000),
 		previous_ccw_angle_limit(0x0FFF),
-		continuious_angle_mode(false),
+		continuous_angle_mode(false),
 		// these are the default values according to the manual
 		//---------------- Start of eeprom ------------------
 		model_num(0x0136),
@@ -428,30 +428,23 @@ void Servo::setPresentPosition(dynamixel_uint16_t input_position)
 	//
 	//			MX-64T Logo
 	//
-	static const float PI=3.14159265359;
-	if(continuious_angle_mode)
-	{
-		previous_continuious_position_in_radians = current_continuious_position_in_radians;
-		double angle_within_revolution = input_position*(360.0/Servo::ENCODER_RESOLUTION)*(PI/180);
-		double change = angle_within_revolution - previous_continuious_position_in_radians;
-		while(change < -PI) change += 2*PI;
-		while(change > +PI) change -= 2*PI;
-		current_continuious_position_in_radians = previous_continuious_position_in_radians + change;
-		return;
-	}
-	float offset=0.0;
-	//assing the representation of the register
+	
 	present_position=input_position;
-	// also extrapolate the radian data
-	previous_continuious_position_in_radians=current_continuious_position_in_radians;
-	float position_degrees=input_position*(360.0/Servo::ENCODER_RESOLUTION);
-	current_continuious_position_in_radians=position_degrees*(PI/180)+offset;
+	
+	static const float PI=3.14159265359;
+	previous_continuous_position_in_radians = current_continuous_position_in_radians;
+	double angle_within_revolution = input_position*(360.0/Servo::ENCODER_RESOLUTION)*(PI/180);
+	double change = angle_within_revolution - previous_continuous_position_in_radians;
+	while(change < -PI) change += 2*PI;
+	while(change > +PI) change -= 2*PI;
+	current_continuous_position_in_radians = previous_continuous_position_in_radians + change;
+	return;
 }
 float Servo::getPresentPositionInRadians()
 {
-	if(continuious_angle_mode==true)
+	if(continuous_angle_mode==true)
 	{
-		return current_continuious_position_in_radians;
+		return current_continuous_position_in_radians;
 	}
 
 	static const float PI=3.14159265359;
@@ -469,9 +462,9 @@ float Servo::getPresentPositionInRadians()
 }
 float Servo::getGoalPositionInRadians()
 {
-	if(continuious_angle_mode==true)
+	if(continuous_angle_mode==true)
 	{
-		return continuious_angle_goal;
+		return continuous_angle_goal;
 	}
 	static const float PI=3.14159265359;
 	float position_degrees=0.0;
