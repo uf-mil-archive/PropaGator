@@ -127,6 +127,13 @@ struct State {
     }
     return true;
   }
+  double thrust_amount() const {
+    double res = 0;
+    for(unsigned int i = 0; i < thrusters.size(); i++) {
+      res += pow(thrusters[i].thrust, 2);
+    }
+    return res;
+  }
   
   State update(Control const & control, double dt, const Parameters & p) const {
     assert(thrusters.size() == p.thrusters.size());
@@ -178,28 +185,22 @@ Control compute_control_policy(State const & state, double dt, Parameters const 
 
 Control compute_vel_policy(State const & state, double dt, Parameters const & p) {
   // compute control to bring velocity to 0 as fast as possible, with thrust being 0 at that point
-  Control res = Control::Zero(p);
-  
-  BOOST_FOREACH(std::vector<Control> const & controls, Control::SmallSpanningSet(p)) {
-    boost::optional<std::pair<double, Control> > best;
-    BOOST_FOREACH(Control const & control, controls) {
-      // simulate final velocity of trajectory taken while bringing thrust down to 0
-      // then determine control now that will result in final velocity being closer to 0
-      State s = state.update(control, dt, p);
-      while(!s.thrusts_approximately_zero()) {
-        s = s.update(compute_control_policy(s, dt, p), dt, p);
-      }
-      
-      double error = pow(s.velocity.norm(), 2) + pow(s.angular_velocity.norm(), 2);
-      
-      if(!best || error < best->first) {
-        best = std::make_pair(error, control);
-      }
+  boost::optional<std::pair<double, Control> > best;
+  BOOST_FOREACH(Control const & control, Control::SpanningSet(p)) {
+    // simulate final velocity of trajectory taken while bringing thrust down to 0
+    // then determine control now that will result in final velocity being closer to 0
+    State s = state.update(control, dt, p);
+    while(!s.thrusts_approximately_zero()) {
+      s = s.update(compute_control_policy(s, dt, p), dt, p);
     }
-    res = res + best->second;
+    
+    double error = pow(s.velocity.norm(), 2) + pow(s.angular_velocity.norm(), 2);
+    
+    if(!best || error < best->first) {
+      best = std::make_pair(error, control);
+    }
   }
-  
-  return res;
+  return best->second;
 }
 
 Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, Parameters const & p) {
@@ -209,9 +210,10 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
     //std::cout << std::endl;
     State s = state.update(control, dt, p);
     int i = 0;
-    while(s.velocity.norm() >= 1e-2) { // || !s.thrusts_approximately_zero()
+    int last_bad = 0;
+    while(true) { // || !s.thrusts_approximately_zero()
       i++;
-      Control a = compute_vel_policy(s, 0.1, p);
+      Control a = compute_vel_policy(s, dt, p);
       /*std::cout << "  Thruster states:" << std::endl;
       BOOST_FOREACH(State::Thruster const & thruster, s.thrusters) {
         std::cout << "  " << thruster.angle << " " << thruster.thrust << std::endl;
@@ -220,15 +222,18 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
       std::cout << "  Velocity: " << s.orientation.inverse()._transformVector(s.velocity).transpose() << std::endl;
       std::cout << "  Angular velocity: " << s.angular_velocity.transpose() << std::endl;
       std::cout << "  Thruster commands:" << std::endl; */
-      std::cout << "  " << i << " " << s.velocity.transpose() << " / ";
-      BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
-        std::cout << "  " << thruster.dangle << " " << thruster.dthrust;
-      }
-      std::cout << std::endl;
-      s = s.update(a, 0.1, p);
+      //std::cout << "  " << i << " " << s.velocity.transpose() << " / ";
+      //BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
+      //  std::cout << "  " << thruster.dangle << " " << thruster.dthrust;
+      //}
+      //std::cout << std::endl;
+      s = s.update(a, dt, p);
+      if(s.velocity.norm() >= 3e-2)
+        last_bad = i;
+      if(i == last_bad + 10) break;
     }
     
-    std::cout << i << " iterations" << std::endl;
+    //std::cout << i << " iterations" << std::endl;
     
     double error = (s.position - desired_pos).norm();
     
@@ -282,13 +287,13 @@ public:
     State s(
       Vec<3>::Zero(),
       Quaternion::Identity(),
-      Vec<3>(0, 0, 0),
+      Vec<3>(1, 0, 0),
       Vec<3>::Zero(),
       std::vector<State::Thruster>{
         State::Thruster(0, 0),
         State::Thruster(0, 0)});
     
-    double dt = 1e-2;
+    double dt = 1e-1;
     
     double t = 0;
     while(true) {
