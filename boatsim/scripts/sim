@@ -26,8 +26,8 @@ from std_msgs.msg import Header
 from uf_common import interpolate
 from sim import threed, vector, util
 from sim.vector import v, V
-from motor_control.msg import thrusterConfig
-from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelConfigParam
+from motor_control.msg import thrusterNewtons
+from dynamixel_servo.msg import DynamixelConfigPosition, DynamixelFullConfig
 from z_drive.msg import BoatSimZDriveOutsideForce
 
 from boatsim import devices
@@ -63,13 +63,13 @@ def zdriveSimCallback(msg):
 rospy.Subscriber('z_drive_sim_force', BoatSimZDriveOutsideForce, zdriveSimCallback)
 def motorConfigCallback(msg):
     thrusts[msg.id] = msg.thrust
-rospy.Subscriber('thruster_config', thrusterConfig, motorConfigCallback)
+rospy.Subscriber('thruster_config', thrusterNewtons, motorConfigCallback)
 def dynamixelConfigPositionCallback(msg):
     positions[msg.id] = msg.goal_position
 rospy.Subscriber('dynamixel/dynamixel_config_position', DynamixelConfigPosition, dynamixelConfigPositionCallback)
 def dynamixelConfigFullCallback(msg):
-    pass
-rospy.Subscriber('dynamixel/dynamixel_config_full', DynamixelConfigParam, dynamixelConfigFullCallback)
+    positions[msg.id] = msg.goal_position
+rospy.Subscriber('dynamixel/dynamixel_full_config', DynamixelFullConfig, dynamixelConfigFullCallback)
 
 
 clip = lambda x, (low, high): min(max(x, low), high)
@@ -326,7 +326,7 @@ def world_tick():
     friction_force_roll=friction_coefficient_rotational*angular_velocity[0]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[0],2) if angular_velocity[0]<0.0 else pow(angular_velocity[0],2))
     friction_force_pitch=friction_coefficient_rotational*angular_velocity[1]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[1],2) if angular_velocity[1]<0.0 else pow(angular_velocity[1],2))
     friction_force_yaw=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
-    body.addTorque([-friction_force_roll,-friction_force_pitch,-friction_force_yaw])
+    body.addRelTorque([-friction_force_roll,-friction_force_pitch,-friction_force_yaw])
     print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", -friction_force_yaw
     #print thrusters
     # map the thrusters position on the boat
