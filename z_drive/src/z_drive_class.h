@@ -1114,16 +1114,16 @@ void ZDrive::run()
 	dynamixel_servo::DynamixelFullConfig dynamixel_init_config_msg;
 	dynamixel_init_config_msg.control_mode=dynamixel_servo::DynamixelFullConfig::JOINT;
 	dynamixel_init_config_msg.goal_position=(float)(M_PI);
-	dynamixel_init_config_msg.moving_speed=12.252211335; // 117rpm
-	dynamixel_init_config_msg.torque_limit=0x03FF;
-	dynamixel_init_config_msg.goal_acceleration=(8.5826772*M_PI/180)*0xFD;
+	dynamixel_init_config_msg.moving_speed=12.25; // 12.25rad/s = 117rpm
+	dynamixel_init_config_msg.torque_limit=0x03FF;//The range 0 to 1023 (0x3FF)
+	dynamixel_init_config_msg.goal_acceleration=38.04;//rad/s^2
 
 	// config the port servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::port_servo_id;
-	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 	// config the starboard servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
-	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 
 	// fill in a init message to the thrusters that kills them initaly
 	thruster_config_msg.thrust=0;
