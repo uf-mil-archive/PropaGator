@@ -1,0 +1,11 @@
+#install
+sudo apt-get install xboxdrv
+
+#unload the xpad kernel module from the currently running kernel
+sudo modprobe -r xpad
+
+#blacklist the module (in /etc/modprobe.d/blacklist.conf) so it isn't loaded by default when the kernel starts
+echo 'blacklist xpad' | sudo tee -a /etc/modprobe.d/blacklist.conf
+
+#copy the startup dameon config file
+sudo cp ./xboxdrv.conf /etc/init/xboxdrv.conf
