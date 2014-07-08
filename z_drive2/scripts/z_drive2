@@ -68,21 +68,17 @@ class Node(object):
         self.thrusters = [
             dict( # port
                 id=3,
-                position=numpy.array([-.7239*0, +.3048, -.5]),
+                position=numpy.array([-.7239, +.3048, -.5]),
                 angle=0,
-                angle_range=(math.radians(-90), math.radians(90)),
                 thrust_range=(-50, +50),
-                dangle_range=(-3.2e-1, +3.2e-1),
-                spinning_to=None,
+                dangle_range=(-3.2e-0, +3.2e-0),
             ),
             dict( # starboard
                 id=2,
-                position=numpy.array([-.7239*0, -.3048, -.5]),
+                position=numpy.array([-.7239, -.3048, -.5]),
                 angle=0,
-                angle_range=(math.radians(-90), math.radians(90)),
                 thrust_range=(-50, +50),
-                dangle_range=(-3.2e-1, +3.2e-1),
-                spinning_to=None,
+                dangle_range=(-3.2e-0, +3.2e-0),
             ),
         ]
         
@@ -109,25 +105,11 @@ class Node(object):
             self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
             allowed = []
             for thruster in self.thrusters:
-                if thruster['spinning_to'] is None:
-                    x = thruster['dangle_range']
-                elif abs(thruster['spinning_to'] - thruster['angle']) < 0.1:
-                    print 'done'
-                    thruster['spinning_to'] = None
-                    x = thruster['dangle_range']
-                else:
-                    print 'spinning'
-                    x = [clip(wrap_angle(thruster['spinning_to'] - thruster['angle'])/dt, thruster['dangle_range'])]
+                x = thruster['dangle_range']
                 allowed.append(x)
             dangles = min(itertools.product(*allowed),
                 key=lambda dangles: _fit(self.gen_new_thrusters(numpy.array(dangles) * dt), self.wrench)[1])
             self.thrusters = self.gen_new_thrusters(numpy.array(dangles) * dt)
-            for thruster in self.thrusters:
-                #print clip(thruster['angle'], thruster['angle_range']), thruster['angle']
-                if clip(thruster['angle'], thruster['angle_range']) != thruster['angle'] and thruster['spinning_to'] is None:
-                    print 'bad', thruster['angle'], (thruster['angle'] + math.pi/2) % math.pi - math.pi/2
-                    thruster['spinning_to'] = (thruster['angle'] + math.pi/2) % math.pi - math.pi/2
-                    thruster['angle'] = clip(thruster['angle'], thruster['angle_range'])
             
             efforts, error = _fit(self.thrusters, self.wrench)
             for thruster, effort in zip(self.thrusters, efforts):
