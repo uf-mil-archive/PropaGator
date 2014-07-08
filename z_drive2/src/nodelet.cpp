@@ -190,7 +190,7 @@ Control compute_vel_policy(State const & state, double dt, Parameters const & p)
         s = s.update(compute_control_policy(s, dt, p), dt, p);
       }
       
-      double error = std::max(s.velocity.norm(), s.angular_velocity.norm());
+      double error = pow(s.velocity.norm(), 2) + pow(s.angular_velocity.norm(), 2);
       
       if(!best || error < best->first) {
         best = std::make_pair(error, control);
@@ -281,13 +281,13 @@ public:
     State s(
       Vec<3>::Zero(),
       Quaternion::Identity(),
-      Vec<3>(0, 0, 0),
+      Vec<3>(1, 1, 0),
       Vec<3>::Zero(),
       std::vector<State::Thruster>{
         State::Thruster(0, 0),
         State::Thruster(0, 0)});
     
-    double dt = 1e-2;
+    double dt = 1e-3;
     
     double t = 0;
     while(true) {
