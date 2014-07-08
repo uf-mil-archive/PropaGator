@@ -19,6 +19,7 @@ from geometry_msgs.msg import WrenchStamped
 
 from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelFullConfig
+from std_msgs.msg import Float64
 
 
 def lstsq_box(A, b, x_mins, x_maxs):
@@ -89,27 +90,29 @@ class Node(object):
         self.thrusters = [
             dict( # port
                 id=3,
-                position=numpy.array([-.7239, +.3048, -.5]),
+                position=numpy.array([-.3239, +.3048, -.5]), # originally -.7238
                 angle=0,
                 thrust_range=(-50, +50),
                 dangle_range=(-3.2e-0, +3.2e-0),
                 angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
+                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
             ),
             dict( # starboard
                 id=2,
-                position=numpy.array([-.7239, -.3048, -.5]),
+                position=numpy.array([-.3239, -.3048, -.5]),
                 angle=0,
                 thrust_range=(-50, +50),
                 dangle_range=(-3.2e-0, +3.2e-0),
                 angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
+                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
             ),
         ]
         
-        self.thrust_pub = self.nh.advertise('thruster_config', thrusterNewtons)
+        #self.thrust_pub = self.nh.advertise('thruster_config', thrusterNewtons)
         self.servo_pub = self.nh.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
     
     def _wrench_cb(self, msg):
@@ -126,9 +129,9 @@ class Node(object):
                 control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
                 goal_velocity=2*thruster['dangle'],
             ))
-            self.thrust_pub.publish(thrusterNewtons(
-                id=thruster['id'],
-                thrust=thruster['effort'],
+            x = thruster['effort']/50 # XXX
+            thruster['pwm_pub'].publish(Float64(
+                data=1.5e-3 + 0.5e-3 * x,
             ))
     
     @util.cancellableInlineCallbacks
