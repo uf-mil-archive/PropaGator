@@ -17,7 +17,7 @@ from uf_common.orientation_helpers import xyz_array
 
 from geometry_msgs.msg import WrenchStamped
 
-from motor_control.msg import thrusterConfig
+from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelFullConfig
 
 
@@ -109,7 +109,7 @@ class Node(object):
             ),
         ]
         
-        self.thrust_pub = self.nh.advertise('thruster_config', thrusterConfig)
+        self.thrust_pub = self.nh.advertise('thruster_config', thrusterNewtons)
         self.servo_pub = self.nh.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
     
     def _wrench_cb(self, msg):
@@ -126,7 +126,7 @@ class Node(object):
                 control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
                 goal_velocity=2*thruster['dangle'],
             ))
-            self.thrust_pub.publish(thrusterConfig(
+            self.thrust_pub.publish(thrusterNewtons(
                 id=thruster['id'],
                 thrust=thruster['effort'],
             ))
