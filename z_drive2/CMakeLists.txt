@@ -1,24 +1,29 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(arduino_serial_comm)
+project(z_drive2)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  rospy
+  geometry_msgs
   roscpp
-  std_msgs
-  message_generation
+  rospy
+  pluginlib
+  nodelet
+  odom_estimator
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
+find_package(Eigen REQUIRED)
+include_directories(${Eigen_INCLUDE_DIRS})
+
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
 ## See http://ros.org/doc/api/catkin/html/user_guide/setup_dot_py.html
-catkin_python_setup()
+# catkin_python_setup()
 
 ################################################
 ## Declare ROS messages, services and actions ##
@@ -66,10 +71,10 @@ catkin_python_setup()
 # )
 
 ## Generate added messages and services with any dependencies listed here
-generate_messages(
-   DEPENDENCIES
-   std_msgs
-)
+# generate_messages(
+#   DEPENDENCIES
+#   geometry_msgs
+# )
 
 ###################################
 ## catkin specific configuration ##
@@ -82,11 +87,8 @@ generate_messages(
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES arduino_serial_comm
-#  CATKIN_DEPENDS rospy std_msgs
-  CATKIN_DEPENDS
-  message_runtime
-  motor_control
+#  LIBRARIES z_drive2
+  CATKIN_DEPENDS geometry_msgs roscpp rospy pluginlib nodelet odom_estimator
 #  DEPENDS system_lib
 )
 
@@ -102,22 +104,27 @@ include_directories(
 )
 
 ## Declare a cpp library
-# add_library(arduino_serial_comm
-#   src/${PROJECT_NAME}/arduino_serial_comm.cpp
+# add_library(z_drive2
+#   src/${PROJECT_NAME}/z_drive2.cpp
 # )
 
 ## Declare a cpp executable
- add_executable(test_arduino src/test_arduino.cpp)
+# add_executable(z_drive2_node src/z_drive2_node.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
- add_dependencies(test_arduino arduino_serial_comm_generate_messages_cpp)
-# add_dependencies(
+# add_dependencies(z_drive2_node z_drive2_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(test_arduino
-   ${catkin_LIBRARIES}
- )
+# target_link_libraries(z_drive2_node
+#   ${catkin_LIBRARIES}
+# )
+
+add_library(${PROJECT_NAME}_nodelet src/nodelet.cpp)
+target_link_libraries(${PROJECT_NAME}_nodelet ${catkin_LIBRARIES})
+add_dependencies(${PROJECT_NAME}_nodelet ${catkin_EXPORTED_TARGETS})
+add_dependencies(${PROJECT_NAME}_nodelet ${PROJECT_NAME}_generate_messages_cpp)
+set_target_properties(${PROJECT_NAME}_nodelet PROPERTIES COMPILE_FLAGS -std=c++0x)
 
 #############
 ## Install ##
@@ -134,7 +141,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS arduino_serial_comm arduino_serial_comm_node
+# install(TARGETS z_drive2 z_drive2_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -159,7 +166,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_arduino_serial_comm.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_z_drive2.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

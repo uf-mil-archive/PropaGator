@@ -431,7 +431,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	reconfig_server.setCallback(reconfig_callback);
 
 	// the following is a quick hack for darsan to test things
-	std::ifstream fin("/home/steve/Documents/google_drive/sppalecek@gmail.com/UF/propagator/ros/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
+	std::ifstream fin("~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
 	if (!fin)
 	{
 		ROS_WARN("Error opening ~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
@@ -457,39 +457,19 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 			}
 			else
 			{
-				//ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
-				//std::vector<double>::iterator it=data.begin();
-				//ZDrive::inital_theta_port.push_back((double)tmp0);
-				//ZDrive::inital_thrust_port.push_back((double)tmp1);
-				//ZDrive::inital_theta_starboard.push_back((double)tmp2);
-				//ZDrive::inital_thrust_starboard.push_back((double)tmp3);
-				//ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
+				ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
+				std::vector<double>::iterator it=data.begin();
+				ZDrive::inital_theta_port.push_back((double)tmp0);
+				ZDrive::inital_thrust_port.push_back((double)tmp1);
+				ZDrive::inital_theta_starboard.push_back((double)tmp2);
+				ZDrive::inital_thrust_starboard.push_back((double)tmp3);
+				ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
 			}
 			data.clear();
 		}
 
 		fin.close();
-
 	}
-	ZDrive::inital_theta_port.push_back((double)-1.0);
-	ZDrive::inital_thrust_port.push_back((double)5.0);
-	ZDrive::inital_theta_starboard.push_back((double)1.0);
-	ZDrive::inital_thrust_starboard.push_back((double)5.0);
-	
-	ZDrive::inital_theta_port.push_back((double)-.5);
-	ZDrive::inital_thrust_port.push_back((double)10.0);
-	ZDrive::inital_theta_starboard.push_back((double).5);
-	ZDrive::inital_thrust_starboard.push_back((double)10.0);
-	
-	ZDrive::inital_theta_port.push_back((double)-.25);
-	ZDrive::inital_thrust_port.push_back((double)-10.0);
-	ZDrive::inital_theta_starboard.push_back((double).25);
-	ZDrive::inital_thrust_starboard.push_back((double)-10.0);
-	
-	ZDrive::inital_theta_port.push_back((double)-.75);
-	ZDrive::inital_thrust_port.push_back((double)-5.0);
-	ZDrive::inital_theta_starboard.push_back((double).75);
-	ZDrive::inital_thrust_starboard.push_back((double)-5.0);
 
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatus& dynamixel_status_msg)
@@ -1100,9 +1080,16 @@ void ZDrive::run()
 	// odom_current.twist.twist.angular for angular velocity in the base frame
 
 	// we have to wait for the nodes to connect before we post the inital config message
-	while(dynamixel_config_full_pub.getNumSubscribers()==0)
+	//Timeout of 5 seconds
+	ros::Time start = ros::Time::now();
+	ros::Duration timeout(5);
+	while(dynamixel_config_full_pub.getNumSubscribers()==0 && (ros::Time::now() - start) < timeout)
 	{
 		//ROS_INFO("Waiting for ZDrive node and Dynamixel node to connect");
+	}
+	if(dynamixel_config_full_pub.getNumSubscribers() == 0)
+	{
+		ROS_ERROR("Connection to subscribers of dynamixel config full pub failed due to timeout");
 	}
 
 	uf_common::PoseTwistStamped trajectory_msg;
@@ -1114,16 +1101,16 @@ void ZDrive::run()
 	dynamixel_servo::DynamixelFullConfig dynamixel_init_config_msg;
 	dynamixel_init_config_msg.control_mode=dynamixel_servo::DynamixelFullConfig::JOINT;
 	dynamixel_init_config_msg.goal_position=(float)(M_PI);
-	dynamixel_init_config_msg.moving_speed=12.252211335; // 117rpm
-	dynamixel_init_config_msg.torque_limit=0x03FF;
-	dynamixel_init_config_msg.goal_acceleration=(8.5826772*M_PI/180)*0xFD;
+	dynamixel_init_config_msg.moving_speed=12.25; // 12.25rad/s = 117rpm
+	dynamixel_init_config_msg.torque_limit=0x03FF;//The range 0 to 1023 (0x3FF)
+	dynamixel_init_config_msg.goal_acceleration=38.04;//rad/s^2
 
 	// config the port servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::port_servo_id;
-	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 	// config the starboard servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
-	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
 
 	// fill in a init message to the thrusters that kills them initaly
 	thruster_config_msg.thrust=0;
