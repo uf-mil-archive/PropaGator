@@ -402,7 +402,7 @@ def world_tick():
     
     msg = Odometry()
     msg.header.stamp = rospy.Time(world_time)
-    msg.header.frame_id = '/map'
+    msg.header.frame_id = '/enu'
     msg.child_frame_id = '/base_link'
     msg.pose.pose.position = Point(*body.getPosition())
     q = V(body.getQuaternion())
@@ -429,7 +429,7 @@ def world_tick():
             T,
             tf.transformations.quaternion_from_euler(rpy[0],rpy[1],rpy[2]),
             rospy.Time.now(),
-            "/map", 
+            "/enu", 
             "/base_link", 
             )
     
