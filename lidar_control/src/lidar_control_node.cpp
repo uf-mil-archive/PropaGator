@@ -12,7 +12,8 @@ int main(int argc, char** argv)
 	//Initilze the node ("lidar_control_node")
     ros::init(argc, argv, "lidar_control_node");
     LidarAngleManager manager;
-    manager.run();
+    manager.Setup();
+    manager.Run();
 
     return 0;
 }
