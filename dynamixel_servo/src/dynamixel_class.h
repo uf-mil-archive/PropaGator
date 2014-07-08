@@ -747,6 +747,7 @@ void DynamixelServos::setControlMode(const vector<Servo>::iterator servo_to_conf
 	// don't tie up the bus needlessly with a config that is already done
 	if(control_mode==dynamixel_servo::DynamixelFullConfig::JOINT&&servo_to_config->inJointMode())
 	{
+		ROS_INFO("");
 		return;
 	}
 	else if(control_mode==dynamixel_servo::DynamixelFullConfig::WHEEL&&servo_to_config->inWheelMode())
