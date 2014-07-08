@@ -74,7 +74,9 @@ def clip(x, (inf, sup)):
     if x > sup: return sup
     return x
 
-tau = 2*math.pi
+def lerp(x, (inf, sup)):
+    if x < 0 or x > 1: print 'warning - lerp argument is outside of normal range'
+    return inf*(1-x) + sup*x
 
 def gen_new_thrusters(thrusters, delta_angles):
     x = map(dict, thrusters) # clone
@@ -97,6 +99,7 @@ class Node(object):
                 angle=0,
                 thrust_range=(-50, +50),
                 dangle_range=(-3.2e-0, +3.2e-0),
+                angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
             ),
             dict( # starboard
                 id=2,
@@ -104,6 +107,7 @@ class Node(object):
                 angle=0,
                 thrust_range=(-50, +50),
                 dangle_range=(-3.2e-0, +3.2e-0),
+                angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
             ),
         ]
         
@@ -120,18 +124,33 @@ class Node(object):
         try:
             while True:
                 tt += dt
-                #self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
+                self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
                 
                 optimal_angles = get_optimal_angles(self.thrusters, self.wrench)
                 
                 dangles = []
                 for thruster, optimal_angle in zip(self.thrusters, optimal_angles):
-                    angle_error = optimal_angle - thruster['angle']
-                    while angle_error > +math.pi/2: angle_error -= math.pi
-                    while angle_error < -math.pi/2: angle_error += math.pi
-                    desired_angle = thruster['angle'] + angle_error
-                    while desired_angle > 3*tau: desired_angle -= math.pi
-                    while desired_angle < -3*tau: desired_angle += math.pi
+                    allowed_angle = optimal_angle
+                    while allowed_angle > thruster['angle_range'][1]: allowed_angle -= math.pi
+                    while allowed_angle < thruster['angle_range'][0]: allowed_angle += math.pi
+                    assert thruster['angle_range'][0] <= allowed_angle <= thruster['angle_range'][1]
+                    possibilities = []
+                    for i in itertools.count():
+                        x = allowed_angle + math.pi * i
+                        if x > thruster['angle_range'][1]: break
+                        possibilities.append(x)
+                    for i in itertools.count():
+                        x = allowed_angle - math.pi * i
+                        if x < thruster['angle_range'][0]: break
+                        possibilities.append(x)
+                    
+                    center = (thruster['angle_range'][0] + thruster['angle_range'][1])/2
+                    angle_range = thruster['angle_range'][1] - thruster['angle_range'][0]
+                    max_dist = lerp(abs(thruster['angle'] - center)/(angle_range/2), (math.pi/2, math.pi))
+                    
+                    desired_angle = min([p for p in possibilities if abs(p - thruster['angle']) <= max_dist],
+                        key=lambda angle: abs(angle))
+                    
                     dangle = clip((desired_angle - thruster['angle']) / dt, thruster['dangle_range'])
                     dangles.append(dangle)
                 self.thrusters = gen_new_thrusters(self.thrusters, numpy.array(dangles) * dt)
