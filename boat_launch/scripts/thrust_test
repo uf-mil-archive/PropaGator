@@ -1,0 +1,120 @@
+#!/usr/bin/python
+
+from __future__ import division
+
+import math
+import signal
+import traceback
+
+from twisted.internet import reactor, defer
+import numpy
+
+import txros
+from txros import util
+
+from std_msgs.msg import Float64
+from dynamixel_servo.msg import DynamixelFullConfig
+
+
+@util.cancellableInlineCallbacks
+def main():
+    nh = txros.NodeHandle.from_argv('testnode', anonymous=True)
+    servo_pub = nh.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
+    
+    thrusters = [
+        dict( # port
+            id=3,
+            angle=0,
+            dangle=0,
+            pwm=1.5e-3,
+            pwm_pub=nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
+        ),
+        dict( # starboard
+            id=2,
+            angle=0,
+            dangle=0,
+            pwm=1.5e-3,
+            pwm_pub=nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
+        ),
+    ]
+    
+    def send_state():
+        for thruster in thrusters:
+            servo_pub.publish(DynamixelFullConfig(
+                id=thruster['id'],
+                goal_position=2*thruster['angle'] + math.pi,
+                moving_speed=12, # near maximum, not actually achievable ...
+                torque_limit=1023,
+                goal_acceleration=38,
+                control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
+                goal_velocity=2*thruster['dangle'],
+            ))
+            thruster['pwm_pub'].publish(Float64(
+                data=thruster['pwm'],
+            ))
+    
+    try:
+        for thruster in thrusters: thruster['angle'] = 0
+        send_state()
+        print 'Started'
+        
+        points = []
+        
+        @util.cancellableInlineCallbacks
+        def go(pwms, sign):
+            print 'Ramping up...'
+            for pwm in numpy.linspace(1.5e-3, pwms[0], 100):
+                for thruster in thrusters: thruster['pwm'] = pwm
+                send_state()
+                yield util.sleep(3/100)
+            print 'Done'
+            
+            for pwm in pwms:
+                print 'Setting to', pwm/1e-3, 'ms'
+                for thruster in thrusters: thruster['pwm'] = pwm
+                send_state()
+                yield util.sleep(3)
+                while True:
+                    try:
+                        force_kg = float((yield util.nonblocking_raw_input('Measured weight? (kg) ')))
+                    except Exception:
+                        traceback.print_exc()
+                    else:
+                        break
+                    yield util.sleep(0.1) # XXX needed for some weird reason
+                points.append((pwm, force_kg*sign))
+            
+            for thruster in thrusters: thruster['pwm'] = 1.5e-3
+            send_state()
+        
+        yield go(numpy.linspace(2e-3, 1.5e-3, 5), +1)
+        
+        print 'Rotating'
+        for thruster in thrusters: thruster['angle'] = math.pi
+        send_state()
+        yield util.sleep(5)
+        print 'Done'
+        
+        yield go(numpy.linspace(1.0e-3, 1.5e-3, 5), -1)
+        
+        print 'Done', repr(points)
+    finally:
+        for thruster in thrusters:
+            thruster['angle'] = 0
+            thruster['pwm'] = 1.5e-3
+        send_state()
+
+@util.cancellableInlineCallbacks
+def _main():
+    try:
+        yield main()
+    except Exception:
+        traceback.print_exc()
+    finally:
+        reactor.stop()
+
+def _start():
+    signal.signal(signal.SIGINT, lambda signum, frame: reactor.callFromThread(task.cancel))
+    task = _main().addErrback(lambda fail: fail.trap(defer.CancelledError))
+reactor.callWhenRunning(_start)
+reactor.run()
