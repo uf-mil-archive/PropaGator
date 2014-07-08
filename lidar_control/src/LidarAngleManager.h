@@ -176,7 +176,8 @@ void LidarAngleManager::Run()
 		//Test limits
 		dynamixel_servo::DynamixelJointConfig msg;
 		msg.id = servo_id_;
-		if(angle > 0)	//More than parrallel
+		ROS_INFO("Angle: %f, ID: %i, Min angle: %f, Max angle: %f", current_angle_, servo_id_, min_angle_, max_angle_);
+		if(current_angle_ > 3.14159)	//More than parrallel
 		{
 			msg.goal_position = min_angle_;
 			dynamixel_config_position_pub_.publish(msg);
