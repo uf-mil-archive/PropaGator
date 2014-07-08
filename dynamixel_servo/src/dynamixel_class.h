@@ -725,6 +725,7 @@ void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelFullCon
 	{
 		// find the relevant servo
 		vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),msg->id);
+		servo_to_config->continuous_velocity_goal = msg->goal_velocity;
 		// now that we have it see if we need to change the mode
 		setControlMode(servo_to_config, msg->control_mode);
 		setLed(servo_to_config,msg->led);

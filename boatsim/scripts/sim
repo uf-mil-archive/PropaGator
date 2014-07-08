@@ -326,7 +326,7 @@ def world_tick():
     friction_force_roll=friction_coefficient_rotational*angular_velocity[0]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[0],2) if angular_velocity[0]<0.0 else pow(angular_velocity[0],2))
     friction_force_pitch=friction_coefficient_rotational*angular_velocity[1]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[1],2) if angular_velocity[1]<0.0 else pow(angular_velocity[1],2))
     friction_force_yaw=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
-    body.addTorque([friction_force_roll,friction_force_pitch,-friction_force_yaw])
+    body.addTorque([-friction_force_roll,-friction_force_pitch,-friction_force_yaw])
     print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", -friction_force_yaw
     #print thrusters
     # map the thrusters position on the boat
@@ -336,12 +336,12 @@ def world_tick():
         for thruster_id in [2, 3]:
             # set the thrusters position on the boat
             relpos = v(starboard_servo_x_offset, starboard_servo_y_offset, 0) if thruster_id == 2 else v(port_servo_x_offset, port_servo_y_offset, 0)
-            angle = positions[thruster_id]
-            reldir = v(-math.cos(angle), -math.sin(angle), 0)
+            angle = (positions[thruster_id]-math.pi)/2
+            reldir = v(math.cos(angle), math.sin(angle), 0)
             force = thrusts[thruster_id]
             body.addRelForceAtRelPos(reldir*force, relpos)
             sub_model.vectors.append((relpos, relpos - .02*reldir*force))
-            print "force: ", force, " angle: ", angle1
+            print "force: ", force, " angle: ", angle
         body.addRelTorque([z_drive_sim['torque_r'],z_drive_sim['torque_p'],z_drive_sim['torque_y']])
         body.addRelForce([z_drive_sim['force_x'],z_drive_sim['force_y'],z_drive_sim['force_z']])
     
@@ -402,7 +402,7 @@ def world_tick():
     
     msg = Odometry()
     msg.header.stamp = rospy.Time(world_time)
-    msg.header.frame_id = '/map'
+    msg.header.frame_id = '/enu'
     msg.child_frame_id = '/base_link'
     msg.pose.pose.position = Point(*body.getPosition())
     q = V(body.getQuaternion())
@@ -429,7 +429,7 @@ def world_tick():
             T,
             tf.transformations.quaternion_from_euler(rpy[0],rpy[1],rpy[2]),
             rospy.Time.now(),
-            "/map", 
+            "/enu", 
             "/base_link", 
             )
     
