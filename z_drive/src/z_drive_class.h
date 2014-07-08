@@ -431,7 +431,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	reconfig_server.setCallback(reconfig_callback);
 
 	// the following is a quick hack for darsan to test things
-	std::ifstream fin("/home/steve/Documents/google_drive/sppalecek@gmail.com/UF/propagator/ros/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
+	std::ifstream fin("~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
 	if (!fin)
 	{
 		ROS_WARN("Error opening ~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
@@ -457,39 +457,19 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 			}
 			else
 			{
-				//ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
-				//std::vector<double>::iterator it=data.begin();
-				//ZDrive::inital_theta_port.push_back((double)tmp0);
-				//ZDrive::inital_thrust_port.push_back((double)tmp1);
-				//ZDrive::inital_theta_starboard.push_back((double)tmp2);
-				//ZDrive::inital_thrust_starboard.push_back((double)tmp3);
-				//ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
+				ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
+				std::vector<double>::iterator it=data.begin();
+				ZDrive::inital_theta_port.push_back((double)tmp0);
+				ZDrive::inital_thrust_port.push_back((double)tmp1);
+				ZDrive::inital_theta_starboard.push_back((double)tmp2);
+				ZDrive::inital_thrust_starboard.push_back((double)tmp3);
+				ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
 			}
 			data.clear();
 		}
 
 		fin.close();
-
 	}
-	ZDrive::inital_theta_port.push_back((double)-1.0);
-	ZDrive::inital_thrust_port.push_back((double)5.0);
-	ZDrive::inital_theta_starboard.push_back((double)1.0);
-	ZDrive::inital_thrust_starboard.push_back((double)5.0);
-	
-	ZDrive::inital_theta_port.push_back((double)-.5);
-	ZDrive::inital_thrust_port.push_back((double)10.0);
-	ZDrive::inital_theta_starboard.push_back((double).5);
-	ZDrive::inital_thrust_starboard.push_back((double)10.0);
-	
-	ZDrive::inital_theta_port.push_back((double)-.25);
-	ZDrive::inital_thrust_port.push_back((double)-10.0);
-	ZDrive::inital_theta_starboard.push_back((double).25);
-	ZDrive::inital_thrust_starboard.push_back((double)-10.0);
-	
-	ZDrive::inital_theta_port.push_back((double)-.75);
-	ZDrive::inital_thrust_port.push_back((double)-5.0);
-	ZDrive::inital_theta_starboard.push_back((double).75);
-	ZDrive::inital_thrust_starboard.push_back((double)-5.0);
 
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatus& dynamixel_status_msg)
