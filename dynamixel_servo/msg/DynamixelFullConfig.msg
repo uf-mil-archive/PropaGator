@@ -49,3 +49,5 @@ uint8 WHEEL=2
 uint8 MULTI_TURN=3
 # The folowing mode (CONTINUOUS_ANGLE) is similar to "MULTI_TURN" mode, but works to take out the turn limitation in software.
 uint8 CONTINUOUS_ANGLE=4
+
+float32 goal_velocity # only used in continuous angle mode
