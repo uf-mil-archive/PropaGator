@@ -1102,11 +1102,19 @@ void ZDrive::run()
 	ros::Duration timeout(5);
 	while(dynamixel_config_full_pub.getNumSubscribers()==0 && (ros::Time::now() - start) < timeout)
 	{
-		//ROS_INFO("Waiting for ZDrive node and Dynamixel node to connect");
+		//ROS_INFO("Waiting for ZDrive node and Dynamixel/Motor node(s) to connect");
 	}
 	if(dynamixel_config_full_pub.getNumSubscribers() == 0)
 	{
-		ROS_ERROR("Connection to subscribers of dynamixel config full pub failed due to timeout");
+		ROS_ERROR("Timed out, no subscribers present for dynamixel_config_full_pub; is the dynamixel_server running?");
+	}
+	if(dynamixel_config_position_pub.getNumSubscribers() == 0)
+	{
+		ROS_ERROR("Timed out, no subscribers present for dynamixel_config_position_pub; is the dynamixel_server running?");
+	}
+	if(thruster_config_pub.getNumSubscribers() == 0)
+	{
+		ROS_ERROR("Timed out, no subscribers present for thruster_config_pub; is the motor_control running?");
 	}
 
 	uf_common::PoseTwistStamped trajectory_msg;
