@@ -301,7 +301,7 @@ void DynamixelServos::run()
 			i->previous_cw_angle_limit=i->cw_angle_limit;
 			i->previous_ccw_angle_limit=i->ccw_angle_limit;
 			// also init the position information for the continuous rotation in software
-			i->previous_continuous_position_in_radians=i->current_continuous_position_in_radians;
+			i->previous_continuous_position_in_radians=i->current_continuous_position_in_radians=PI;
 		}
 
 		ROS_INFO("%s is running with a handle on port: %s",ros::this_node::getName().c_str(),com_port.getPortName().c_str());
@@ -725,6 +725,7 @@ void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelFullCon
 	{
 		// find the relevant servo
 		vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),msg->id);
+		servo_to_config->continuous_angle_goal = msg->goal_position;
 		servo_to_config->continuous_velocity_goal = msg->goal_velocity;
 		// now that we have it see if we need to change the mode
 		setControlMode(servo_to_config, msg->control_mode);

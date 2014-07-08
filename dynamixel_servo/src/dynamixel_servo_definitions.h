@@ -428,24 +428,17 @@ void Servo::setPresentPosition(dynamixel_uint16_t input_position)
 	//
 	//			MX-64T Logo
 	//
-	static const float PI=3.14159265359;
-	if(continuous_angle_mode)
-	{
-		previous_continuous_position_in_radians = current_continuous_position_in_radians;
-		double angle_within_revolution = input_position*(360.0/Servo::ENCODER_RESOLUTION)*(PI/180);
-		double change = angle_within_revolution - previous_continuous_position_in_radians;
-		while(change < -PI) change += 2*PI;
-		while(change > +PI) change -= 2*PI;
-		current_continuous_position_in_radians = previous_continuous_position_in_radians + change;
-		return;
-	}
-	float offset=0.0;
-	//assing the representation of the register
+	
 	present_position=input_position;
-	// also extrapolate the radian data
-	previous_continuous_position_in_radians=current_continuous_position_in_radians;
-	float position_degrees=input_position*(360.0/Servo::ENCODER_RESOLUTION);
-	current_continuous_position_in_radians=position_degrees*(PI/180)+offset;
+	
+	static const float PI=3.14159265359;
+	previous_continuous_position_in_radians = current_continuous_position_in_radians;
+	double angle_within_revolution = input_position*(360.0/Servo::ENCODER_RESOLUTION)*(PI/180);
+	double change = angle_within_revolution - previous_continuous_position_in_radians;
+	while(change < -PI) change += 2*PI;
+	while(change > +PI) change -= 2*PI;
+	current_continuous_position_in_radians = previous_continuous_position_in_radians + change;
+	return;
 }
 float Servo::getPresentPositionInRadians()
 {
