@@ -730,7 +730,7 @@ void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelFullCon
 		setControlMode(servo_to_config, msg->control_mode);
 		setLed(servo_to_config,msg->led);
 		setGoalPosition(servo_to_config,msg->goal_position);
-		if(servo_to_config->continuious_angle_mode) {
+		if(!servo_to_config->continuious_angle_mode) {
 			setMovingSpeed(servo_to_config,msg->moving_speed);
 		}
 		setTorqueLimit(servo_to_config,msg->torque_limit);
