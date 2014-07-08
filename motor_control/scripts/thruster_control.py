@@ -24,6 +24,7 @@ import serial
 from motor_control.msg import thrusterPWM
 from motor_control.msg import thrusterNewtons
 import time
+from std_msgs.msg import Float64
 
 #Define some constants
 #Note: these should be replaced with ros Params
@@ -61,12 +62,13 @@ starboard_current = 0.0
 #Timing Variables
 PUB_RATE = rospy.Duration(0.01)
 UPDATE_RATE = 100                      #Update at 100 Hz
-RAMP_RATE = 10.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
+RAMP_RATE = 100.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
 
 #Pub
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
-pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
-
+#pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
+pwm_port_pub = rospy.Publisher('stm32f3_discovery_imu_driver/pwm1', Float64, queue_size = 10)
+pwm_starboard_pub = rospy.Publisher('stm32f3_discovery_imu_driver/pwm2', Float64, queue_size = 10)
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
 #ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00', 115200) 
@@ -81,11 +83,14 @@ def stopThrusters():
     global starboard_current
     global port_current
 
-    msg = thrusterPWM(PORT_THRUSTER, ZERO_PW)
-    pwm_pub.publish(msg)
-    msg = thrusterPWM(STARBOARD_THRUSTER, ZERO_PW)
-    pwm_pub.publish(msg)       
-    
+    #msg = thrusterPWM(PORT_THRUSTER, ZERO_PW)
+    #pwm_pub.publish(msg)
+    #msg = thrusterPWM(STARBOARD_THRUSTER, ZERO_PW)
+    #pwm_pub.publish(msg)       
+    msg = Float64(ZERO_PW / 1000000.0)
+    pwm_port_pub.publish(msg)
+    pwm_starboard_pub.publish(msg)
+
     #Zero internal varibles
     starboard_setpoint = 0.0;
     port_setpoint = 0.0;
@@ -227,24 +232,27 @@ def thrusterCtrl():
             if starboard_current > starboard_setpoint:
                 starboard_current = starboard_setpoint
 
-        print "Port setpoint %i : actual value %i" % (port_setpoint, port_current)
+        #print "Port setpoint %i : actual value %i" % (port_setpoint, port_current)
         
         #Write to the serial bus
         #Generate messages in the form of #,#:
         #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
         #if port_last_value != port_current:
             #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
-        msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
+        #msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
         #print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
-        pwm_pub.publish(msg);
-            
+        #pwm_pub.publish(msg);
+        msg = Float64(convertNewtonsToPW(port_current) / 1000000.0)
+        pwm_port_pub.publish(msg)   
 
         time.sleep(0.001)
         #if starboard_last_value != starboard_current:
             #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
-        msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
+        #msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
         #print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
-        pwm_pub.publish(msg)
+        #pwm_pub.publish(msg)
+        msg = Float64(convertNewtonsToPW(starboard_current) / 1000000.0)
+        pwm_starboard_pub.publish(msg)        
 
         starboard_last_value = starboard_current;
         port_last_value = port_current;

@@ -1082,9 +1082,17 @@ void ZDrive::run()
 	// odom_current.twist.twist.angular for angular velocity in the base frame
 
 	// we have to wait for the nodes to connect before we post the inital config message
-	while(dynamixel_config_full_pub.getNumSubscribers()==0)
+	//Timeout of 5 seconds
+	ros::Time start = ros::Time::now();
+	ros::Duration timeout(5);
+	while(dynamixel_config_full_pub.getNumSubscribers()==0 && (ros::Time::now() - start) < timeout)
 	{
 		//ROS_INFO("Waiting for ZDrive node and Dynamixel node to connect");
+	}
+	if(dynamixel_config_full_pub.getNumSubscribers() == 0)
+	{
+		brak;
+		ROS_ERROR("Connection to subscribers of dynamixel config full pub failed due to timeout");
 	}
 
 	uf_common::PoseTwistStamped trajectory_msg;

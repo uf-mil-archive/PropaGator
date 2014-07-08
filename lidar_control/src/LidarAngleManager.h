@@ -6,7 +6,7 @@
 #include "dynamixel_servo/DynamixelJointConfig.h"
 #include "dynamixel_servo/DynamixelStatus.h"
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
-#include "dynamixel_servo/DynamixelControlTableParam.h"
+#include "dynamixel_servo/DynamixelControlTablePost.h"
 
 class LidarAngleManager
 {
@@ -41,7 +41,7 @@ private:
 	float DynamixelToRads(int dynamixelSetting);
 
 	//Get the abs max and min angles
-	void GetLimits(const dynamixel_servo::DynamixelControlTableParam config);
+	void GetLimits(const dynamixel_servo::DynamixelControlTablePost config);
 	
 	/*
 	 * 	Public functions
@@ -163,7 +163,7 @@ inline float LidarAngleManager::DynamixelToRads(int dynamixelSetting)
 /*
  * Get the limits from the servo server
  */
-void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTableParam config)
+void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTablePost config)
 {
 	//Check to make sure we got the correct servo
 	if(config.id == servo_id_)
