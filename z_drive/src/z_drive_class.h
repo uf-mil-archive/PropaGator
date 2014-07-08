@@ -3,6 +3,7 @@
 
 
 #include <ros/ros.h>
+#include <ros/package.h> // to get the file path of the running node
 #include <dynamic_reconfigure/server.h>
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
@@ -431,46 +432,62 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	reconfig_server.setCallback(reconfig_callback);
 
 	// the following is a quick hack for darsan to test things
-	std::ifstream fin("~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
-	if (!fin)
+	std::string node_name=ros::this_node::getName();
+	if(node_name[0]=='/')
 	{
-		ROS_WARN("Error opening ~/catkin_ws/src/uf-mil/PropaGator/z_drive/scripts/initial_values.txt");
+		node_name.erase(0,1);//remove starting '/'
+	}
+	std::string package_path = ros::package::getPath(node_name);
+	if (package_path.empty() == true)
+	{
+		ROS_WARN("Error getting this nodes (%s) file path, so we can open scripts/inital_values", ros::this_node::getName().c_str());
 	}
 	else
 	{
-		string file_line="";
 
-		std::vector<double> data;
-		float tmp0=0;
-		float tmp1=0;
-		float tmp2=0;
-		float tmp3=0;
-		int i=0;
-		while(fin.eof()!=true)
+		ROS_INFO("Loading the file: %s/scripts/initial_values.txt", package_path.c_str());
+		package_path.append("/scripts/initial_values.txt");
+		std::ifstream fin(package_path.c_str());
+		if (!fin)
 		{
-			i++;
-			getline(fin,file_line);
-
-			if(sscanf(file_line.c_str(),"%f%f%f%f",&tmp0,&tmp1,&tmp2,&tmp3)!=4)
-			{
-				ROS_WARN("Line %d doesn't have the correct number of args %f, %f, %f, %f",i, tmp0,tmp1,tmp2,tmp3);
-			}
-			else
-			{
-				ROS_INFO("Read %f, %f, %f, %f",tmp0,tmp1,tmp2,tmp3);
-				std::vector<double>::iterator it=data.begin();
-				ZDrive::inital_theta_port.push_back((double)tmp0);
-				ZDrive::inital_thrust_port.push_back((double)tmp1);
-				ZDrive::inital_theta_starboard.push_back((double)tmp2);
-				ZDrive::inital_thrust_starboard.push_back((double)tmp3);
-				ROS_INFO("Read %f, %f, %f, %f",inital_theta_port[i-1],inital_thrust_port[i-1],inital_theta_starboard[i-1],inital_thrust_starboard[i-1]);
-			}
-			data.clear();
+			ROS_WARN("Error opening the file: %s",package_path.c_str());
 		}
-
-		fin.close();
+		else
+		{
+			string file_line = "";
+			//std::vector<double> data;
+			float tmp0 = 0;
+			float tmp1 = 0;
+			float tmp2 = 0;
+			float tmp3 = 0;
+			int i = 0;
+			while (fin.eof() != true)
+			{
+				i++;
+				getline(fin, file_line);
+				if (sscanf(file_line.c_str(), "%f%f%f%f", &tmp0, &tmp1, &tmp2, &tmp3) != 4)
+				{
+					ROS_WARN("Line %d doesn't have the correct number of args %f, %f, %f, %f", i, tmp0, tmp1, tmp2, tmp3);
+				}
+				else
+				{
+					ROS_INFO("Read %f, %f, %f, %f", tmp0, tmp1, tmp2, tmp3);
+					//std::vector<double>::iterator it = data.begin();
+					ZDrive::inital_theta_port.push_back((double)tmp0);
+					ZDrive::inital_thrust_port.push_back((double)tmp1);
+					ZDrive::inital_theta_starboard.push_back((double)tmp2);
+					ZDrive::inital_thrust_starboard.push_back((double)tmp3);
+					ROS_INFO("Read %f, %f, %f, %f", inital_theta_port[i - 1], inital_thrust_port[i - 1],
+								inital_theta_starboard[i - 1], inital_thrust_starboard[i - 1]);
+				}
+				tmp0=0;
+				tmp1=0;
+				tmp2=0;
+				tmp3=0;
+			}
+			fin.close();
+		}
 	}
-
 }
 void ZDrive::dynamixelStatusCallBack(const dynamixel_servo::DynamixelStatus& dynamixel_status_msg)
 {

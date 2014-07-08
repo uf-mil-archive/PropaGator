@@ -26,6 +26,8 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib_msgs
   actionlib
   nav_msgs
+  #for ros package path to get the running dir of the node
+  roslib
   #extra stuff that is still being tested
   geometry_msgs
   visualization_msgs
@@ -137,6 +139,7 @@ catkin_package(
 	dynamixel_servo
 	motor_control
 	uf_common
+	roslib
 #  DEPENDS system_lib
 )
 
@@ -202,3 +205,9 @@ target_link_libraries(z_drive ${catkin_LIBRARIES})
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
+
+## Copy files to bin directory
+#install (FILES
+#    scripts/initial_values.txt
+#    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
