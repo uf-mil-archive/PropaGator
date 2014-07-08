@@ -73,11 +73,11 @@ struct Control {
       Control a1 = Zero(p); a1.thrusters[i].dangle = p.thrusters[i].dangle_min;
       Control a2 = Zero(p); a2.thrusters[i].dangle = 0;
       Control a3 = Zero(p); a3.thrusters[i].dangle = p.thrusters[i].dangle_max;
-      res.push_back(std::vector<Control>{a1, a2, a3});
+      res.push_back(std::vector<Control>{a1, a3});
       Control b1 = Zero(p); b1.thrusters[i].dthrust = p.thrusters[i].dthrust_min;
       Control b2 = Zero(p); b2.thrusters[i].dthrust = 0;
       Control b3 = Zero(p); b3.thrusters[i].dthrust = p.thrusters[i].dthrust_max;
-      res.push_back(std::vector<Control>{b1, b2, b3});
+      res.push_back(std::vector<Control>{b1, b3});
     }
     return res;
   }
@@ -209,7 +209,7 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
     //std::cout << std::endl;
     State s = state.update(control, dt, p);
     int i = 0;
-    while(s.velocity.norm() >= 1e-2 || !s.thrusts_approximately_zero()) {
+    while(s.velocity.norm() >= 1e-2) { // || !s.thrusts_approximately_zero()
       i++;
       Control a = compute_vel_policy(s, 0.1, p);
       /*std::cout << "  Thruster states:" << std::endl;
@@ -220,11 +220,12 @@ Control compute_pos_policy(State const & state, Vec<3> desired_pos, double dt, P
       std::cout << "  Velocity: " << s.orientation.inverse()._transformVector(s.velocity).transpose() << std::endl;
       std::cout << "  Angular velocity: " << s.angular_velocity.transpose() << std::endl;
       std::cout << "  Thruster commands:" << std::endl; */
+      std::cout << "  " << i << " " << s.velocity.transpose() << " / ";
       BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
         std::cout << "  " << thruster.dangle << " " << thruster.dthrust;
       }
       std::cout << std::endl;
-      s = s.update(a, dt, p);
+      s = s.update(a, 0.1, p);
     }
     
     std::cout << i << " iterations" << std::endl;
@@ -281,13 +282,13 @@ public:
     State s(
       Vec<3>::Zero(),
       Quaternion::Identity(),
-      Vec<3>(1, 1, 0),
+      Vec<3>(0, 0, 0),
       Vec<3>::Zero(),
       std::vector<State::Thruster>{
         State::Thruster(0, 0),
         State::Thruster(0, 0)});
     
-    double dt = 1e-3;
+    double dt = 1e-2;
     
     double t = 0;
     while(true) {
@@ -300,8 +301,8 @@ public:
       std::cout << "Position: " << s.position.transpose() << std::endl;
       std::cout << "Velocity: " << s.velocity.transpose() << std::endl;
       std::cout << "Angular velocity: " << s.angular_velocity.transpose() << std::endl;
-      //Control a = compute_pos_policy(s, Vec<3>(1, 1, 0), dt, p);
-      Control a = compute_vel_policy(s, dt, p);
+      Control a = compute_pos_policy(s, Vec<3>(1, 1, 0), dt, p);
+      //Control a = compute_vel_policy(s, dt, p);
       std::cout << "Thruster commands:" << std::endl;
       BOOST_FOREACH(Control::Thruster const & thruster, a.thrusters) {
         std::cout << thruster.dangle << " " << thruster.dthrust << std::endl;
