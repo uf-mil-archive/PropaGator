@@ -1,0 +1,5 @@
+#!/bin/bash
+rosparam dump $1.yaml
+rosbag record -o $1 \
+    /forward_camera/image_raw /forward_camera/camera_info \
+    /odom /absodom /tf
