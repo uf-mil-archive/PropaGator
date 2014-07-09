@@ -14,6 +14,7 @@ import scipy.optimize
 import txros
 from txros import util
 from uf_common.orientation_helpers import xyz_array
+from uf_common import interpolate
 
 from geometry_msgs.msg import WrenchStamped
 
@@ -21,6 +22,7 @@ from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelFullConfig
 from std_msgs.msg import Float64
 
+calib_data = ([-66.1948875, -51.4849125, -44.129925, -29.41995, -22.0649625, -14.709975, -9.80665, -4.903325, -0.0, -0.0, 0.0, -0.0, 0.0, 0.0, 4.903325, 17.161637499999998, 29.41995, 34.323274999999995, 46.5815875, 66.1948875, 85.80818749999999, 107.87315], [0.001, 0.00105, 0.0011, 0.00115, 0.0012000000000000001, 0.00125, 0.0013, 0.00135, 0.0014, 0.0014500000000000001, 0.0015, 0.0015, 0.00155, 0.0016, 0.00165, 0.0017000000000000001, 0.00175, 0.0018, 0.00185, 0.0019, 0.0019500000000000001, 0.002])
 
 def lstsq_box(A, b, x_mins, x_maxs):
     return scipy.optimize.fmin_slsqp(
@@ -87,12 +89,13 @@ class Node(object):
         
         self.wrench = numpy.zeros(3), numpy.zeros(3)
         
+        print min(calib_data[0]), max(calib_data[1])
         self.thrusters = [
             dict( # port
                 id=3,
                 position=numpy.array([-.3239, +.3048, -.5]), # originally -.7238
                 angle=0,
-                thrust_range=(-50, +50),
+                thrust_range=(min(calib_data[0]), max(calib_data[1])),
                 dangle_range=(-3.2e-0, +3.2e-0),
                 angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
@@ -103,7 +106,7 @@ class Node(object):
                 id=2,
                 position=numpy.array([-.3239, -.3048, -.5]),
                 angle=0,
-                thrust_range=(-50, +50),
+                thrust_range=(min(calib_data[0]), max(calib_data[1])),
                 dangle_range=(-3.2e-0, +3.2e-0),
                 angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
@@ -129,9 +132,8 @@ class Node(object):
                 control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
                 goal_velocity=2*thruster['dangle'],
             ))
-            x = thruster['effort']/50 # XXX
             thruster['pwm_pub'].publish(Float64(
-                data=1.5e-3 + 0.5e-3 * x,
+                data=interpolate.sample_curve(calib_data, thruster['effort']),
             ))
     
     @util.cancellableInlineCallbacks
