@@ -208,16 +208,15 @@ public:
 	float getPresentSpeedRadPerSec();
 	uint16_t getMinMovingSpeed()
 	{// returns the min moving speed RELATIVE to the direction the servo is spinning (in rpm)- conversion to ros's rep 103 with rad/s should take place higher up!
-
-		if(inWheelMode() && rotatingClockWise())
-		{
-			return WHEEL_MODE_MOVING_SPEED_ZERO_CW;
-		}
 		if(inWheelMode()&&rotatingCounterClockWise())
 		{
-			return WHEEL_MODE_MOVING_SPEED_ZERO_CCW;
+			return 0x0000;
 		}
-		return WHEEL_MODE_MOVING_SPEED_ZERO_CCW; // the compiler will optimize this out, but eclipse doesn't like functions without an explicit return
+		else if(inWheelMode() && rotatingCounterClockWise())
+		{
+			return 0x0400;
+		}
+		return 0x0000;
 	};
 	uint16_t getMaxMovingSpeed()
 	{// returns the max moving speed RELATIVE to the direction the servo is spinning (in rpm)
@@ -248,28 +247,13 @@ public:
 	}
 	uint16_t getZeroMovingSpeed()
 	{
-		// if it's not moving (i.e. it's zero), return the correct one (i.e. dont change the directional zero it is).
-		if(moving_speed==WHEEL_MODE_MOVING_SPEED_ZERO_CW&&inWheelMode())
+		//If a value in the range of 1024~2047 is used, it is stopped by setting to 1024 while rotating to CW direction.
+		if(inWheelMode()&&rotatingCounterClockWise())
 		{
-			return WHEEL_MODE_MOVING_SPEED_ZERO_CW;
+			return WHEEL_MODE_MOVING_SPEED_ZERO_CW;//1024
 		}
-		else if(moving_speed==WHEEL_MODE_MOVING_SPEED_ZERO_CCW&&inWheelMode())
-		{
-			return WHEEL_MODE_MOVING_SPEED_ZERO_CCW;
-		}
-		//If a value in the range of 1~1023 is used (i.e. it's rotating), it is stopped by setting to 0 while rotating to CCW direction.
-		else if(inWheelMode()&&rotatingCounterClockWise())
-		{
-			return WHEEL_MODE_MOVING_SPEED_ZERO_CCW;//1024
-		}
-		//If a value in the range of 1025~2047 is used (i.e. it's rotating), it is stopped by setting to 1024 while rotating to CCW direction.
-		else if(inWheelMode()&&rotatingClockWise())
-		{
-			return WHEEL_MODE_MOVING_SPEED_ZERO_CW;
-		}
-		// It's in joint mode, so NOTE a zero in joint mode means max speed, so send a 1
-
-		return 0x0001;
+		//If a value in the range of 0~1023 is used, it is stopped by setting to 0 while rotating to CCW direction.
+		return 0x0000;
 	}
 
 
@@ -334,7 +318,6 @@ public:
 	static const uint8_t ON;
 	static const uint8_t OFF;
 	static const uint16_t ENCODER_RESOLUTION;
-	static const uint16_t MIN_GOAL_POSITION;
 	static const uint16_t MAX_GOAL_POSITION;
 	//static const uint16_t MAX_GOAL_POSITION_AX12A;
 	static const uint16_t MAX_JOINT_MODE_MOVING_SPEED;
@@ -409,7 +392,6 @@ const uint8_t Servo::GOAL_ACCELERATION_REG=0x49;
 const uint8_t Servo::ON=0x01;
 const uint8_t Servo::OFF=0x00;
 const uint16_t Servo::ENCODER_RESOLUTION=0xFFF;
-const uint16_t Servo::MIN_GOAL_POSITION=0x000;
 const uint16_t Servo::MAX_GOAL_POSITION=0xFFF; // the maximum allowed value 0xFFF (4095) to be set for the goal position
 //const uint16_t Servo::MAX_GOAL_POSITION_AX12A=0x3FF;// Note: An AX-12A can have a MAX_GOAL_POSITION of 0x3ff
 const uint16_t Servo::MAX_JOINT_MODE_MOVING_SPEED=0x3FF;
@@ -470,7 +452,6 @@ float Servo::getPresentPositionInRadians()
 	if(inMultiTurnMode())
 	{// only in multi_turn mode is this special
 		//per the manual Present position = (Real Position / Resolution Divider) + Multi-turn Offset
-		//TODO: verify this encoding
 		position_degrees=(present_position/resolution_divider+multi_turn_offset)*(360.0/Servo::ENCODER_RESOLUTION);
 	}
 	else
