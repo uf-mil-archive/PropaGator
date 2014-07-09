@@ -89,13 +89,13 @@ class Node(object):
         
         self.wrench = numpy.zeros(3), numpy.zeros(3)
         
-        print min(calib_data[0]), max(calib_data[1])
+        print min(calib_data[0]), max(calib_data[0])
         self.thrusters = [
             dict( # port
                 id=3,
-                position=numpy.array([-.3239, +.3048, -.5]), # originally -.7238
+                position=numpy.array([-.5239, +.3048, -.5]), # originally -.7238
                 angle=0,
-                thrust_range=(min(calib_data[0]), max(calib_data[1])),
+                thrust_range=(min(calib_data[0]), max(calib_data[0])),
                 dangle_range=(-3.2e-0, +3.2e-0),
                 angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
@@ -104,9 +104,9 @@ class Node(object):
             ),
             dict( # starboard
                 id=2,
-                position=numpy.array([-.3239, -.3048, -.5]),
+                position=numpy.array([-.5239, -.3048, -.5]),
                 angle=0,
-                thrust_range=(min(calib_data[0]), max(calib_data[1])),
+                thrust_range=(min(calib_data[0]), max(calib_data[0])),
                 dangle_range=(-3.2e-0, +3.2e-0),
                 angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
@@ -132,8 +132,9 @@ class Node(object):
                 control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
                 goal_velocity=2*thruster['dangle'],
             ))
+            print 'thrust', thruster['effort'], interpolate.sample_curve(calib_data, thruster['effort'])/1e-3, 'ms'
             thruster['pwm_pub'].publish(Float64(
-                data=interpolate.sample_curve(calib_data, thruster['effort']),
+                data=interpolate.sample_curve(calib_data, thruster['effort']) if abs(thruster['effort']) > 1e-3 else 1.5e-3,
             ))
     
     @util.cancellableInlineCallbacks
