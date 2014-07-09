@@ -9,11 +9,11 @@
     <remap from="set_camera_info" to="forward_camera/set_camera_info"/>
     <param name="frame_id" value="/forward_camera"/>
     <param name="id" value="1"/>
-    <param name="hbins" value="2"/>
-    <param name="vbins" value="2"/>
+    <param name="hbins" value="1"/>
+    <param name="vbins" value="1"/>
     <param name="framerate" value="10"/>
     <param name="autowhitebalance" value="false"/>
-    <param name="calibration_file" value="$(find sub_launch)/launch/forward_cal.txt"/>
+    <param name="calibration_file" value="$(find boat_launch)/launch/forward_cal.txt"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="forward_camera_tf"
     args="1 0 0.25  0.5 -0.5 0.5 -0.5  base_link forward_camera 100" />
