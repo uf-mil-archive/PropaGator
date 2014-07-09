@@ -9,6 +9,11 @@
   <node pkg="nodelet" type="nodelet" name="magnetic_hardsoft_compensation" args="standalone magnetic_hardsoft_compensation/nodelet">
     <param name="frame_id" type="string" value="/imu"/>
     <rosparam>
+scale:
+- [1.006281290432856, -0.0006003491790027011, -0.0029163074084483276]
+- [-0.0006003491790026937, 0.9982115395495025, -0.00069099197002007]
+- [-0.0029163074084482586, -0.0006909919700200012, 0.9955476886598489]
+shift: [-7.408751124756462e-07, 1.6277092058570342e-06, -2.41066154536866e-06]
     </rosparam>
   </node>
 
@@ -25,7 +30,6 @@
 
   <node pkg="nodelet" type="nodelet" args="standalone odom_estimator/nodelet" name="odom_estimator" respawn="true">
     <remap from="odom" to="imu_odom"/>
-    <remap from="imu/mag" to="imu/mag_raw"/> <!-- XXX -->
   </node>
 
   <node pkg="nodelet" type="nodelet" name="transform_odometry" args="standalone odometry_utils/transform_odometry"><rosparam>
