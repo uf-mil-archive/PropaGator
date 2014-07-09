@@ -13,6 +13,7 @@
     <param name="vbins" value="1"/>
     <param name="framerate" value="10"/>
     <param name="autowhitebalance" value="false"/>
+    <param name="auto_reference" value="0.15"/>
     <param name="calibration_file" value="$(find boat_launch)/launch/forward_cal.txt"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="forward_camera_tf"
