@@ -62,7 +62,7 @@ def _fit(thrusters, wrench):
         numpy.cross(thruster['position'], calc_direction(thruster['angle'])), # torque = (position X direction) * effort
     ]) for thruster in thrusters]).T
     
-    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 5])
+    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1])
     pseudowrench = pseudowrench_from_wrench.dot(wrench)
     pseudowrench_from_efforts = pseudowrench_from_wrench.dot(wrench_from_efforts)
     
@@ -97,7 +97,7 @@ class Node(object):
                 angle=0,
                 thrust_range=(min(calib_data[0]), max(calib_data[0])),
                 dangle_range=(-3.2e-0, +3.2e-0),
-                angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
+                angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
                 pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
@@ -108,7 +108,7 @@ class Node(object):
                 angle=0,
                 thrust_range=(min(calib_data[0]), max(calib_data[0])),
                 dangle_range=(-3.2e-0, +3.2e-0),
-                angle_range=(-6*math.pi, +6*math.pi), # at most (-6*math.pi, +6*math.pi)
+                angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
                 pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
