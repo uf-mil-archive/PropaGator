@@ -31,6 +31,6 @@
 
   <node pkg="uf_common" type="param_saver" name="param_saver"/>
 
-  <!-- <node pkg="z_drive2" type="z_drive2" name="z_drive2"/> -->
+  <node pkg="z_drive2" type="z_drive2" name="z_drive2"/>
 
 </launch>
