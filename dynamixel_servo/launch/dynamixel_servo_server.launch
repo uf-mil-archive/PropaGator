@@ -31,9 +31,9 @@
 	<!-- since the "servo_namespace" is configurable, we will also store it as a paramater on the server so we can access their relative location easier -->
 	<arg name="servo_namespace" default="servo" />
 	<!-- Stephen's usb to serial board-->
-    <arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_FT4232H_Device_FTWZVMOA-if03-port0"/>
+    <!--arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_FT4232H_Device_FTWZVMOA-if03-port0"/-->
 	<!-- Mil's usb to serial board-->
-	<!--arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_USB__-__Serial_Cable_FTTKRX37-if03-port0"/-->
+	<arg name="serial_port" default="/dev/serial/by-id/usb-FTDI_USB__-__Serial_Cable_FTTKRX37-if03-port0"/>
 	<!--Mils usb with serial extension cable-->
 	<!--arg name="serial_port" default="/dev/ttyUSB3"/-->
 	<arg name="baud_rate" default="1" />

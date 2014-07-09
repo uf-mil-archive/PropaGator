@@ -762,7 +762,8 @@ void DynamixelServos::configCallbackFull(const dynamixel_servo::DynamixelFullCon
 		}
 		else
 		{
-			setMovingSpeed(servo_to_config,msg->moving_speed, false);
+			// in continuous_angle_mode dont set the mofing speed because the feedback loop (when it gets the status(s)) will set it for us- so the moving speed is changing at the rate the statuses are updated i.e. always changing.
+			// if you set it here it will keep overwriting eachother and cause BIG issues
 		}
 		setGoalPosition(servo_to_config,msg->goal_position);
 		setTorqueLimit(servo_to_config,msg->torque_limit);
