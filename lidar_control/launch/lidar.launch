@@ -1,0 +1,13 @@
+<!-- Launch file for lidar-->
+<!-- This launch file should be run after dynamixel's because the specified nodes
+        require params from dynamixel -->
+<launch>
+    <group ns="lidar">
+        <node pkg="lms1xx" type="LMS1xx_node" name="lms1xx">
+            <param name="host" value="192.168.1.4"/>
+            <param name="frame_id" value="lidar"/>
+        </node>
+       
+        <node pkg="lidar_control" type="lidar_control_node" name="lidar_angle_control"/>
+    </group>
+</launch>
