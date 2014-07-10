@@ -49,6 +49,7 @@ class _Boat(object):
         self._camera_3d_action_clients = dict(
             forward=action.ActionClient(self._node_handle, 'find_forward', object_finder_msg.FindAction),
         )
+        self._odom_sub = self._node_handle.subscribe('odom', Odometry)
         self._absodom_sub = self._node_handle.subscribe('absodom', Odometry)
         
         yield self._trajectory_sub.get_next_message()
@@ -66,7 +67,29 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def get_ecef_pos(self):
-        assert False
+        msg = yield self._absodom_sub.get_next_message()
+        defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
+    
+    @util.cancellableInlineCallbacks
+    def go_to_ecef_pos(self, pos):
+        while True:
+            odom_df = self._odom_sub.get_next_message()
+            abs_msg = yield self._absodom_sub.get_next_message()
+            msg = yield odom_df
+            
+            error_ecef = pos - orientation_helpers.xyz_array(abs_msg.pose.pose.position)
+            error_enu = enu_from_ecef(ecef_v=error_ecef, ecef_pos=orientation_helpers.xyz_array(abs_msg.pose.pose.position))
+            error_enu[2] = 0
+            
+            enu_pos = orientation_helpers.xyz_array(msg.pose.pose.position) + error_enu
+            enu_pos[2] = self.pose.position[2]
+            
+            if numpy.linalg.norm(error_enu) < 1:
+                yield self.move.set_position(enu_pos).go()
+                return
+            
+            self._moveto_action_client.send_goal(
+                start_pose.set_position(enu_pos).as_MoveToGoal(speed=0.1)).forget()
     
     @util.cancellableInlineCallbacks
     def visual_align(self, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):
