@@ -45,7 +45,7 @@ buoy_targetdesc = object_finder_msg.TargetDesc(
     mesh=from_obj(roslib.packages.resource_file('boatsim', 'models', 'cruciform.obj')),
     prior_distribution=PoseWithCovariance(
         pose=Pose(
-            orientation=Quaternion(x=0, y=0, z=0, w=1),
+            orientation=None, # set later
         ),
         covariance=[
             0, 0, 0, 0, 0, 0,
@@ -58,6 +58,7 @@ buoy_targetdesc = object_finder_msg.TargetDesc(
     ),
     min_dist=0,
     max_dist=8,
+    disallow_yawing=True,
 )
 
 print buoy_targetdesc

@@ -247,8 +247,9 @@ class _Boat(object):
                 
                 if last_good_pos is not None:
                     desired_pos = start_pose.set_position(last_good_pos).backward(distance).position
+                    desired_pos[2] = start_pose.position[2]
                     
-                    print ' '*20, numpy.linalg.norm(desired_pos - self.pose.position)
+                    print ' '*20, numpy.linalg.norm(desired_pos - self.pose.position), desired_pos, self.pose.position
                     
                     if numpy.linalg.norm(desired_pos - self.pose.position) < 0.5:
                         if loiter_start is None:
@@ -260,7 +261,7 @@ class _Boat(object):
                             return
                     
                     self._moveto_action_client.send_goal(
-                        start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.1)).forget()
+                        start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.3)).forget()
         finally:
             goal_mgr.cancel()
 
