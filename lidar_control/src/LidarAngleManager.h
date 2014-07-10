@@ -8,7 +8,6 @@
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
 #include "dynamixel_servo/DynamixelControlTablePost.h"
 #include "dynamixel_servo/DynamixelStatus.h"
-#include "tf/transform_listener.h"
 #include <sensor_msgs/JointState.h>
 
 class LidarAngleManager
@@ -36,9 +35,6 @@ private:
 	//Current angle
 	//Keeps a cache of the last published servo angle
 	float current_angle_;
-	
-	//Transform
-	tf::TransformListener lidar_tf;
 	
 	/*
 	 *  Private functions
