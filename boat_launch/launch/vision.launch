@@ -22,4 +22,13 @@
     <arg name="manager" value="/forward_camera_nodelets"/>
   </include>
 
+  <node pkg="object_finder" type="object_finder" name="forward_object_finder">
+    <remap from="find" to="find_forward"/>
+    <remap from="camera" to="forward_camera"/>
+  </node>
+
+  <include file="$(find legacy_vision)/launch/legacy_vision.launch">
+    <arg name="camera" value="forward_camera"/>
+  </include>
+
 </launch>
