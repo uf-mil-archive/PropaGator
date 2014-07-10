@@ -10,6 +10,9 @@ from twisted.internet import defer
 
 from txros import action, util, tf
 
+#SPP having access to the gps methods will allow us to easily switch from ECEF to lat/long
+import rawgps_common
+
 from std_msgs.msg import Header
 from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
 from legacy_vision.msg import FindAction, FindGoal
@@ -18,6 +21,12 @@ from tf import transformations
 from legacy_vision import msg as legacy_vision_msg
 from object_finder import msg as object_finder_msg
 from nav_msgs.msg import Odometry
+#SPP for hydropones
+from hydrophones.msg import ProcessedPing
+#SPP for getting gps fix lat/long
+from geometry_msgs.msg import PointStamped
+#for dynamixel configs
+from dynamixel_servo.msg import DynamixelFullConfig 
 
 
 class _PoseProxy(object):
@@ -49,7 +58,14 @@ class _Boat(object):
         self._camera_3d_action_clients = dict(
             forward=action.ActionClient(self._node_handle, 'find_forward', object_finder_msg.FindAction),
         )
+        #The absodom topic has the lat long information ebeded in the nav_msgs/Odometry. the lat long is under pose.pose.position and this is what is reported back in the JSON messages for a chalenge.
         self._absodom_sub = self._node_handle.subscribe('absodom', Odometry)
+        #SPP subscribe the boat to the processed pings, so the missions can utalize the processed acoustic pings
+        self._hydrophone_ping_sub = self._node_handle.subscribe('hydrophones/processed', ProcessedPing)
+        #SPP subscribe the boat to the GPS messages, so the missions can easly get the data for their JSON messages
+        self._hydrophone_freq_sub= self._node_handle.subscribe('hydrophones/desired_freq', Float64)
+        
+        self.servo_full_config_pub = self._node_handle.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
         
         yield self._trajectory_sub.get_next_message()
         
@@ -63,6 +79,98 @@ class _Boat(object):
     @property
     def move(self):
         return _PoseProxy(self, self.pose)
+    
+    @util.cancellableInlineCallbacks
+    def deploy_hydrophone(self):
+        deploy_msg=DynamixelFullConfig()
+        deploy_msg.id=5
+        deploy_msg.goal_position=4*2*math.pi
+        deploy_msg.moving_speed=3, # near maximum, not actually achievable ...
+        deploy_msg.torque_limit=800
+        deploy_msg.goal_acceleration=20
+        deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
+        deploy_msg.goal_velocity=3
+        servo_full_config_pub(deploy_msg)
+        return
+    
+    @util.cancellableInlineCallbacks
+    def retract_hydrophone(self):
+        deploy_msg=DynamixelFullConfig()
+        deploy_msg.id=5
+        deploy_msg.goal_position=0
+        deploy_msg.moving_speed=3, # near maximum, not actually achievable ...
+        deploy_msg.torque_limit=800
+        deploy_msg.goal_acceleration=20
+        deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
+        deploy_msg.goal_velocity=3
+        servo_full_config_pub(deploy_msg)
+        return
+    
+    
+    @util.cancellableInlineCallbacks
+    def get_hydrophone_freq(self):
+        msg = yield self._hydrophone_freq_sub.get_next_message()
+        defer.returnValue(msg)
+        
+    #SPP get the latest processed acoustic message that is at the specified frequency
+    @util.cancellableInlineCallbacks
+    def get_processed_ping(self, frequency):
+        while True:
+            # keep looking for a ping at the specified frequency
+            msg = yield self._hydrophone_ping_sub.get_next_message()
+            if msg.freq==frequency:
+                # only if you receive one should you return. NOTE: mission_core run_missions will timeout and kill this task so it wont run forever()
+                defer.returnValue(msg)        
+    
+    #SPP get the latest gps lat/long fix from the 
+    @util.cancellableInlineCallbacks
+    def get_gps_lat_long(self):
+        msg = yield self._absodom_sub.get_next_message()
+        #lat long is under msg.pose.pose.position of the nav_msgs/Odometry for the '/absodom' topic
+        # Note: /absodom is Earth-Centered,Earth-Fixed (ECEF), so This means that ECEF rotates with the earth and a point fixed on the surface of the earth do not change.
+        # See: http://en.wikipedia.org/wiki/ECEF
+        temp=latlongheight_from_ecef(msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z)
+        ret_dict={'latitude' : temp[0],'longitude':temp[1]}
+        defer.returnValue(ret_dict)
+    
+    @util.cancellableInlineCallbacks
+    def get_gps_odom(self):
+        msg = yield self._absodom_sub.get_next_message()
+        defer.returnValue(msg)
+    
+    #SPP allign the craft based on what pings the hydrophones hear for a given freq
+    @util.cancellableInlineCallbacks
+    def hydrophone_align(self, frequency):
+        i=1
+        averaging_amount=5; #since it pings every 2 seconds remeber 5 declination_ammounts (averaging_amount*2 seconds)
+        declination_ammounts = Queue() # this will be used to make sure that we are always approaching the pinger and not pointed 180deg in the oposite direction
+        try:
+            while True:
+                ping_return=self.get_processed_ping(frequency)
+                if(declination_ammounts.qsize()>averaging_amount):
+                    declination_ammounts.get_nowait()#we only want up to averaging_amount of elements to compare
+                declination_ammounts.put(ping_return.declination)
+                print i,". ping_return freq: ", ping_return.freq, "  declination: ", ping_return.declination, " heading ", ping_return.heading, " amplitude: ", ping_return.amplitude, " valid: ", ping_return.valid
+                #if we ger a high enough declination we should be getting closer at about 45 degrees off from it we should be able to quit
+                if ping_return.declination>=.7 and ping_return.declination<=.9:
+                    return
+                # We would like to try to be straight on if possible so look at angles first
+                elif ping_return.freq<-.15:
+                    # rotate back left if the boat is more than .15 radians~8.5deg off, do it slowly as to not over shoot
+                    yield self.move.turn_left_deg(degrees(fabs(ping_return.freq)/2))
+                elif ping_return.freq>.15:
+                    # rotate back right if the boat is more than .15 radians~8.5deg off, do it slowly as to not over shoot
+                    yield self.move.turn_right_deg(degrees(fabs(ping_return.freq)/2))
+                elif average(ediff1d(declination_ammounts))<0:
+                    #ediff1d does a[0]=a[1]-a[0], a[1]=a[2]-a[1] ... a[N]=a[N]-a[N-1]
+                    #so basicly make sure that we are still relativly approaching the beacon and not going in the oposite direction
+                    yield self.move.turn_right_deg(91) # basicly start to turn arround since were going the wrong dir
+                else:
+                    #move forward some slowly
+                    yield self.move.forward(2)
+        finally:
+            goal_mgr.cancel()
+    
     
     @util.cancellableInlineCallbacks
     def get_ecef_pos(self):
