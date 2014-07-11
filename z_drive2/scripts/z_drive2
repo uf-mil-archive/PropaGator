@@ -100,7 +100,7 @@ class Node(object):
                 angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
-                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
+                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
             ),
             dict( # starboard
                 id=2,
@@ -111,7 +111,7 @@ class Node(object):
                 angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
-                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
+                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
             ),
         ]
         
