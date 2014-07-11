@@ -25,7 +25,7 @@
     <param name="filename" value="$(find boat_launch)/launch/rise_6dof.yaml"/>
     <rosparam>
       file_basepath: /rise_6dof
-      param_paths: [k, ks, alpha, beta, use_rise, accel_feedforward, vel_feedforward]
+      param_paths: [k, ks, alpha, beta, use_rise, accel_feedforward, vel_feedforward, two_d_mode]
     </rosparam>
   </group>
 

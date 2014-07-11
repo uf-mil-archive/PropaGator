@@ -3,5 +3,6 @@ alpha: 0.1,0.1,0,0,0,0.05
 beta: 0.5,0.5,0,0,0,1
 k: 1,1,0,0,0,1
 ks: 100,100,0,0,0,50
+two_d_mode: true
 use_rise: false
 vel_feedforward: 0,0,0,0,0,0
