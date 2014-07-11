@@ -13,7 +13,7 @@ from txros import action, util, tf
 #SPP having access to the gps methods will allow us to easily switch from ECEF to lat/long
 import rawgps_common
 
-from std_msgs.msg import Header
+from std_msgs.msg import Header, Float64
 from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
 from legacy_vision.msg import FindAction, FindGoal
 from uf_common import orientation_helpers
@@ -404,7 +404,7 @@ class _Boat(object):
                             return
                     
                     self._moveto_action_client.send_goal(
-                        start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.3)).forget()
+                        start_pose.set_position(desired_pos).as_MoveToGoal(speed=.5)).forget()
         finally:
             goal_mgr.cancel()
             yield self.move.go() # stop moving

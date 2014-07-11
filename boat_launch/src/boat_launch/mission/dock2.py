@@ -51,13 +51,13 @@ targetdesc = object_finder_msg.TargetDesc(
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
-            0, 0, 0, .1, 0, 0,
-            0, 0, 0, 0, .1, 0,
-            0, 0, 0, 0, 0, .2,
+            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0,
         ],
     ),
-    min_dist=0,
-    max_dist=4,
+    min_dist=1,
+    max_dist=6,
     disallow_yawing=True,
 )
 
@@ -70,14 +70,17 @@ def main(nh):
     start_pose = boat.move
     
     for x in ['cruciform', 'circle', 'triangle'][::-1]:
-        #yield start_pose.backward(0).go()
+        yield start_pose.backward(0).go()
         
         targetdesc.mesh = from_obj(roslib.packages.resource_file('boatsim', 'models', x + '.obj'))
         targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
         
         print 'a'
         yield boat.visual_approach_3d('forward', 4, targetdesc)
+        yield boat.move.forward(1.5).go(speed=.3)
+        yield boat.move.forward(1).go(speed=.2)
         print 'b'
+    yield start_pose.backward(0).go()
     
     #yield boat.move.forward(1).go()
     #yield boat.move.backward(1.5).go()
