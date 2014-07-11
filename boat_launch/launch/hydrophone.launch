@@ -1,0 +1,26 @@
+<launch>
+    <!-- The hydrophones all sit on a board that "paul" made. (go figure)-->
+    <node pkg="paulboard_driver" type="paulboard_driver" name="paulboard_driver" output="screen">
+        <!-- The port that shows up to talk with the board. MOTE: in the simulator this is usaly a device like /dev/pts/# -->
+        <!--param name="port" type="string" value="/dev/pts/7"/-->
+        <!--param name="port" type="string" value="/dev/ttyHydrophones"/-->
+        <!-- how fast the board samples for the pinging -->
+        <param name="sample_rate" type="double" value="300000"/>
+        <!-- the name of the tf frame to publish under-->
+        <param name="frame" type="string" value="/hydrophones"/>
+        <!-- the order in which it gets the readings from the four microphones?-->
+        <param name="permute" type="string" value="2 3 1 4"/>
+    </node>
+    <!-- the static transform publisher has the folowing properties: x y z yaw pitch roll frame_id child_frame_id period_in_ms-->
+    <node pkg="tf" type="static_transform_publisher" name="hyd_broadcaster" args="-0.4 0 0 1.571 0 0 base_link hydrophones 100" />
+    <node pkg="hydrophones" type="hydrophones" name="hydrophones" output="screen">
+        <!-- the distance between the 3 main pingers -->
+        <param name="dist_h" type="double" value="2.286000e-02"/>
+        <!-- the distance between the 3 main pingers and the 4th -->
+        <param name="dist_h4" type="double" value="2.286000e-02"/>
+        <!-- the speed of sound in water at a given temp. 86 degrees Ferienhight (30 celcious) is about 1500M/s -->
+        <param name="v_sound" type="double" value="1500"/>
+    </node>
+    <!-- graphs the pings in real time-->
+    <!--node pkg="hydrophones" type="ping_plotter" name="ping_plotter"/-->
+</launch>
