@@ -26,7 +26,7 @@ from rawgps_common import gps
 #SPP for hydropones
 from hydrophones.msg import ProcessedPing
 #SPP for getting gps fix lat/long
-from geometry_msgs.msg import PointStamped, Wrench, Vector3
+from geometry_msgs.msg import PointStamped, Wrench, WrenchStamped, Vector3
 #for dynamixel configs
 from dynamixel_servo.msg import DynamixelFullConfig 
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
@@ -63,6 +63,7 @@ class _Boat(object):
             forward=action.ActionClient(self._node_handle, 'find_forward', object_finder_msg.FindAction),
         )
         self._odom_sub = self._node_handle.subscribe('odom', Odometry)
+        self._wrench_sub = self._node_handle.subscribe('wrench', WrenchStamped)
         #The absodom topic has the lat long information ebeded in the nav_msgs/Odometry. the lat long is under pose.pose.position and this is what is reported back in the JSON messages for a chalenge.
         self._absodom_sub = self._node_handle.subscribe('absodom', Odometry)
         #SPP subscribe the boat to the processed pings, so the missions can utalize the processed acoustic pings
@@ -98,6 +99,13 @@ class _Boat(object):
                 lifetime=genpy.Duration(1),
             ))
             yield util.sleep(.5)
+    
+    @util.cancellableInlineCallbacks
+    def wait_for_bump(self):
+        while True:
+            wrench = yield self._wrench_sub.get_next_message()
+            if wrench.wrench.force.x > 60:
+                break
     
     @util.cancellableInlineCallbacks
     def deploy_hydrophone(self):

@@ -78,7 +78,11 @@ def main(nh):
         print 'a'
         yield boat.visual_approach_3d('forward', 4, targetdesc)
         yield boat.move.forward(1.5).go(speed=.3)
-        yield boat.move.forward(0.6).go(speed=.2)
+        fwd_task = boat.move.forward(100).go(speed=.2)
+        try:
+            yield boat.wait_for_bump()
+        finally:
+            fwd_task.cancel()
         print 'b'
     yield start_pose.backward(0).go()
     
