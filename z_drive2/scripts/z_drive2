@@ -44,7 +44,7 @@ def get_optimal_angles(thrusters, wrench):
         numpy.cross(thruster['position'], [0, 1, 0]), # torque = (position X direction) * effort
     ]) for thruster in thrusters]).T
     
-    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1])
+    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1e2])
     pseudowrench = pseudowrench_from_wrench.dot(wrench)
     pseudowrench_from_efforts = pseudowrench_from_wrench.dot(wrench_from_efforts)
     
@@ -62,7 +62,7 @@ def _fit(thrusters, wrench):
         numpy.cross(thruster['position'], calc_direction(thruster['angle'])), # torque = (position X direction) * effort
     ]) for thruster in thrusters]).T
     
-    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1])
+    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1e2])
     pseudowrench = pseudowrench_from_wrench.dot(wrench)
     pseudowrench_from_efforts = pseudowrench_from_wrench.dot(wrench_from_efforts)
     
