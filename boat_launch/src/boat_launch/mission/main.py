@@ -2,7 +2,9 @@ from __future__ import division
 
 import traceback
 import time
+import json
 from twisted.web import client
+from twisted.internet import defer
 
 from txros import util
 
@@ -32,8 +34,12 @@ class CourseInterface(object):
     def start_automated_docking(self, course):
         x = yield self._get('automatedDocking', course)
         defer.returnValue(x['dockingBay'])
+    @util.cancellableInlineCallbacks
+    def activate_light_sequence(self, course):
+        x = yield self._get('lightSequence/activate', course)
+        defer.returnValue(x['success'])
 
-ci = CourseInterface('192.168.1.54', 9000, 'UF') # 9443 for HTTPS
+ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 
 @util.cancellableInlineCallbacks
 def main_list(nh, boat, course):
@@ -131,5 +137,6 @@ def main(nh):
 
 @util.cancellableInlineCallbacks
 def main(nh):
+    print 'a'
     dock_item = yield ci.start_automated_docking('A')
     print 'dock_item:', dock_item
