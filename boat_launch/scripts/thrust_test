@@ -87,7 +87,7 @@ def main():
             for thruster in thrusters: thruster['pwm'] = 1.5e-3
             send_state()
         
-        yield go(numpy.linspace(2e-3, 1.5e-3, 5), +1)
+        yield go(numpy.linspace(2e-3, 1.5e-3, 11), +1)
         
         print 'Rotating'
         for thruster in thrusters: thruster['angle'] = math.pi
@@ -95,7 +95,7 @@ def main():
         yield util.sleep(5)
         print 'Done'
         
-        yield go(numpy.linspace(1.0e-3, 1.5e-3, 5), -1)
+        yield go(numpy.linspace(1.0e-3, 1.5e-3, 11), -1)
         
         print 'Done', repr(points)
     finally:

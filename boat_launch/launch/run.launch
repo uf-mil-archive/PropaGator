@@ -8,4 +8,11 @@
   <include file="$(find boat_launch)/launch/navigation.launch"/>
 
   <include file="$(find propagator_description)/launch/display.launch"/>
+
+  <node pkg="stm32f3discovery_imu_driver" type="stm32f3discovery_imu_driver" name="stm32f3_discovery_imu_driver">
+    <param name="port" value="/dev/serial/by-id/usb-uf-mil_subbus_6893fee7-if00"/>
+    <param name="dest" value="0x6893fee7"/>
+    <remap from="imu/data_raw" to="stmimu/data_raw"/>
+    <remap from="imu/mag_raw" to="stmimu/mag_raw"/>
+  </node>
 </launch>
