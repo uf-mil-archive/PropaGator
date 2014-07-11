@@ -18,6 +18,7 @@ from tf import transformations
 from legacy_vision import msg as legacy_vision_msg
 from object_finder import msg as object_finder_msg
 from nav_msgs.msg import Odometry
+from rawgps_common import gps
 
 
 class _PoseProxy(object):
@@ -72,24 +73,33 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def go_to_ecef_pos(self, pos):
-        while True:
-            odom_df = self._odom_sub.get_next_message()
-            abs_msg = yield self._absodom_sub.get_next_message()
-            msg = yield odom_df
-            
-            error_ecef = pos - orientation_helpers.xyz_array(abs_msg.pose.pose.position)
-            error_enu = enu_from_ecef(ecef_v=error_ecef, ecef_pos=orientation_helpers.xyz_array(abs_msg.pose.pose.position))
-            error_enu[2] = 0
-            
-            enu_pos = orientation_helpers.xyz_array(msg.pose.pose.position) + error_enu
-            enu_pos[2] = self.pose.position[2]
-            
-            if numpy.linalg.norm(error_enu) < 1:
-                yield self.move.set_position(enu_pos).go()
-                return
-            
-            self._moveto_action_client.send_goal(
-                start_pose.set_position(enu_pos).as_MoveToGoal(speed=0.1)).forget()
+        try:
+            first = True
+            while True:
+                odom_df = self._odom_sub.get_next_message()
+                abs_msg = yield self._absodom_sub.get_next_message()
+                msg = yield odom_df
+                
+                error_ecef = pos - orientation_helpers.xyz_array(abs_msg.pose.pose.position)
+                error_enu = gps.enu_from_ecef(ecef_v=error_ecef, ecef_pos=orientation_helpers.xyz_array(abs_msg.pose.pose.position))
+                error_enu[2] = 0
+                print error_enu, '=>', numpy.linalg.norm(error_enu), '->', 1
+                
+                enu_pos = orientation_helpers.xyz_array(msg.pose.pose.position) + error_enu
+                enu_pos[2] = self.pose.position[2]
+                
+                if numpy.linalg.norm(error_enu) < 1:
+                    yield self.move.set_position(enu_pos).go()
+                    return
+                
+                if first:
+                    yield self.move.look_at_without_pitching(enu_pos).go()
+                    first = False
+                
+                self._moveto_action_client.send_goal(
+                    self.pose.set_position(enu_pos).as_MoveToGoal()).forget()
+        finally:
+            yield self.move.go() # stop moving
     
     @util.cancellableInlineCallbacks
     def visual_align(self, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):
@@ -177,6 +187,7 @@ class _Boat(object):
                     start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.1)).forget()
         finally:
             goal_mgr.cancel()
+            yield self.move.go() # stop moving
     
     @util.cancellableInlineCallbacks
     def visual_approach(self, camera, object_name, size_estimate, desired_distance, selector=lambda items, body_tf: items[0]):
@@ -244,6 +255,7 @@ class _Boat(object):
                     start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.1)).forget()
         finally:
             goal_mgr.cancel()
+            yield self.move.go() # stop moving
     
     @util.cancellableInlineCallbacks
     def visual_approach_3d(self, camera, distance, targetdesc, loiter_time=0):
@@ -287,11 +299,13 @@ class _Boat(object):
                         start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.3)).forget()
         finally:
             goal_mgr.cancel()
+            yield self.move.go() # stop moving
 
 _boats = {}
+@util.cancellableInlineCallbacks
 def get_boat(node_handle):
     if node_handle not in _boats:
         _boats[node_handle] = None # placeholder to prevent this from happening reentrantly
-        _boats[node_handle] = _Boat(node_handle)._init()
+        _boats[node_handle] = yield _Boat(node_handle)._init()
         # XXX remove on nodehandle shutdown
-    return _boats[node_handle]
+    defer.returnValue(_boats[node_handle])

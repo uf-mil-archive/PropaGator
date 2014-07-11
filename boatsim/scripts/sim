@@ -29,6 +29,7 @@ from sim.vector import v, V
 from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelJointConfig, DynamixelFullConfig, DynamixelStatus
 from z_drive.msg import BoatSimZDriveOutsideForce
+from rawgps_common import gps
 
 from boatsim import devices
 
@@ -131,6 +132,7 @@ killed = False
 locked = False
 
 odom_pub = rospy.Publisher('/odom', Odometry)
+abs_odom_pub = rospy.Publisher('absodom', Odometry)
 base_tf_br = tf.TransformBroadcaster()
 
 class lidar:
@@ -206,13 +208,13 @@ class lidar:
         
         lidar_quat = tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw)
 
-        self.lidar_tf_br.sendTransform(
+        '''self.lidar_tf_br.sendTransform(
                 T,
                 lidar_quat,
                 rospy.Time.now(),
                 "/base_link",
                 "/base_link/laser",
-                )
+                )'''
 
     def get_lidar_range(self):
         '''
@@ -321,14 +323,14 @@ class lidar:
         self.pitch_lidar()
 
 #Instantiate a "Lidar"
-boat_lidar = lidar()
+#boat_lidar = lidar()
 
 def world_tick():
     global world_time
     
     #print positions, thrusts, z_drive_sim
     
-    boat_lidar.get_lidar_range() # Use and publish whoa!
+    #boat_lidar.get_lidar_range() # Use and publish whoa!
 
     water_vel = get_water_vel(V(body.getPosition()))
     
@@ -432,26 +434,15 @@ def world_tick():
     msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
     odom_pub.publish(msg)
     
-    # Here's my very ugly tf publisher for boat odometry. I'm almost ashamed to have written it. It was a quick hack/slash job to make this work
-    rpy_u = tf.transformations.euler_from_quaternion(q, 'syzx') #syzx controls the axes about which the quaternion is converted to Euler
-    rpy = (rpy_u[0], rpy_u[1], rpy_u[2])
-
-    #print("Current base quaternion: " + str(q))
-    #print("Current base rpy: \n\t" + str(rpy[0]) + "\n\t" + str(rpy[1]) + "\n\t" + str(rpy[2]))
-    T = tf.transformations.translation_matrix(body.getPosition())
-    T = tf.transformations.rotation_matrix((rpy[2]), (0, 0, 1)).dot(T)
-    T = tf.transformations.rotation_matrix((rpy[1]), (0, 1, 0)).dot(T)
-    T = tf.transformations.rotation_matrix((rpy[0]), (1, 0, 0)).dot(T)
-    T = tf.transformations.translation_from_matrix(T)
-    #->
-
-    base_tf_br.sendTransform(
-            T,
-            tf.transformations.quaternion_from_euler(rpy[0],rpy[1],rpy[2]),
-            rospy.Time.now(),
-            "/enu", 
-            "/base_link", 
-            )
+    # XXX
+    msg = Odometry()
+    msg.header.stamp = rospy.Time(world_time)
+    msg.header.frame_id = '/ecef'
+    msg.child_frame_id = '/base_link'
+    ecef_loc = gps.ecef_from_latlongheight(math.radians(36.802002), math.radians(-76.191019), 7)
+    enu_loc = numpy.array([53.6686215007, -20.8502282916, -0.0733864689281])
+    msg.pose.pose.position = Point(*gps.ecef_from_enu(enu_v=body.getPosition() - enu_loc, ecef_pos=ecef_loc) + ecef_loc)
+    abs_odom_pub.publish(msg)
     
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
 
@@ -563,7 +554,7 @@ i.objs.append(Buoys(v(-5, 10, 0)))
 i.objs.append(Buoys(v(-2, 15, 0)))
 '''
 def set_forward_view():
-    glTranslate(-2.8, 0, -1)
+    glTranslate(-1, 0, -1)
     threed.rotate_to_body(body, inv=True)
 c1 = threed.Camera(w, "forward_camera", set_forward_view, body, fovy=90)
 

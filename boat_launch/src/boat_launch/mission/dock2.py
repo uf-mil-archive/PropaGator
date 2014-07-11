@@ -40,9 +40,9 @@ def from_obj(filename):
     
     return object_finder_msg.Mesh(components=components)
 
-buoy_targetdesc = object_finder_msg.TargetDesc(
+targetdesc = object_finder_msg.TargetDesc(
     type=object_finder_msg.TargetDesc.TYPE_MESH,
-    mesh=from_obj(roslib.packages.resource_file('boatsim', 'models', 'cruciform.obj')),
+    mesh=None,
     prior_distribution=PoseWithCovariance(
         pose=Pose(
             orientation=None, # set later
@@ -51,27 +51,33 @@ buoy_targetdesc = object_finder_msg.TargetDesc(
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
+            0, 0, 0, .1, 0, 0,
+            0, 0, 0, 0, .1, 0,
+            0, 0, 0, 0, 0, .2,
         ],
     ),
     min_dist=0,
-    max_dist=8,
+    max_dist=4,
     disallow_yawing=True,
 )
-
-print buoy_targetdesc
 
 @util.cancellableInlineCallbacks
 def main(nh):
     print 'aa'
     boat = yield boat_scripting.get_boat(nh)
-    buoy_targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
+    print 'bb'
     
-    print 'a'
-    yield boat.visual_approach_3d('forward', 1.5, buoy_targetdesc)
-    print 'b'
+    start_pose = boat.move
+    
+    for x in ['cruciform', 'circle', 'triangle'][::-1]:
+        #yield start_pose.backward(0).go()
+        
+        targetdesc.mesh = from_obj(roslib.packages.resource_file('boatsim', 'models', x + '.obj'))
+        targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
+        
+        print 'a'
+        yield boat.visual_approach_3d('forward', 4, targetdesc)
+        print 'b'
     
     #yield boat.move.forward(1).go()
     #yield boat.move.backward(1.5).go()
