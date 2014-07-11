@@ -20,6 +20,7 @@ from rawgps_common import gps
 @util.cancellableInlineCallbacks
 def main(nh):
     boat = yield boat_scripting.get_boat(nh)
+    float_df = boat.float()
     print "Starting ping mission"
     yield boat.deploy_hydrophone()
     print "Deploying Hydrophone"
@@ -30,5 +31,6 @@ def main(nh):
     msg = yield boat.get_gps_odom()
     temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
     print "latitude: ", temp[0]," longitude: ", temp[1]
+    float_df.cancel()
     yield boat.retract_hydrophone()
     print "Retracting Hydrophone"

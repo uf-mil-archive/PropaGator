@@ -13,6 +13,7 @@ from txros import action, util, tf
 #SPP having access to the gps methods will allow us to easily switch from ECEF to lat/long
 import rawgps_common
 
+import genpy
 from std_msgs.msg import Header, Float64
 from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
 from legacy_vision.msg import FindAction, FindGoal
@@ -25,9 +26,11 @@ from rawgps_common import gps
 #SPP for hydropones
 from hydrophones.msg import ProcessedPing
 #SPP for getting gps fix lat/long
-from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped, Wrench, Vector3
 #for dynamixel configs
 from dynamixel_servo.msg import DynamixelFullConfig 
+from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
+
 
 
 class _PoseProxy(object):
@@ -69,6 +72,8 @@ class _Boat(object):
         
         self.servo_full_config_pub = self._node_handle.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
         
+        self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
+        
         yield self._trajectory_sub.get_next_message()
         
         defer.returnValue(self)
@@ -81,6 +86,18 @@ class _Boat(object):
     @property
     def move(self):
         return _PoseProxy(self, self.pose)
+    
+    @util.cancellableInlineCallbacks
+    def float(self):
+        while True:
+            self._send_constant_wrench_service(SendConstantWrenchRequest(
+                wrench=Wrench(
+                    force=Vector3(0, 0, 0),
+                    torque=Vector3(0, 0, 0),
+                ),
+                lifetime=genpy.Duration(1),
+            ))
+            yield util.sleep(.5)
     
     @util.cancellableInlineCallbacks
     def deploy_hydrophone(self):
