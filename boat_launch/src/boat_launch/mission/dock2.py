@@ -62,31 +62,24 @@ targetdesc = object_finder_msg.TargetDesc(
 )
 
 @util.cancellableInlineCallbacks
-def main(nh):
+def main(nh, x):
     print 'aa'
     boat = yield boat_scripting.get_boat(nh)
     print 'bb'
     
     start_pose = boat.move
     
-    for x in ['cruciform', 'circle', 'triangle'][::-1]:
-        yield start_pose.backward(0).go()
-        
-        targetdesc.mesh = from_obj(roslib.packages.resource_file('boatsim', 'models', x + '.obj'))
-        targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
-        
-        print 'a'
-        yield boat.visual_approach_3d('forward', 4, targetdesc)
-        yield boat.move.forward(1.5).go(speed=.3)
-        fwd_task = boat.move.forward(100).go(speed=.2)
-        try:
-            yield boat.wait_for_bump()
-        finally:
-            fwd_task.cancel()
-        print 'b'
+    targetdesc.mesh = from_obj(roslib.packages.resource_file('boatsim', 'models', x + '.obj'))
+    targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
+    
+    print 'a'
+    yield boat.visual_approach_3d('forward', 4, targetdesc)
+    yield boat.move.forward(1.5).go(speed=.3)
+    fwd_task = boat.move.forward(100).go(speed=.2)
+    try:
+        yield boat.wait_for_bump()
+    finally:
+        fwd_task.cancel()
+    print 'b'
+    
     yield start_pose.backward(0).go()
-    
-    #yield boat.move.forward(1).go()
-    #yield boat.move.backward(1.5).go()
-    
-    #yield boat.move.depth(0.5).go()
