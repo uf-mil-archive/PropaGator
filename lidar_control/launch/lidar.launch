@@ -4,7 +4,7 @@
 <launch>
     <group ns="lidar">
         <node pkg="lms1xx" type="LMS1xx_node" name="lms1xx">
-            <param name="host" value="192.168.1.4"/>
+            <param name="host" value="192.168.2.4"/>
             <param name="frame_id" value="lidar"/>
         </node>
        
