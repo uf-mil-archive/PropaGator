@@ -1,9 +1,11 @@
 <launch>
     <!-- The hydrophones all sit on a board that "paul" made. (go figure)-->
     <node pkg="paulboard_driver" type="paulboard_driver" name="paulboard_driver" output="screen">
-        <!-- The port that shows up to talk with the board. MOTE: in the simulator this is usaly a device like /dev/pts/# -->
-        <!--param name="port" type="string" value="/dev/pts/7"/-->
+        <!-- The port that shows up to talk with the board.-->
+        
         <!--param name="port" type="string" value="/dev/ttyHydrophones"/-->
+        <!--param name="port" type="string" value="/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A702ZKN6-if00-port0"/-->
+        <param name="port" type="string" value="/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_A901AN8N-if00-port0"/>
         <!-- how fast the board samples for the pinging -->
         <param name="sample_rate" type="double" value="300000"/>
         <!-- the name of the tf frame to publish under-->

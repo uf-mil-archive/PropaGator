@@ -84,28 +84,32 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def deploy_hydrophone(self):
+        #INITIALLY WHEN THE BOAT STARTS THE CABLE SHOULD BE FEED OVER THE TOP OF THE SERVO
         deploy_msg=DynamixelFullConfig()
-        deploy_msg.id=5
-        deploy_msg.goal_position=4*2*math.pi
-        deploy_msg.moving_speed=3, # near maximum, not actually achievable ...
-        deploy_msg.torque_limit=800
+        deploy_msg.id=4 #id 4 is the stern servo for the hydrophones
+        deploy_msg.led=0
+        deploy_msg.goal_position=-1*2*math.pi
+        deploy_msg.moving_speed=2.4 # 2.4 rad/s~22 rpm
+        deploy_msg.torque_limit=359 # 359/1023 is about 35% torque
         deploy_msg.goal_acceleration=20
         deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
-        deploy_msg.goal_velocity=3
-        servo_full_config_pub(deploy_msg)
+        deploy_msg.goal_velocity=2.4
+        servo_full_config_pub.publish(deploy_msg)
         return
     
     @util.cancellableInlineCallbacks
     def retract_hydrophone(self):
+        #WHEN THE HYDROPHONES RETRACT CABLE SHOULD FEED BACK OVER THE TOP OF THE SERVO
         deploy_msg=DynamixelFullConfig()
-        deploy_msg.id=5
-        deploy_msg.goal_position=0
-        deploy_msg.moving_speed=3, # near maximum, not actually achievable ...
-        deploy_msg.torque_limit=800
+        deploy_msg.id=4 #id 4 is the stern servo for the hydrophones
+        deploy_msg.led=0
+        deploy_msg.goal_position=math.pi # 2.4 rad/s~22 rpm NOTE: we explicitly retract to pi to try and avoid being at the 0/2*PI boundary on a powerup
+        deploy_msg.moving_speed=2.4, # 2.4 rad/s~22 rpm
+        deploy_msg.torque_limit=359 # 359/1023 is about 35% torque (so we don't break the rope if someone didn't feed them correctly to start)
         deploy_msg.goal_acceleration=20
         deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
-        deploy_msg.goal_velocity=3
-        servo_full_config_pub(deploy_msg)
+        deploy_msg.goal_velocity=2.4
+        servo_full_config_pub.publish(deploy_msg)
         return
     
     
