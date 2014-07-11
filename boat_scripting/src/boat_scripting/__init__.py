@@ -88,14 +88,15 @@ class _Boat(object):
         deploy_msg=DynamixelFullConfig()
         deploy_msg.id=4 #id 4 is the stern servo for the hydrophones
         deploy_msg.led=0
-        deploy_msg.goal_position=-1*2*math.pi
+        deploy_msg.goal_position=-1*math.pi
         deploy_msg.moving_speed=2.4 # 2.4 rad/s~22 rpm
         deploy_msg.torque_limit=359 # 359/1023 is about 35% torque
         deploy_msg.goal_acceleration=20
         deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
         deploy_msg.goal_velocity=2.4
-        servo_full_config_pub.publish(deploy_msg)
-        return
+        for i in xrange(100):
+            self.servo_full_config_pub.publish(deploy_msg)
+            yield util.sleep(5/100)
     
     @util.cancellableInlineCallbacks
     def retract_hydrophone(self):
@@ -104,13 +105,15 @@ class _Boat(object):
         deploy_msg.id=4 #id 4 is the stern servo for the hydrophones
         deploy_msg.led=0
         deploy_msg.goal_position=math.pi # 2.4 rad/s~22 rpm NOTE: we explicitly retract to pi to try and avoid being at the 0/2*PI boundary on a powerup
-        deploy_msg.moving_speed=2.4, # 2.4 rad/s~22 rpm
+        deploy_msg.moving_speed=2.4 # 2.4 rad/s~22 rpm
         deploy_msg.torque_limit=359 # 359/1023 is about 35% torque (so we don't break the rope if someone didn't feed them correctly to start)
         deploy_msg.goal_acceleration=20
         deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
         deploy_msg.goal_velocity=2.4
-        servo_full_config_pub.publish(deploy_msg)
-        return
+        self.servo_full_config_pub.publish(deploy_msg)
+        for i in xrange(100):
+            self.servo_full_config_pub.publish(deploy_msg)
+            yield util.sleep(5/100)
     
     
     @util.cancellableInlineCallbacks
@@ -184,7 +187,7 @@ class _Boat(object):
         defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
     
     @util.cancellableInlineCallbacks
-    def go_to_ecef_pos(self, pos):
+    def go_to_ecef_pos(self, pos, speed=0):
         try:
             first = True
             while True:
@@ -205,11 +208,11 @@ class _Boat(object):
                     return
                 
                 if first:
-                    yield self.move.look_at_without_pitching(enu_pos).go()
+                    yield self.move.look_at_without_pitching(enu_pos).go(speed=speed)
                     first = False
                 
                 self._moveto_action_client.send_goal(
-                    self.pose.set_position(enu_pos).as_MoveToGoal()).forget()
+                    self.pose.set_position(enu_pos).as_MoveToGoal(speed=speed)).forget()
         finally:
             yield self.move.go() # stop moving
     

@@ -78,7 +78,7 @@ def main(nh):
         print 'a'
         yield boat.visual_approach_3d('forward', 4, targetdesc)
         yield boat.move.forward(1.5).go(speed=.3)
-        yield boat.move.forward(1).go(speed=.2)
+        yield boat.move.forward(0.6).go(speed=.2)
         print 'b'
     yield start_pose.backward(0).go()
     

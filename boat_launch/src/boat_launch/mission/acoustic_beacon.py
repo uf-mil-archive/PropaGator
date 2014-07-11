@@ -12,7 +12,7 @@ from geometry_msgs.msg import Point
 import boat_scripting
 
 #SPP the gps methods is exported here only fur testing currently
-import rawgps_common
+from rawgps_common import gps
 
 #NOTE: run missions does ros init node for us
     
@@ -21,14 +21,14 @@ import rawgps_common
 def main(nh):
     boat = yield boat_scripting.get_boat(nh)
     print "Starting ping mission"
-    boat.deploy_hydrophone()
+    yield boat.deploy_hydrophone()
     print "Deploying Hydrophone"
-    boat.hydrophone_align(boat.get_hydrophone_freq())
+    #yield boat.hydrophone_align(boat.get_hydrophone_freq())
     print "Finished ping mission"
     # Note: /absodom is Earth-Centered,Earth-Fixed (ECEF), so This means that ECEF rotates with the earth and a point fixed on the surface of the earth do not change.
     # See: http://en.wikipedia.org/wiki/ECEF
-    msg=boat.get_gps_odom()
-    temp=latlongheight_from_ecef(msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z)
+    msg = yield boat.get_gps_odom()
+    temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
     print "latitude: ", temp[0]," longitude: ", temp[1]
-    boat.retract_hydrophone()
+    yield boat.retract_hydrophone()
     print "Retracting Hydrophone"
