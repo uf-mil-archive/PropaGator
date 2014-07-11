@@ -44,7 +44,7 @@ def get_optimal_angles(thrusters, wrench):
         numpy.cross(thruster['position'], [0, 1, 0]), # torque = (position X direction) * effort
     ]) for thruster in thrusters]).T
     
-    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1])
+    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1e2])
     pseudowrench = pseudowrench_from_wrench.dot(wrench)
     pseudowrench_from_efforts = pseudowrench_from_wrench.dot(wrench_from_efforts)
     
@@ -62,7 +62,7 @@ def _fit(thrusters, wrench):
         numpy.cross(thruster['position'], calc_direction(thruster['angle'])), # torque = (position X direction) * effort
     ]) for thruster in thrusters]).T
     
-    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1])
+    pseudowrench_from_wrench = numpy.diag([1, 1, 0, 0, 0, 1e2])
     pseudowrench = pseudowrench_from_wrench.dot(wrench)
     pseudowrench_from_efforts = pseudowrench_from_wrench.dot(wrench_from_efforts)
     
@@ -115,7 +115,7 @@ class Node(object):
             ),
         ]
         
-        #self.thrust_pub = self.nh.advertise('thruster_config', thrusterNewtons)
+        self.thrust_pub = self.nh.advertise('thruster_config', thrusterNewtons)
         self.servo_pub = self.nh.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
     
     def _wrench_cb(self, msg):
@@ -136,6 +136,10 @@ class Node(object):
             thruster['pwm_pub'].publish(Float64(
                 data=interpolate.sample_curve(calib_data, thruster['effort']) if abs(thruster['effort']) > 1e-3 else 1.5e-3,
             ))
+            self.thrust_pub.publish(thrusterNewtons(
+                id=thruster['id'],
+                thrust=thruster['effort'],
+            ))
     
     @util.cancellableInlineCallbacks
     def think(self):
@@ -147,6 +151,7 @@ class Node(object):
                 #self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
                 
                 optimal_angles = get_optimal_angles(self.thrusters, self.wrench)
+                print 'optimal_angles', optimal_angles
                 
                 dangles = []
                 for thruster, optimal_angle in zip(self.thrusters, optimal_angles):

@@ -13,12 +13,22 @@
     <param name="vbins" value="2"/>
     <param name="framerate" value="10"/>
     <param name="autowhitebalance" value="false"/>
+    <param name="auto_reference" value="0.15"/>
     <param name="calibration_file" value="$(find boat_launch)/launch/forward_cal.txt"/>
   </node>
   <node pkg="tf" type="static_transform_publisher" name="forward_camera_tf"
     args="1 0 0.25  0.5 -0.5 0.5 -0.5  /base_link /forward_camera 100" />
   <include file="$(find image_proc)/launch/image_proc.launch" ns="/forward_camera">
     <arg name="manager" value="/forward_camera_nodelets"/>
+  </include>
+
+  <node pkg="object_finder" type="object_finder" name="forward_object_finder">
+    <remap from="find" to="find_forward"/>
+    <remap from="camera" to="forward_camera"/>
+  </node>
+
+  <include file="$(find legacy_vision)/launch/legacy_vision.launch">
+    <arg name="camera" value="forward_camera"/>
   </include>
 
 </launch>

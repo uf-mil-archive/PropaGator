@@ -8,7 +8,7 @@
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
 #include "dynamixel_servo/DynamixelControlTablePost.h"
 #include "dynamixel_servo/DynamixelStatus.h"
-#include "tf/transform_broadcaster.h"
+#include "tf/transform_listener.h"
 #include <sensor_msgs/JointState.h>
 
 class LidarAngleManager
@@ -18,7 +18,7 @@ class LidarAngleManager
 	 */
 private:
 	//Publishers
-	ros::Publisher dynamixel_config_full_pub_;
+	//ros::Publisher dynamixel_config_full_pub_;
 	ros::Publisher dynamixel_config_position_pub_;
 	ros::Publisher dynamixel_control_table_pub_;
 	ros::Publisher joint_pub_;
@@ -38,7 +38,7 @@ private:
 	float current_angle_;
 	
 	//Transform
-	static tf::TransformBroadcaster tf_brodcaster;
+	tf::TransformListener lidar_tf;
 	
 	/*
 	 *  Private functions
@@ -92,8 +92,8 @@ void LidarAngleManager::Setup()
 	ros::NodeHandle n;
 
 	//Initilze publishers
-	dynamixel_config_full_pub_ = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_config_full", 10);
-	dynamixel_config_position_pub_ = n.advertise<dynamixel_servo::DynamixelJointConfig>("/dynamixel/dynamixel_config_position", 10);
+	//dynamixel_config_full_pub_ = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_full_config", 10);
+	dynamixel_config_position_pub_ = n.advertise<dynamixel_servo::DynamixelJointConfig>("/dynamixel/dynamixel_joint_config", 10);
 	dynamixel_control_table_pub_ = n.advertise<dynamixel_servo::DynamixelControlTableRequest>("/dynamixel/dynamixel_control_table_request", 10);
 	joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",100);
 
@@ -148,7 +148,7 @@ void LidarAngleManager::Run()
 	 *  Other
 	 */
 	int dir = 1;
-	ros::Rate sleep_time(10);
+	ros::Rate sleep_time(100);
 
 	/*
 	 * 			Main loop
@@ -171,7 +171,7 @@ void LidarAngleManager::Run()
 		joint_pub_.publish(joint);
 
 		//Get our angle to water
-		float angle = -1;
+		//float angle = -1;
 
 		//Test limits
 		dynamixel_servo::DynamixelJointConfig msg;
@@ -179,12 +179,12 @@ void LidarAngleManager::Run()
 		ROS_INFO("Angle: %f, ID: %i, Min angle: %f, Max angle: %f", current_angle_, servo_id_, min_angle_, max_angle_);
 		if(current_angle_ > 3.14159)	//More than parrallel
 		{
-			msg.goal_position = min_angle_;
+			msg.goal_position = min_angle_ + 0.1;
 			dynamixel_config_position_pub_.publish(msg);
 		}
-		else if(angle <= min_angle_)
+		else if(current_angle_ <= min_angle_+0.1)		//Offset min because until we reconfigure servo
 		{
-			msg.goal_position = max_angle_;
+			msg.goal_position = max_angle_ - 0.1;
 			dynamixel_config_position_pub_.publish(msg);
 		}
 
@@ -210,8 +210,8 @@ void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTablePo
 	//Check to make sure we got the correct servo
 	if(config.id == servo_id_)
 	{
-		max_angle_ = DynamixelToRads(config.cw_angle_limit);
-		min_angle_ = DynamixelToRads(config.ccw_angle_limit);
+		max_angle_ = DynamixelToRads(config.ccw_angle_limit);
+		min_angle_ = DynamixelToRads(config.cw_angle_limit);
 	}
 	else	//Otherwise request servo id again
 	{

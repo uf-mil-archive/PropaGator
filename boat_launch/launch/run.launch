@@ -1,8 +1,4 @@
 <launch>
-  <!--include file="$(find legacy_vision)/launch/legacy_vision.launch">
-    <arg name="camera" value="mv_bluefox_camera_node"/>
-  </include-->
-
   <include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch"/>
 
   <include file="$(find propagator_description)/launch/display.launch"/>
