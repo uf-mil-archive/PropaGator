@@ -4,6 +4,7 @@ import math
 import traceback
 import time
 import json
+import math
 from twisted.web import client
 from twisted.internet import defer
 import random
@@ -204,12 +205,12 @@ def main(nh):
         if course in ['A', 'B', 'pool']:
             break
     
-    try:
-        yield util.wrap_timeout(main_list(nh, boat, course), max(0, end_time - time.time()))
-    except Exception:
-        traceback.print_exc()
+    #try:
+        #yield util.wrap_timeout(main_list(nh, boat, course), max(0, end_time - time.time()))
+    #except Exception:
+        #traceback.print_exc()
     
-    yield fail_list(nh, boat)
+    #yield fail_list(nh, boat)
 
 '''
 @util.cancellableInlineCallbacks

@@ -20,17 +20,22 @@ from rawgps_common import gps
 @util.cancellableInlineCallbacks
 def main(nh):
     boat = yield boat_scripting.get_boat(nh)
-    float_df = boat.float()
+    #float_df = boat.float()
+    #yield boat.retract_hydrophone() # why was this here? it shouldn't need this, the hydrophones should be up on start
+    
     print "Starting ping mission"
-    yield boat.deploy_hydrophone()
     print "Deploying Hydrophone"
-    #yield boat.hydrophone_align(boat.get_hydrophone_freq())
+    yield boat.deploy_hydrophone()
+    print "Hydrophone Deployed"
+    yield boat.hydrophone_align(33e3)
     print "Finished ping mission"
     # Note: /absodom is Earth-Centered,Earth-Fixed (ECEF), so This means that ECEF rotates with the earth and a point fixed on the surface of the earth do not change.
     # See: http://en.wikipedia.org/wiki/ECEF
     msg = yield boat.get_gps_odom()
     temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
     print "latitude: ", temp[0]," longitude: ", temp[1]
-    float_df.cancel()
-    yield boat.retract_hydrophone()
+    #float_df.cancel()
     print "Retracting Hydrophone"
+    yield boat.retract_hydrophone()
+    print "Hydrophone Retracted"
+    print "Done"

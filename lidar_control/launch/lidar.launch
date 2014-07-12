@@ -8,6 +8,6 @@
             <param name="frame_id" value="lidar"/>
         </node>
        
-        <node pkg="lidar_control" type="lidar_control_node" name="lidar_angle_control"/>
+        <!-- node pkg="lidar_control" type="lidar_control_node" name="lidar_angle_control"/ -->
     </group>
 </launch>

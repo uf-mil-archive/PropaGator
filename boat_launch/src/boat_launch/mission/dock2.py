@@ -53,11 +53,11 @@ targetdesc = object_finder_msg.TargetDesc(
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 1,
         ],
     ),
     min_dist=1,
-    max_dist=6,
+    max_dist=10,
     disallow_yawing=True,
 )
 
@@ -68,12 +68,18 @@ def main(nh, x):
     print 'bb'
     
     start_pose = boat.move
-    
+
     targetdesc.mesh = from_obj(roslib.packages.resource_file('boatsim', 'models', x + '.obj'))
     targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
     
     print 'a'
-    yield boat.visual_approach_3d('forward', 4, targetdesc)
+    fwd_move = boat.move.go(linear=[0.2, 0, 0])
+    try:
+        yield boat.visual_approach_3d('forward', 4, targetdesc)
+    finally:
+        yield fwd_move.cancel()
+
+    
     yield boat.move.forward(1.5).go(speed=.3)
     fwd_task = boat.move.forward(100).go(speed=.2)
     try:
