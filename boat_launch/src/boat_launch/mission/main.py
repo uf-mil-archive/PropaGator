@@ -80,7 +80,7 @@ class CourseInterface(object):
             buoyPosition=dict(
                 datum="WGS84",
                 latitude=lat,
-                longutide=lon,
+                longitude=lon,
             ),
         ))
 
