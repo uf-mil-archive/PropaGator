@@ -87,7 +87,7 @@ class CourseInterface(object):
 ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 
 @util.cancellableInlineCallbacks
-def do_obstacle_course(nh, boat, course):
+def do_obstacle_course(nh, boat, course, gates):
     print 'going to obstacle course'
     yield boat.go_to_ecef_pos(dict(
         A=ll( 36.80198, -76.19129),
@@ -97,13 +97,6 @@ def do_obstacle_course(nh, boat, course):
         A=60+90,
         B=60+90,
     )[course]).go()
-    try:
-        gates = yield ci.start_obstacle_avoidance(course)
-    except Exception:
-        traceback.print_exc()
-        gates = random.choice(['1','2','3']), random.choice(['X', 'Y', 'Z'])
-        print 'Defaulting to', gates
-    print 'Got', gates
     if gates[0] == '1':
         yield boat.move.left(2.5).go()
     elif gates[0] == '3':
@@ -122,7 +115,7 @@ def do_obstacle_course(nh, boat, course):
 
 
 @util.cancellableInlineCallbacks
-def do_dock(nh, boat, course):
+def do_dock(nh, boat, course, dock_item):
     print "starting dock2"
     yield boat.go_to_ecef_pos(dict(
         pool=[1220427.17101, -4965353.32773, 3799835.96511],
@@ -135,13 +128,6 @@ def do_dock(nh, boat, course):
         B=90-146,
     )[course]).go()
     yield boat.move.backward(3).go()
-    try:
-        dock_item = yield ci.start_automated_docking(course)
-    except Exception:
-        traceback.print_exc()
-        dock_item = 'cruciform'
-        print 'Defaulting to', dock_item
-    print 'dock_item:', dock_item
     s = boat.move
     try:
         yield util.wrap_timeout(dock2.main(nh, dock_item), 40)
@@ -170,6 +156,22 @@ def main_list(nh, boat, course):
         
         #yield boat.move.forward(3).go()
         
+        try:
+            dock_item = yield ci.start_automated_docking(course)
+        except Exception:
+            traceback.print_exc()
+            dock_item = 'triangle'
+            print 'Defaulting to dock_item:', dock_item
+        print 'dock_item:', dock_item
+        
+        try:
+            gates = yield ci.start_obstacle_avoidance(course)
+        except Exception:
+            traceback.print_exc()
+            gates = random.choice(['1','2','3']), random.choice(['X', 'Y', 'Z'])
+            print 'Defaulting to gates:', gates
+        print 'gates:', gates
+        
         print 'Activating light sequence'
         try:
             res = yield ci.activate_light_sequence(course)
@@ -192,7 +194,7 @@ def main_list(nh, boat, course):
         
         
         try:
-            yield util.wrap_timeout(do_obstacle_course(nh, boat, course), 2*60)
+            yield util.wrap_timeout(do_obstacle_course(nh, boat, course, gates), 2*60)
         except Exception:
             traceback.print_exc()
         
@@ -205,7 +207,7 @@ def main_list(nh, boat, course):
         )[course])
         
         try:
-            yield util.wrap_timeout(do_dock(nh, boat, course), 60*4)
+            yield util.wrap_timeout(do_dock(nh, boat, course, dock_item), 60*4)
         except Exception:
             traceback.print_exc()
         
