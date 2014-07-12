@@ -3,6 +3,7 @@ from __future__ import division
 import math
 import traceback
 from txros import util
+import random
 
 # we will move the boat based on the info in the processed messages
 from hydrophones.msg import ProcessedPing
@@ -18,6 +19,17 @@ from rawgps_common import gps
 
 #NOTE: run missions does ros init node for us
     
+
+@util.cancellableInlineCallbacks
+def _send_result(func):
+    while True:
+        try:
+            res = yield func()
+        except:
+            traceback.print_exc()
+        else:
+            print res
+        yield util.sleep(5)
 
 @util.cancellableInlineCallbacks
 def main(nh, ci, course, freq):
@@ -39,7 +51,8 @@ def main(nh, ci, course, freq):
     msg = yield boat.get_gps_odom()
     temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
     print "latitude: ", temp[0]," longitude: ", temp[1]
-    yield ci.send_pinger_answer(course, 'red', math.degrees(temp[0]), math.degrees(temp[1]))
+    color = random.choice(['yellow', 'blue', 'black', 'green', 'red'])
+    _send_result(lambda: ci.send_pinger_answer(course, color, math.degrees(temp[0]), math.degrees(temp[1]))) # async XXX
     #float_df.cancel()
     print "Retracting Hydrophone"
     yield boat.retract_hydrophone()
