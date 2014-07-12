@@ -27,6 +27,7 @@ class CourseInterface(object):
     
     @util.cancellableInlineCallbacks
     def _get(self, name, course):
+        print 'GET', 'http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code)
         data = yield client.getPage(
             url='http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code),
             timeout=10,
@@ -35,6 +36,7 @@ class CourseInterface(object):
         defer.returnValue(json.loads(data))
     @util.cancellableInlineCallbacks
     def _post(self, name, course, params):
+        print 'POST', 'http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code), params
         data = yield client.getPage(
             url='http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code),
             timeout=10,
@@ -81,8 +83,8 @@ def do_obstacle_course(nh, boat, course):
     print 'going to obstacle course'
     # XXX
     yield boat.go_to_ecef_pos(dict(
-        A=ll( 36.802096, -76.191361),
-        B=ll(36.80174, -76.19138),
+        A=ll( 36.80198, -76.19129),
+        #B=ll(36.80174, -76.19138),
     )[course])
     try:
         gates = yield ci.start_automated_docking(course)
@@ -99,7 +101,7 @@ def do_obstacle_course(nh, boat, course):
     if gates[0] == '1':
         yield boat.move.right(2.5).go()
     elif gates[0] == '3':
-        yield boat.move.left(2.5).go()
+        yield boat.move.left(2.5).go()  
     
     if gates[1] == 'X':
         yield boat.move.left(2.5).go()
@@ -154,7 +156,7 @@ def main_list(nh, boat, course):
         
         
         try:
-            yield util.wrap_timeout(do_obstacle_course(nh, boat, course), 60)
+            yield util.wrap_timeout(do_obstacle_course(nh, boat, course), 2*60)
         except Exception:
             traceback.print_exc()
         
