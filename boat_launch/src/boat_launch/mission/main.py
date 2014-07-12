@@ -65,6 +65,13 @@ class CourseInterface(object):
         x = yield self._post('lightSequence/activate', course, None)
         defer.returnValue(x['success'])
     
+    @util.cancellableInlineCallbacks
+    def report_light_sequence(self, course, sequence):
+        x = yield self._post('lightSequence/report', course, dict(
+            sequence=sequence,
+        ))
+        defer.returnValue(x['success'])
+    
     def send_pinger_answer(self, course, color, lat, lon):
         return self._post('pinger', course, dict(
             course=course,
@@ -82,12 +89,14 @@ ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 @util.cancellableInlineCallbacks
 def do_obstacle_course(nh, boat, course):
     print 'going to obstacle course'
-    # XXX
     yield boat.go_to_ecef_pos(dict(
         A=ll( 36.80198, -76.19129),
-        #B=ll(36.80174, -76.19138),
+        B=ll(36.80189, -76.19139),
     )[course])
-    # XXX set heading here
+    yield boat.move.heading_deg(dict(
+        A=60+90,
+        B=60+90,
+    )[course]).go()
     try:
         gates = yield ci.start_obstacle_avoidance(course)
     except Exception:
@@ -118,7 +127,7 @@ def do_dock(nh, boat, course):
     yield boat.go_to_ecef_pos(dict(
         pool=[1220427.17101, -4965353.32773, 3799835.96511],
         A=[1220408.5926, -4965366.56212, 3799819.98198],
-        B=ll(36.80174, -76.19189),
+        B=ll(36.801754, -76.191911),
     )[course])
     yield boat.move.heading_deg(dict(
         pool=60,
@@ -132,7 +141,14 @@ def do_dock(nh, boat, course):
         dock_item = 'cruciform'
         print 'Defaulting to', dock_item
     print 'dock_item:', dock_item
+    s = boat.move
     yield dock2.main(nh, dock_item)
+    yield s.go()
+    yield dock2.main(nh, 'circle')
+    yield s.go()
+    yield dock2.main(nh, 'triangle')
+    yield s.go()
+    yield dock2.main(nh, 'cruciform')
 
 @util.cancellableInlineCallbacks
 def main_list(nh, boat, course):
@@ -150,7 +166,9 @@ def main_list(nh, boat, course):
             #yield util.sleep(5)
         else:
             print 'Result:', res
-        #yield util.sleep(5)
+        yield util.sleep(2.0)
+        colors = ["red", "green", "blue", "yellow"]
+        yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(4)])
         
         print 'Running gate2'
         yield boat.move.forward(50).go()
@@ -190,7 +208,7 @@ def main_list(nh, boat, course):
         print 'going to pinger'
         yield boat.go_to_ecef_pos(dict(
             A=ll(36.80270, -76.19140), # 28 kHz
-            B=ll(36.90190, -76.19228), # 33 kHz
+            B=ll(36.80175, -76.19230), # 33 kHz
         )[course])
         
         print 'acoustic_beacon'
