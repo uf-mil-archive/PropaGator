@@ -6,6 +6,7 @@ import math
 import itertools
 import signal
 import traceback
+import time
 
 from twisted.internet import reactor, defer
 import numpy
@@ -133,8 +134,11 @@ class Node(object):
                 goal_velocity=2*thruster['dangle'],
             ))
             print 'thrust', thruster['effort'], interpolate.sample_curve(calib_data, thruster['effort'])/1e-3, 'ms'
+            pwm = interpolate.sample_curve(calib_data, thruster['effort']) if abs(thruster['effort']) > 1e-3 else 1.5e-3
+            if time.time() % 10 < 0.1:
+                pwm = 1.5e-3
             thruster['pwm_pub'].publish(Float64(
-                data=interpolate.sample_curve(calib_data, thruster['effort']) if abs(thruster['effort']) > 1e-3 else 1.5e-3,
+                data=pwm,
             ))
             self.thrust_pub.publish(thrusterNewtons(
                 id=thruster['id'],
