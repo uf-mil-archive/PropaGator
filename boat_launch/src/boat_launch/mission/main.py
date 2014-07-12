@@ -44,7 +44,7 @@ class CourseInterface(object):
         s = x['gateCode']
         assert len(s) == 5
         assert s[0] == '(' and s[2] == ',' and s[4] == ')'
-        return s[1], s[3]
+        defer.returnValue((s[1], s[3]))
     
     @util.cancellableInlineCallbacks
     def activate_light_sequence(self, course):
@@ -56,6 +56,7 @@ ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 @util.cancellableInlineCallbacks
 def do_obstacle_course(nh, boat, course):
     print 'going to obstacle course'
+    # XXX
     yield boat.go_to_ecef_pos(dict(
         A=ll(36.80245, -76.19130),
         B=ll(36.80174, -76.19138),
@@ -114,8 +115,13 @@ def main_list(nh, boat, course):
         yield boat.move.forward(3).go()
         
         print 'Activating light sequence'
-        res = yield ci.activate_light_sequence(course)
-        print 'Result:', res
+        try:
+            res = yield ci.activate_light_sequence(course)
+        except Exception:
+            print 'LIGHT SEQUENCE FAILED! WARNING!'
+            yield util.sleep(5)
+        else:
+            print 'Result:', res
         
         print 'Running gate2'
         try:
@@ -123,7 +129,14 @@ def main_list(nh, boat, course):
         except Exception:
             traceback.print_exc()
         
+        
+        try:
+            yield util.wrap_timeout(do_obstacle_course(nh, boat, course), 60)
+        except Exception:
+            traceback.print_exc()
+        
         # safe point
+        print 'Going to safe point 1'
         yield boat.go_to_ecef_pos(dict(
             pool=[1220416.51743, -4965356.4575, 3799838.03177],
             A=ll(36.802187, -76.191501), # from google earth
@@ -131,17 +144,13 @@ def main_list(nh, boat, course):
         )[course])
         
         try:
-            yield util.wrap_timeout(do_obstacle_course(nh, boat, course), 60)
-        except Exception:
-            traceback.print_exc()
-        
-        try:
-            yield util.do_dock(do_obstacle_course(nh, boat, course), 60*4)
+            yield util.wrap_timeout(do_dock(nh, boat, course), 60*4)
         except Exception:
             traceback.print_exc()
         
         
         # safe point
+        print 'Going to safe point 2'
         yield boat.go_to_ecef_pos(dict(
             pool=[1220416.51743, -4965356.4575, 3799838.03177],
             A=ll( 36.802358, -76.191629), # from google earth

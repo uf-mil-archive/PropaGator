@@ -78,11 +78,11 @@ class _Boat(object):
         
         self._lidar_sub = self._node_handle.subscribe('lidar/scan', LaserScan)
         
-        print 3
-        print (yield self._lidar_sub.get_next_message())
-        print 3.5
+        #print 3
+        #print (yield self._lidar_sub.get_next_message())
+        #print 3.5
         yield self._trajectory_sub.get_next_message()
-        print 4
+        #print 4
         
         defer.returnValue(self)
     
