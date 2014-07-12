@@ -134,6 +134,7 @@ def do_dock(nh, boat, course):
         A=60,
         B=90-146,
     )[course]).go()
+    yield boat.move.backward(3).go()
     try:
         dock_item = yield ci.start_automated_docking(course)
     except Exception:
@@ -142,13 +143,25 @@ def do_dock(nh, boat, course):
         print 'Defaulting to', dock_item
     print 'dock_item:', dock_item
     s = boat.move
-    yield dock2.main(nh, dock_item)
-    yield s.go()
-    yield dock2.main(nh, 'circle')
-    yield s.go()
-    yield dock2.main(nh, 'triangle')
-    yield s.go()
-    yield dock2.main(nh, 'cruciform')
+    try:
+        yield util.wrap_timeout(dock2.main(nh, dock_item), 40)
+    except Exception:
+        traceback.print_exc()
+    yield s.left(2).go()
+    try:
+        yield util.wrap_timeout(dock2.main(nh, 'circle'), 40)
+    except Exception:
+        traceback.print_exc()
+    yield s.right(2).go()
+    try:
+        yield util.wrap_timeout(dock2.main(nh, 'triangle'), 40)
+    except Exception:
+        traceback.print_exc()
+    yield s.right(4).go()
+    try:
+        yield util.wrap_timeout(dock2.main(nh, 'cruciform'), 40)
+    except Exception:
+        traceback.print_exc()
 
 @util.cancellableInlineCallbacks
 def main_list(nh, boat, course):
@@ -213,6 +226,13 @@ def main_list(nh, boat, course):
         
         print 'acoustic_beacon'
         yield acoustic_beacon.main(nh, ci, course)
+        
+        print 'Going to safe point 2'
+        yield boat.go_to_ecef_pos(dict(
+            pool=[1220416.51743, -4965356.4575, 3799838.03177],
+            A=ll( 36.802358, -76.191629), # from google earth
+            B=ll(36.801972, -76.191849), # from google earth
+        )[course])
         
         print 'main end'
     finally:
