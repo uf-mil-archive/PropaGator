@@ -214,6 +214,7 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def go_to_ecef_pos(self, pos, speed=0, turn=True):
+        success = False
         try:
             first = True
             while True:
@@ -239,8 +240,11 @@ class _Boat(object):
                 
                 self._moveto_action_client.send_goal(
                     self.pose.set_position(enu_pos).as_MoveToGoal(speed=speed)).forget()
+            success = True
         finally:
-            yield self.move.go() # stop moving
+            if not success:
+                yield self.move.set_position(self.odom.position).go() # stop moving
+                yield self.move.backward(3).go()
     
     @util.cancellableInlineCallbacks
     def visual_align(self, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):

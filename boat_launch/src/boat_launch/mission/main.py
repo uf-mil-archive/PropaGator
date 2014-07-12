@@ -33,6 +33,16 @@ class CourseInterface(object):
         )
         print data
         defer.returnValue(json.loads(data))
+    @util.cancellableInlineCallbacks
+    def _post(self, name, course, params):
+        data = yield client.getPage(
+            url='http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code),
+            timeout=10,
+            headers={'Content-Type': 'application/json'},
+            postdata=json.dumps(params),
+        )
+        print data
+        defer.returnValue(json.loads(data))
     
     @util.cancellableInlineCallbacks
     def start_automated_docking(self, course):
@@ -51,6 +61,18 @@ class CourseInterface(object):
     def activate_light_sequence(self, course):
         x = yield self._get('lightSequence/activate', course)
         defer.returnValue(x['success'])
+    
+    def send_pinger_answer(self, course, color, lat, lon):
+        return self._post('pinger', course, dict(
+            course=course,
+            team=self._team_code,
+            buoyColor=color,
+            buoyPosition=dict(
+                datum="WGS84",
+                latitude=lat,
+                longutide=lon,
+            ),
+        ))
 
 ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 
@@ -59,7 +81,7 @@ def do_obstacle_course(nh, boat, course):
     print 'going to obstacle course'
     # XXX
     yield boat.go_to_ecef_pos(dict(
-        A=ll(36.80245, -76.19130),
+        A=ll( 36.802096, -76.191361),
         B=ll(36.80174, -76.19138),
     )[course])
     try:
@@ -91,7 +113,7 @@ def do_dock(nh, boat, course):
     print "starting dock2"
     yield boat.go_to_ecef_pos(dict(
         pool=[1220427.17101, -4965353.32773, 3799835.96511],
-        A=ll(36.80225, -76.19128),
+        A=[1220408.5926, -4965366.56212, 3799819.98198],
         B=ll(36.80174, -76.19189),
     )[course])
     yield boat.move.heading_deg(dict(
@@ -165,7 +187,7 @@ def main_list(nh, boat, course):
         )[course])
         
         print 'acoustic_beacon'
-        yield acoustic_beacon.main(nh)
+        yield acoustic_beacon.main(nh, ci, course)
         
         print 'main end'
     finally:

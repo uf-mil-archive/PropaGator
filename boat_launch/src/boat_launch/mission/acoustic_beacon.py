@@ -1,5 +1,7 @@
 from __future__ import division
 
+import math
+import traceback
 from txros import util
 
 # we will move the boat based on the info in the processed messages
@@ -18,7 +20,7 @@ from rawgps_common import gps
     
 
 @util.cancellableInlineCallbacks
-def main(nh):
+def main(nh, ci, course):
     boat = yield boat_scripting.get_boat(nh)
     #float_df = boat.float()
     #yield boat.retract_hydrophone() # why was this here? it shouldn't need this, the hydrophones should be up on start
@@ -27,13 +29,17 @@ def main(nh):
     print "Deploying Hydrophone"
     yield boat.deploy_hydrophone()
     print "Hydrophone Deployed"
-    yield boat.hydrophone_align(33e3)
+    try:
+        yield util.wrap_timeout(boat.hydrophone_align(33e3), 60*2)
+    except Exception:
+        traceback.print_exc()
     print "Finished ping mission"
     # Note: /absodom is Earth-Centered,Earth-Fixed (ECEF), so This means that ECEF rotates with the earth and a point fixed on the surface of the earth do not change.
     # See: http://en.wikipedia.org/wiki/ECEF
     msg = yield boat.get_gps_odom()
     temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
     print "latitude: ", temp[0]," longitude: ", temp[1]
+    yield ci.send_pinger_answer(course, 'red', math.degrees(temp[0]), math.degrees(temp[1]))
     #float_df.cancel()
     print "Retracting Hydrophone"
     yield boat.retract_hydrophone()
