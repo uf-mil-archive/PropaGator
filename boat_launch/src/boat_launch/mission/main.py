@@ -238,6 +238,17 @@ def main_list(nh, boat, course):
             B=ll(36.801972, -76.191849), # from google earth
         )[course])
         
+        # center far
+        yield boat.go_to_ecef_pos(ll(36.802094, -76.191680))
+        
+        # center near
+        yield boat.go_to_ecef_pos(ll(36.801799, -76.190902))
+        fwd_task = boat.move.forward(100).go(speed=.2)
+        try:
+            yield boat.wait_for_bump()
+        finally:
+            fwd_task.cancel()
+        
         print 'main end'
     finally:
         print 'main finally start'
