@@ -220,12 +220,16 @@ def main_list(nh, boat, course):
         
         print 'going to pinger'
         yield boat.go_to_ecef_pos(dict(
-            A=ll(36.80270, -76.19140), # 28 kHz
-            B=ll(36.80175, -76.19230), # 33 kHz
+            A=ll(36.80270, -76.19140),
+            B=ll(36.80175, -76.19230),
         )[course])
+        freq = dict(
+            A=27e3,
+            B=32e3,
+        )[course]
         
         print 'acoustic_beacon'
-        yield acoustic_beacon.main(nh, ci, course)
+        yield acoustic_beacon.main(nh, ci, course, freq)
         
         print 'Going to safe point 2'
         yield boat.go_to_ecef_pos(dict(

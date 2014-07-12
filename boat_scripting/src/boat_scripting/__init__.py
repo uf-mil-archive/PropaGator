@@ -161,7 +161,7 @@ class _Boat(object):
         while True:
             # keep looking for a ping at the specified frequency
             msg = yield self._hydrophone_ping_sub.get_next_message()
-            if abs(msg.freq-frequency) < 1e3:
+            if abs(msg.freq-frequency) < 1.5e3:
                 # only if you receive one should you return. NOTE: mission_core run_missions will timeout and kill this task so it wont run forever()
                 defer.returnValue(msg)        
     

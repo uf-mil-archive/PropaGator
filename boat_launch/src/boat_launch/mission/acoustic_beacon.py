@@ -20,7 +20,7 @@ from rawgps_common import gps
     
 
 @util.cancellableInlineCallbacks
-def main(nh, ci, course):
+def main(nh, ci, course, freq):
     boat = yield boat_scripting.get_boat(nh)
     #float_df = boat.float()
     #yield boat.retract_hydrophone() # why was this here? it shouldn't need this, the hydrophones should be up on start
@@ -30,7 +30,7 @@ def main(nh, ci, course):
     yield boat.deploy_hydrophone()
     print "Hydrophone Deployed"
     try:
-        yield util.wrap_timeout(boat.hydrophone_align(33e3), 60*2)
+        yield util.wrap_timeout(boat.hydrophone_align(freq), 60*2)
     except Exception:
         traceback.print_exc()
     print "Finished ping mission"
