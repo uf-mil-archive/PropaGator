@@ -119,7 +119,8 @@ def do_dock(nh, boat, course, dock_item):
     print "starting dock2"
     yield boat.go_to_ecef_pos(dict(
         pool=[1220427.17101, -4965353.32773, 3799835.96511],
-        A=[1220408.5926, -4965366.56212, 3799819.98198],
+        #A=[1220408.5926, -4965366.56212, 3799819.98198],
+        A=ll(36.80220, -76.19130),
         B=ll(36.801754, -76.191911),
     )[course])
     yield boat.move.heading_deg(dict(
