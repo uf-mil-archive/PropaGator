@@ -38,6 +38,7 @@ class CourseInterface(object):
     def _post(self, name, course, params):
         print 'POST', 'http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code), params
         data = yield client.getPage(
+            method='POST',
             url='http://%s:%i/%s/course%s/%s' % (self._host, self._port, name, course, self._team_code),
             timeout=10,
             headers={'Content-Type': 'application/json'},
@@ -61,7 +62,7 @@ class CourseInterface(object):
     
     @util.cancellableInlineCallbacks
     def activate_light_sequence(self, course):
-        x = yield self._get('lightSequence/activate', course)
+        x = yield self._post('lightSequence/activate', course, None)
         defer.returnValue(x['success'])
     
     def send_pinger_answer(self, course, color, lat, lon):
@@ -86,8 +87,9 @@ def do_obstacle_course(nh, boat, course):
         A=ll( 36.80198, -76.19129),
         #B=ll(36.80174, -76.19138),
     )[course])
+    # XXX set heading here
     try:
-        gates = yield ci.start_automated_docking(course)
+        gates = yield ci.start_obstacle_avoidance(course)
     except Exception:
         traceback.print_exc()
         gates = random.choice(['1','2','3']), random.choice(['X', 'Y', 'Z'])
@@ -137,22 +139,25 @@ def main_list(nh, boat, course):
     try:
         print 'main start'
         
-        yield boat.move.forward(3).go()
+        #yield boat.move.forward(3).go()
         
         print 'Activating light sequence'
         try:
             res = yield ci.activate_light_sequence(course)
         except Exception:
+            traceback.print_exc()
             print 'LIGHT SEQUENCE FAILED! WARNING!'
-            yield util.sleep(5)
+            #yield util.sleep(5)
         else:
             print 'Result:', res
+        #yield util.sleep(5)
         
         print 'Running gate2'
-        try:
-            yield util.wrap_timeout(gate2.main(nh, 'left' if course == 'B' else 'right'), 60*2)
-        except Exception:
-            traceback.print_exc()
+        yield boat.move.forward(50).go()
+        #try:
+        #    yield util.wrap_timeout(gate2.main(nh, 'left' if course == 'B' else 'right'), 60*2)
+        #except Exception:
+        #    traceback.print_exc()
         
         
         try:
