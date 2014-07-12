@@ -168,7 +168,7 @@ def main_list(nh, boat, course):
             print 'Result:', res
         yield util.sleep(2.0)
         colors = ["red", "green", "blue", "yellow"]
-        yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(4)])
+        yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(3)])
         
         print 'Running gate2'
         yield boat.move.forward(50).go()
