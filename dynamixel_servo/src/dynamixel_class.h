@@ -332,7 +332,29 @@ void DynamixelServos::run()
 
 		float position_degrees=0.0;
 		float position_radians=0.0;
-
+		
+		// on boot lock the lidar in place straight ahead
+		if(binary_search(servos.begin(),servos.end(), 0x01))
+		{
+		    vector<Servo>::iterator servo_to_config=find(servos.begin(),servos.end(),0x01);
+		    setGoalPosition(servo_to_config,3.2);
+		}
+		
+		// on boot energize the hydrophone servo to lock in the up position. This is needed because the inital torque limit that is set is very small to protect it agains miss-use.
+		boost::shared_ptr<dynamixel_servo::DynamixelFullConfig> init_hydrophone_msg=boost::make_shared<dynamixel_servo::DynamixelFullConfig>();
+		if(binary_search(servos.begin(),servos.end(), 0x04))
+		{
+		    init_hydrophone_msg->id=0x04;
+		    init_hydrophone_msg->led=0;
+		    init_hydrophone_msg->goal_position=4.3; // 2.4 rad/s~22 rpm NOTE: we explicitly retract to pi to try and avoid being at the 0/2*PI boundary on a powerup
+		    init_hydrophone_msg->moving_speed=1.4; // 1.4 rad/s~22 rpm
+		    init_hydrophone_msg->torque_limit=143; // 143/1023 is about 14% torque (so we don't break the rope if someone didn't feed them correctly to start)
+		    init_hydrophone_msg->goal_acceleration=20;
+		    init_hydrophone_msg->control_mode=dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE;
+		    init_hydrophone_msg->goal_velocity=1.4;
+		    configCallbackFull(init_hydrophone_msg);
+		}
+		
 		// We will poll the servo(s) based on the loop rate; so because we need to do that work we will use the "while(ros::ok)" paradigm.
 		while(ros::ok())
 		{

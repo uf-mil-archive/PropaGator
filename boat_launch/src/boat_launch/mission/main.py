@@ -3,6 +3,7 @@ from __future__ import division
 import traceback
 import time
 import json
+import math
 from twisted.web import client
 from twisted.internet import defer
 
@@ -10,10 +11,12 @@ from txros import util
 
 import boat_scripting
 
+from rawgps_common import gps
+
 from boat_launch.mission import dock2, acoustic_beacon
 
 def ll(lat, lon):
-    return gps.ecef_from_latlongheight([math.radians(lat), math.radians(lon), 0])
+    return gps.ecef_from_latlongheight(math.radians(lat), math.radians(lon), 0)
 
 class CourseInterface(object):
     def __init__(self, host, port, team_code):
@@ -45,38 +48,44 @@ ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 def main_list(nh, boat, course):
     try:
         print 'main start'
-        if course in ['A', 'B']:
-            yield boat.move.heading_deg(90-298).go()
-            yield boat.move.forward(30).go()
+        #if course in ['A', 'B']:
+        #    yield boat.move.heading_deg(90-298+20).go()
+        #    yield boat.move.forward(30).go()
         
-        print 'going to obstacle course'
-        yield boat.go_to_ecef_pos(dict(
-            A=ll(36.80245, -76.19130),
-            B=ll(36.80174, -76.19138),
-        )[course])
+        #print 'going to obstacle course'
+        #yield boat.go_to_ecef_pos(dict(
+        #    A=ll(36.80245, -76.19130),
+        #    B=ll(36.80174, -76.19138),
+        #)[course])
         
-        yield boat.go_to_ecef_pos(dict(
-            pool=[1220416.51743, -4965356.4575, 3799838.03177],
-            A=ll(36.802101, -76.191527), # from google earth
-            B=ll(36.802101, -76.191527), # from google earth
-        )[course])
+        #print 'safe loc'
+        #yield boat.go_to_ecef_pos(dict(
+        #    pool=[1220416.51743, -4965356.4575, 3799838.03177],
+        #    A=ll(36.802101, -76.191527), # from google earth
+        #    B=ll(36.802101, -76.191527), # from google earth
+        #)[course])
         
         print "starting dock2"
         yield boat.go_to_ecef_pos(dict(
             pool=[1220427.17101, -4965353.32773, 3799835.96511],
-            A=ll(36.80225, -76.19128),
-            B=ll(36.80174, -76.19189),
+            #A=ll(36.80225, -76.19128),
+            A=[1220408.5926, -4965366.56212, 3799819.98198],
+            #B=ll(36.801817, -76.191985),
+            B=[1220360.88497, -4965408.62804, 3799783.36181],
         )[course])
         yield boat.move.heading_deg(dict(
             pool=60,
             A=60,
-            B=90-146,
+            B=-50,
         )[course]).go()
+        #yield boat.go_to_ecef_pos([1220363.49409, -4965410.66187, 3799779.96039], turn=False) # B
+        #yield boat.move.forward(6).go()
+        #yield boat.move.left(2).go()
         try:
             dock_item = yield ci.start_automated_docking(course)
         except Exception:
             traceback.print_exc()
-            dock_item = 'cruciform'
+            dock_item = 'triangle'
             print 'Defaulting to', dock_item
         print 'dock_item:', dock_item
         yield dock2.main(nh, dock_item)
@@ -128,12 +137,12 @@ def main(nh):
         if course in ['A', 'B', 'pool']:
             break
     
-    try:
-        yield util.wrap_timeout(main_list(nh, boat, course), max(0, end_time - time.time()))
-    except Exception:
-        traceback.print_exc()
+    #try:
+        #yield util.wrap_timeout(main_list(nh, boat, course), max(0, end_time - time.time()))
+    #except Exception:
+        #traceback.print_exc()
     
-    yield fail_list(nh, boat)
+    #yield fail_list(nh, boat)
 
 @util.cancellableInlineCallbacks
 def main(nh):
