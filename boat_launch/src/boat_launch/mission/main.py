@@ -205,17 +205,9 @@ def main(nh):
         if course in ['A', 'B', 'pool']:
             break
     
-    #try:
-        #yield util.wrap_timeout(main_list(nh, boat, course), max(0, end_time - time.time()))
-    #except Exception:
-        #traceback.print_exc()
+    try:
+        yield util.wrap_timeout(main_list(nh, boat, course), max(0, end_time - time.time()))
+    except Exception:
+        traceback.print_exc()
     
-    #yield fail_list(nh, boat)
-
-'''
-@util.cancellableInlineCallbacks
-def main(nh):
-    print 'a'
-    dock_item = yield ci.start_automated_docking('A')
-    print 'dock_item:', dock_item
-'''
+    yield fail_list(nh, boat)

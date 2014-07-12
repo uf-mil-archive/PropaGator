@@ -53,7 +53,7 @@ targetdesc = object_finder_msg.TargetDesc(
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
             0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 1,
+            0, 0, 0, 0, 0, 0,
         ],
     ),
     min_dist=1,
