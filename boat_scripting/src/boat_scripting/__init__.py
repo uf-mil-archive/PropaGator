@@ -30,6 +30,7 @@ from geometry_msgs.msg import PointStamped, Wrench, WrenchStamped, Vector3
 #for dynamixel configs
 from dynamixel_servo.msg import DynamixelFullConfig 
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
+from sensor_msgs.msg import LaserScan
 
 
 
@@ -75,7 +76,13 @@ class _Boat(object):
         
         self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
         
+        self._lidar_sub = self._node_handle.subscribe('lidar/scan', LaserScan)
+        
+        print 3
+        print (yield self._lidar_sub.get_next_message())
+        print 3.5
         yield self._trajectory_sub.get_next_message()
+        print 4
         
         defer.returnValue(self)
     
@@ -83,10 +90,17 @@ class _Boat(object):
     def pose(self):
         return orientation_helpers.PoseEditor.from_PoseTwistStamped(
             self._trajectory_sub.get_last_message())
+    @property
+    def odom(self):
+        return orientation_helpers.PoseEditor.from_Odometry(
+            self._odom_sub.get_last_message())
     
     @property
     def move(self):
         return _PoseProxy(self, self.pose)
+    
+    def get_scan(self):
+        return self._lidar_sub.get_next_message()
     
     @util.cancellableInlineCallbacks
     def float(self):

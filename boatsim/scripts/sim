@@ -111,7 +111,7 @@ M = ode.Mass()
 # this is the mass of the boat "boat_mass", this also sets the inertia based on a box with length_x, length_y, length_z
 M.setBoxTotal(boat_mass, boat_lenght, boat_width, boat_height)
 body.setMass(M)
-body.setPosition((0, 0, 0))
+body.setPosition((67.4, -39.75, 0))
 # the last unit is the initial rotation of the body position in radians
 #body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
 body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
@@ -153,7 +153,7 @@ class lidar:
 
         ##TODO: This needs to be made more generic for use with sub imaging sonar
         
-        self.lidar_pub = rospy.Publisher('/lidar_range', LaserScan)
+        self.lidar_pub = rospy.Publisher('/lidar/scan', LaserScan)
         self.lidar_tf_br = tf.TransformBroadcaster()
         self.pitch = 0
         self.pitch_inc = math.radians(1)
@@ -208,13 +208,13 @@ class lidar:
         
         lidar_quat = tf.transformations.quaternion_from_euler(total_roll, total_pitch, total_yaw)
 
-        '''self.lidar_tf_br.sendTransform(
+        self.lidar_tf_br.sendTransform(
                 T,
                 lidar_quat,
                 rospy.Time.now(),
-                "/base_link",
                 "/base_link/laser",
-                )'''
+                "/base_link",
+                )
 
     def get_lidar_range(self):
         '''
@@ -320,17 +320,18 @@ class lidar:
 
         self.send_lidar_transform()
         publish_lidar(scan_ranges)
-        self.pitch_lidar()
+        #self.pitch_lidar()
 
 #Instantiate a "Lidar"
-#boat_lidar = lidar()
+boat_lidar = lidar()
 
 def world_tick():
     global world_time
     
     #print positions, thrusts, z_drive_sim
     
-    #boat_lidar.get_lidar_range() # Use and publish whoa!
+    if random.randrange(10) == 0:
+      boat_lidar.get_lidar_range() # Use and publish whoa!
 
     water_vel = get_water_vel(V(body.getPosition()))
     
@@ -561,24 +562,34 @@ c1 = threed.Camera(w, "forward_camera", set_forward_view, body, fovy=90)
 #-> Add correct offsets
 def q_from_yaw(yaw_deg):
     return vector.axisangle_to_quat(v(0, 0, 1), math.radians(yaw_deg))
+def rpy(r, p, y):
+    return vector.axisangle_to_quat(v(0, 0, 1), math.radians(y)) % vector.axisangle_to_quat(v(0, 1, 0), math.radians(p)) % vector.axisangle_to_quat(v(1, 0, 0), math.radians(r))
 
-newbuoy_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'green_buoy.obj'))
-newbuoy_mesh = newbuoy_mesh.translate((5, 5, 0))
-w.objs.append(newbuoy_mesh)
-newbuoy_geom = ode.GeomTriMesh(newbuoy_mesh.ode_trimeshdata, space)
+_geoms = []
+for pos in [
+  v(5, 5, 0),
+  v(54.5, -33.9, 0),
+  v(53.5, -37.4, 0),
+  v(38.0, -29.6, 0),
+  v(35.7, -33.5, 0),
+]:
+  newbuoy_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'green_buoy.obj'))
+  newbuoy_mesh = newbuoy_mesh.translate(pos)
+  w.objs.append(newbuoy_mesh)
+  _geoms.append(ode.GeomTriMesh(newbuoy_mesh.ode_trimeshdata, space))
 
 cruciform_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'cruciform.obj'))
-cruciform_mesh = cruciform_mesh.rotate(q_from_yaw(45+180)).translate((23, 2, 1))
+cruciform_mesh = cruciform_mesh.rotate(rpy(0, random.uniform(-30, 30), 45+180 + random.uniform(-30, 30))).translate((23, 2, 1))
 w.objs.append(cruciform_mesh)
 cruciform_geom = ode.GeomTriMesh(cruciform_mesh.ode_trimeshdata, space)
 
 circle_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'circle.obj'))
-circle_mesh = circle_mesh.rotate(q_from_yaw(45+180)).translate((25, 0, 1))
+circle_mesh = circle_mesh.rotate(rpy(0, random.uniform(-30, 30), 45+180 + random.uniform(-30, 30))).translate((25, 0, 1))
 w.objs.append(circle_mesh)
 circle_geom = ode.GeomTriMesh(circle_mesh.ode_trimeshdata, space)
 
 triangle_mesh = threed.mesh_from_obj(roslib.packages.resource_file('boatsim', 'models', 'triangle.obj'))
-triangle_mesh = triangle_mesh.rotate(q_from_yaw(45+180)).translate((24, 1, 1))
+triangle_mesh = triangle_mesh.rotate(rpy(0, random.uniform(-30, 30), 45+180 + random.uniform(-30, 30))).translate((24, 1, 1))
 w.objs.append(triangle_mesh)
 triangle_geom = ode.GeomTriMesh(triangle_mesh.ode_trimeshdata, space)
 
