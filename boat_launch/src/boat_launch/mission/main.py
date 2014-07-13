@@ -184,7 +184,15 @@ def main_list(nh, boat, course):
             print 'Result:', res
         yield util.sleep(2.0)
         colors = ["red", "green", "blue", "yellow"]
-        yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(3)])
+        @util.cancellableInlineCallbacks
+        def _work():
+            while True:
+                try:
+                    res = yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(3)])
+                    if res['success']: break
+                except: traceback.print_exc()
+                yield util.sleep(5)
+        _work()
         
         print 'Running gate2'
         yield boat.move.forward(50).go()
