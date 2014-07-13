@@ -216,6 +216,7 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def go_to_ecef_pos(self, pos, speed=0, turn=True):
+        print 'go_to_ecef_pos', pos, speed, turn
         success = False
         try:
             first = True
@@ -234,6 +235,7 @@ class _Boat(object):
                 
                 if numpy.linalg.norm(error_enu) < 1:
                     yield self.move.set_position(enu_pos).go()
+                    print 'go_to_ecef_pos', 'succeeded'
                     return
                 
                 if first and turn:
