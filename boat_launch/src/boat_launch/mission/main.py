@@ -74,7 +74,7 @@ class CourseInterface(object):
         defer.returnValue(x['success'])
     
     def send_pinger_answer(self, course, color, lat, lon):
-        return self._post('pinger', course, dict(
+        x = yield self._post('pinger', course, dict(
             course=course,
             team=self._team_code,
             buoyColor=color,
@@ -84,6 +84,7 @@ class CourseInterface(object):
                 longitude=lon,
             ),
         ))
+        defer.returnValue(x['success'])
 
 ci = CourseInterface('127.0.0.1', 9000, 'UF') # 9443 for HTTPS
 
