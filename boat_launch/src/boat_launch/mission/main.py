@@ -86,7 +86,7 @@ class CourseInterface(object):
         ))
         defer.returnValue(x['success'])
 
-ci = CourseInterface('127.0.0.1', 9000, 'UF') # 9443 for HTTPS
+ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
 
 @util.cancellableInlineCallbacks
 def do_obstacle_course(nh, boat, course, gates):
