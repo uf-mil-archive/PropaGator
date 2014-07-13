@@ -101,7 +101,8 @@ class Node(object):
                 angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
-                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
+                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
+                angle_pub=self.nh.advertise('port_angle', Float64),
             ),
             dict( # starboard
                 id=2,
@@ -112,7 +113,8 @@ class Node(object):
                 angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
-                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
+                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
+                angle_pub=self.nh.advertise('starboard_angle', Float64),
             ),
         ]
         
@@ -133,6 +135,7 @@ class Node(object):
                 control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
                 goal_velocity=2*thruster['dangle'],
             ))
+            thruster['angle_pub'].publish(Float64(thruster['angle']))
             print 'thrust', thruster['effort'], interpolate.sample_curve(calib_data, thruster['effort'])/1e-3, 'ms'
             pwm = interpolate.sample_curve(calib_data, thruster['effort']) if abs(thruster['effort']) > 1e-3 else 1.5e-3
             if time.time() % 10 < 0.1:
