@@ -217,7 +217,7 @@ def main_list(nh, boat, course):
         print 'Going to safe point 2'
         yield boat.go_to_ecef_pos(dict(
             pool=[1220416.51743, -4965356.4575, 3799838.03177],
-            A=ll( 36.802358, -76.191629), # from google earth
+            A=ll(36.802365, -76.191650), # from google earth
             B=ll(36.801972, -76.191849), # from google earth
         )[course])
         
@@ -237,7 +237,7 @@ def main_list(nh, boat, course):
         print 'Going to safe point 2'
         yield boat.go_to_ecef_pos(dict(
             pool=[1220416.51743, -4965356.4575, 3799838.03177],
-            A=ll( 36.802358, -76.191629), # from google earth
+            A=ll(36.802365, -76.191650), # from google earth
             B=ll(36.801972, -76.191849), # from google earth
         )[course])
         
