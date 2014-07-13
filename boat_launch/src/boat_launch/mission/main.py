@@ -252,6 +252,7 @@ def main_list(nh, boat, course):
         # center far
         yield boat.go_to_ecef_pos(ll(36.802094, -76.191680))
         
+        yield boat.go_to_ecef_pos(ll(36.801799, -76.190902))
         # center near
         yield boat.go_to_ecef_pos([1220440.29354, -4965392.18483, 3799791.58982])
         yield boat.go_to_ecef_pos([1220451.80321, -4965388.40181, 3799791.9771])
