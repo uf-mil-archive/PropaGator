@@ -84,7 +84,7 @@ class CourseInterface(object):
             ),
         ))
 
-ci = CourseInterface('192.168.1.40', 9000, 'UF') # 9443 for HTTPS
+ci = CourseInterface('127.0.0.1', 9000, 'UF') # 9443 for HTTPS
 
 @util.cancellableInlineCallbacks
 def do_obstacle_course(nh, boat, course, gates):
@@ -186,12 +186,15 @@ def main_list(nh, boat, course):
         colors = ["red", "green", "blue", "yellow"]
         @util.cancellableInlineCallbacks
         def _work():
-            while True:
+            perms = set(itertools.product(colors, repeat=3))
+            while perms:
+                perm = random.choice(list(perms))
                 try:
-                    res = yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(3)])
+                    res = yield ci.report_light_sequence(course, perm)
                     if res: break
+                    if not res: perms.remove(perm)
                 except: traceback.print_exc()
-                yield util.sleep(5)
+                yield util.sleep(1)
         _work()
         
         print 'Running gate2'
@@ -293,6 +296,10 @@ def main(nh):
             end_time = time.time() + time_left
             del time_left
             break
+    
+    print
+    print 'WAIT 10 SECONDS'
+    print
     
     while True:
         yield util.sleep(.1)

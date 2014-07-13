@@ -24,7 +24,7 @@ from rawgps_common import gps
 def _send_result(ci, course, lat, lon):
     colors = set(['yellow', 'blue', 'black', 'green', 'red'])
     while colors:
-        color = random.choice(colors)
+        color = random.choice(list(colors))
         try:
             res = yield ci.send_pinger_answer(course, color, lat, lon)
             print res

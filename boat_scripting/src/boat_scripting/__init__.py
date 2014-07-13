@@ -192,9 +192,11 @@ class _Boat(object):
         good = 0
         while True:
                 x = self.float()
-                yield util.sleep(.5)
-                ping_return = yield self.get_processed_ping(frequency)
-                x.cancel()
+                try:
+                    yield util.sleep(.5)
+                    ping_return = yield self.get_processed_ping(frequency)
+                finally:
+                    x.cancel()
                 print ping_return
                 if ping_return.declination > 1.2:
                     good += 1
