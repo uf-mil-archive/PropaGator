@@ -189,7 +189,7 @@ def main_list(nh, boat, course):
             while True:
                 try:
                     res = yield ci.report_light_sequence(course, [random.choice(colors) for i in xrange(3)])
-                    if res['success']: break
+                    if res: break
                 except: traceback.print_exc()
                 yield util.sleep(5)
         _work()

@@ -28,8 +28,8 @@ def _send_result(ci, course, lat, lon):
         try:
             res = yield ci.send_pinger_answer(course, color, lat, lon)
             print res
-            if res['success']: return
-            if not res['success']: colors.remove(color)
+            if res: return
+            if not res: colors.remove(color)
         except:
             traceback.print_exc()
         yield util.sleep(5)
