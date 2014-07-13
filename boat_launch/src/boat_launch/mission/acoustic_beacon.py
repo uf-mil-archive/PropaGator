@@ -21,14 +21,17 @@ from rawgps_common import gps
     
 
 @util.cancellableInlineCallbacks
-def _send_result(func):
-    while True:
+def _send_result(ci, course, lat, lon):
+    colors = set(['yellow', 'blue', 'black', 'green', 'red'])
+    while colors:
+        color = random.choice(colors)
         try:
-            res = yield func()
+            res = yield ci.send_pinger_answer(course, color, lat, lon)
+            print res
+            if res['success']: return
+            if not res['success']: colors.remove(color)
         except:
             traceback.print_exc()
-        else:
-            print res
         yield util.sleep(5)
 
 @util.cancellableInlineCallbacks
@@ -51,8 +54,7 @@ def main(nh, ci, course, freq):
     msg = yield boat.get_gps_odom()
     temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z])
     print "latitude: ", temp[0]," longitude: ", temp[1]
-    color = random.choice(['yellow', 'blue', 'black', 'green', 'red'])
-    _send_result(lambda: ci.send_pinger_answer(course, color, math.degrees(temp[0]), math.degrees(temp[1]))) # async XXX
+    _send_result(ci, course, math.degrees(temp[0]), math.degrees(temp[1])) # async XXX
     #float_df.cancel()
     print "Retracting Hydrophone"
     yield boat.retract_hydrophone()
