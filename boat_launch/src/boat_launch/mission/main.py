@@ -245,7 +245,8 @@ def main_list(nh, boat, course):
         yield boat.go_to_ecef_pos(ll(36.802094, -76.191680))
         
         # center near
-        yield boat.go_to_ecef_pos(ll(36.801799, -76.190902))
+        yield boat.go_to_ecef_pos([1220440.29354, -4965392.18483, 3799791.58982])
+        yield boat.go_to_ecef_pos([1220451.80321, -4965388.40181, 3799791.9771])
         fwd_task = boat.move.forward(100).go(speed=.2)
         try:
             yield boat.wait_for_bump()
