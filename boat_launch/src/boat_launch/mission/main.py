@@ -130,7 +130,7 @@ def do_dock(nh, boat, course, dock_item):
         A=90-146,
         B=90-146,
     )[course]).go()
-    yield boat.move.backward(3).go()
+    #yield boat.move.backward(3).go()
     s = boat.move
     try:
         yield util.wrap_timeout(dock2.main(nh, dock_item), 40)
@@ -138,17 +138,17 @@ def do_dock(nh, boat, course, dock_item):
         traceback.print_exc()
     yield s.left(2).go()
     try:
-        yield util.wrap_timeout(dock2.main(nh, 'circle'), 40)
+        yield util.wrap_timeout(dock2.main(nh, dock_item), 40)
     except Exception:
         traceback.print_exc()
     yield s.right(2).go()
     try:
-        yield util.wrap_timeout(dock2.main(nh, 'triangle'), 40)
+        yield util.wrap_timeout(dock2.main(nh, dock_item), 40)
     except Exception:
         traceback.print_exc()
     yield s.right(4).go()
     try:
-        yield util.wrap_timeout(dock2.main(nh, 'cruciform'), 40)
+        yield util.wrap_timeout(dock2.main(nh, dock_item), 40)
     except Exception:
         traceback.print_exc()
 
@@ -200,7 +200,7 @@ def main_list(nh, boat, course):
         _work()
         
         print 'Running gate2'
-        yield boat.move.forward(55).go()
+        yield boat.move.forward(75).go()
         #try:
         #    yield util.wrap_timeout(gate2.main(nh, 'left' if course == 'B' else 'right'), 60*2)
         #except Exception:
@@ -262,6 +262,10 @@ def main_list(nh, boat, course):
         
         print 'acoustic_beacon'
         yield acoustic_beacon.main(nh, ci, course, freq)
+        yield boat.go_to_ecef_pos(dict(
+            A=ll( 36.802720, -76.191470),
+            B=ll(36.80175, -76.19230),
+        )[course])
         
         print 'Going to safe point 4'
         yield boat.go_to_ecef_pos(dict(
@@ -276,10 +280,10 @@ def main_list(nh, boat, course):
             B=ll(36.801972, -76.191849), # from google earth
         )[course])
         
-        print 'Going to safe point 1'
+        print 'Going to safe point a'
         yield boat.go_to_ecef_pos(dict(
             pool=[1220416.51743, -4965356.4575, 3799838.03177],
-            A=ll(36.802040, -76.191835), # from google earth
+            A=ll( 36.801897, -76.191622), # from google earth
             B=ll(36.801972, -76.191849), # from google earth
         )[course])
         # center far
@@ -289,6 +293,9 @@ def main_list(nh, boat, course):
         # center near
         #yield boat.go_to_ecef_pos([1220440.29354, -4965392.18483, 3799791.58982])
         yield boat.go_to_ecef_pos([1220451.80321, -4965388.40181, 3799791.9771])
+        yield boat.move.heading_deg(dict(
+            A=60+90+180,
+        )[course]).go()
         fwd_task = boat.move.forward(100).go(speed=.2)
         try:
             yield boat.wait_for_bump()
