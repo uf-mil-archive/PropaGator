@@ -73,14 +73,14 @@ def main(nh, x):
     targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
     
     print 'a'
-    fwd_move = boat.move.go(linear=[0.2, 0, 0])
+    fwd_move = boat.move.go(linear=[0.3, 0, 0])
     try:
         yield boat.visual_approach_3d('forward', 4, targetdesc)
     finally:
         yield fwd_move.cancel()
 
     
-    yield boat.move.forward(1.5).go(speed=.3)
+    yield boat.move.forward(1.5).go()
     fwd_task = boat.move.forward(100).go(speed=.2)
     try:
         yield boat.wait_for_bump()
