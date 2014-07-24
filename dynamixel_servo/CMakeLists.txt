@@ -114,7 +114,8 @@ add_executable(dynamixel_servo_client src/dynamixel_servo_client.cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(dynamixel_servo_node dynamixel_servo_generate_messages_cpp)
+add_dependencies(dynamixel_servo_server dynamixel_servo_generate_messages_cpp)
+add_dependencies(dynamixel_servo_client dynamixel_servo_generate_messages_cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(dynamixel_servo_server ${catkin_LIBRARIES})
