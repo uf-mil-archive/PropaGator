@@ -114,6 +114,8 @@ include_directories(
  add_dependencies(test_arduino arduino_serial_comm_generate_messages_cpp)
 # add_dependencies(
 
+add_dependencies(test_arduino ${catkin_EXPORTED_TARGETS})
+
 ## Specify libraries to link a library or executable target against
  target_link_libraries(test_arduino
    ${catkin_LIBRARIES}

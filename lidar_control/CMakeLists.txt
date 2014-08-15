@@ -117,7 +117,8 @@ target_link_libraries(lidar_prossesing_node
 )
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(lidar_control_node lidar_control_generate_messages_cpp)
+add_dependencies(lidar_control_node lidar_control_generate_messages_cpp)
+add_dependencies(lidar_control_node ${catkin_EXPORTED_TARGETS})
 
 
 
