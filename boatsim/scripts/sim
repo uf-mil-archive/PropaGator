@@ -103,8 +103,7 @@ def buoyancy_force(depth, r):
     vol_submerged = sphere_true_antiderivative(depth) - sphere_true_antiderivative(-inf)
     return 1000 * 9.81 * vol_submerged
 
-world = ode.World()
-world_time = reactor.seconds()
+world, world_time = ode.World(), reactor.seconds()
 world.setGravity((0, 0, -9.81))
 
 body = ode.Body(world)
@@ -114,8 +113,8 @@ M.setBoxTotal(boat_mass, boat_lenght, boat_width, boat_height)
 body.setMass(M)
 body.setPosition((67.4, -39.75, 0))
 # the last unit is the initial rotation of the body position in radians
-body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
-#body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
+#body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
 
 space = ode.HashSpace()
 
@@ -135,7 +134,6 @@ locked = False
 odom_pub = rospy.Publisher('/odom', Odometry)
 abs_odom_pub = rospy.Publisher('absodom', Odometry)
 base_tf_br = tf.TransformBroadcaster()
-
 
 class lidar:
     def __init__(self):
@@ -293,13 +291,12 @@ class lidar:
             y_hat = math.sin(projection_angle)
             z_hat = math.sin(self.pitch)
             
-            #lidar_ray_dir = body.vectorToWorld(v(x_hat, y_hat ,-z_hat))
+            lidar_ray_dir = body.vectorToWorld(v(x_hat, y_hat ,-z_hat))
 
-            #ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
+            ray.set( body.getRelPointPos(lidar_pos), lidar_ray_dir )
             
             closest_distance = 250
 
-           
             for contact in ode.collide(ray,space):
                 stamp = rospy.Time.now()
                 pos,normal,dist,geom1,geom2 = contact.getContactGeomParams()
@@ -313,12 +310,12 @@ class lidar:
                 #The purpose of the below (was) to not hit the water, but that doesn't work.
                 #if (geom2 is  not lake_geom):
                 #    continue
-                #valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
+                valid_distance =  (V(pos) - V(body.getRelPointPos(lidar_pos))).mag()
                 #There's no guarantee that they'll come in order, apparently.
                 #Maybe play with hash space settings? Is that a things?
                 if(valid_distance < closest_distance):
                     closest_distance = valid_distance
-            
+
             scan_ranges[i] = closest_distance
 
         self.send_lidar_transform()
@@ -330,34 +327,33 @@ boat_lidar = lidar()
 
 def world_tick():
     global world_time
-    global killed
     
     #print positions, thrusts, z_drive_sim
     
     if random.randrange(10) == 0:
       boat_lidar.get_lidar_range() # Use and publish whoa!
 
-    #water_vel = get_water_vel(V(body.getPosition()))
+    water_vel = get_water_vel(V(body.getPosition()))
     
-    #body.addForceAtRelPos((0, 0, buoyancy_force(-body.getPosition()[2], 0.22728849402137372)), (0, 0, .1))
+    body.addForceAtRelPos((0, 0, buoyancy_force(-body.getPosition()[2], 0.22728849402137372)), (0, 0, .1))
     # the following frictional forces are from darsen's models
     #frictional force opposite to the velocity of the boat
     body_velocity=body.vectorFromWorld(body.getLinearVel())
     # adds a resistance force for the water proportional to the velocity (where [0] is x, [1] is y, and [2] is z). units in N/(m/s)
     friction_force_forward=friction_coefficient_forward*body_velocity[0]-friction_coefficient_forward_reduction*(-1.0*pow(body_velocity[0],2) if body_velocity[0]<0.0 else pow(body_velocity[0],2))
     friction_force_lateral=friction_coefficient_lateral*body_velocity[1]-friction_coefficient_lateral_reduction*(-1.0*pow(body_velocity[1],2) if body_velocity[1]<0.0 else pow(body_velocity[1],2))
-    #body.addRelForce([-friction_force_forward,-friction_force_lateral,body_velocity[2]*-40])
+    body.addRelForce([-friction_force_forward,-friction_force_lateral,body_velocity[2]*-40])
     # adds a angular resistance force for the water proportional to the velocity
     # angular_velocity is a 3-tuple ([0]=roll,[1]=pitch,[2]=yaw)
     angular_velocity=body.vectorFromWorld(body.getAngularVel())
     friction_force_roll=friction_coefficient_rotational*angular_velocity[0]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[0],2) if angular_velocity[0]<0.0 else pow(angular_velocity[0],2))
     friction_force_pitch=friction_coefficient_rotational*angular_velocity[1]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[1],2) if angular_velocity[1]<0.0 else pow(angular_velocity[1],2))
     friction_force_yaw=friction_coefficient_rotational*angular_velocity[2]-friction_coefficient_rotational_reduction*(-1.0*pow(angular_velocity[2],2) if angular_velocity[2]<0.0 else pow(angular_velocity[2],2))
-    #body.addRelTorque([-friction_force_roll,-friction_force_pitch,-friction_force_yaw])
+    body.addRelTorque([-friction_force_roll,-friction_force_pitch,-friction_force_yaw])
     print "forward: ", friction_force_forward, " lateral: ", friction_force_lateral, " rotational: ", -friction_force_yaw
     #print thrusters
     # map the thrusters position on the boat
-    #sub_model.vectors = []
+    sub_model.vectors = []
     # id2=starboard, id3=port
     if not killed:
         for thruster_id in [2, 3]:
@@ -366,11 +362,11 @@ def world_tick():
             angle = (positions[thruster_id]-math.pi)/2
             reldir = v(math.cos(angle), math.sin(angle), 0)
             force = thrusts[thruster_id]
-            #body.addRelForceAtRelPos(reldir*force, relpos)
-            #sub_model.vectors.append((relpos, relpos - .02*reldir*force))
+            body.addRelForceAtRelPos(reldir*force, relpos)
+            sub_model.vectors.append((relpos, relpos - .02*reldir*force))
             print "force: ", force, " angle: ", angle
-        #body.addRelTorque([z_drive_sim['torque_r'],z_drive_sim['torque_p'],z_drive_sim['torque_y']])
-        #body.addRelForce([z_drive_sim['force_x'],z_drive_sim['force_y'],z_drive_sim['force_z']])
+        body.addRelTorque([z_drive_sim['torque_r'],z_drive_sim['torque_p'],z_drive_sim['torque_y']])
+        body.addRelForce([z_drive_sim['force_x'],z_drive_sim['force_y'],z_drive_sim['force_z']])
     
     keys = pygame.key.get_pressed()
     for keycode, force in [
@@ -380,9 +376,9 @@ def world_tick():
         (pygame.K_l, v(0, -50, 0)),
         (pygame.K_o, v(0, 0, +50)),
         (pygame.K_m, v(0, 0, -50)),
-    ]: pass
-        #if keys[keycode]:
-            #body.addRelForce(force*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
+    ]:
+        if keys[keycode]:
+            body.addRelForce(force*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
     for keycode, torque in [
         (pygame.K_COMMA, v(-20, 0, 0)),
         (pygame.K_u, v(+20, 0, 0)),
@@ -390,10 +386,11 @@ def world_tick():
         (pygame.K_SEMICOLON, v(0, -20, 0)),
         (pygame.K_0, v(0, 0, +20)),
         (pygame.K_n, v(0, 0, -20)),
-    ]: pass
-        #if keys[keycode]:
-            #body.addRelTorque(torque*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
+    ]:
+        if keys[keycode]:
+            body.addRelTorque(torque*(10 if keys[pygame.K_RSHIFT] else 1)*(.1 if keys[pygame.K_RCTRL] else 1))
     
+    global killed
     if keys[pygame.K_1]:
         killed = True
     if keys[pygame.K_2]:
@@ -407,22 +404,21 @@ def world_tick():
     contactgroup = ode.JointGroup()
     
     if locked:
-        #j = ode.FixedJoint(world, contactgroup)
-        #j.attach(body, None)
+        j = ode.FixedJoint(world, contactgroup)
+        j.attach(body, None)
         j.setFixed()
     
     near_pairs = []
-    """
     space.collide(None, lambda _, geom1, geom2: near_pairs.append((geom1, geom2)))
     for geom1, geom2 in near_pairs:
         for contact in ode.collide(geom1, geom2):
             contact.setBounce(0.2)
             contact.setMu(5000)
-            #j = ode.ContactJoint(world, contactgroup, contact)
+            j = ode.ContactJoint(world, contactgroup, contact)
             j.attach(geom1.getBody(), geom2.getBody())
-    """
+    
     dt = 1/30
-    #world.step(dt)
+    world.step(dt)
     world_time += dt
     
     contactgroup.empty()
@@ -431,12 +427,12 @@ def world_tick():
     msg.header.stamp = rospy.Time(world_time)
     msg.header.frame_id = '/enu'
     msg.child_frame_id = '/base_link'
-    #msg.pose.pose.position = Point(*body.getPosition())
+    msg.pose.pose.position = Point(*body.getPosition())
     q = V(body.getQuaternion())
     msg.pose.pose.orientation = Quaternion(q[1], q[2], q[3], q[0])
    
-    #msg.twist.twist.linear = Vector3(*q.conj().quat_rot(body.getLinearVel()))
-    #msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
+    msg.twist.twist.linear = Vector3(*q.conj().quat_rot(body.getLinearVel()))
+    msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
     odom_pub.publish(msg)
     
     # XXX
@@ -446,10 +442,11 @@ def world_tick():
     msg.child_frame_id = '/base_link'
     ecef_loc = gps.ecef_from_latlongheight(math.radians(36.802002), math.radians(-76.191019), 7)
     enu_loc = numpy.array([53.6686215007, -20.8502282916, -0.0733864689281])
-    #msg.pose.pose.position = Point(*gps.ecef_from_enu(enu_v=body.getPosition() - enu_loc, ecef_pos=ecef_loc) + ecef_loc)
+    msg.pose.pose.position = Point(*gps.ecef_from_enu(enu_v=body.getPosition() - enu_loc, ecef_pos=ecef_loc) + ecef_loc)
     abs_odom_pub.publish(msg)
     
     reactor.callLater(max(0, world_time + dt - reactor.seconds()), world_tick)
+
 
 
 class Boat(object):
@@ -545,8 +542,8 @@ class Buoys(object):
 w = threed.World()
 
 w.objs.append(lake_mesh)
-#sub_model = Boat(body, lambda: killed)
-#w.objs.append(sub_model)
+sub_model = Boat(body, lambda: killed)
+w.objs.append(sub_model)
 w.objs.append(threed.VectorField(get_water_vel))
 generate_buoy_pair(w, (2,1),0)
 generate_buoy_pair(w, (10,5),15)
@@ -559,8 +556,8 @@ i.objs.append(Buoys(v(-2, 15, 0)))
 '''
 def set_forward_view():
     glTranslate(-1, 0, -1)
-    #threed.rotate_to_body(body, inv=True)
-#c1 = threed.Camera(w, "forward_camera", set_forward_view, body, fovy=90)
+    threed.rotate_to_body(body, inv=True)
+c1 = threed.Camera(w, "forward_camera", set_forward_view, body, fovy=90)
 
 #-> Add correct offsets
 def q_from_yaw(yaw_deg):
@@ -598,14 +595,14 @@ triangle_geom = ode.GeomTriMesh(triangle_mesh.ode_trimeshdata, space)
 
 i = threed.Interface()
 i.init(w)
-#def _():
-#    try:
-#        i.step()
-#        c1.step()
-#    except:
-#        traceback.print_exc()
-#        reactor.stop()
-#reactor.callWhenRunning(task.LoopingCall(_).start, 1/24)
+def _():
+    try:
+        i.step()
+        c1.step()
+    except:
+        traceback.print_exc()
+        reactor.stop()
+reactor.callWhenRunning(task.LoopingCall(_).start, 1/24)
 
 reactor.callWhenRunning(world_tick)
 
