@@ -113,8 +113,8 @@ M.setBoxTotal(boat_mass, boat_lenght, boat_width, boat_height)
 body.setMass(M)
 body.setPosition((67.4, -39.75, 0))
 # the last unit is the initial rotation of the body position in radians
-#body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
-body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
+body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), math.pi))
+#body.setQuaternion(vector.axisangle_to_quat(v(0, 0, 1), 0))
 
 space = ode.HashSpace()
 

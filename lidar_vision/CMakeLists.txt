@@ -11,6 +11,10 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   genmsg
   dynamixel_servo
+  pcl_ros
+  sensor_msgs
+  tf
+  laser_geometry
 )
 
 ## System dependencies are found with CMake's conventions
@@ -85,7 +89,14 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES lidar_vision
-  CATKIN_DEPENDS dynamixel_servo
+  CATKIN_DEPENDS 
+      dynamixel_servo
+      pcl_ros
+      sensor_msgs
+      tf
+      laser_geometry
+      roscpp
+      message_runtime
 #  DEPENDS system_lib
 )
 
@@ -118,6 +129,11 @@ target_link_libraries(lidar_prossesing_node
 
 add_executable(laser_to_pc_node src/laser_to_pc_node.cpp)
 target_link_libraries(laser_to_pc_node
+  ${catkin_LIBRARIES}
+)
+
+add_executable(euclidean_pc_segmentation_node src/euclidean_pc_segmentation_node.cpp)
+target_link_libraries(euclidean_pc_segmentation_node
   ${catkin_LIBRARIES}
 )
 
