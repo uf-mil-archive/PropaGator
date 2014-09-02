@@ -38,5 +38,7 @@
                 euclidean_max_cluster_size: $(arg max_cluster_size)
             </rosparam>
          </node>
+
+         <node pkg="lidar_vision" type="feature_extractor_node" name="feature_extractor_node"/>
     </group>
 </launch>

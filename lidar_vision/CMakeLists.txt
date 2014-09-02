@@ -137,6 +137,10 @@ target_link_libraries(euclidean_pc_segmentation_node
   ${catkin_LIBRARIES}
 )
 
+add_executable(feature_extractor_node src/feature_extractor_node.cpp)
+target_link_libraries(feature_extractor_node
+  ${catkin_LIBRARIES}
+)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
