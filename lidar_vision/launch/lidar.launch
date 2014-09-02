@@ -5,23 +5,37 @@
 
 <launch>
     <!-- args-->
-    
+    <!-- simulate turns the lidar driver off if true -->
+    <arg name="simulate" default="false"/> 
+    <!-- cluster_tolerance is the max allowable distance in meters between points -->
+    <arg name="cluster_tolerance" default="0.75"/>
+    <!-- min_cluster_size is the smallest number of points alowed in a cluster -->
+    <arg name="min_cluster_size" default="1"/>
+    <!-- max_cluster_size is the largest number of points in one cluster bounded by the size of an int-->
+    <arg name="max_cluster_size" default="2147483647"/>   
+
     <!-- group to put every thing related to lidar in-->
     <group ns="lidar">
-        <node pkg="lms1xx" type="LMS1xx_node" name="lms1xx">
+	<!-- Lidar driver -->
+        <node unless="$(arg simulate)" pkg="lms1xx" type="LMS1xx_node" name="lms1xx">
+            <!--Lidars IP address-->
             <param name="host" value="192.168.2.4"/>
+            <!--The frame for tf transforms -->
             <param name="frame_id" value="lidar"/>
         </node>
-       
+        
+        <!-- Controls the angle of the dynamixel servo that moves the lidar -->
         <!-- node pkg="lidar_control" type="lidar_control_node" name="lidar_angle_control"/ -->
 	
+        <!-- Converts a sensor_msgs::laser_scan to sensor_msgs::point_cloud2 -->
 	<node pkg="lidar_vision" type="laser_to_pc_node" name="laser_to_pc_node"/>
-
+        
+        <!-- Performs a segmentation based on euclidean spatial distances -->
 	<node pkg="lidar_vision" type="euclidean_pc_segmentation_node" name="euclidean_pc_segmentation_node">
             <rosparam subst_value="true">
-                euclidean_cluster_tolerance: 1.5
-                euclidean_min_cluster_size: 1
-                euclidean_max_cluster_size: 2147483647
+                euclidean_cluster_tolerance: $(arg cluster_tolerance)
+                euclidean_min_cluster_size: $(arg min_cluster_size)
+                euclidean_max_cluster_size: $(arg max_cluster_size)
             </rosparam>
          </node>
     </group>
