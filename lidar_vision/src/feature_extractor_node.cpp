@@ -86,20 +86,20 @@ public:		//Functions
 		std::string topic;
 
 		//Get some ros params
-		topic = private_nh.resolveName("distance_threshold");			//Distance threshold
-		private_nh.param<double>(topic.c_str(), distance_threshold_, 1.0);
+		topic = private_nh.resolveName("distance_threshold");				//Distance threshold in meters
+		private_nh.param<double>(topic.c_str(), distance_threshold_, 0.1);
 		ROS_INFO("Param %s value %f", topic.c_str(), distance_threshold_);
 
-		topic = private_nh.resolveName("max_iterations");				//Max iterations
+		topic = private_nh.resolveName("max_iterations");					//Max iterations
 		private_nh.param<int>(topic.c_str(), max_iterations_, 1000);
 		ROS_INFO("Param %s value %i", topic.c_str(), max_iterations_);
 
-		topic = private_nh.resolveName("probability");					//Probability
+		topic = private_nh.resolveName("probability");						//Probability
 		private_nh.param<double>(topic.c_str(), probability_, 0.99);
 		ROS_INFO("Param %s value %f", topic.c_str(), probability_);
 
-		topic = private_nh.resolveName("max_buoy_radius");					//Probability
-		private_nh.param<double>(topic.c_str(), max_buoy_radius_, 0.5);
+		topic = private_nh.resolveName("max_buoy_radius");					//max buoy radius in meters
+		private_nh.param<double>(topic.c_str(), max_buoy_radius_, 0.25);
 		ROS_INFO("Param %s value %f", topic.c_str(), max_buoy_radius_);
 
 		ros::NodeHandle public_nh;

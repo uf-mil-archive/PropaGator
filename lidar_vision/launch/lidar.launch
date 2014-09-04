@@ -18,13 +18,13 @@
     
     <!-- Feture extraction -->
     <!-- distance_threshold is um for feture extraction TODO: figure out what this does -->
-    <arg name="distance_threshold" default="1.0"/>
+    <arg name="distance_threshold" default="0.1"/>
     <!-- max_iterations is the maximum number of itterations to be performed in the Random sample consensus algorithim for feture extraction -->
     <arg name="max_iterations" default="1000"/>
     <!-- probability is the ... um... for feture extraction TODO: figure out what this does -->
     <arg name="probability" default="0.99"/>
     <!-- max_buoy_radius is the maximum radius in meters to accept a pc as a buoy -->
-    <arg name="max_buoy_radius" default="0.5"/>
+    <arg name="max_buoy_radius" default="0.25"/>
 
     <!-- group to put every thing related to lidar in-->
     <group ns="lidar">
