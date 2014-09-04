@@ -5,6 +5,8 @@
 
 <launch>
     <!-- args-->
+    
+    <!-- Euclidean clustering node -->
     <!-- simulate turns the lidar driver off if true -->
     <arg name="simulate" default="false"/> 
     <!-- cluster_tolerance is the max allowable distance in meters between points -->
@@ -12,7 +14,17 @@
     <!-- min_cluster_size is the smallest number of points alowed in a cluster -->
     <arg name="min_cluster_size" default="1"/>
     <!-- max_cluster_size is the largest number of points in one cluster bounded by the size of an int-->
-    <arg name="max_cluster_size" default="2147483647"/>   
+    <arg name="max_cluster_size" default="2147483647"/>
+    
+    <!-- Feture extraction -->
+    <!-- distance_threshold is um for feture extraction TODO: figure out what this does -->
+    <arg name="distance_threshold" default="1.0"/>
+    <!-- max_iterations is the maximum number of itterations to be performed in the Random sample consensus algorithim for feture extraction -->
+    <arg name="max_iterations" default="1000"/>
+    <!-- probability is the ... um... for feture extraction TODO: figure out what this does -->
+    <arg name="probability" default="0.99"/>
+    <!-- max_buoy_radius is the maximum radius in meters to accept a pc as a buoy -->
+    <arg name="max_buoy_radius" default="0.5"/>
 
     <!-- group to put every thing related to lidar in-->
     <group ns="lidar">
@@ -39,6 +51,13 @@
             </rosparam>
          </node>
 
-         <node pkg="lidar_vision" type="feature_extractor_node" name="feature_extractor_node"/>
+         <node pkg="lidar_vision" type="feature_extractor_node" name="feature_extractor_node">
+            <rosparam subst_value="true">
+                distance_threshold: $(arg distance_threshold)
+                max_iterations: $(arg max_iterations)
+                probability: $(arg probability)
+                max_buoy_radius: $(arg max_buoy_radius)
+            </rosparam>
+	 </node>
     </group>
 </launch>

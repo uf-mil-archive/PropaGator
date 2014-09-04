@@ -69,17 +69,18 @@ private:	//Functions
 		//Perform extraction
 		extractor.extract(cluster_indices);
 		//pcl::extractEuclideanClusters(*raw_pc, cluster_indices, )
-		ROS_INFO("Number of clusters is %i", (int)cluster_indices.size());
+		//ROS_INFO("Number of clusters is %i", (int)cluster_indices.size());
 
 		//Publish the segmented cloud
-		sensor_msgs::PointCloud2::Ptr out_pc(new sensor_msgs::PointCloud2);														//Create the ros msg
+		sensor_msgs::PointCloud2::Ptr out_pc(new sensor_msgs::PointCloud2);							//Create the ros msg
 
 		for(std::vector<pcl::PointIndices>::const_iterator cluster_it = cluster_indices.begin();	//Iterate through clusters
 				cluster_it != cluster_indices.end(); ++cluster_it)
 		{
 			pcl::PointCloud<point>::Ptr cluster_pc(new pcl::PointCloud<point>);						//Make a new point cloud
 
-			for(std::vector<int>::const_iterator index_it = cluster_it->indices.begin();			//Iterate through indices
+			pcl::copyPointCloud(*raw_pc, cluster_it->indices, *cluster_pc);							//Copy new point cloud
+			/*for(std::vector<int>::const_iterator index_it = cluster_it->indices.begin();			//Iterate through indices
 					index_it != cluster_it->indices.end(); index_it++)
 			{
 				cluster_pc->push_back(raw_pc->points[*index_it]);									//Add points to new cloud
@@ -87,11 +88,12 @@ private:	//Functions
 
 			cluster_pc->width = cluster_pc->points.size();											//Number of points
 			cluster_pc->height = 1;																	//Organized 1D data
-			cluster_pc->is_dense = true;															//No values of inf or NaN
+			cluster_pc->is_dense = true;*/															//No values of inf or NaN
 
 			pcl::toROSMsg(*cluster_pc, *out_pc);													//Fill the msg
-			out_pc->header.frame_id = pc->header.frame_id;											//Set frame id
-			out_pc->header.stamp = pc->header.stamp;												//Set time stamp
+			out_pc->header = pc->header;															//Change the header
+			/*out_pc->header.frame_id = pc->header.frame_id;											//Set frame id
+			out_pc->header.stamp = pc->header.stamp;*/												//Set time stamp
 			pc_pub_.publish(out_pc);																//Publish the msgs
 		}
 
@@ -103,15 +105,17 @@ public:		//Functions
 		ros::NodeHandle private_nh("~");
 
 		//Get some ros params
-		std::string topic = private_nh.resolveName("euclidean_cluster_tolerance");		//Get the topic
+		std::string topic = private_nh.resolveName("euclidean_cluster_tolerance");		//euclidean_cluster_tolerance
 		private_nh.param<double>(topic.c_str(), cluster_tolerance_, 0.5);
-		ROS_INFO("Topic %s value %f", topic.c_str(), cluster_tolerance_);
-		topic = private_nh.resolveName("euclidean_min_cluster_size");
+		ROS_INFO("Param %s value %f", topic.c_str(), cluster_tolerance_);
+
+		topic = private_nh.resolveName("euclidean_min_cluster_size");					//euclidean_min_cluster_size
 		private_nh.param<int>(topic.c_str(), min_cluster_size_, 5);
-		ROS_INFO("Topic %s value %i", topic.c_str(), min_cluster_size_);
-		topic = private_nh.resolveName("euclidean_max_cluster_size");
+		ROS_INFO("Param %s value %i", topic.c_str(), min_cluster_size_);
+
+		topic = private_nh.resolveName("euclidean_max_cluster_size");					//euclidean_max_cluster_size
 		private_nh.param<int>(topic.c_str(), max_cluster_size_,  2147483647/*2^31 - 1*/);
-		ROS_INFO("Topic %s value %i", topic.c_str(), max_cluster_size_);
+		ROS_INFO("Param %s value %i", topic.c_str(), max_cluster_size_);
 
 		ros::NodeHandle public_nh;
 		//Set up subscribers and publishers
