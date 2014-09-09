@@ -1,5 +1,13 @@
+<!-- The navigation launch file launches all files related to navigating in the world
+     This includes GPS, IMU, tf, and more 
+-->
+
 <launch>
 
+  <!-- Sparton_ahrs8
+	purpose - A driver for the sparton ahrs8 imu device
+	Outputs - the imu data
+  -->
   <node pkg="sparton_ahrs8" type="sparton_ahrs8" name="imu_driver">
     <param name="port" value="/dev/serial/by-id/usb-FTDI_TTL232R-3V3_FTFUXEDU-if00-port0"/>
   </node>
