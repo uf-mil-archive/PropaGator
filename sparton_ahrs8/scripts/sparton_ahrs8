@@ -111,7 +111,7 @@ while not rospy.is_shutdown():
     # Get current time
     now = rospy.Time.now()
     # Read all data on input buffer
-    tmpdata += s.read(waiting) # blocking seems to break things, strangely
+    tmpdata += s.read(waiting) 		# blocking seems to break things, strangely
     # Break up based on new lines
     x = tmpdata.split('\n')
     # Access The last element in X so throw away any data that came prior
