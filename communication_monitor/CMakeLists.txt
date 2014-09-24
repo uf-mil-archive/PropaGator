@@ -102,16 +102,10 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(communication_monitor_node src/communication_monitor_node.cpp)
-
-## Add cmake target dependencies of the executable/library
-## as an example, message headers may need to be generated before nodes
-# add_dependencies(communication_monitor_node communication_monitor_generate_messages_cpp)
-
-## Specify libraries to link a library or executable target against
-# target_link_libraries(communication_monitor_node
-#   ${catkin_LIBRARIES}
-# )
+add_executable(communication_monitor_node src/communication_monitor_node.cpp)
+target_link_libraries(communication_monitor_node
+  ${catkin_LIBRARIES}
+)
 
 #############
 ## Install ##
