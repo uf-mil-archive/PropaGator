@@ -29,17 +29,24 @@ private:		//Typedefs
 	typedef std::pair<std::string, int> 	comm_pair;
 
 private:		//Vars
-	//If you haven't heard from <id_> in over <update_freq_>^-1 * <max_number_of_drops_> throw an error
+	//If you haven't heard from <id_> in over <update_freq_>^-1 * <max_num_of_drops_> throw an error
 	std::string id_;
 	int update_freq_;
-	int max_number_of_drops_;
+	int max_num_of_drops_;
 	ros::Rate update_rate_;
 	std::map<std::string, int> registered_communicators;
+	std_msgs::String name_msg_;
+	ros::Publisher pub_;
+	ros::Subscriber sub_;
 
 private:		//Functions
 	//Subscriber callback, register new ids and reset number of drops
 	void UpdateMap(const std_msgs::String::ConstPtr& id)
 	{
+		if(id->data == id_.c_str())
+		{
+			return;
+		}
 		std::pair<comm_itter, bool> it;
 		comm_pair input(id->data, 0);
 		it = registered_communicators.insert(input);
@@ -84,30 +91,40 @@ public:			//Functions
 		//Get some private parameters
 		topic = private_nh.resolveName("id");
 		private_nh.getParam(topic.c_str(), id_);
+		//Initialize the only message we'll ever use
+		name_msg_.data = id_.c_str();
 
 		//Get some non-private parameters
 		topic = nh.resolveName("update_freq");
 		nh.param<int>(topic.c_str(), update_freq_, 1);				//Default to 1 Hz
 		update_rate_ = ros::Rate(static_cast<double>(update_freq_));						//Set the update rate
 
-		topic = nh.resolveName("max_number_of_drops");
-		nh.param<int>(topic.c_str(), max_number_of_drops_, 10);		//Default to 10 times
+		topic = nh.resolveName("max_num_of_drops");
+		nh.param<int>(topic.c_str(), max_num_of_drops_, 10);		//Default to 10 times
 
 		//Initialize publisher and subscribers
-		ros::Publisher pub = nh.advertise<std_msgs::String>("comm_check", 1);
-		ros::Subscriber sub = nh.subscribe<std_msgs::String>("comm_check", 1, &CommMonitor::UpdateMap, this);
+		pub_ = nh.advertise<std_msgs::String>("comm_check", 1);
+		sub_ = nh.subscribe<std_msgs::String>("comm_check", 1, &CommMonitor::UpdateMap, this);
+
+		//Initilize the only message we'll ever use
+		name_msg_.data = id_.c_str();
 	}
 
 	//Run (this is the main logic)
 	void Run()
 	{
+		//Publish the id
+		pub_.publish(name_msg_);
+
+		//Update
 		for(comm_itter it = registered_communicators.begin(); it != registered_communicators.end(); ++it)
 		{
 			it->second++;
-			if(it->second > max_number_of_drops_)
+			if(it->second > max_num_of_drops_)
 			{
-				ROS_ERROR("Lost communications with %s, for %f seconds",
+				ROS_ERROR("Lost communications with %s, from %s for %f seconds",
 						it->first.c_str(),
+						id_.c_str(),
 						it->second * pow(static_cast<float>(update_freq_), -1.0));
 			}
 		}

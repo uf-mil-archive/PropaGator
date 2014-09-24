@@ -1,0 +1,27 @@
+<!-- This file launches one communication monitor per machine on the network -->
+
+<launch>
+	<!-- Machines -->
+	<machine name="command" address="localhost"/>
+	<machine name="propagator" address="propagator" user="propagator"/>
+	
+	<!-- Args -->
+	<!-- This is the frequency in Hz to check for communications -->
+	<arg name="update_freq" default="1"/>
+	<!-- This is the maximum number of cycles before we throw an error -->
+	<arg name="max_num_of_drops" default="10"/>
+
+	<group ns="comms">
+		<!-- Propagator node -->
+		<node pkg="communication_monitor" type="communication_monitor_node" name="propagator" respawn="true" output="screen" machine="propagator">
+			<param name="id" value="propagator"/>
+		</node>
+
+		<!-- Command computer node -->
+		<node pkg="communication_monitor" type="communication_monitor_node" name="command" respawn="true" output="screen" machine="command">
+			<param name="id" value="command"/>
+		</node>
+
+	</group>
+
+</launch>
