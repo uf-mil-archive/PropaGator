@@ -1,0 +1,23 @@
+- Research ways to improve underwater vision (i.e. different housings/lenses, using bright lights to reduce lighting variations, etc.)
+-Design a new hatch latching system-LED strip for boat needs to be completed
+-Describe/diagram how software systems on the boat fit together in a more user friendly description than what rviz gives you.
+-Make GIT readme(s) for how systems interact with each other or what code to look at to do things. example: making a mission for the boat or adding features to the simulator
+-Make GIT tutorials for how to start writing code for the project in ros.
+-Make tutorials on how to create parts in blender and add them to the simulator/rviz
+-Help the controls guys get ros talking with matlab so they can see/test things in real time
+-Instructions on ROS coding standards, we need to enforce them
+-Learn ROS
+-Comment uncommented code
+-Write mission file for navigating start buoys
+-Create path planning for the boat
+-Come up with a cost estimator for various tasks in the competition (similar to Cornells)
+-Implement a dynamic filter cascade for the LIDAR
+-Kill on loss of communications functionality
+-Exception handling, making software more robust
+-look into SLAM via optical flow for the sub
+-Integrated camera vision with lidar vision
+-Optimize buoy detection algorithm
+-Add ROS diagnostic tools to all hardware drivers
+-Use LEDDAR to detect obstacles above/below the water
+-Use BeagleBone Black to drive thrusters on boat
+-Watchdog timer on STM board
