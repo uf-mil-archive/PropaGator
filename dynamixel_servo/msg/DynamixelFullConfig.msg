@@ -24,7 +24,7 @@ float32 goal_position
 #		0X20	Moving Speed(L)					Lowest byte of Moving Speed
 #		0X21	Moving Speed(H)					Highest byte of Moving Speed
 #		"moving_speed" will be in radians per second (per rep 103).
-#           Depending on the control mode, the allowed rang is 0 to 12.25 rad/s or -12.25 to 12.25 rad/s
+#           Depending on the control mode, the allowed range is 0 to 12.25 rad/s or -12.25 to 12.25 rad/s
 float32 moving_speed
 
 #		0X22	Torque Limit(L)					Lowest byte of Torque Limit
