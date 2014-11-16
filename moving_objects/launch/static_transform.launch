@@ -1,0 +1,3 @@
+<node name="static_tf0" pkg="tf" type="static_transform_publisher" args="2 0 0 0 0 0 /map /base_link 100"/>
+
+<rosparam file="$(find moving_objects)/params/minimal.yaml" command="load" ns="/costmap_node/costmap" />

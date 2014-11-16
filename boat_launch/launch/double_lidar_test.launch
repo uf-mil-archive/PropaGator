@@ -1,0 +1,37 @@
+<!-- This file is for testing two lidars at once to combine into one occupancy grid -->
+<launch>
+	<include file="$(find propagator_description)/launch/display.launch"/>
+	<include file="$(find boat_launch)/launch/navigation.launch"/>
+
+	<!-- Lidar driver lms111-->
+	<group ns="lidar1">
+		<node pkg="lms1xx" type="LMS1xx_node" name="lms1xx">
+		    <!--Lidars IP address-->
+		    <param name="host" value="192.168.2.4"/>
+		    <!--The frame for tf transforms -->
+		    <param name="frame_id" value="lidar"/>
+		</node>
+
+		 <node pkg="moving_objects" type="lidar_ss" name="lidar_ss1">
+			<param name="topic" value="/lidar1/scan" type="str"/>
+			<param name="frame" value="map1" type="str"/>
+		 </node>
+	</group>
+
+	<node pkg="tf" type="static_transform_publisher" name="map_broadcaster1" args="-15 -15 0 0 0 0 1 lidar map1 100" />
+
+	<!--node pkg="tf" type="static_transform_publisher" name="lidar2" args="0 -0.2974 0 3.14159 0 0  gps lidar2 100" /-->
+   	
+	<!--<group ns="lidar2">
+		<node pkg="sicktoolbox_wrapper" type="sicklms" name="lms291">
+		    <param name="port" value="/dev/serial/by-id/usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0"/>
+		    <param name="baud" value="38400"/>
+		    <param name="frame_id" value="lidar2"/>
+		</node>
+
+		 <node pkg="moving_objects" type="lidar_ss" name="lidar_ss1">
+			<param name="topic" value="/lidar1/scan" type="str"/>
+			<param name="frame" value="map1" type="str"/>
+		</node>
+	</group> -->
+</launch>
