@@ -9,6 +9,7 @@
 #include "dynamixel_servo/DynamixelControlTablePost.h"
 #include "dynamixel_servo/DynamixelStatus.h"
 #include <sensor_msgs/JointState.h>
+#include <cmath>
 
 class LidarAngleManager
 {
@@ -35,6 +36,9 @@ private:
 	//Current angle
 	//Keeps a cache of the last published servo angle
 	float current_angle_;
+
+	//Sin wave sample count
+	int sin_sample_count_;
 	
 	/*
 	 *  Private functions
@@ -70,7 +74,8 @@ public:
  *  Constructor
  */
 LidarAngleManager::LidarAngleManager():
-		current_angle_(3.14159), max_angle_(3.14159), min_angle_(2.625)
+		current_angle_(3.14159), max_angle_(3.14159), min_angle_(2.625),
+		sin_sample_count_(0)
 {
 	
 }
@@ -144,7 +149,7 @@ void LidarAngleManager::Run()
 	 *  Other
 	 */
 	int dir = 1;
-	ros::Rate sleep_time(100);
+	ros::Rate sleep_time(100);		// Sampeling rate = 100 Hz
 
 	/*
 	 * 			Main loop
@@ -165,24 +170,36 @@ void LidarAngleManager::Run()
 		joint.name.push_back("lidar_servo");
 		joint.position.push_back(current_angle_);
 		joint_pub_.publish(joint);
+		ROS_INFO("Present position %f: ", current_angle_);
+
+		// Move the Lidar in a sin wave
+		// offset = (max + min) / 2
+		// Amplitued = (max - min) / 2
+		// Sampeling rate = 100 Hz		TODO: un-hardcode this value
+		// fs = output frequency
+		// sin wave = offset + amplitude * sin((2*pi*fs) * sin_sample_count_ / (sampeling rate)
+		// TODO: wrap sin_sample_count_ between 0 and sampeling rate
+		
 
 		//Get our angle to water
 		//float angle = -1;
 
-		//Test limits
+		/*Test limits
 		dynamixel_servo::DynamixelJointConfig msg;
 		msg.id = servo_id_;
-		ROS_INFO("Angle: %f, ID: %i, Min angle: %f, Max angle: %f", current_angle_, servo_id_, min_angle_, max_angle_);
-		if(current_angle_ > 3.14159)	//More than parrallel
+
+		//ROS_INFO("Angle: %f, ID: %i, Min angle: %f, Max angle: %f", current_angle_, servo_id_, min_angle_, max_angle_);
+		/*if(current_angle_ > 3.14159)	//More than parrallel
 		{
-			msg.goal_position = min_angle_ + 0.1;
+			msg.goal_position = 2.8;
 			dynamixel_config_position_pub_.publish(msg);
 		}
-		else if(current_angle_ <= min_angle_+0.1)		//Offset min because until we reconfigure servo
+		else if(current_angle_ <= 2.9)		//Offset min because until we reconfigure servo
 		{
-			msg.goal_position = max_angle_ - 0.1;
+			msg.goal_position = 3.5;
 			dynamixel_config_position_pub_.publish(msg);
 		}
+		*/
 
 		//Wait for next run
 		sleep_time.sleep();
@@ -224,7 +241,9 @@ void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTablePo
 void LidarAngleManager::GetServoData(const dynamixel_servo::DynamixelStatus status)
 {
 	if(status.id == servo_id_)
+	{
 		current_angle_ = status.present_position;
+	}
 }
 
 #endif

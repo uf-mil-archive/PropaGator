@@ -286,8 +286,8 @@
     </inertial>
     <visual>
       <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
+        xyz="0 0.065 0.02"
+        rpy="0 0 -1.5708" />
       <geometry>
         <mesh
           filename="package://propagator_description/meshes/lidar.STL" />
@@ -313,7 +313,7 @@
 		rpy="-2.94943335198801 3.24078283203981E-05 1.57062975690281"-->
   <joint
     name="lidar_servo"
-    type="fixed">
+    type="revolute">
 	
     <origin
       xyz="0.645299789819263 -0.0669769690222898 0.27477134491897"
@@ -323,7 +323,12 @@
     <child
       link="lidar" />
     <axis
-      xyz="0 0 0" />
+      xyz="0 1 0" />
+    <limit
+      lower="0"
+      upper="6.2832"
+      effort="6"
+      velocity="6.5973" />
   </joint>
   
   <!-- Now we will add facia lettering to the base_link of the boat -->
