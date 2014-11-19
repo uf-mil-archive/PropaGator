@@ -37,9 +37,12 @@ private:
 	//Keeps a cache of the last published servo angle
 	float current_angle_;
 
-	//Sin wave sample count
+	//Sin wave stuff
 	int sin_sample_count_;
-	
+	float offset_;
+	float out_frequency_;
+	float in_frequency_;
+	float amplitude_;
 	/*
 	 *  Private functions
 	 */
@@ -75,9 +78,18 @@ public:
  */
 LidarAngleManager::LidarAngleManager():
 		current_angle_(3.14159), max_angle_(3.14159), min_angle_(2.625),
-		sin_sample_count_(0)
+		sin_sample_count_(0), in_frequency_(100), out_frequency_(1)
 {
+	// offset = (max + min) / 2
+	offset_ = (max_angle_ + min_angle_) / 2;
 	
+	// Amplitude = (max - min) / 2
+	amplitude_ = (max_angle_ - min_angle_) / 2;
+
+	// in_frequency_ = 100 Hz		TODO: un-hardcode this value
+
+	// fs = output frequency
+	//out_frequency_ = 1;				//TODO: un-hardcode this value
 }
 
 /*
@@ -149,7 +161,7 @@ void LidarAngleManager::Run()
 	 *  Other
 	 */
 	int dir = 1;
-	ros::Rate sleep_time(100);		// Sampeling rate = 100 Hz
+	ros::Rate sleep_time(in_frequency_);		// Sampeling rate = 100 Hz
 
 	/*
 	 * 			Main loop
@@ -178,28 +190,23 @@ void LidarAngleManager::Run()
 		// Sampeling rate = 100 Hz		TODO: un-hardcode this value
 		// fs = output frequency
 		// sin wave = offset + amplitude * sin((2*pi*fs) * sin_sample_count_ / (sampeling rate)
-		// TODO: wrap sin_sample_count_ between 0 and sampeling rate
+
+		++sin_sample_count_;
+
+		//wrap sin_sample_count_ between 0 and sampeling rate
+		if(sin_sample_count_ > in_frequency_)
+		{
+			sin_sample_count_ = 0;
+		}
+		float out_angle = offset_ + amplitude_ * sin(2 * M_PI * out_frequency_ * sin_sample_count_ / in_frequency_);
 		
 
-		//Get our angle to water
-		//float angle = -1;
-
-		/*Test limits
 		dynamixel_servo::DynamixelJointConfig msg;
 		msg.id = servo_id_;
+		msg.goal_position = out_angle;
+		dynamixel_config_position_pub_.publish(msg);
 
-		//ROS_INFO("Angle: %f, ID: %i, Min angle: %f, Max angle: %f", current_angle_, servo_id_, min_angle_, max_angle_);
-		/*if(current_angle_ > 3.14159)	//More than parrallel
-		{
-			msg.goal_position = 2.8;
-			dynamixel_config_position_pub_.publish(msg);
-		}
-		else if(current_angle_ <= 2.9)		//Offset min because until we reconfigure servo
-		{
-			msg.goal_position = 3.5;
-			dynamixel_config_position_pub_.publish(msg);
-		}
-		*/
+		ROS_INFO("Out Angle: %f", out_angle);
 
 		//Wait for next run
 		sleep_time.sleep();
