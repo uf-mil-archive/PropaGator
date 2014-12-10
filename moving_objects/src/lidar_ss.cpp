@@ -11,6 +11,7 @@
 //
 // This node reads in multiple LIDAR's data, transforms it into a common frame,
 // and uses it to create and publish an OccupancyGrid.
+#define _USE_MATH_DEFINES
 
 #include "ros/ros.h"
 #include <string>
@@ -18,6 +19,7 @@
 #include <nav_msgs/OccupancyGrid.h>
 #include "sensor_msgs/LaserScan.h"
 #include <moving_objects/lidar_ss.h>
+#include <math.h>
 
 // Global variables (evil, I know)
 nav_msgs::OccupancyGrid grid;

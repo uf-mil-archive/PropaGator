@@ -7,7 +7,7 @@
 #include "tf/transform_listener.h"
 #include <algorithm>		//for remove_if
 #include <cmath>
-#include "geometry_msgs/PoseStamped.h";
+#include "geometry_msgs/PoseStamped.h"
 
 struct f_2dpt 
 {

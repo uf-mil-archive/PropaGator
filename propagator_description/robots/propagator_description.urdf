@@ -268,6 +268,7 @@
       xyz="-1 0 0" />
     <limit lower="0" upper="1" velocity="1" effort="1" />
   </joint>
+
   <link
     name="lidar">
     <inertial>
@@ -284,10 +285,11 @@
         iyz="4.61557976596404E-05"
         izz="0.00217323763280054" />
     </inertial>
+<!--rpy="0 0 -1.5708", xyz="0 0.065 0.02-->
     <visual>
       <origin
-        xyz="0 0.065 0.02"
-        rpy="0 0 -1.5708" />
+        xyz="-0.06 -0.065 0.02"
+	rpy="0 3.14159 -1.5708" />
       <geometry>
         <mesh
           filename="package://propagator_description/meshes/lidar.STL" />
@@ -317,7 +319,7 @@
 	
     <origin
       xyz="0.645299789819263 -0.0669769690222898 0.27477134491897"
-      rpy="0 0 0" />
+      rpy="0 0 3.14159" />
     <parent
       link="base_link" />
     <child
