@@ -180,7 +180,7 @@ void LidarAngleManager::Run()
 		sensor_msgs::JointState joint;
 		joint.header.stamp = ros::Time::now();
 		joint.name.push_back("lidar_servo");
-		ROS_INFO("Present position %f: ", current_angle_);
+		//ROS_INFO("Present position %f: ", current_angle_);
 		joint.position.push_back(current_angle_);
 		joint_pub_.publish(joint);
 

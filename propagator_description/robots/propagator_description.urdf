@@ -330,7 +330,7 @@
       lower="0"
       upper="6.2832"
       effort="6"
-      velocity="6.5973" />
+      velocity="100" />
   </joint>
   
   <!-- Now we will add facia lettering to the base_link of the boat -->

@@ -1,0 +1,25 @@
+<!-- This launch file launches all nodes associated with turning the motors on 
+	Nodes:
+		thruster_control.py
+		stm32f3discovery
+	Notes:
+		It is possible that the stmboard was reprogramed in which case before running this launch file the stm board should be reprogramed see hardware_common/stm32f3discovery_imu_driver/README.md 		-->
+
+<launch>
+	<!-- stm_port is the serial port that the stm_board is on, stm_dest is the id of the stm board, for more information on what these value should be see the readme in hardware_common/stm32f3discovery_imu_driver -->
+	<arg name="stm_port" default="/dev/serial/by-id/usb-uf-mil_subbus_6893fee7-if00"/>
+	<arg name="stm_dest" default="0x6893fee7"/>
+
+	<!-- Node for converting between thrust output of controller to pwm output for the stm board -->
+	<node pkg="motor_control" type="thruster_control.py" name="thruster_control"/>
+	<node pkg="stm32f3discovery_imu_driver" type="stm32f3discovery_imu_driver" name="stm32f3discovery_imu_driver">
+		<param name="port" value="$(arg stm_port)"/>
+		<param name="dest" value="$(arg stm_dest)"/>
+		<!-- This paramater is not meaningful since we aren't using the outputed imu data, it is only specified so that error msgs aren't thrown -->
+		<param name="frame_id" value="base_link"/>
+
+		<!-- Remap the imu data so it doesn't collide with the sparton_ahrs8 imu data -->
+		<remap from="imu/data_raw" to="stm_imu/data_raw"/>
+		<remap from="imu/mag_raw" to="stm_imu/mag_raw"/>
+	</node>
+</launch>
