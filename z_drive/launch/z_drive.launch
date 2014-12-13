@@ -12,6 +12,6 @@
     <!--include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch" /-->
 	<!--node pkg="motor_control" type="thruster_control.py" name=""/-->
     <node pkg="z_drive" type="z_drive" name="z_drive" respawn="true" output="screen" />
-    <node pkg="rqt_gui" type="rqt_gui" name="" />
+    <!-- node pkg="rqt_gui" type="rqt_gui" name="" / -->
 
 </launch>

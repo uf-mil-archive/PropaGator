@@ -67,8 +67,10 @@ RAMP_RATE = 100.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 m
 #Pub
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
 #pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
-pwm_port_pub = rospy.Publisher('stm32f3_discovery_imu_driver/pwm1', Float64, queue_size = 10)
-pwm_starboard_pub = rospy.Publisher('stm32f3_discovery_imu_driver/pwm2', Float64, queue_size = 10)
+pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
+pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
+#pwm_port_pub = rospy.Publisher(rospy.resolve_name('pwm1'), Float64, queue_size = 10)
+#pwm_starboard_pub = rospy.Publisher(rospy.resolve_name('pwm2'), Float64, queue_size = 10)
 #Define serial vars
 #WARNING: you'll need permissions to access this file, or chmod it
 #ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00', 115200) 
