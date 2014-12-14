@@ -1,4 +1,6 @@
 <!-- This launch file launches the boat in RC mode -->
+ This line is intentionally an error:
+	Do not use this file until after a way has been devised to safely switch between wp and xbox mode
 <launch>
 	<!-- TODO: Make the rc computer dynamic or an argument -->
 	<!-- TODO: Explain how to set up SSH -->
@@ -11,6 +13,6 @@
 	<include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch"/>
 	<!-- Launch on your own computer until the above todo's are complete -->
 	<!--node pkg="joy" type="joy_node" name="joy" machine="rc"/-->
-
+	
 
 </launch>

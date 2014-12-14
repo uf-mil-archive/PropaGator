@@ -1,4 +1,7 @@
 <!-- This launch file launches the boat in RC mode -->
+These lines are intentionally an error:
+	This file demonstrates what not to do. You must wait for navigation to have satelites before starting the controllor and you may want the motors enabled before starting controller 
+	Additionaly this launch file is NOT SAFE TO KILL! If you kill this launch file and it kills dynamixel server first then the servos will be in there previous state which could be coninously moving which will cause CATISTROPHIC FAILURE!!!!!!!!! 
 <launch>
 	<!-- Launch the motors launch seperatly to control when the boat starts -->
 	<!--include file="$(find boat_launch)/launch/motors.launch"/-->
