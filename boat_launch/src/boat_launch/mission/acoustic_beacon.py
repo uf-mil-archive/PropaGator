@@ -36,6 +36,7 @@ def _send_result(ci, course, lat, lon):
 
 @util.cancellableInlineCallbacks
 def main(nh, ci, course, freq):
+    freq=27440
     boat = yield boat_scripting.get_boat(nh)
     #float_df = boat.float()
     #yield boat.retract_hydrophone() # why was this here? it shouldn't need this, the hydrophones should be up on start

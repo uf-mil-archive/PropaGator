@@ -1,0 +1,14 @@
+<!-- This launch file launches the boat in RC mode -->
+<launch>
+	<!-- Launch the motors launch seperatly to control when the boat starts -->
+	<!--include file="$(find boat_launch)/launch/motors.launch"/-->
+	<include file="$(find boat_launch)/launch/controller.launch"/>
+	<include file="$(find boat_launch)/launch/navigation.launch"/>
+	<include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch"/>
+	<include file="$(find propagator_description)/launch/display.launch"/>
+	<node pkg="rviz" type="rviz" name="rviz"/>
+	<!-- Launch on your own computer until the above todo's are complete -->
+	<!--node pkg="joy" type="joy_node" name="joy" machine="rc"/-->
+
+
+</launch>

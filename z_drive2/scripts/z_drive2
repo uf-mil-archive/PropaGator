@@ -100,7 +100,7 @@ class Node(object):
                 angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
-                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm1', Float64),
+                pwm_pub=self.nh.advertise('stm32f3discovery_imu_driver/pwm1', Float64),
                 angle_pub=self.nh.advertise('port_angle', Float64),
             ),
             dict( # starboard
@@ -112,7 +112,7 @@ class Node(object):
                 angle_range=(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
                 effort=0,
                 dangle=0,
-                pwm_pub=self.nh.advertise('stm32f3_discovery_imu_driver/pwm2', Float64),
+                pwm_pub=self.nh.advertise('stm32f3discovery_imu_driver/pwm2', Float64),
                 angle_pub=self.nh.advertise('starboard_angle', Float64),
             ),
         ]
@@ -151,7 +151,7 @@ class Node(object):
         try:
             while True:
                 tt += dt
-                #self.wrench = (20*math.cos(2*math.pi*tt/20), 20*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
+                #self.wrench = (2*math.cos(2*math.pi*tt/20), 2*math.sin(2*math.pi*tt/20), 0), (0, 0, 0)
                 
                 optimal_angles = get_optimal_angles(self.thrusters, self.wrench)
                 print 'optimal_angles', optimal_angles
