@@ -1279,7 +1279,7 @@ float DynamixelServos::approximateSpeedControl(Servo & servo)
 	if(fabs(desired_velocity) > Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99) {
 		desired_velocity *= Servo::MAX_MOVING_SPEED_IN_RAD_SEC*.99/fabs(desired_velocity);
 	}
-	std::cout << position_error << " " << desired_velocity << std::endl;
+	//std::cout << position_error << " " << desired_velocity << std::endl;
 	return desired_velocity;
 }
 

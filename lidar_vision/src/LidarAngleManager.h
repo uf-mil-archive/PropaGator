@@ -108,7 +108,7 @@ void LidarAngleManager::Setup()
 	//dynamixel_config_full_pub_ = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_full_config", 10);
 	dynamixel_config_position_pub_ = n.advertise<dynamixel_servo::DynamixelJointConfig>("/dynamixel/dynamixel_joint_config", 10);
 	dynamixel_control_table_pub_ = n.advertise<dynamixel_servo::DynamixelControlTableRequest>("/dynamixel/dynamixel_control_table_request", 10);
-	joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",100);
+	joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",1);
 
 	//Initilze the subscribers
 	dynamixel_control_table_sub_ = n.subscribe("/dynamixel/dynamixel_control_table_post", 10, &LidarAngleManager::GetLimits, this);
@@ -180,9 +180,9 @@ void LidarAngleManager::Run()
 		sensor_msgs::JointState joint;
 		joint.header.stamp = ros::Time::now();
 		joint.name.push_back("lidar_servo");
+		//ROS_INFO("Present position %f: ", current_angle_);
 		joint.position.push_back(current_angle_);
 		joint_pub_.publish(joint);
-		ROS_INFO("Present position %f: ", current_angle_);
 
 		// Move the Lidar in a sin wave
 		// offset = (max + min) / 2
@@ -194,7 +194,7 @@ void LidarAngleManager::Run()
 		++sin_sample_count_;
 
 		//wrap sin_sample_count_ between 0 and sampeling rate
-		if(sin_sample_count_ > in_frequency_)
+		if(sin_sample_count_ > in_frequency_ * 2)
 		{
 			sin_sample_count_ = 0;
 		}
@@ -206,7 +206,7 @@ void LidarAngleManager::Run()
 		msg.goal_position = out_angle;
 		dynamixel_config_position_pub_.publish(msg);
 
-		ROS_INFO("Out Angle: %f", out_angle);
+		//ROS_INFO("Out Angle: %f", out_angle);
 
 		//Wait for next run
 		sleep_time.sleep();

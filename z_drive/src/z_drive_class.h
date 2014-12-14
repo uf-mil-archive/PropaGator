@@ -248,7 +248,7 @@ private:
 	ros::Subscriber thruster_status_subscriber;
 	ros::Subscriber dynamixel_status_subscriber;
 	ros::Subscriber joystick_subscriber;
-	ros::Publisher dynamixel_config_full_pub;
+	ros::Publisher dynamixel_full_config_pub;
 	ros::Publisher dynamixel_config_position_pub;
 	ros::Publisher thruster_config_pub;
 	ros::Publisher z_drive_dbg_pub;
@@ -417,7 +417,7 @@ ZDrive::ZDrive(): force_port_required(0.0), force_bow_required(0.0), moment_z_re
 	joystick_subscriber=n.subscribe("joy",100,&ZDrive::joystickCallBack,this);
 
 	//Advertise the various publisher(s)
-	dynamixel_config_full_pub=n.advertise<dynamixel_servo::DynamixelFullConfig>(dynamixel_fqns+"/"+"dynamixel_config_full",1000);
+	dynamixel_full_config_pub=n.advertise<dynamixel_servo::DynamixelFullConfig>(dynamixel_fqns+"/"+"dynamixel_full_config",1000);
 	dynamixel_config_position_pub=n.advertise<dynamixel_servo::DynamixelJointConfig>(dynamixel_fqns+"/"+"dynamixel_joint_config",1000);
 	thruster_config_pub=n.advertise<motor_control::thrusterNewtons>("thruster_config",100);
 	z_drive_dbg_pub=n.advertise<z_drive::ZDriveDbg>("z_drive_dbg_msg",1000);
@@ -1100,13 +1100,13 @@ void ZDrive::run()
 	//Timeout of 5 seconds
 	ros::Time start = ros::Time::now();
 	ros::Duration timeout(5);
-	while(dynamixel_config_full_pub.getNumSubscribers()==0 && (ros::Time::now() - start) < timeout)
+	while(dynamixel_full_config_pub.getNumSubscribers()==0 && (ros::Time::now() - start) < timeout)
 	{
 		//ROS_INFO("Waiting for ZDrive node and Dynamixel/Motor node(s) to connect");
 	}
-	if(dynamixel_config_full_pub.getNumSubscribers() == 0)
+	if(dynamixel_full_config_pub.getNumSubscribers() == 0)
 	{
-		ROS_ERROR("Timed out, no subscribers present for dynamixel_config_full_pub; is the dynamixel_server running?");
+		ROS_ERROR("Timed out, no subscribers present for dynamixel_full_config_pub; is the dynamixel_server running?");
 	}
 	if(dynamixel_config_position_pub.getNumSubscribers() == 0)
 	{
@@ -1132,10 +1132,10 @@ void ZDrive::run()
 
 	// config the port servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::port_servo_id;
-	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	//dynamixel_full_config_pub.publish(dynamixel_init_config_msg);
 	// config the starboard servo initaly first
 	dynamixel_init_config_msg.id=ZDrive::starboard_servo_id;
-	//dynamixel_config_full_pub.publish(dynamixel_init_config_msg);
+	//dynamixel_full_config_pub.publish(dynamixel_init_config_msg);
 
 	// fill in a init message to the thrusters that kills them initaly
 	thruster_config_msg.thrust=0;
