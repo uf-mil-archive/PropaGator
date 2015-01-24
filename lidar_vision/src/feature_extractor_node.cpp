@@ -75,7 +75,7 @@ private:	//Functions
 			//Publish buoy point cloud
 			//pcl::copyPointCloud(*pc_in, inliers, *out_pc);							//Copy inliers from out_pc
 			//pcl::toROSMsg(*out_pc, *out_msg);										//Generate msg
-			lidar_vision::buoy::Ptr out_msg;
+			lidar_vision::buoy::Ptr out_msg(new lidar_vision::buoy);
 			out_msg->header.frame_id = "base_link";
 			out_msg->header.stamp = ros::Time::now();
 			out_msg->position.x = coeff[0];
