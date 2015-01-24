@@ -68,6 +68,7 @@ protected:
 	void setGoalPosition(const vector<Servo>::iterator servo_to_config, float goal_position);
 	void setMovingSpeed(const vector<Servo>::iterator servo_to_config, float moving_speed, bool force_update);
 	bool setControlMode(const vector<Servo>::iterator servo_to_config, dynamixel_servo::DynamixelFullConfig::_control_mode_type  control_mode);
+	void stopAllServos();
 
 	vector<uint8_t> servoRead(uint8_t id, uint8_t location, uint8_t num_bytes_to_read);
 	float approximateSpeedControl(Servo & servo_to_approximate);
@@ -435,6 +436,9 @@ void DynamixelServos::run()
 
 DynamixelServos::~DynamixelServos()
 {
+	// Ensure that the servos are stopped before this node is turned off
+	stopAllServos();
+
 	// Ensure that the com_port is closed when the variable goes out of scope, remember this can happen when the ros node is killed.
 	if(com_port.isOpen()==true)
 	{
@@ -1284,7 +1288,13 @@ float DynamixelServos::approximateSpeedControl(Servo & servo)
 }
 
 
-
+void DynamixelServos::stopAllServos()
+{
+	for(vector<Servo>::iterator i = servos.begin(); i != servos.end(); i++)
+	{
+		setMovingSpeed(i, 0, true);
+	}
+}
 
 
 #endif // DYNAMIXEL_CLASS_H_
