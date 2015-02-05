@@ -276,6 +276,9 @@ DynamixelServos::DynamixelServos()
 		sort(servos.begin(),servos.end());
 	}
 
+	// Ensure that the servos are stopped when this node is turned on
+	stopAllServos();
+
 	// Now that everything is setup on the server we will allow subscriptions and advertise the posts
 	status_pub= n.advertise<dynamixel_servo::DynamixelStatus>("dynamixel_status_post", 1000);
 	control_table_request_subscriber= n.subscribe("dynamixel_control_table_request", 1000, &DynamixelServos::controlTableRequestCallback, this);
