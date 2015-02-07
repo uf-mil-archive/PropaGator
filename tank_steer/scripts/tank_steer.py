@@ -45,13 +45,6 @@ class Node(object):
 		self.thrusters = [
 			dict( # port
 				id=3,
-				position=		np.array([-.5239, +.3048, -.5]), # originally -.7238
-				angle=			0,
-				#thrust_range=	(min(calib_data[0]), max(calib_data[0])),
-				dangle_range=	(-3.2e-0, +3.2e-0),
-				angle_range=	(-math.pi*.75, +math.pi*.75), # at most (-6*math.pi, +6*math.pi)
-				effort=			0,
-				dangle=			0,
 				pwm_pub=		rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10),
 				angle_pub=		rospy.Publisher('port_angle', Float64, queue_size = 10),
 			),
@@ -74,8 +67,10 @@ class Node(object):
 		self.wrench_tf = np.matrix([[0.5, -1/self.L], [0.5, 1/self.L]])
 
 	# Wait for the dynamixel node to initilze
-		while(self.servo_pub.get_num_connections() <= 0 and not rospy.is_shutdown):
-			pass
+	#	while(self.servo_pub.get_num_connections() <= 0 and not rospy.is_shutdown):
+	#		pass
+
+	# TODO: Zero servos
 
 	# Wait for wrench msgs
 		rospy.spin()
@@ -96,13 +91,27 @@ class Node(object):
 #	Send force to another node to convert thrust to pwm signal for the motor controllers
 #
 #
-	def _wrench_cb(msg):
+	def _wrench_cb(self, msg):
 		# Since it is impossible to move in the y direction with this thruster config this direction is completly ignored
 		# Torque is equal to the z component of the wrench.torque
 		desired = np.matrix([[msg.wrench.force.x], [msg.wrench.torque.z]])
 
 		# Multiple by precalculated wrench
 		thrust = self.wrench_tf * desired
+		rospy.logwarn("Thrust[ %f, %f ]", thrust[0,0], thrust[1,0])
+
+		# TODO: Check limits
+
+
+		# Output thrust
+		self.thrust_pub.publish(thrusterNewtons(
+                id = 3,
+                thrust = thrust[0,0]
+            ))
+		self.thrust_pub.publish(thrusterNewtons(
+                id = 2,
+                thrust = thrust[1,0]
+            ))
 
 if __name__ == '__main__':
 	try:

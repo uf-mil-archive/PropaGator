@@ -1,0 +1,36 @@
+<launch>
+  
+  <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
+  
+  <node pkg="c3_trajectory_generator" type="c3_trajectory_generator" name="trajectory_generator">
+    <rosparam>
+      fixed_frame: /enu
+      body_frame: /base_link
+      vmin_b: [-0.75,  -0.5,  -0.4,   -0.75, -0.5, -2]
+      vmax_b: [2.5,  0.5,   0.4,    0.75,  0.5,  2]
+      amin_b: [-1,  -0.25, -0.1,   -1.5,  -0.2, -1]
+      amax_b: [ 1,  0.25,  0.125,  1.5,   0.2,  1]
+      arevoffset_b: [0.0, 0, 0]
+      umax_b: [ 0.25,  0.25,  0.25,   0.1,   0.1,  0.1]
+    </rosparam>
+  </node>
+  
+  <node pkg="rise_6dof" type="rise_6dof" name="rise_6dof">
+    <remap from="current" to="odom"/>
+    <remap from="desired" to="trajectory"/>
+    <remap from="output" to="wrench"/>
+    <rosparam file="$(find boat_launch)/launch/rise_6dof.yaml"/>
+  </node>
+  <group ns="param_saver/rise_6dof">
+    <param name="filename" value="$(find boat_launch)/launch/rise_6dof.yaml"/>
+    <rosparam>
+      file_basepath: /rise_6dof
+      param_paths: [k, ks, alpha, beta, use_rise, accel_feedforward, vel_feedforward, two_d_mode]
+    </rosparam>
+  </group>
+
+  <node pkg="uf_common" type="param_saver" name="param_saver"/>
+
+  <node pkg="tank_steer" type="tank_steer.py" name="tank_steer"/>
+
+</launch>
