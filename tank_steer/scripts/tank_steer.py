@@ -32,6 +32,12 @@ class Node(object):
 	def __init__(self):
 		rospy.init_node('tank_steer', anonymous=True)
 
+	# Grab params
+		if rospy.has_param('~simulate'):
+			self.simulate = rospy.get_param('~simulate')
+		else:
+			self.simulate = 0
+
 	# Set up publishers for servo position and prop speed
 		self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size = 10)
 		self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size = 10)
@@ -42,6 +48,7 @@ class Node(object):
 	# Setup some constants
 		# Define thrustors and there position
 		# TODO: should be retrieved and not hard coded
+		"""
 		self.thrusters = [
 			dict( # port
 				id=3,
@@ -61,16 +68,33 @@ class Node(object):
 				angle_pub=		rospy.Publisher('starboard_angle', Float64, queue_size = 10),
 			),
 		]
+		"""
+		self.max_thrust = 100
+		self.min_thrust = -100
 
 		self.L = 0.6096 #meters
 
-		self.wrench_tf = np.matrix([[0.5, -1/self.L], [0.5, 1/self.L]])
+		# See Wrench Callback for deffinition of wrench_tf
+		self.wrench_tf = np.matrix([[0.5, -1 / self.L], [0.5, 1 / self.L]])
 
 	# Wait for the dynamixel node to initilze
-	#	while(self.servo_pub.get_num_connections() <= 0 and not rospy.is_shutdown):
-	#		pass
+		if not self.simulate:
+			rospy.loginfo('Checking/waiting for dynamixel server')
+			while(self.servo_pub.get_num_connections() <= 0 and not rospy.is_shutdown):
+				pass
+			rospy.loginfo('dynamixel server found')
 
-	# TODO: Zero servos
+	# Zero servos
+		for x in range(2,3):
+			self.servo_pub.publish(DynamixelFullConfig(
+				id=						x,
+				goal_position= 			math.pi,
+				moving_speed=			12, # near maximum, not actually achievable ...
+				torque_limit=			1023,
+				goal_acceleration=		38,
+				control_mode=			DynamixelFullConfig.JOINT,
+				goal_velocity=			10,
+			))
 
 	# Wait for wrench msgs
 		rospy.spin()
@@ -87,7 +111,7 @@ class Node(object):
 #	| T  | = | L/2  L/2| | Fm2 |
 #
 # Logic:
-#	Multiply by inverse of 2X2 matrix to solve for required motor force
+#	Multiply by inverse(wrench_tf) of 2X2 matrix to solve for required motor force
 #	Send force to another node to convert thrust to pwm signal for the motor controllers
 #
 #
@@ -98,10 +122,55 @@ class Node(object):
 
 		# Multiple by precalculated wrench
 		thrust = self.wrench_tf * desired
-		rospy.logwarn("Thrust[ %f, %f ]", thrust[0,0], thrust[1,0])
 
-		# TODO: Check limits
+		# Check limits
+		# TODO: get actual limits
+		# Preserve torque but adjust force if outside of limits
+		diff = abs(thrust[0, 0] - thrust[1,0])
+		max_diff = self.max_thrust - self.min_thrust
+		if diff > max_diff:
+			# Can't satisfy torque
+			rospy.logwarn("Torque request can not be satisfied!")
+			if thrust[0,0] > self.max_thrust:
+				thrust[0,0] = self.max_thrust
+				thrust[1,0] = self.min_thrust
 
+			elif thrust[0,0] < self.min_thrust:
+				thrust[0,0] = self.min_thrust
+				thrust[1,0] = self.max_thrust
+
+			elif thrust[1,0] > self.max_thrust:
+				thrust[1,0] = self.max_thrust
+				thrust[0,0] = self.min_thrust
+
+			elif thrust[1,0] < self.min_thrust:
+				thrust[1,0] = self.min_thrust
+				thrust[0,0] = self.max_thrust
+
+		else:
+			if thrust[0,0] > self.max_thrust:
+				rospy.logwarn("Port thrust above max, preserving torque and reducing force")
+				offset = thrust[0,0] - self.max_thrust
+				thrust[0,0] = self.max_thrust
+				thrust[1,0] -= offset
+
+			elif thrust[0,0] < self.min_thrust:
+				rospy.logwarn("Port thrust below minimum, preserving torque and reducing force")
+				offset = self.min_thrust - thrust[0,0] 
+				thrust[0,0] = self.min_thrust
+				thrust[1,0] += offset
+
+			elif thrust[1,0] > self.max_thrust:
+				rospy.logwarn("Starboard thrust above max, preserving torque and reducing force")
+				offset = thrust[1,0] - self.max_thrust
+				thrust[1,0] = self.max_thrust
+				thrust[0,0] -= offset
+
+			elif thrust[1,0] < self.min_thrust:
+				rospy.logwarn("Starboard thrust below minimum, preserving torque and reducing force")
+				offset = self.min_thrust - thrust[1,0]
+				thrust[1,0] = self.min_thrust
+				thrust[0,0] += offset
 
 		# Output thrust
 		self.thrust_pub.publish(thrusterNewtons(
