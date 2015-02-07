@@ -172,6 +172,18 @@ class Node(object):
 				thrust[1,0] = self.min_thrust
 				thrust[0,0] += offset
 
+	# Zero servos
+		for x in range(2,3):
+			self.servo_pub.publish(DynamixelFullConfig(
+				id=						x,
+				goal_position= 			math.pi,
+				moving_speed=			12, # near maximum, not actually achievable ...
+				torque_limit=			1023,
+				goal_acceleration=		38,
+				control_mode=			DynamixelFullConfig.JOINT,
+				goal_velocity=			10,
+			))
+
 		# Output thrust
 		self.thrust_pub.publish(thrusterNewtons(
                 id = 3,
