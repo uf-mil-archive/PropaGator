@@ -2,7 +2,7 @@
 #define pot_fields_h_
 
 #include <ros/ros.h>
-#include <geometry_msgs/Vector3.h>		// repulsion suggestion vector
+#include <geometry_msgs/Vector3.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <ros/rate.h>
 #include <ros/time.h>
@@ -16,9 +16,9 @@ class potentialFields{
 		potentialFields();
 
 	private:
-		ros::Subscriber obstacle;
+		ros::Subscriber obstacle_sub_;
 		void viewObstData();
-		geometry_msgs::Vector3 suggestSoln(const lidar_vision::buoy::ConstPtr& in);
+		void suggestSoln(const sensor_msgs::PointCloud2::ConstPtr& in);
 };
 
 #endif

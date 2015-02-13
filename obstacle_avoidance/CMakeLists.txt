@@ -12,8 +12,8 @@ find_package(catkin REQUIRED
   message_generation
   #genmsg
   #dynamixel_servo
-  #pcl_ros
-  #sensor_msgs
+  pcl_ros
+  sensor_msgs
   #tf
   #laser_geometry
 )
@@ -73,10 +73,11 @@ find_package(catkin REQUIRED
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+ generate_messages(
+   DEPENDENCIES
+   std_msgs  # Or other packages containing msgs
+   geometry_msgs
+ )
 
 ###################################
 ## catkin specific configuration ##
@@ -90,7 +91,9 @@ find_package(catkin REQUIRED
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES obstacle_avoidance
-#  CATKIN_DEPENDS other_catkin_pkg
+  CATKIN_DEPENDS 
+ 	  pcl_ros
+      sensor_msgs
 #  DEPENDS system_lib
 )
 
@@ -111,13 +114,15 @@ catkin_package(
 # add_executable(obstacle_avoidance_node src/obstacle_avoidance_node.cpp)
 add_executable(potential_fields src/potential_fields.cpp)
 target_link_libraries(potential_fields ${catkin_LIBRARIES})
-add_dependencies(potential_fields lidar_control_generate_messages_cpp)
+#add_dependencies(potential_fields lidar_control_generate_messages_cpp)
+#add_dependencies(potential_fields lidar_vision_generate_messages_cpp)
+add_dependencies(potential_fields potential_fields_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
-# add_dependencies(obstacle_avoidance_node obstacle_avoidance_generate_messages_cpp)
+
 #add_dependencies(potential_fields lidar_vision)
-add_dependencies(potential_fields lidar_vision_generate_messages_cpp)
+
 
 ## Specify libraries to link a library or executable target against
 # target_link_libraries(obstacle_avoidance_node
