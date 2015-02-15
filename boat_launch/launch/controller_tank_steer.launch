@@ -1,4 +1,6 @@
 <launch>
+
+  <arg name="simulate" default="0"/>
   
   <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
   
@@ -31,6 +33,8 @@
 
   <node pkg="uf_common" type="param_saver" name="param_saver"/>
 
-  <node pkg="tank_steer" type="tank_steer.py" name="tank_steer"/>
+  <node pkg="tank_steer" type="tank_steer.py" name="tank_steer">
+    <param name="simulate" value="$(arg simulate)"/>
+  </node>
 
 </launch>
