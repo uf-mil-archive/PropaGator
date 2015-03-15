@@ -28,13 +28,20 @@ __________ Y+
 X+
 '''
 from __future__ import division
-from cvxopt import matrix, solvers
 from scipy import optimize, misc
 # We need: minimize, and misc.derivative
 import numpy as np
 from time import time
 
 class Azi_Drive(object):
+
+    u_max = 100
+    u_min = -100
+    alpha_max = 3 * np.pi
+    alpha_min = -3 * np.pi
+    delta_alpha_max = 0.1
+    delta_alpha_min = -delta_alpha_max
+
     manueverability = 1
     offsets = [
         np.array([0.15,  -0.3]),
@@ -43,8 +50,13 @@ class Azi_Drive(object):
 
     power_cost_scale = 1
 
-    @staticmethod
-    def thrust_matrix(alpha):
+    @classmethod
+    def set_max_delta_alpha(self, delta_alpha):
+        self.delta_alpha_max = np.fabs(delta_alpha)
+        self.delta_alpha_min = - self.delta_alpha_max
+
+    @classmethod
+    def thrust_matrix(self, alpha):
         '''Produce a thruster effort -> vehicle force conversion matrix for a given angle set
         (Alpha is a vector)
         '''
@@ -53,7 +65,7 @@ class Azi_Drive(object):
             c = -np.cos(alpha[i, 0])
             s = -np.sin(alpha[i, 0])
 
-            l_x, l_y = Azi_Drive.offsets[i]
+            l_x, l_y = self.offsets[i]
             col = np.array([
                 c, 
                 s, 
@@ -63,8 +75,8 @@ class Azi_Drive(object):
         # If we convert this directly it will be rows, must use transpose
         return np.matrix(matrix).T
 
-    @staticmethod
-    def singularity_avoidance(alpha):
+    @classmethod
+    def singularity_avoidance(self, alpha):
         '''Cost for approaching singularity
         epsilon is to avoid issues with division by 0,
         q is a manueverability constant
@@ -73,20 +85,20 @@ class Azi_Drive(object):
         Lower q -> Less manueverability, less power consumption
         '''
         epsilon = 0.1
-        q = Azi_Drive.manueverability
-        B_alpha = Azi_Drive.thrust_matrix(alpha)
+        q = self.manueverability
+        B_alpha = self.thrust_matrix(alpha)
         return q / (epsilon + np.linalg.det(B_alpha * B_alpha.T))
 
-    @staticmethod
-    def power_consumption(u):
+    @classmethod
+    def power_consumption(self, u):
         '''Power consumption is assumed to be perfectly linear in u
         (That is to say, effort = k*u where k is some constant)
         '''
-        return Azi_Drive.power_cost_scale * u
+        return self.power_cost_scale * u
 
 
-    @staticmethod
-    def map_thruster(fx_des, fy_des, m_des, alpha_0, u_0):
+    @classmethod
+    def map_thruster(self, fx_des, fy_des, m_des, alpha_0, u_0):
         '''Optimize for a single thruster using the Fossen method
         To make this work, alpha_0 and u_0 must be varied
 
@@ -120,19 +132,19 @@ class Azi_Drive(object):
         tau = np.matrix([fx_des, fy_des, m_des]).T # Desired
 
         d_singularity = misc.derivative(
-            func=Azi_Drive.singularity_avoidance, 
+            func=self.singularity_avoidance, 
             x0=alpha_0,
             order=3, # Number of points
         )
 
-        d_power = Azi_Drive.power_cost_scale
+        d_power = self.power_cost_scale
 
         dB_dalpha = misc.derivative(
-            func=Azi_Drive.thrust_matrix,
+            func=self.thrust_matrix,
             x0=alpha_0,
             order=3,
         )
-        B = Azi_Drive.thrust_matrix(alpha_0)
+        B = self.thrust_matrix(alpha_0)
 
         def get_s((delta_angle, delta_u)):
             '''Equality constraint
@@ -169,12 +181,12 @@ class Azi_Drive(object):
             cost = power + thrust_error + angle_change + singularity
             return cost[0, 0]
 
-        u_max = 100
-        u_min = -100
-        alpha_max = 3 * np.pi
-        alpha_min = -3 * np.pi
-        delta_alpha_min = -0.2
-        delta_alpha_max = 0.2
+        u_max = self.u_max
+        u_min = self.u_min
+        alpha_max = self.alpha_max
+        alpha_min = self.alpha_min
+        delta_alpha_min = self.delta_alpha_min
+        delta_alpha_max = self.delta_alpha_max
 
         minimization = optimize.minimize(
             fun=objective,

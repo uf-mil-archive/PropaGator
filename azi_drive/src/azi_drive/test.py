@@ -14,10 +14,10 @@ if __name__ == '__main__':
     print B * test_f
 
     u_nought = np.matrix([25.0, 25.0]).T
-    alpha_nought = np.matrix([0.0, 0.0]).T
+    alpha_nought = np.matrix([np.pi, np.pi]).T
 
     print 'Initial Forces:', u_nought.T, 'Initial Angles:', alpha_nought.T
-    fx, fy, moment = -10, -12, 3
+    fx, fy, moment = 10, 12, 3
     print 'Target force {} N, Target Moment {} N*m'.format((fx, fy), moment)
 
     for k in range(10):
