@@ -8,6 +8,10 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   rospy
   std_msgs
+  nav_msgs 
+  actionlib 
+  message_runtime message_generation 
+  uf_common
 )
 
 ## System dependencies are found with CMake's conventions
@@ -82,7 +86,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES tank_steer
-#  CATKIN_DEPENDS geometry_msgs rospy std_msgs
+  CATKIN_DEPENDS geometry_msgs nav_msgs actionlib message_runtime message_generation uf_common
 #  DEPENDS system_lib
 )
 
@@ -103,7 +107,9 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-# add_executable(tank_steer_node src/tank_steer_node.cpp)
+add_executable(point_shoot_node src/point_shoot.cpp)
+target_link_libraries(point_shoot_node  ${catkin_LIBRARIES})
+add_dependencies(point_shoot_node ${PROJECT_NAME}_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes
