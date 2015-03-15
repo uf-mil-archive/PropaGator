@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib 
   message_runtime message_generation 
   uf_common
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -86,7 +87,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES tank_steer
-  CATKIN_DEPENDS geometry_msgs nav_msgs actionlib message_runtime message_generation uf_common
+  CATKIN_DEPENDS geometry_msgs nav_msgs actionlib message_runtime message_generation uf_common tf
 #  DEPENDS system_lib
 )
 
