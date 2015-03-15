@@ -32,13 +32,16 @@ from scipy import optimize, misc
 # We need: minimize, and misc.derivative
 import numpy as np
 from time import time
+# from tools import Tools
+from mpl_toolkits.mplot3d.axes3d import Axes3D
+import matplotlib.pyplot as plt
 
 class Azi_Drive(object):
 
     u_max = 100
     u_min = -100
-    alpha_max = 3 * np.pi
-    alpha_min = -3 * np.pi
+    alpha_max = np.pi
+    alpha_min = -np.pi
     delta_alpha_max = 0.1
     delta_alpha_min = -delta_alpha_max
 
@@ -48,7 +51,7 @@ class Azi_Drive(object):
         np.array([0.15,  0.3]),
     ]
 
-    power_cost_scale = 1
+    power_cost_scale = 10
 
     @classmethod
     def set_max_delta_alpha(self, delta_alpha):
@@ -76,6 +79,24 @@ class Azi_Drive(object):
         return np.matrix(matrix).T
 
     @classmethod
+    def net_force(self, alpha, u):
+        alpha = np.matrix(alpha).T
+        u = np.matrix(u).T
+        return self.thrust_matrix(alpha) * u
+
+    @classmethod
+    def least_squares_test(self, alpha, tau):
+        '''Compute the least-squares control allocation solution for an angle'''
+        alpha = np.matrix(alpha).T
+        tau = np.matrix(tau).T
+        return np.linalg.lstsq(self.thrust_matrix(alpha), tau)
+
+    @classmethod
+    def least_squares(self, alpha, tau):
+        '''Compute the least-squares control allocation solution for an angle'''
+        return np.linalg.lstsq(self.thrust_matrix(alpha), tau)
+
+    @classmethod
     def singularity_avoidance(self, alpha):
         '''Cost for approaching singularity
         epsilon is to avoid issues with division by 0,
@@ -95,7 +116,6 @@ class Azi_Drive(object):
         (That is to say, effort = k*u where k is some constant)
         '''
         return self.power_cost_scale * u
-
 
     @classmethod
     def map_thruster(self, fx_des, fy_des, m_des, alpha_0, u_0):
@@ -120,7 +140,7 @@ class Azi_Drive(object):
             FOTA: First Order Taylor Approximation
             power(u): Cost for the power consumption of a thruster exerting an effort, u
             Tau: Desired forces
-            s: Control error (What the boat is doing minus Tau)
+            s: Control error (What the boat is doing minus Tau), you want this to be zero
             alpha: vector of angles
             alpha_0: vector of current thruster orientations
             d_alpha: vector of angle changes
@@ -134,7 +154,8 @@ class Azi_Drive(object):
         d_singularity = misc.derivative(
             func=self.singularity_avoidance, 
             x0=alpha_0,
-            order=3, # Number of points
+            order=5, # Number of points
+            dx=0.1,
         )
 
         d_power = self.power_cost_scale
@@ -142,7 +163,8 @@ class Azi_Drive(object):
         dB_dalpha = misc.derivative(
             func=self.thrust_matrix,
             x0=alpha_0,
-            order=3,
+            order=5,
+            dx=0.1,
         )
         B = self.thrust_matrix(alpha_0)
 
@@ -167,19 +189,26 @@ class Azi_Drive(object):
             s = get_s((delta_angle, delta_u))
 
             # Sub-costs
-            power = np.sum(d_power * delta_u)
+            power = np.sum(np.power(d_power * (u_0 + delta_u), 2))
 
-            G = thrust_error_weights = np.diag([1000, 1000, 1000])
+            G = thrust_error_weights = np.diag([20, 20, 20])
             thrust_error = s.T * G * s
 
-            Q = angle_change_weight = np.diag([10, 10])
+            Q = angle_change_weight = np.diag([1000, 1000])
             angle_change = delta_angle.T * angle_change_weight * delta_angle
             # angle_change = (angle_change_weight * delta_angle) ** 2
 
             singularity = d_singularity * delta_angle
 
             cost = power + thrust_error + angle_change + singularity
+            # cost = thrust_error
+            print 'singularity cost', singularity
+
             return cost[0, 0]
+
+        def objective_r(*args):
+            return objective(args)
+
 
         u_max = self.u_max
         u_min = self.u_min
@@ -188,25 +217,44 @@ class Azi_Drive(object):
         delta_alpha_min = self.delta_alpha_min
         delta_alpha_max = self.delta_alpha_max
 
-        minimization = optimize.minimize(
-            fun=objective,
-            x0=(0, 0, 0, 0),
-            method='SLSQP',
-            constraints=[
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_1 + u_0[0, 0] - u_max)},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_1 + u_0[0, 0] - u_min},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_1 + alpha_0[0, 0] - alpha_max)},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_1 + alpha_0[0, 0] - alpha_min},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_1 - delta_alpha_max)},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_1 - delta_alpha_min},
+        '''Plot the cost function (visually observe convexity)'''
+        # x_range = np.linspace(-np.pi, np.pi, 100)
+        # y_range = np.linspace(-100, 100, 100)
 
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_2 + u_0[1, 0] - u_max)},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_2 + u_0[1, 0] - u_min},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 + alpha_0[1, 0] - alpha_max)},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 + alpha_0[1, 0] - alpha_min},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 - delta_alpha_max)},
-                {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 - delta_alpha_min},
-            ]
-        )
-        return minimization
+        # X, Y = np.meshgrid(x_range, y_range)
+        # f = np.vectorize(objective_r)
+        # Z = f(X, np.zeros(len(X)), Y, np.zeros(len(Y)))
 
+        # fig = plt.figure(figsize=(14, 6))
+        # ax = fig.add_subplot(1, 2, 1, projection='3d')
+        # p = ax.plot_surface(X, Y, Z, rstride=4, cstride=4, linewidth=0)
+        # plt.show()
+
+        def minimize(method):
+            minimization = optimize.minimize(
+                fun=objective,
+                x0=(0, 0, 0, 0),
+                method=method,
+                constraints=[
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_1 + u_0[0, 0] - u_max)},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_1 + u_0[0, 0] - u_min},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_1 + alpha_0[0, 0] - alpha_max)},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_1 + alpha_0[0, 0] - alpha_min},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_1 - delta_alpha_max)},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_1 - delta_alpha_min},
+
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_2 + u_0[1, 0] - u_max)},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_2 + u_0[1, 0] - u_min},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 + alpha_0[1, 0] - alpha_max)},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 + alpha_0[1, 0] - alpha_min},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 - delta_alpha_max)},
+                    {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 - delta_alpha_min},
+                ]
+            )
+        
+            return minimization
+        p = minimize('SLSQP')
+        if p.success == False:
+            print '-------------------Switching to L-BFGS-B'
+            p = minimize('L-BFGS-B')
+        return p
