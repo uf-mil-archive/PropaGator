@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<package>
+  <name>azi_drive</name>
+  <version>0.0.1</version>
+  <description>Nonlinear control allocation for azipod/azimuth thrusters</description>
+  <maintainer email="jpanikulam@ufl.edu">jacob</maintainer>
+  <license>MIT</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>rospy</build_depend>
+  <run_depend>rospy</run_depend>
+  <export>
+  </export>
+</package>
