@@ -8,3 +8,6 @@ catkin_package()
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )
+if (CATKIN_ENABLE_TESTING) 
+    catkin_add_nosetests(tests/test_azi_drive.py)
+endif()
