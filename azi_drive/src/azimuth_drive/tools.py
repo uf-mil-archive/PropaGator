@@ -4,37 +4,63 @@ import numpy as np
 class Tools(object):
     @staticmethod
     def partial_derivative(func, var=0, point=[], order=3, dx=1e-6):
-        args = point[:]
+        args = np.copy(point[:])
         def wraps(x):
             args[var] = x
-            return func(*args)
+            return func(np.array(args))
         return derivative(wraps, point[var], dx=dx)
 
     @staticmethod
-    def jacobian(func, pt, order=3, dx=1e-6):
+    def jacobian(func, pt, order=3, dx=1e-6, scalar_func=False):
         jac = [None]*len(pt)
         for index, dim in enumerate(pt):
             jac[index] = Tools.partial_derivative(func, index, pt, order, dx)
+        
+        jacobian = np.matrix(jac)
+        # Check if this is a scalar valued function
+        if jacobian.shape[0] == 1:
+            return jacobian
+        else:
+            return jacobian.T
 
-        return np.matrix(jac).T
-
-def exfun(x, y):
+def exfun((x, y)):
+    print x,y 
     return (x ** 2) + (y ** 2)
 
-def zfun(x, y):
+def zfun((x, y)):
     return np.array([(x ** 2) + (y ** 3), 3 * y])
 
-def testfun(alph1, alph2):
-    print alph1, alph2
-    almat = np.matrix([alph1, alph2]).T
-    return np.array((B(almat) * u).T[0, :])[0]
+def thrust_matrix((alpha_1, alpha_2)):
+    offsets = [
+        np.array([0.15,  -0.3]),
+        np.array([0.15,  0.3]),
+    ]
+    alpha = (alpha_1, alpha_2)
+    matrix = []
+    for i in range(2):
+        c = -np.cos(alpha[i])
+        s = -np.sin(alpha[i])
 
+        l_x, l_y = offsets[i]
+        col = np.array([
+            c, 
+            s, 
+            np.dot([-l_y, l_x], np.array([c, s]))
+        ])
+        matrix.append(col)
+    # If we convert this directly it will be rows, must use transpose
+    return np.matrix(matrix).T
 
+def testable_thrust_matrix((alpha_1, alpha_2)):
+    u = np.matrix([10.0, 10.0])
+    alpha = (alpha_1, alpha_2)
+    Btimes_u = B(alpha) * u.T
+    return Btimes_u.A1
+
+    
 if __name__ == '__main__':
-    from azimuth_drive import Azi_Drive
-    # print Tools.partial_derivative(exfun, 1, [2, 1])
-    # print Tools.jacobian(zfun, [1, 1])
-
-    u = np.matrix([20, 20]).T
-    B = Azi_Drive.thrust_matrix
-    print Tools.jacobian(testfun, [1, 1])
+    print Tools.jacobian(zfun, np.array([1.0, 1.0]))
+    u = np.matrix([10.0, 10.0])
+    B = thrust_matrix
+    print Tools.jacobian(testable_thrust_matrix, np.array([0.0, 0.0]))
+    print Tools.jacobian(exfun, np.array([0.0, 0.0]), scalar_func=True)

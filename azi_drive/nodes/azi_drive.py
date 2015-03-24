@@ -97,8 +97,8 @@ class Controller(object):
 
     def reset_all(self):
         rospy.logwarn("Resetting Azi Drive orientations and thrusts")
-        self.set_servo_angles((0, 0))
-        self.set_forces((0, 0))
+        self.set_servo_angles((0.1, 0.1))
+        self.set_forces((0.0, 0.0))
 
     def _wrench_cb(self, msg):
         force = msg.wrench.force

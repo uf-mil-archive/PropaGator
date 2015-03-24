@@ -1,5 +1,15 @@
 # Parrotfish Drive
 '''
+
+FIXXXXXXXXXXXXXXXXXXXXX:
+- I was trying to implement our own jacobian estimation, but ran into issues
+
+Now, test.py and azi_drive.py in this folder are the old versions of the file
+Try running each of the functions and see if we get the same result from both old and new versions
+Also, if we can't, port the new unit tests to the old version
+
+
+
 ISSUES:
 The algorithm fails to converge in cases where the commanded force is very far from current force
 
@@ -30,6 +40,7 @@ X+
 from __future__ import division
 from scipy import optimize, misc
 # We need: minimize, and misc.derivative
+from tools import Tools
 import numpy as np
 from time import time
 # from tools import Tools
@@ -59,14 +70,16 @@ class Azi_Drive(object):
         self.delta_alpha_min = - self.delta_alpha_max
 
     @classmethod
-    def thrust_matrix(self, alpha):
+    def thrust_matrix(self, (alpha_1, alpha_2)):
         '''Produce a thruster effort -> vehicle force conversion matrix for a given angle set
         (Alpha is a vector)
         '''
+        alpha = (alpha_1, alpha_2)
         matrix = []
         for i in range(2):
-            c = -np.cos(alpha[i, 0])
-            s = -np.sin(alpha[i, 0])
+            c = -np.cos(alpha[i])
+            s = -np.sin(alpha[i])
+
 
             l_x, l_y = self.offsets[i]
             col = np.array([
@@ -80,16 +93,20 @@ class Azi_Drive(object):
 
     @classmethod
     def net_force(self, alpha, u):
-        alpha = np.matrix(alpha).T
-        u = np.matrix(u).T
+        if isinstance(alpha, np.matrix):
+            alpha = alpha.A1
+        if not isinstance(u, np.matrix):
+            u = np.matrix(u).T
         return self.thrust_matrix(alpha) * u
 
     @classmethod
     def least_squares_test(self, alpha, tau):
-        '''Compute the least-squares control allocation solution for an angle'''
+        '''Compute the least-squares control allocation solution for an angle
+        (This one is intended for testing)
+        '''
         alpha = np.matrix(alpha).T
         tau = np.matrix(tau).T
-        return np.linalg.lstsq(self.thrust_matrix(alpha), tau)
+        return self.least_squares(alpha, tau)
 
     @classmethod
     def least_squares(self, alpha, tau):
@@ -97,7 +114,7 @@ class Azi_Drive(object):
         return np.linalg.lstsq(self.thrust_matrix(alpha), tau)
 
     @classmethod
-    def singularity_avoidance(self, alpha):
+    def singularity_avoidance(self, (alpha_1, alpha_2)):
         '''Cost for approaching singularity
         epsilon is to avoid issues with division by 0,
         q is a manueverability constant
@@ -107,7 +124,7 @@ class Azi_Drive(object):
         '''
         epsilon = 0.1
         q = self.manueverability
-        B_alpha = self.thrust_matrix(alpha)
+        B_alpha = self.thrust_matrix((alpha_1, alpha_2))
         return q / (epsilon + np.linalg.det(B_alpha * B_alpha.T))
 
     @classmethod
@@ -150,35 +167,47 @@ class Azi_Drive(object):
         '''
 
         tau = np.matrix([fx_des, fy_des, m_des]).T # Desired
+        alpha_1, alpha_2 = alpha_0.A1
 
-        d_singularity = misc.derivative(
-            func=self.singularity_avoidance, 
-            x0=alpha_0,
-            order=5, # Number of points
-            dx=0.1,
-        )
+        # d_singularity = misc.derivative(
+        #     func=self.singularity_avoidance, 
+        #     x0=alpha_0,
+        #     order=5, # Number of points
+        #     dx=0.1,
+        # )
+        d_singularity = Tools.jacobian(self.singularity_avoidance, pt=np.array([alpha_1, alpha_2]), order=3, dx=0.01)
 
         d_power = self.power_cost_scale
 
-        dB_dalpha = misc.derivative(
-            func=self.thrust_matrix,
-            x0=alpha_0,
-            order=5,
-            dx=0.1,
-        )
-        B = self.thrust_matrix(alpha_0)
+        # dB_dalpha = misc.derivative(
+        #     func=self.thrust_matrix,
+        #     x0=(0, 0),
+        #     order=5,
+        #     dx=0.1,
+        # )
+    
+        def linearized_net_force(alpha):
+            return self.net_force(alpha, u_0).A1
+
+        dB_dalpha = Tools.jacobian(linearized_net_force, pt=np.array([alpha_1, alpha_2]), order=3, dx=0.01)
+
+        B = self.thrust_matrix((alpha_1, alpha_2))
 
         def get_s((delta_angle, delta_u)):
             '''Equality constraint
             'S' is the force/torque error
             '''
-            B_1 = dB_dalpha[:, 0] * u_0[0] * delta_angle[0]
-            B_2 = dB_dalpha[:, 1] * u_0[1] * delta_angle[1]
+            # B_1 = dB_dalpha[:, 0] * u_0[0] * delta_angle[0]
+            # B_2 = dB_dalpha[:, 1] * u_0[1] * delta_angle[1]
 
-            s = -((B * delta_u) + (B * u_0) + B_1 + B_2 - tau)
-            # print 'Attempting s for :\n', delta_angle, '\n', delta_u
+
+
+            # s = -((B * delta_u) + (B * u_0) + B_1 + B_2 - tau)
+            print 'Attempting s for :\n', delta_angle, '\n', delta_u
+            print 'Linearized dleta', (dB_dalpha * delta_angle)
+            s = -((B * delta_u) + (B * u_0) + (dB_dalpha * delta_angle) - tau)
+            
             # print 'Value for s:\n', s
-            # s = -(B * delta_u) + (B * u_0) + (dB_dalpha * u_0) * delta_angle - tau
             return s
 
         def objective((delta_angle_1, delta_angle_2, delta_u_1, delta_u_2)):
@@ -198,11 +227,10 @@ class Azi_Drive(object):
             angle_change = delta_angle.T * angle_change_weight * delta_angle
             # angle_change = (angle_change_weight * delta_angle) ** 2
 
-            singularity = d_singularity * delta_angle
+            singularity = (d_singularity * delta_angle).A1
 
             cost = power + thrust_error + angle_change + singularity
             # cost = thrust_error
-            print 'singularity cost', singularity
 
             return cost[0, 0]
 
@@ -219,11 +247,11 @@ class Azi_Drive(object):
 
         '''Plot the cost function (visually observe convexity)'''
         # x_range = np.linspace(-np.pi, np.pi, 100)
-        # y_range = np.linspace(-100, 100, 100)
+        # y_range = np.linspace(-np.pi, np.pi, 100)
 
         # X, Y = np.meshgrid(x_range, y_range)
         # f = np.vectorize(objective_r)
-        # Z = f(X, np.zeros(len(X)), Y, np.zeros(len(Y)))
+        # Z = f(X, Y, np.zeros(len(X)), np.zeros(len(Y)))
 
         # fig = plt.figure(figsize=(14, 6))
         # ax = fig.add_subplot(1, 2, 1, projection='3d')
@@ -233,7 +261,7 @@ class Azi_Drive(object):
         def minimize(method):
             minimization = optimize.minimize(
                 fun=objective,
-                x0=(0, 0, 0, 0),
+                x0=(0.0, 0.0, 0.0, 0.0),
                 method=method,
                 constraints=[
                     {'type': 'ineq', 'fun': lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_1 + u_0[0, 0] - u_max)},
@@ -255,6 +283,7 @@ class Azi_Drive(object):
             return minimization
         p = minimize('SLSQP')
         if p.success == False:
+            print p
             print '-------------------Switching to L-BFGS-B'
             p = minimize('L-BFGS-B')
         return p
