@@ -91,8 +91,6 @@ public:
 
 	PointShoot();
 
-	void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
-
 	// Private functions
 private:
 	void update_();
@@ -115,6 +113,10 @@ private:
 
 	double scaleRads_(double rads);
 
+	void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
+
+	void goalPreempt_();
+
 };
 
 /*
@@ -132,10 +134,8 @@ PointShoot::PointShoot() :
 	std::string topic = nh_.resolveName("odom");
 	// Setup subscribers and publishers
 	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this); // what Kevin wrote
-	//odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 1, boost::bind(&PointShoot::getCurrentPoseTwist_, this, _1)); // what James wrote
 
 	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("wrench", 10);
-	//thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("thrusters"); // todo: need to get topic name
 
 	// Make sure we have odometry before moving on
 	// TODO: add timeout
@@ -150,9 +150,9 @@ PointShoot::PointShoot() :
 	}
 	desired_pose_ = current_pose_;
 
-	// Start the action server
-	//boost::function<void(const uf_common::MoveToAction::ConstPtr)> func = boost::bind(&PointShoot::newGoal_, this, _1);
-	//moveit_.registerGoalCallback(func);
+	// Now that we have our current pose start the action server
+	moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
+	moveit_.start();
 
 }
 
@@ -317,11 +317,44 @@ double PointShoot::scaleRads_(double rads)
 
 /*
  * 			accept a new goal
- *
+ *	Set the desired position and reset the errors
  */
 void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 {
+	// Drop the last goal and set a new one
+	desired_pose_ = goal->posetwist.pose;
+	desired_twist_ = goal->posetwist.twist;		// We don't use this for anything yet
+}
 
+/*
+ * 			Preempt the goal
+ * 	The goal has been canceled so stop and set current position
+ * 		as desired position
+ */
+void PointShoot::goalPreempt_()
+{
+	// TODO: Is there anything else we need to do???
+	desired_pose_ = current_pose_;
+	clearErrors_();
+
+}
+
+void PointShoot::clearErrors_()
+{
+	// Linear error = strait line distance between current_xyz_ and desired_xyz_
+	 last_linear_error_ = 0;
+	current_linear_error_ = 0;
+	diff_linear_error_ = 0;
+	int_linear_error_ = 0;
+
+	// Angular error = desired orientation - current_orientation
+	last_angular_error_ = 0;
+	current_angular_error_ = 0;
+	diff_angular_error_ = 0;
+	int_angular_error_ = 0;
+
+	// Error timing vars
+	last_error_update_time_ = ros::Time::now();
 }
 
 /************************
