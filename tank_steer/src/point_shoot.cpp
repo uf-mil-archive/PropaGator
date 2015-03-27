@@ -130,8 +130,7 @@ PointShoot::PointShoot() :
 	is_oriented_to_path_(true), was_oriented_to_path_(true),
 	last_error_update_time_(0),
 	nh_(),
-	//moveit_(nh_, "moveit", false)			Does not work causes segmentation fault
-	moveit_("moveit", false)
+	moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 {
 
 	std::string topic = nh_.resolveName("odom");
@@ -157,7 +156,7 @@ PointShoot::PointShoot() :
 
 	// Now that we have our current pose start the action server
 	moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
-	moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this, _1));
+	//moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this));		// Works in initializer, but causes seg. fault in initializer... odd
 	moveit_.start();
 
 }
