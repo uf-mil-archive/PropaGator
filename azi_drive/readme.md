@@ -11,8 +11,17 @@ Thruster 2 is on the right, thruster 3 is on the left
 
 # Usage
 
-rosrun boatsim sim
-roslaunch boat_launch controller.launch
+    rosrun boatsim sim
+    rosrun azi_drive azi_drive.py
+
+For the old controller, 
+    roslaunch boat_launch controller.launch
+
+# Testing
+To run  unittests, do
+    catkin_make tests
+
+If the unittests are not passing, this node will not work.
 
 # TODO
 - Use CVXOPT or try C++ implementation 
