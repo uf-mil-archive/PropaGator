@@ -76,17 +76,26 @@ private:
 	// Odometry subscriber
 	ros::Subscriber odom_sub_;
 
+	// Thruster Mapper publisher
+	ros::Publisher thrust_pub_;
+
+	//Action Server
+	actionlib::SimpleActionServer<uf_common::MoveToAction> moveit_;
+
+	// ROS node handle
+	ros::NodeHandle nh_;
+
 	// Public functions
 public:
 	void run_();
 
 	PointShoot();
 
+	void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
+
 	// Private functions
 private:
 	void update_();
-
-	void newGoal_(const uf_common::MoveToAction::ConstPtr &goal);
 
 	void getCurrentPoseTwist_(const nav_msgs::Odometry::ConstPtr &msg);
 
@@ -117,24 +126,33 @@ PointShoot::PointShoot() :
 	current_linear_error_(0), last_linear_error_(0), diff_linear_error_(0), int_linear_error_(0),
 	current_angular_error_(0), last_angular_error_(0), diff_angular_error_(0), int_angular_error_(0),
 	is_oriented_to_path_(true), was_oriented_to_path_(true),
-	last_error_update_time_(0)
+	last_error_update_time_(0),
+	moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)
 {
-	ros::NodeHandle nh;
-
-	std::string topic = nh.resolveName("odom");
+	std::string topic = nh_.resolveName("odom");
 	// Setup subscribers and publishers
-	odom_sub_ = nh.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this);
+	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this); // what Kevin wrote
+	//odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 1, boost::bind(&PointShoot::getCurrentPoseTwist_, this, _1)); // what James wrote
+
+	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("wrench", 10);
+	//thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("thrusters"); // todo: need to get topic name
 
 	// Make sure we have odometry before moving on
 	// TODO: add timeout
+	ROS_INFO("Waiting for odom publisher");
 	while(odom_sub_.getNumPublishers() <= 0 && ros::ok());
 
 	// Wait till the first position is found then set that to desired position
+	ROS_INFO("Waiting for first odom msg");
 	while(current_pose_.position.x == 0)		// The likelihood of x actually being zero is very small
 	{
 		ros::spinOnce();
 	}
 	desired_pose_ = current_pose_;
+
+	// Start the action server
+	//boost::function<void(const uf_common::MoveToAction::ConstPtr)> func = boost::bind(&PointShoot::newGoal_, this, _1);
+	//moveit_.registerGoalCallback(func);
 
 }
 
@@ -158,7 +176,12 @@ void PointShoot::run_()
  */
 void PointShoot::update_()
 {
-
+	/*
+	geometry_msgs::Wrench msg;
+	msg.force = localPlanner->getForce();
+	msg.torque = localPlanner->getTorque();
+	thrust_pub_.publish(msg);
+	*/
 }
 
 /*
@@ -290,6 +313,15 @@ double PointShoot::scaleRads_(double rads)
 	}
 
 	return rads;
+}
+
+/*
+ * 			accept a new goal
+ *
+ */
+void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
+{
+
 }
 
 /************************

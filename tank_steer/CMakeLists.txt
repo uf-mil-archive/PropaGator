@@ -92,6 +92,8 @@ catkin_package(
 #  DEPENDS system_lib
 )
 
+include_directories(include ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS})
+
 ###########
 ## Build ##
 ###########
