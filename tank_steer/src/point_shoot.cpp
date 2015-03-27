@@ -129,8 +129,11 @@ PointShoot::PointShoot() :
 	current_angular_error_(0), last_angular_error_(0), diff_angular_error_(0), int_angular_error_(0),
 	is_oriented_to_path_(true), was_oriented_to_path_(true),
 	last_error_update_time_(0),
-	moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)
+	nh_(),
+	//moveit_(nh_, "moveit", false)			Does not work causes segmentation fault
+	moveit_("moveit", false)
 {
+
 	std::string topic = nh_.resolveName("odom");
 	// Setup subscribers and publishers
 	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this); // what Kevin wrote
@@ -150,8 +153,11 @@ PointShoot::PointShoot() :
 	}
 	desired_pose_ = current_pose_;
 
+	ROS_INFO("Odom recieved setting initial position and starting action server");
+
 	// Now that we have our current pose start the action server
 	moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
+	moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this, _1));
 	moveit_.start();
 
 }
@@ -321,9 +327,12 @@ double PointShoot::scaleRads_(double rads)
  */
 void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 {
+	ROS_INFO("Got new goal");
+
 	// Drop the last goal and set a new one
 	desired_pose_ = goal->posetwist.pose;
 	desired_twist_ = goal->posetwist.twist;		// We don't use this for anything yet
+	clearErrors_();
 }
 
 /*
@@ -333,6 +342,8 @@ void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
  */
 void PointShoot::goalPreempt_()
 {
+	ROS_INFO("Goal preempted");
+
 	// TODO: Is there anything else we need to do???
 	desired_pose_ = current_pose_;
 	clearErrors_();
