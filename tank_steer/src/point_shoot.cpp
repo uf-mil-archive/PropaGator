@@ -24,6 +24,7 @@
  * 		implementation)														*
  ****************************************************************************/
 
+
 /*
  * 		Constructor
  * 	Grabs all params, initializes vars, subs, pubs
@@ -36,11 +37,19 @@ PointShoot::PointShoot() :
 	last_error_update_time_(0),
 	nh_(), private_nh_("~"),
 	moveit_("moveit", false),
-	update_freq_(0.01)
+	update_freq_(0.01),
+	distance_tol_(0.5),
+	angle_to_path_tol_(10),
+	angle_to_goal_tol_(15),
+	angle_vel_tol_(0.3),
+	linear_vel_tol_(0.1)
 {
 	//moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
+	// TODO: figure out how to put in initilizer
 	zero_wrench_.wrench.force.x = zero_wrench_.wrench.force.y = zero_wrench_.wrench.force.z = 0;
 	zero_wrench_.wrench.torque.x = zero_wrench_.wrench.torque.y = zero_wrench_.wrench.torque.z = 0;
+	zero_twist_.linear.x = zero_twist_.linear.y = zero_twist_.linear.z = 0;
+	zero_twist_.angular.x = zero_twist_.angular.y = zero_twist_.angular.z = 0;
 
 	// Makes sure that we have the fully defined domain name
 	std::string topic = nh_.resolveName("odom");
@@ -84,12 +93,33 @@ PointShoot::PointShoot() :
  */
 void PointShoot::update_(const ros::TimerEvent& nononononononon)
 {
+	// Check for new goal
 	if(moveit_.isNewGoalAvailable()){
 		boost::shared_ptr<const uf_common::MoveToGoal> goal = moveit_.acceptNewGoal();
+		desired_pose_ = goal->posetwist.pose;
+		desired_twist_ = goal->posetwist.twist;	// Not used yet...
+
+		// Clear errors
+		clearErrors_();
 	}
-	/*
+
+	// Check if goal preempted
+	if(moveit_.isPreemptRequested())
+	{
+		// Set our current position to desired position
+		desired_pose_ = current_pose_;
+		desired_twist_ = zero_twist_;
+
+		// Clear errors
+		clearErrors_();
+
+		return;
+	}
+
+	// TODO: add velocity considerations
+
 	geometry_msgs::WrenchStamped msg = zero_wrench_;
-	geometry_msgs::Wrench &wr = msg.wrench;
+	geometry_msgs::Wrench &wrench = msg.wrench;
 
 	int norm_curr_pose_ = normToPoseTheta_(current_pose_);
 	int norm_curr_angle_moving_ = normToAngleMovingTheta_ (current_twist_.angular);
@@ -97,67 +127,37 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 
 	int norm_goal_angle_ = normToAngleTheta_ (desired_pose_.orientation);
 
-	// If we have a goal go to it
-	if(has_goal_){ // if (engaging a goal){
 
-		// We are far away from our goal position
-		//	Therefore we need to orient the boat towards the goal position
-		if ( norm_curr_pose_ > pose_theta_ ){
+	// Distance from goal is within tolerance
+	if( current_linear_error_ < distance_tol_ ){
 
-			if ( norm_curr_angle_ < angle_moving_theta_ ){ // if angle in motion acceptable, move forward
+		if ( current_angular_error_ < angle_to_goal_tol_ ){
 
-				wr.force = calculateForce_(); // calculate_forward_force ();
-
-			}else{ // if angle in motion not acceptable, orient to path
-
-				wr.torque = calculateTorque_(); // calculate_turn_torque ()
-			}
-
-		// We are very close to the goal so set orientation to goal orientation
-		}else if ( norm_curr_angle_ > angle_theta_ ){  // orient to goal
-
-			wr.torque = calculateTorque_(); // caculate_turn_force ()
-
-		}else{ //TODO:if(twist yaw is less than some yaw_theta)
-
-			//moveit_.setSucceeded(); // goal_complete ()
-		}
-
-		// TODO: Add timeout in case boat can't station hold
-		//			This is important in case we take remote control or disable the motors in any way
-		//			Since as soon as the boat regains control of itself it will try to go to the last waypoint
-		//			To prevent this we timeout and set a new goal as our current position
-	}else{ // no present goal; station holding
-
-		// Boat has drifted to far in the uncontrolled direction so set the desired position as the new goal
-		if (true){ // if ( |current_y_pos - desired_pos| > pose_theta ) // boat is no longer pointing at desired position
-
-			boost::shared_ptr<uf_common::MoveToGoal> restation_goal_;
-			// set goal parameters
-
-			newGoal_(restation_goal_); // set_goal ( desired_position )
-
-		} else if ( abs(norm_curr_angle_ - norm_goal_angle_) > angle_theta_ ){ // if ( |current_angle - desired_angle| > angle_theta ){
-
-			wr.torque = calculateTorque_(); // calculate_turn_wrench ()
-
-		// Boat has a good orientation so keep it in place with k * sqrt(error) controller
-		}else if ( true ){ // if ( |current_x_pos - desired_pose| > pose_theta )
-
-			wr.force = calculateForce_(); // caclulate_force_wrench ()
-
-
+			// stationHold()
 
 		}else{
 
-			// reset_time ()
+			wrench.torque = calculateTorque_();
 
 		}
 
+	// Distance from goal is far; boat is on the path
+	}else{
+
+		if ( current_angular_error_ > angle_to_path_tol_ ){
+
+			wrench.torque = calculateTorque_();
+
+		}else{
+
+			wrench.force = calculateForce_();
+
+		}
 	}
 
+	// Finally publish the wrench
 	thrust_pub_.publish(msg);
-	*/
+
 }
 
 /*

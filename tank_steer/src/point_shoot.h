@@ -22,15 +22,15 @@ class PointShoot{
 	// Public vars
 	public:
 
-		geometry_msgs::WrenchStamped zero_wrench_;
-
 
 	// Private vars
 	private:
 		// Tolerance variables
-		double pose_theta_;
-		double angle_moving_theta_;
-		double angle_theta_;
+		double distance_tol_;
+		double angle_to_path_tol_;
+		double angle_to_goal_tol_;
+		double angle_vel_tol_;
+		double linear_vel_tol_;
 
 		// Position and orientation
 		geometry_msgs::Pose current_pose_;
@@ -82,6 +82,10 @@ class PointShoot{
 		// Update frequency
 		ros::Duration update_freq_;
 
+		// Zero wrench and twist
+		geometry_msgs::WrenchStamped zero_wrench_;
+		geometry_msgs::Twist zero_twist_;
+
 	// Public functions
 	public:
 		PointShoot();
@@ -117,7 +121,6 @@ class PointShoot{
 		int normToAngleMovingTheta_ (geometry_msgs::Vector3 move_angle); // angular from Twist
 
 		int normToAngleTheta_ (geometry_msgs::Quaternion angle); // orientation from Pose
-
 };
 
 #endif
