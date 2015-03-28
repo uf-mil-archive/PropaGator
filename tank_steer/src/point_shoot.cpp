@@ -35,9 +35,9 @@ PointShoot::PointShoot() :
 	is_oriented_to_path_(true), was_oriented_to_path_(true), has_goal_(false),
 	last_error_update_time_(0),
 	nh_(), private_nh_("~"),
-	moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
-
+	moveit_("moveit", false)
 {
+	//moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 	zero_wrench_.wrench.force.x = zero_wrench_.wrench.force.y = zero_wrench_.wrench.force.z = 0;
 	zero_wrench_.wrench.torque.x = zero_wrench_.wrench.torque.y = zero_wrench_.wrench.torque.z = 0;
 
@@ -68,10 +68,10 @@ PointShoot::PointShoot() :
 	desired_pose_ = current_pose_;
 
 	// Now that we have our current pose start the action server
-	moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
-	//moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this));
+	//moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
+	//moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this, _1));
 		// Works in initializer, but causes seg. fault in initializer... odd
-	moveit_.start();
+	//moveit_.start();
 
 }
 
@@ -95,6 +95,7 @@ void PointShoot::run_()
  */
 void PointShoot::update_()
 {
+	/*
 	geometry_msgs::WrenchStamped msg = zero_wrench_;
 	geometry_msgs::Wrench &wr = msg.wrench;
 
@@ -125,9 +126,9 @@ void PointShoot::update_()
 
 			wr.torque = calculateTorque_(); // caculate_turn_force ()
 
-		}else/*TODO:if(twist yaw is less than some yaw_theta)*/{
+		}else{ //TODO:if(twist yaw is less than some yaw_theta)
 
-			moveit_.setSucceeded(); // goal_complete ()
+			//moveit_.setSucceeded(); // goal_complete ()
 		}
 
 		// TODO: Add timeout in case boat can't station hold
@@ -164,6 +165,7 @@ void PointShoot::update_()
 	}
 
 	thrust_pub_.publish(msg);
+	*/
 }
 
 /*
