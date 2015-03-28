@@ -1,14 +1,7 @@
-#include <ros/ros.h>
-#include <ros/rate.h>
-#include <actionlib/server/simple_action_server.h>
-#include <nav_msgs/Odometry.h>
-#include <geometry_msgs/WrenchStamped.h>
-#include <tf/LinearMath/Quaternion.h>
-#include <tf/LinearMath/Transform.h>
+#ifndef _POINT_SHOOT_
+#define _POINT_SHOOT_
 
-#include <cmath>
-
-#include "uf_common/MoveToAction.h"
+#include "point_shoot.h"
 
 /****************************************************************************
  * 							Point and shoot for tank steer					*
@@ -31,113 +24,33 @@
  * 		implementation)														*
  ****************************************************************************/
 
-#define PI 3.14159265359
-
-// Class for the controller
-// TODO: move to separate header and cpp
-
-class PointShoot
-{
-	// Public vars
-public:
-
-	// Private vars
-private:
-	// Position and orientation
-	geometry_msgs::Pose current_pose_;
-	geometry_msgs::Pose desired_pose_;
-
-	// Velocity and angular velocity
-	geometry_msgs::Twist current_twist_;
-	geometry_msgs::Twist desired_twist_;
-
-	// Linear error = strait line distance between current_xyz_ and desired_xyz_
-	double last_linear_error_;
-	double current_linear_error_;
-	double diff_linear_error_;
-	double int_linear_error_;
-
-	// Angular error = desired orientation - current_orientation
-	double last_angular_error_;
-	double current_angular_error_;
-	double diff_angular_error_;
-	double int_angular_error_;
-
-	// Error timing vars
-	ros::Time last_error_update_time_;
-
-	// What to orient to
-	//		true for path false for desired orientation
-	bool is_oriented_to_path_;
-	// What was it oriented to last
-	//		used to clear the integral error on change of state
-	bool was_oriented_to_path_;
-
-	// Odometry subscriber
-	ros::Subscriber odom_sub_;
-
-	// Thruster Mapper publisher
-	ros::Publisher thrust_pub_;
-
-	//Action Server
-	actionlib::SimpleActionServer<uf_common::MoveToAction> moveit_;
-
-	// ROS node handle
-	ros::NodeHandle nh_;
-
-	// Public functions
-public:
-	void run_();
-
-	PointShoot();
-
-	// Private functions
-private:
-	void update_();
-
-	void getCurrentPoseTwist_(const nav_msgs::Odometry::ConstPtr &msg);
-
-	geometry_msgs::WrenchStamped calculateForce_();
-
-	geometry_msgs::WrenchStamped calculateTorque_();
-
-	void updateErrors_();
-
-	void clearErrors_();
-
-	double get2DDistance_(geometry_msgs::Point p1, geometry_msgs::Point p2);
-
-	double get2DAngle_(geometry_msgs::Quaternion q1, geometry_msgs::Quaternion q2);
-
-	double getYaw_(geometry_msgs::Quaternion q);
-
-	double scaleRads_(double rads);
-
-	void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
-
-	void goalPreempt_();
-
-};
-
 /*
- * 			Constructor
+ * 		Constructor
  * 	Grabs all params, initializes vars, subs, pubs
  */
 PointShoot::PointShoot() :
 	current_pose_(), current_twist_(),
 	current_linear_error_(0), last_linear_error_(0), diff_linear_error_(0), int_linear_error_(0),
 	current_angular_error_(0), last_angular_error_(0), diff_angular_error_(0), int_angular_error_(0),
-	is_oriented_to_path_(true), was_oriented_to_path_(true),
+	is_oriented_to_path_(true), was_oriented_to_path_(true), has_goal_(false),
 	last_error_update_time_(0),
-	nh_(),
+	nh_(), private_nh_("~"),
 	moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
+
 {
+	zero_wrench_.wrench.force.x = zero_wrench_.wrench.force.y = zero_wrench_.wrench.force.z = 0;
+	zero_wrench_.wrench.torque.x = zero_wrench_.wrench.torque.y = zero_wrench_.wrench.torque.z = 0;
 
+	// Makes sure that we have the fully defined domain name
 	std::string topic = nh_.resolveName("odom");
-	// Setup subscribers and publishers
-	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this); // what Kevin wrote
 
+	// Setup subscribers and publishers
+	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this);
 	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("wrench", 10);
+
+	//pose_theta_ = ::getParam<int>(private_nh, "pose_theta");
+	//angle_moving_theta_ = uf_common::getParam<int>(private_nh, "angle_moving_theta");
+	//angle_theta_ = uf_common::getParam<int>(private_nh, "angle_theta");
 
 	// Make sure we have odometry before moving on
 	// TODO: add timeout
@@ -150,19 +63,20 @@ PointShoot::PointShoot() :
 	{
 		ros::spinOnce();
 	}
-	desired_pose_ = current_pose_;
 
-	ROS_INFO("Odom recieved setting initial position and starting action server");
+	ROS_INFO("Odom received setting initial position and starting action server");
+	desired_pose_ = current_pose_;
 
 	// Now that we have our current pose start the action server
 	moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
-	//moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this));		// Works in initializer, but causes seg. fault in initializer... odd
+	//moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this));
+		// Works in initializer, but causes seg. fault in initializer... odd
 	moveit_.start();
 
 }
 
 /*
- * 			Run
+ * 		Run
  * 	This function handles the main ros loop
  * 		such as sleep rate and ros::ok()
  */
@@ -176,21 +90,84 @@ void PointShoot::run_()
 }
 
 /*
- * 			Update
+ * 		Update
  * 	This function updates the controller
  */
 void PointShoot::update_()
 {
-	/*
-	geometry_msgs::Wrench msg;
-	msg.force = localPlanner->getForce();
-	msg.torque = localPlanner->getTorque();
+	geometry_msgs::WrenchStamped msg = zero_wrench_;
+	geometry_msgs::Wrench &wr = msg.wrench;
+
+	int norm_curr_pose_ = normToPoseTheta_(current_pose_);
+	int norm_curr_angle_moving_ = normToAngleMovingTheta_ (current_twist_.angular);
+	int norm_curr_angle_ = normToAngleTheta_ (current_pose_.orientation);
+
+	int norm_goal_angle_ = normToAngleTheta_ (desired_pose_.orientation);
+
+	// If we have a goal go to it
+	if(has_goal_){ // if (engaging a goal){
+
+		// We are far away from our goal position
+		//	Therefore we need to orient the boat towards the goal position
+		if ( norm_curr_pose_ > pose_theta_ ){
+
+			if ( norm_curr_angle_ < angle_moving_theta_ ){ // if angle in motion acceptable, move forward
+
+				wr.force = calculateForce_(); // calculate_forward_force ();
+
+			}else{ // if angle in motion not acceptable, orient to path
+
+				wr.torque = calculateTorque_(); // calculate_turn_torque ()
+			}
+
+		// We are very close to the goal so set orientation to goal orientation
+		}else if ( norm_curr_angle_ > angle_theta_ ){  // orient to goal
+
+			wr.torque = calculateTorque_(); // caculate_turn_force ()
+
+		}else/*TODO:if(twist yaw is less than some yaw_theta)*/{
+
+			moveit_.setSucceeded(); // goal_complete ()
+		}
+
+		// TODO: Add timeout in case boat can't station hold
+		//			This is important in case we take remote control or disable the motors in any way
+		//			Since as soon as the boat regains control of itself it will try to go to the last waypoint
+		//			To prevent this we timeout and set a new goal as our current position
+	}else{ // no present goal; station holding
+
+		// Boat has drifted to far in the uncontrolled direction so set the desired position as the new goal
+		if (true){ // if ( |current_y_pos - desired_pos| > pose_theta ) // boat is no longer pointing at desired position
+
+			boost::shared_ptr<uf_common::MoveToGoal> restation_goal_;
+			// set goal parameters
+
+			newGoal_(restation_goal_); // set_goal ( desired_position )
+
+		} else if ( abs(norm_curr_angle_ - norm_goal_angle_) > angle_theta_ ){ // if ( |current_angle - desired_angle| > angle_theta ){
+
+			wr.torque = calculateTorque_(); // calculate_turn_wrench ()
+
+		// Boat has a good orientation so keep it in place with k * sqrt(error) controller
+		}else if ( true ){ // if ( |current_x_pos - desired_pose| > pose_theta )
+
+			wr.force = calculateForce_(); // caclulate_force_wrench ()
+
+
+
+		}else{
+
+			// reset_time ()
+
+		}
+
+	}
+
 	thrust_pub_.publish(msg);
-	*/
 }
 
 /*
- * 			getCurrentPoseTwist
+ * 		getCurrentPoseTwist
  * 	This function listens to odometry and updates the current pose,
  * 		twist and calls the update errors function
  */
@@ -203,7 +180,7 @@ void PointShoot::getCurrentPoseTwist_(const nav_msgs::Odometry::ConstPtr &msg)
 }
 
 /*
- * 			updateErrors
+ * 		updateErrors
  * 	This function keeps a running tab on the error, derivative of error,
  * 		and integral of error
  */
@@ -261,6 +238,36 @@ void PointShoot::updateErrors_()
 
 	int_linear_error_ += (current_linear_error_ + last_linear_error_) * time_step.toSec() / 2;
 	int_angular_error_ += (current_angular_error_ + last_angular_error_) * time_step.toSec() / 2;
+}
+
+geometry_msgs::Vector3 PointShoot::calculateForce_(){
+	geometry_msgs::Vector3 resulting_force;
+
+	return resulting_force;
+}
+
+geometry_msgs::Vector3 PointShoot::calculateTorque_(){
+	geometry_msgs::Vector3 resulting_torque;
+
+	return resulting_torque;
+}
+
+void PointShoot::clearErrors_()
+{
+	// Linear error = strait line distance between current_xyz_ and desired_xyz_
+	last_linear_error_ = 0;
+	current_linear_error_ = 0;
+	diff_linear_error_ = 0;
+	int_linear_error_ = 0;
+
+	// Angular error = desired orientation - current_orientation
+	last_angular_error_ = 0;
+	current_angular_error_ = 0;
+	diff_angular_error_ = 0;
+	int_angular_error_ = 0;
+
+	// Error timing vars
+	last_error_update_time_ = ros::Time::now();
 }
 
 /*
@@ -321,21 +328,23 @@ double PointShoot::scaleRads_(double rads)
 }
 
 /*
- * 			accept a new goal
+ * 		accept a new goal
  *	Set the desired position and reset the errors
  */
 void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 {
 	ROS_INFO("Got new goal");
 
+	has_goal_ = true;
 	// Drop the last goal and set a new one
 	desired_pose_ = goal->posetwist.pose;
 	desired_twist_ = goal->posetwist.twist;		// We don't use this for anything yet
-	clearErrors_();
+
+	clearErrors_(); // todo: why do we clear the errors at this time
 }
 
 /*
- * 			Preempt the goal
+ * 		Preempt the goal
  * 	The goal has been canceled so stop and set current position
  * 		as desired position
  */
@@ -343,29 +352,39 @@ void PointShoot::goalPreempt_()
 {
 	ROS_INFO("Goal preempted");
 
-	// TODO: Is there anything else we need to do???
+	// TODO: Is there anything else we need to do??? J: probably not
 	desired_pose_ = current_pose_;
 	clearErrors_();
 
 }
 
-void PointShoot::clearErrors_()
-{
-	// Linear error = strait line distance between current_xyz_ and desired_xyz_
-	 last_linear_error_ = 0;
-	current_linear_error_ = 0;
-	diff_linear_error_ = 0;
-	int_linear_error_ = 0;
-
-	// Angular error = desired orientation - current_orientation
-	last_angular_error_ = 0;
-	current_angular_error_ = 0;
-	diff_angular_error_ = 0;
-	int_angular_error_ = 0;
-
-	// Error timing vars
-	last_error_update_time_ = ros::Time::now();
+/*
+ * 		Normalize Pose for Tolerance Comparison
+ * 	Quantify pose for comparison to pose tolerance parameter
+ */
+int PointShoot::normToPoseTheta_ (geometry_msgs::Pose pose){
+	return 0;
 }
+
+/*
+ * 		Normalize Movement Angle for Tolerance Comparison
+ * 	Quantify angular velocity from a Twist for comparison to moving angle tolerance parameter
+ */
+int PointShoot::normToAngleMovingTheta_ (geometry_msgs::Vector3 move_angle)
+{
+	return 0;
+}
+
+/*
+ * 		Normalize Orientation Angle for Tolerance Comparison
+ * 	Quantify orientation angle from a Pose for comparison to pose tolerance parameter
+ */
+int PointShoot::normToAngleTheta_ (geometry_msgs::Quaternion angle) // orientation from Pose
+{
+
+	return 0;
+}
+
 
 /************************
  * 			Main		*
@@ -383,3 +402,5 @@ int main(int argc, char** argv)
 
 	return 0;
 }
+
+#endif
