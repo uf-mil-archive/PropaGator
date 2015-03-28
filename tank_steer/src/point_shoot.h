@@ -115,12 +115,6 @@ class PointShoot{
 		void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
 
 		void goalPreempt_();
-
-		int normToPoseTheta_ (geometry_msgs::Pose pose);
-
-		int normToAngleMovingTheta_ (geometry_msgs::Vector3 move_angle); // angular from Twist
-
-		int normToAngleTheta_ (geometry_msgs::Quaternion angle); // orientation from Pose
 };
 
 #endif

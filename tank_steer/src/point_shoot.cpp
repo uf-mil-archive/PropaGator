@@ -116,17 +116,11 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 		return;
 	}
 
+
 	// TODO: add velocity considerations
 
 	geometry_msgs::WrenchStamped msg = zero_wrench_;
 	geometry_msgs::Wrench &wrench = msg.wrench;
-
-	int norm_curr_pose_ = normToPoseTheta_(current_pose_);
-	int norm_curr_angle_moving_ = normToAngleMovingTheta_ (current_twist_.angular);
-	int norm_curr_angle_ = normToAngleTheta_ (current_pose_.orientation);
-
-	int norm_goal_angle_ = normToAngleTheta_ (desired_pose_.orientation);
-
 
 	// Distance from goal is within tolerance
 	if( current_linear_error_ < distance_tol_ ){
@@ -350,33 +344,6 @@ void PointShoot::goalPreempt_()
 	desired_pose_ = current_pose_;
 	clearErrors_();
 
-}
-
-/*
- * 		Normalize Pose for Tolerance Comparison
- * 	Quantify pose for comparison to pose tolerance parameter
- */
-int PointShoot::normToPoseTheta_ (geometry_msgs::Pose pose){
-	return 0;
-}
-
-/*
- * 		Normalize Movement Angle for Tolerance Comparison
- * 	Quantify angular velocity from a Twist for comparison to moving angle tolerance parameter
- */
-int PointShoot::normToAngleMovingTheta_ (geometry_msgs::Vector3 move_angle)
-{
-	return 0;
-}
-
-/*
- * 		Normalize Orientation Angle for Tolerance Comparison
- * 	Quantify orientation angle from a Pose for comparison to pose tolerance parameter
- */
-int PointShoot::normToAngleTheta_ (geometry_msgs::Quaternion angle) // orientation from Pose
-{
-
-	return 0;
 }
 
 
