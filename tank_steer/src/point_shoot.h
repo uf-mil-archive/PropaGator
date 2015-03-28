@@ -3,6 +3,7 @@
 
 #include <ros/ros.h>
 #include <ros/rate.h>
+#include <ros/timer.h>
 #include <actionlib/server/simple_action_server.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/WrenchStamped.h>
@@ -69,21 +70,25 @@ class PointShoot{
 		// Thruster Mapper publisher
 		ros::Publisher thrust_pub_;
 
+		// Replacement update timer for goal callback
+		ros::Timer update_timer_;
+
 		//Action Server
 		actionlib::SimpleActionServer<uf_common::MoveToAction> moveit_;
 
 		// ROS node handle
 		ros::NodeHandle nh_, private_nh_;
 
+		// Update frequency
+		ros::Duration update_freq_;
+
 	// Public functions
 	public:
 		PointShoot();
 
-		void run_();
-
 	// Private functions
 	private:
-		void update_();
+		void update_(const ros::TimerEvent&);
 
 		void getCurrentPoseTwist_(const nav_msgs::Odometry::ConstPtr &msg);
 

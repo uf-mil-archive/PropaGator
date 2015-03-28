@@ -35,7 +35,8 @@ PointShoot::PointShoot() :
 	is_oriented_to_path_(true), was_oriented_to_path_(true), has_goal_(false),
 	last_error_update_time_(0),
 	nh_(), private_nh_("~"),
-	moveit_("moveit", false)
+	moveit_("moveit", false),
+	update_freq_(0.01)
 {
 	//moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 	zero_wrench_.wrench.force.x = zero_wrench_.wrench.force.y = zero_wrench_.wrench.force.z = 0;
@@ -57,6 +58,8 @@ PointShoot::PointShoot() :
 	ROS_INFO("Waiting for odom publisher");
 	while(odom_sub_.getNumPublishers() <= 0 && ros::ok());
 
+	update_timer_ = nh_.createTimer(update_freq_, boost::bind(&PointShoot::update_, this, _1) );
+
 	// Wait till the first position is found then set that to desired position
 	ROS_INFO("Waiting for first odom msg");
 	while(current_pose_.position.x == 0)		// The likelihood of x actually being zero is very small
@@ -76,25 +79,14 @@ PointShoot::PointShoot() :
 }
 
 /*
- * 		Run
- * 	This function handles the main ros loop
- * 		such as sleep rate and ros::ok()
- */
-void PointShoot::run_()
-{
-	while(ros::ok())
-	{
-		update_();
-		ros::spinOnce();
-	}
-}
-
-/*
  * 		Update
  * 	This function updates the controller
  */
-void PointShoot::update_()
+void PointShoot::update_(const ros::TimerEvent& nononononononon)
 {
+	if(moveit_.isNewGoalAvailable()){
+		boost::shared_ptr<const uf_common::MoveToGoal> goal = moveit_.acceptNewGoal();
+	}
 	/*
 	geometry_msgs::WrenchStamped msg = zero_wrench_;
 	geometry_msgs::Wrench &wr = msg.wrench;
@@ -396,11 +388,10 @@ int main(int argc, char** argv)
 	//Initialize ROS
 	ros::init(argc, argv, "point_shoot");
 
-	// Initialize controller
+	// Initialize controller (everything)
 	PointShoot ps;
 
-	// Run the node
-	ps.run_();
+	ros::spin();
 
 	return 0;
 }
