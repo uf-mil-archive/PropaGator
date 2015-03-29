@@ -69,14 +69,14 @@ def xbox_cb(joy_msg):
 
 		
 	if (killall == 1):
-		pwm1 = Float64(0.000)
+		pwm1 = Float64(0.0015)
 		pwm_port_pub.publish(pwm1)
-		pwm2 = Float64(0.000)
+		pwm2 = Float64(0.0015)
 		pwm_starboard_pub.publish(pwm2)
 	else:
-		pwm1 = Float64(0.005*(joy_msg.axes[1]) + 0.015)  #LEFT_STICK
+		pwm1 = Float64(0.0005*(joy_msg.axes[1]) + 0.0015)  #LEFT_STICK
 		pwm_port_pub.publish(pwm1)
-		pwm2 = Float64(0.005*(joy_msg.axes[3]) + 0.015)  #RIGHT_STICK
+		pwm2 = Float64(0.0005*(joy_msg.axes[3]) + 0.0015)  #RIGHT_STICK
 		pwm_starboard_pub.publish(pwm2) 
 
 	
