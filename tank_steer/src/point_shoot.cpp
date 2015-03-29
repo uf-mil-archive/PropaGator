@@ -3,6 +3,10 @@
 
 #include "point_shoot.h"
 
+// TODO: James K sqrt(error)
+// TODO: Kevin PID controller
+// TODO: Debug
+
 /****************************************************************************
  * 							Point and shoot for tank steer					*
  * 	This node implements the moveit simple action server					*
@@ -36,7 +40,7 @@ PointShoot::PointShoot() :
 	is_oriented_to_path_(true), was_oriented_to_path_(true), has_goal_(false),
 	last_error_update_time_(0),
 	nh_(), private_nh_("~"),
-	moveit_("moveit", false),
+	moveto_("moveto", false),
 	update_freq_(0.01),
 	distance_tol_(0.5),
 	angle_to_path_tol_(10),
@@ -44,7 +48,7 @@ PointShoot::PointShoot() :
 	angle_vel_tol_(0.3),
 	linear_vel_tol_(0.1)
 {
-	//moveit_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
+	//moveto_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 	// TODO: figure out how to put in initilizer
 	zero_wrench_.wrench.force.x = zero_wrench_.wrench.force.y = zero_wrench_.wrench.force.z = 0;
 	zero_wrench_.wrench.torque.x = zero_wrench_.wrench.torque.y = zero_wrench_.wrench.torque.z = 0;
@@ -57,10 +61,19 @@ PointShoot::PointShoot() :
 	// Setup subscribers and publishers
 	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this);
 	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("wrench", 10);
+	//trajectory_pub_ = nh_.advertise<PoseTwistStamped>("trajectory", 1);
+	servo_pub_ = nh_.advertise<dynamixel_servo::DynamixelFullConfig>("dynamixel/dynamixel_full_config", 10);
 
-	//pose_theta_ = ::getParam<int>(private_nh, "pose_theta");
-	//angle_moving_theta_ = uf_common::getParam<int>(private_nh, "angle_moving_theta");
-	//angle_theta_ = uf_common::getParam<int>(private_nh, "angle_theta");
+	// ROS params
+	nh_.param<double>("linear_gain", linear_gain_, 0.1);
+	nh_.param<double>("angle_int_gain", angle_int_gain_, 0.1);
+	nh_.param<double>("angle_diff_gain", angle_diff_gain_, 0.1);
+	nh_.param<double>("angle_current_gain", angle_current_gain_, 0.1);
+
+	nh_.param<double>("angle_to_path_tol", angle_to_path_tol_, 0.1);
+	nh_.param<double>("angle_to_goal_tol", angle_to_goal_tol_, 0.1);
+	nh_.param<double>("angle_vel_tol", angle_vel_tol_, 0.1);
+
 
 	// Make sure we have odometry before moving on
 	// TODO: add timeout
@@ -80,12 +93,15 @@ PointShoot::PointShoot() :
 	desired_pose_ = current_pose_;
 
 	// Now that we have our current pose start the action server
-	//moveit_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
-	//moveit_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this, _1));
+	//moveto_.registerPreemptCallback(boost::bind(&PointShoot::goalPreempt_, this));
+	//moveto_.registerGoalCallback(boost::bind(&PointShoot::newGoal_, this, _1));
 		// Works in initializer, but causes seg. fault in initializer... odd
-	//moveit_.start();
+	moveto_.start();
 
 }
+
+geometry_msgs::Pose old_current_pose;
+geometry_msgs::Pose old_desired_pose;
 
 /*
  * 		Update
@@ -94,18 +110,21 @@ PointShoot::PointShoot() :
 void PointShoot::update_(const ros::TimerEvent& nononononononon)
 {
 	// Check for new goal
-	if(moveit_.isNewGoalAvailable()){
-		boost::shared_ptr<const uf_common::MoveToGoal> goal = moveit_.acceptNewGoal();
+	if(moveto_.isNewGoalAvailable()){
+		ROS_INFO("New Goal");
+		boost::shared_ptr<const uf_common::MoveToGoal> goal = moveto_.acceptNewGoal();
 		desired_pose_ = goal->posetwist.pose;
 		desired_twist_ = goal->posetwist.twist;	// Not used yet...
+		ROS_INFO("New goal is: %f, %f, %f", desired_pose_.position.x, desired_pose_.position.y, desired_pose_.position.z);
 
 		// Clear errors
 		clearErrors_();
 	}
 
 	// Check if goal preempted
-	if(moveit_.isPreemptRequested())
+	if(moveto_.isPreemptRequested())
 	{
+		ROS_INFO("Goal preempted");
 		// Set our current position to desired position
 		desired_pose_ = current_pose_;
 		desired_twist_ = zero_twist_;
@@ -122,15 +141,28 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 	geometry_msgs::WrenchStamped msg = zero_wrench_;
 	geometry_msgs::Wrench &wrench = msg.wrench;
 
+	if(desired_pose_.position.x != old_desired_pose.position.x ||
+			desired_pose_.position.y != old_desired_pose.position.y ||
+			desired_pose_.position.z != old_desired_pose.position.z){
+
+		old_desired_pose.position.x = desired_pose_.position.x;
+		old_desired_pose.position.y = desired_pose_.position.y;
+		old_desired_pose.position.z = desired_pose_.position.z;
+
+		ROS_INFO("I am here: %f, %f, %f", current_pose_.position.x, current_pose_.position.y, current_pose_.position.z);
+		ROS_INFO("I want to be here: %f, %f, %f", desired_pose_.position.x, desired_pose_.position.y, desired_pose_.position.z);
+	}
+
 	// Distance from goal is within tolerance
 	if( current_linear_error_ < distance_tol_ ){
 
 		if ( current_angular_error_ < angle_to_goal_tol_ ){
-
+			//ROS_INFO("Station hold");
 			// stationHold()
 
 		}else{
-
+			ROS_INFO("Standing on top of proper position; correcting Orientation");
+			//ROS_INFO("Orient to point");
 			wrench.torque = calculateTorque_();
 
 		}
@@ -139,17 +171,39 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 	}else{
 
 		if ( current_angular_error_ > angle_to_path_tol_ ){
-
+			ROS_INFO("Far away from target; Orient to path");
 			wrench.torque = calculateTorque_();
 
 		}else{
-
+			ROS_INFO("Far away from target but aiming at it; Move toward Goal");
 			wrench.force = calculateForce_();
 
 		}
 	}
 
-	// Finally publish the wrench
+	// Finally publish the wrench and servo
+	/*self.servo_pub.publish(DynamixelFullConfig(
+	                id=thruster['id'],
+	                goal_position=2*thruster['angle'] + math.pi,
+	                moving_speed=12, # near maximum, not actually achievable ...
+	                torque_limit=1023,
+	                goal_acceleration=38,
+	                control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
+	                goal_velocity=2*thruster['dangle'],
+	            ))*/
+	dynamixel_servo::DynamixelFullConfig servo_pos;
+	servo_pos.id = 2;
+	servo_pos.goal_position = PI;
+	servo_pos.moving_speed = 12;
+	servo_pos.torque_limit = 1023;
+	servo_pos.goal_acceleration = 38;
+	servo_pos.control_mode = dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE;
+	servo_pos.goal_velocity = 10;
+
+	servo_pub_.publish(servo_pos);
+	servo_pos.id = 3;
+	servo_pub_.publish(servo_pos);
+
 	thrust_pub_.publish(msg);
 
 }
@@ -231,11 +285,19 @@ void PointShoot::updateErrors_()
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
 
+	resulting_force.x = 50;
+	resulting_force.y = 0;
+	resulting_force.z = 0;
+
 	return resulting_force;
 }
 
 geometry_msgs::Vector3 PointShoot::calculateTorque_(){
 	geometry_msgs::Vector3 resulting_torque;
+
+	resulting_torque.z = 9;
+	resulting_torque.x = 0;
+	resulting_torque.y = 0;
 
 	return resulting_torque;
 }

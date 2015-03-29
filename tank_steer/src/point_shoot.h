@@ -14,6 +14,7 @@
 
 #include "uf_common/MoveToAction.h"
 //#include <uf_common/param_helpers.h>
+#include "dynamixel_servo/DynamixelFullConfig.h"
 
 #define PI 3.14159265359
 
@@ -70,11 +71,17 @@ class PointShoot{
 		// Thruster Mapper publisher
 		ros::Publisher thrust_pub_;
 
+		// Trajectory pub
+		ros::Publisher trajectory_pub_;
+
+		// Servo publisher
+		ros::Publisher servo_pub_;
+
 		// Replacement update timer for goal callback
 		ros::Timer update_timer_;
 
 		//Action Server
-		actionlib::SimpleActionServer<uf_common::MoveToAction> moveit_;
+		actionlib::SimpleActionServer<uf_common::MoveToAction> moveto_;
 
 		// ROS node handle
 		ros::NodeHandle nh_, private_nh_;
@@ -85,6 +92,12 @@ class PointShoot{
 		// Zero wrench and twist
 		geometry_msgs::WrenchStamped zero_wrench_;
 		geometry_msgs::Twist zero_twist_;
+
+		// Controller constants
+		double linear_gain_;
+		double angle_int_gain_;
+		double angle_diff_gain_;
+		double angle_current_gain_;
 
 	// Public functions
 	public:
