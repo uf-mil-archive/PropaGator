@@ -283,28 +283,21 @@ void PointShoot::updateErrors_()
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
 
-	//resulting_force.x = 50;
 	double &x = resulting_force.x;
 	resulting_force.y = 0;
 	resulting_force.z = 0;
 
-	ros::Time now = ros::Time::now();
-
 	double error_sqrt = sqrt(current_linear_error_);
 
-	// don't just launch at highest speed; ramp up to it
 	if(previous_force.x < MAX_FORCE && error_sqrt > MAX_FORCE){
+		// don't just launch at highest speed; ramp up to it
 
-		x = (MAX_FORCE / RAMP_UP_TIME) * (now.toSec() - last_goal_acceptance_time_.toSec());
+		x = (MAX_FORCE / RAMP_UP_TIME) * (ros::Time::now().toSec() - last_goal_acceptance_time_.toSec());
 
-	}else if(previous_force.x < MAX_FORCE){ // too close to goal; don't exert max force
+	}else{
+		// too close for max force; use k square root of error
 
-
-
-	}else{ // achieved maximum force; use k square root of error
-
-		// determining eq - in progress
-
+		x = error_sqrt;
 	}
 
 	return resulting_force;
