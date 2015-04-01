@@ -103,11 +103,13 @@ PointShoot::PointShoot() :
 geometry_msgs::Pose old_current_pose;
 geometry_msgs::Pose old_desired_pose;
 
+geometry_msgs::Vector3 previous_force;
+
 /*
  * 		Update
  * 	This function updates the controller
  */
-void PointShoot::update_(const ros::TimerEvent& nononononononon)
+void PointShoot::update_(const ros::TimerEvent& nononononononono)
 {
 	// Check for new goal
 	if(moveto_.isNewGoalAvailable()){
@@ -153,7 +155,7 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 		ROS_INFO("I want to be here: %f, %f, %f", desired_pose_.position.x, desired_pose_.position.y, desired_pose_.position.z);
 	}
 
-	// Distance from goal is within tolerance
+	// Distance from goal is within tolerance and the boat has not overshot its target goal
 	if( current_linear_error_ < distance_tol_ ){
 
 		if ( current_angular_error_ < angle_to_goal_tol_ ){
@@ -182,15 +184,6 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 	}
 
 	// Finally publish the wrench and servo
-	/*self.servo_pub.publish(DynamixelFullConfig(
-	                id=thruster['id'],
-	                goal_position=2*thruster['angle'] + math.pi,
-	                moving_speed=12, # near maximum, not actually achievable ...
-	                torque_limit=1023,
-	                goal_acceleration=38,
-	                control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
-	                goal_velocity=2*thruster['dangle'],
-	            ))*/
 	dynamixel_servo::DynamixelFullConfig servo_pos;
 	servo_pos.id = 2;
 	servo_pos.goal_position = PI;
@@ -204,6 +197,7 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 	servo_pos.id = 3;
 	servo_pub_.publish(servo_pos);
 
+	previous_force = wrench.force; // give calculateForce_() some frame of reference
 	thrust_pub_.publish(msg);
 
 }
@@ -282,12 +276,29 @@ void PointShoot::updateErrors_()
 	int_angular_error_ += (current_angular_error_ + last_angular_error_) * time_step.toSec() / 2;
 }
 
+/*
+ * 		calculateForce
+ * 	Taking in the error and performing the K-Sqare Root of Error
+ */
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
 
-	resulting_force.x = 50;
+	//resulting_force.x = 50;
+	double &x = resulting_force.x;
 	resulting_force.y = 0;
 	resulting_force.z = 0;
+
+	ros::Time now = ros::Time::now();
+
+	if(previous_force.x < MAX_FORCE){ // don't just launch at highest speed; ramp up
+
+		x = (MAX_FORCE / RAMP_UP_TIME) * (now.toSec() - last_goal_acceptance_time_.toSec());
+
+	}else{ // achieved maximum force; use k square root of error
+
+		// determining eq - in progress
+
+	}
 
 	return resulting_force;
 }
@@ -389,6 +400,7 @@ void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 	// Drop the last goal and set a new one
 	desired_pose_ = goal->posetwist.pose;
 	desired_twist_ = goal->posetwist.twist;		// We don't use this for anything yet
+	last_goal_acceptance_time_ = ros::Time::now();
 
 	clearErrors_(); // todo: why do we clear the errors at this time
 }

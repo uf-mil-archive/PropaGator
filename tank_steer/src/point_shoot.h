@@ -17,6 +17,8 @@
 #include "dynamixel_servo/DynamixelFullConfig.h"
 
 #define PI 3.14159265359
+#define MAX_FORCE 90.0 // in Newtons
+#define RAMP_UP_TIME 5 // in Seconds
 
 // Class for the controller
 class PointShoot{
@@ -57,6 +59,7 @@ class PointShoot{
 
 		// Error timing vars
 		ros::Time last_error_update_time_;
+		ros::Time last_goal_acceptance_time_;
 
 		// What to orient to
 		//		true for path false for desired orientation
