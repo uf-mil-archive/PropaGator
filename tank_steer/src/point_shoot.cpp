@@ -290,9 +290,16 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 
 	ros::Time now = ros::Time::now();
 
-	if(previous_force.x < MAX_FORCE){ // don't just launch at highest speed; ramp up
+	double error_sqrt = sqrt(current_linear_error_);
+
+	// don't just launch at highest speed; ramp up to it
+	if(previous_force.x < MAX_FORCE && error_sqrt > MAX_FORCE){
 
 		x = (MAX_FORCE / RAMP_UP_TIME) * (now.toSec() - last_goal_acceptance_time_.toSec());
+
+	}else if(previous_force.x < MAX_FORCE){ // too close to goal; don't exert max force
+
+
 
 	}else{ // achieved maximum force; use k square root of error
 
