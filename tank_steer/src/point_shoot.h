@@ -89,9 +89,11 @@ class PointShoot{
 		// Update frequency
 		ros::Duration update_freq_;
 
-		// Zero wrench and twist
+		// Zero wrench, twist, and servos
 		geometry_msgs::WrenchStamped zero_wrench_;
 		geometry_msgs::Twist zero_twist_;
+		dynamixel_servo::DynamixelFullConfig zero_port_servo_;
+		dynamixel_servo::DynamixelFullConfig zero_starboard_servo_;
 
 		// Controller constants
 		double linear_gain_;

@@ -55,13 +55,29 @@ PointShoot::PointShoot() :
 	zero_twist_.linear.x = zero_twist_.linear.y = zero_twist_.linear.z = 0;
 	zero_twist_.angular.x = zero_twist_.angular.y = zero_twist_.angular.z = 0;
 
+	zero_starboard_servo_.id = 2;
+	zero_starboard_servo_.goal_position = PI;
+	zero_starboard_servo_.moving_speed = 12;
+	zero_starboard_servo_.torque_limit = 1023;
+	zero_starboard_servo_.goal_acceleration = 38;
+	zero_starboard_servo_.control_mode = dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE;
+	zero_starboard_servo_.goal_velocity = 10;
+
+	zero_port_servo_ = zero_starboard_servo_;
+	zero_port_servo_.id = 3;
+
 	// Makes sure that we have the fully defined domain name
-	std::string topic = nh_.resolveName("odom");
+	std::string topic;
 
 	// Setup subscribers and publishers
+	topic = nh_.resolveName("odom");
 	odom_sub_ = nh_.subscribe<nav_msgs::Odometry>(topic.c_str(), 10, &PointShoot::getCurrentPoseTwist_, this);
-	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>("wrench", 10);
+
+	topic = nh_.resolveName("wrench");
+	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>(topic.c_str(), 10);
+
 	//trajectory_pub_ = nh_.advertise<PoseTwistStamped>("trajectory", 1);
+	//topic = nh_.resolveName("dynamixel_full_config");
 	servo_pub_ = nh_.advertise<dynamixel_servo::DynamixelFullConfig>("dynamixel/dynamixel_full_config", 10);
 
 	// ROS params
@@ -74,9 +90,17 @@ PointShoot::PointShoot() :
 	nh_.param<double>("angle_to_goal_tol", angle_to_goal_tol_, 0.1);
 	nh_.param<double>("angle_vel_tol", angle_vel_tol_, 0.1);
 
+	// TODO: add timeout to waiting sections
+
+	// Wait for dynimxel server to start
+	ROS_INFO("Waiting for Dynamixel server");
+	while(servo_pub_.getNumSubscribers() <= 0 && ros::ok());
+	ROS_INFO("Dynamixel server active, zeroing servos");
+	// Initialize servos to zero
+	servo_pub_.publish(zero_starboard_servo_);
+	servo_pub_.publish(zero_port_servo_);
 
 	// Make sure we have odometry before moving on
-	// TODO: add timeout
 	ROS_INFO("Waiting for odom publisher");
 	while(odom_sub_.getNumPublishers() <= 0 && ros::ok());
 
@@ -109,6 +133,11 @@ geometry_msgs::Pose old_desired_pose;
  */
 void PointShoot::update_(const ros::TimerEvent& nononononononon)
 {
+
+	//
+	// Action server section
+	//
+
 	// Check for new goal
 	if(moveto_.isNewGoalAvailable()){
 		ROS_INFO("New Goal");
@@ -135,11 +164,14 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 		return;
 	}
 
+	//
+	// Controller logic section
+	//
 
 	// TODO: add velocity considerations
 
-	geometry_msgs::WrenchStamped msg = zero_wrench_;
-	geometry_msgs::Wrench &wrench = msg.wrench;
+	geometry_msgs::WrenchStamped wrench_msg = zero_wrench_;
+	geometry_msgs::Wrench &wrench = wrench_msg.wrench;
 
 	if(desired_pose_.position.x != old_desired_pose.position.x ||
 			desired_pose_.position.y != old_desired_pose.position.y ||
@@ -181,30 +213,11 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 		}
 	}
 
-	// Finally publish the wrench and servo
-	/*self.servo_pub.publish(DynamixelFullConfig(
-	                id=thruster['id'],
-	                goal_position=2*thruster['angle'] + math.pi,
-	                moving_speed=12, # near maximum, not actually achievable ...
-	                torque_limit=1023,
-	                goal_acceleration=38,
-	                control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE,
-	                goal_velocity=2*thruster['dangle'],
-	            ))*/
-	dynamixel_servo::DynamixelFullConfig servo_pos;
-	servo_pos.id = 2;
-	servo_pos.goal_position = PI;
-	servo_pos.moving_speed = 12;
-	servo_pos.torque_limit = 1023;
-	servo_pos.goal_acceleration = 38;
-	servo_pos.control_mode = dynamixel_servo::DynamixelFullConfig::CONTINUOUS_ANGLE;
-	servo_pos.goal_velocity = 10;
-
-	servo_pub_.publish(servo_pos);
-	servo_pos.id = 3;
-	servo_pub_.publish(servo_pos);
-
-	thrust_pub_.publish(msg);
+	// Zero servos
+	servo_pub_.publish(zero_starboard_servo_);
+	servo_pub_.publish(zero_port_servo_);
+	// Publish wrench
+	thrust_pub_.publish(wrench_msg);
 
 }
 
