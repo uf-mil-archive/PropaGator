@@ -328,7 +328,9 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 geometry_msgs::Vector3 PointShoot::calculateTorque_(){
 	geometry_msgs::Vector3 resulting_torque;
 
-	resulting_torque.z = 9;
+	resulting_torque.z = angle_current_gain_ 	* current_angular_error_
+					   + angle_int_gain_		* int_angular_error_
+					   + angle_diff_gain_		* diff_angular_error_;
 	resulting_torque.x = 0;
 	resulting_torque.y = 0;
 
