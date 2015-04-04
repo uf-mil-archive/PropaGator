@@ -83,17 +83,15 @@ PointShoot::PointShoot() :
 	trajectory_pub_ = nh_.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
 
 	// ROS params
-	nh_.param<double>("linear_gain", linear_gain_, 0.1);
-	nh_.param<double>("angle_int_gain", angle_int_gain_, 0.1);
-	nh_.param<double>("angle_diff_gain", angle_diff_gain_, 0.1);
-	nh_.param<double>("angle_current_gain", angle_current_gain_, 0.1);
+	nh_.param<double>("linear_p_gain", linear_p_gain_, 777);
+	nh_.param<double>("linear_d_gain", linear_d_gain_, 777);
+	nh_.param<double>("angle_i_gain", angle_i_gain_, 777);
+	nh_.param<double>("angle_d_gain", angle_d_gain_, 777);
+	nh_.param<double>("angle_p_gain", angle_p_gain_, 777);
 
 	nh_.param<double>("angle_to_path_tol", angle_to_path_tol_, 0.1);
 	nh_.param<double>("angle_to_goal_tol", angle_to_goal_tol_, 0.1);
 	nh_.param<double>("angle_vel_tol", angle_vel_tol_, 0.1);
-
-	nh_.param<double>("k_proportional", k_proportional_, 777);
-	nh_.param<double>("k_derivative", k_derivative_, 777);
 
 	// TODO: add timeout to waiting sections
 
@@ -324,8 +322,8 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 		x = error_sqrt;
 	}*/
 
-	x = k_proportional_ * current_linear_error_ +
-			k_derivative_ * diff_linear_error_;
+	x = linear_p_gain_ * current_linear_error_ +
+			linear_d_gain_ * diff_linear_error_;
 
 	return resulting_force;
 }
@@ -333,9 +331,9 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 geometry_msgs::Vector3 PointShoot::calculateTorque_(){
 	geometry_msgs::Vector3 resulting_torque;
 
-	resulting_torque.z = angle_current_gain_ 	* current_angular_error_
-					   + angle_int_gain_		* int_angular_error_
-					   + angle_diff_gain_		* diff_angular_error_;
+	resulting_torque.z = angle_p_gain_ 		* current_angular_error_
+					   + angle_i_gain_		* int_angular_error_
+					   + angle_d_gain_		* diff_angular_error_;
 	resulting_torque.x = 0;
 	resulting_torque.y = 0;
 

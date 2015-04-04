@@ -97,14 +97,13 @@ class PointShoot{
 		dynamixel_servo::DynamixelFullConfig zero_port_servo_;
 		dynamixel_servo::DynamixelFullConfig zero_starboard_servo_;
 
-		// Controller constants
-		double linear_gain_;
-		double angle_int_gain_;
-		double angle_diff_gain_;
-		double angle_current_gain_;
+		// Controller PID constants
+		double linear_p_gain_;
+		double linear_d_gain_;
 
-		// PD controller constants
-		double k_proportional_, k_derivative_;
+		double angle_i_gain_;
+		double angle_d_gain_;
+		double angle_p_gain_;
 
 	// Public functions
 	public:
