@@ -177,9 +177,11 @@ void PointShoot::update_(const ros::TimerEvent& nononononononono)
 	geometry_msgs::Wrench &wrench = wrench_msg.wrench;
 
 	// Distance from goal is within tolerance and the boat has not overshot its target goal
-	if( current_linear_error_ < distance_tol_ ){
+	if( fabs(current_linear_error_) < distance_tol_ ){
+		if(is_oriented_to_path_){ clearErrors_(); }
+		is_oriented_to_path_ = false;
 
-		if ( current_angular_error_ < angle_to_goal_tol_ ){
+		if ( fabs(current_angular_error_) < angle_to_goal_tol_ ){
 			//ROS_INFO("Station hold");
 			// stationHold()
 
@@ -192,8 +194,10 @@ void PointShoot::update_(const ros::TimerEvent& nononononononono)
 
 	// Distance from goal is far; boat is on the path
 	}else{
+		if(!is_oriented_to_path_){ clearErrors_(); }
+		is_oriented_to_path_ = true;
 
-		if ( current_angular_error_ > angle_to_path_tol_ ){
+		if ( fabs(current_angular_error_) > angle_to_path_tol_ ){
 			ROS_INFO("Far away from target; Orient to path");
 			wrench.torque = calculateTorque_();
 
