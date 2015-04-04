@@ -92,6 +92,9 @@ PointShoot::PointShoot() :
 	nh_.param<double>("angle_to_goal_tol", angle_to_goal_tol_, 0.1);
 	nh_.param<double>("angle_vel_tol", angle_vel_tol_, 0.1);
 
+	nh_.param<double>("k_proportional", k_proportional_, 777);
+	nh_.param<double>("k_derivative", k_derivative_, 777);
+
 	// TODO: add timeout to waiting sections
 
 	// Wait for dynimxel server to start
@@ -126,8 +129,6 @@ PointShoot::PointShoot() :
 	moveto_.start();
 
 }
-
-geometry_msgs::Vector3 previous_force;
 
 /*
  * 		Update
@@ -209,8 +210,6 @@ void PointShoot::update_(const ros::TimerEvent& nononononononono)
 	servo_pub_.publish(zero_port_servo_);
 	// Publish wrench
 	thrust_pub_.publish(wrench_msg);
-
-	previous_force = wrench.force; // give calculateForce_() some frame of reference
 
 }
 
@@ -297,6 +296,9 @@ void PointShoot::updateErrors_()
 /*
  * 		calculateForce
  * 	Taking in the error and performing the K-Sqare Root of Error
+ *
+ * 	This is no longer the case; now a Proportional-Derivative
+ * 	controller is used:		force = (Kp * E) + (Kd * dE)
  */
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
@@ -305,9 +307,9 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	resulting_force.y = 0;
 	resulting_force.z = 0;
 
-	double error_sqrt = sqrt(current_linear_error_);
+	//double error_sqrt = sqrt(current_linear_error_);
 
-	if(previous_force.x < MAX_FORCE && error_sqrt > MAX_FORCE){
+	/*if(previous_force.x < MAX_FORCE && error_sqrt > MAX_FORCE){
 		// don't just launch at highest speed; ramp up to it
 
 		x = (MAX_FORCE / RAMP_UP_TIME) * (ros::Time::now().toSec() - last_goal_acceptance_time_.toSec());
@@ -316,7 +318,10 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 		// too close for max force; use k square root of error
 
 		x = error_sqrt;
-	}
+	}*/
+
+	x = k_proportional_ * current_linear_error_ +
+			k_derivative_ * diff_linear_error_;
 
 	return resulting_force;
 }

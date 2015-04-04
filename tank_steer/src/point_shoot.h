@@ -18,8 +18,6 @@
 #include "dynamixel_servo/DynamixelFullConfig.h"
 
 #define PI 3.14159265359
-#define MAX_FORCE 90.0 // in Newtons
-#define RAMP_UP_TIME 5 // in Seconds
 
 // Class for the controller
 class PointShoot{
@@ -104,6 +102,9 @@ class PointShoot{
 		double angle_int_gain_;
 		double angle_diff_gain_;
 		double angle_current_gain_;
+
+		// PD controller constants
+		double k_proportional_, k_derivative_;
 
 	// Public functions
 	public:
