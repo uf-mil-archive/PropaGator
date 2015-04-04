@@ -13,6 +13,7 @@
 #include <cmath>
 
 #include "uf_common/MoveToAction.h"
+#include <uf_common/PoseTwistStamped.h>
 //#include <uf_common/param_helpers.h>
 #include "dynamixel_servo/DynamixelFullConfig.h"
 
@@ -127,9 +128,9 @@ class PointShoot{
 
 		double scaleRads_(double rads);
 
-		void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
+		//void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
 
-		void goalPreempt_();
+		//void goalPreempt_();
 };
 
 #endif

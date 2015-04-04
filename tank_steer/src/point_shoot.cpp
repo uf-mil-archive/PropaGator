@@ -76,9 +76,11 @@ PointShoot::PointShoot() :
 	topic = nh_.resolveName("wrench");
 	thrust_pub_ = nh_.advertise<geometry_msgs::WrenchStamped>(topic.c_str(), 10);
 
-	//trajectory_pub_ = nh_.advertise<PoseTwistStamped>("trajectory", 1);
 	//topic = nh_.resolveName("dynamixel_full_config");
 	servo_pub_ = nh_.advertise<dynamixel_servo::DynamixelFullConfig>("dynamixel/dynamixel_full_config", 10);
+
+	// Publisher to satisfy waypoint cmds
+	trajectory_pub_ = nh_.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
 
 	// ROS params
 	nh_.param<double>("linear_gain", linear_gain_, 0.1);
@@ -104,6 +106,7 @@ PointShoot::PointShoot() :
 	ROS_INFO("Waiting for odom publisher");
 	while(odom_sub_.getNumPublishers() <= 0 && ros::ok());
 
+	// Controls the update rate
 	update_timer_ = nh_.createTimer(update_freq_, boost::bind(&PointShoot::update_, this, _1) );
 
 	// Wait till the first position is found then set that to desired position
@@ -124,9 +127,6 @@ PointShoot::PointShoot() :
 
 }
 
-geometry_msgs::Pose old_current_pose;
-geometry_msgs::Pose old_desired_pose;
-
 /*
  * 		Update
  * 	This function updates the controller
@@ -140,11 +140,12 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 
 	// Check for new goal
 	if(moveto_.isNewGoalAvailable()){
-		ROS_INFO("New Goal");
 		boost::shared_ptr<const uf_common::MoveToGoal> goal = moveto_.acceptNewGoal();
 		desired_pose_ = goal->posetwist.pose;
 		desired_twist_ = goal->posetwist.twist;	// Not used yet...
-		ROS_INFO("New goal is: %f, %f, %f", desired_pose_.position.x, desired_pose_.position.y, desired_pose_.position.z);
+
+		ROS_INFO("New goal is: %f, %f", desired_pose_.position.x, desired_pose_.position.y);
+		ROS_INFO("I am here: %f, %f", current_pose_.position.x, current_pose_.position.y);
 
 		// Clear errors
 		clearErrors_();
@@ -172,18 +173,6 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 
 	geometry_msgs::WrenchStamped wrench_msg = zero_wrench_;
 	geometry_msgs::Wrench &wrench = wrench_msg.wrench;
-
-	if(desired_pose_.position.x != old_desired_pose.position.x ||
-			desired_pose_.position.y != old_desired_pose.position.y ||
-			desired_pose_.position.z != old_desired_pose.position.z){
-
-		old_desired_pose.position.x = desired_pose_.position.x;
-		old_desired_pose.position.y = desired_pose_.position.y;
-		old_desired_pose.position.z = desired_pose_.position.z;
-
-		ROS_INFO("I am here: %f, %f, %f", current_pose_.position.x, current_pose_.position.y, current_pose_.position.z);
-		ROS_INFO("I want to be here: %f, %f, %f", desired_pose_.position.x, desired_pose_.position.y, desired_pose_.position.z);
-	}
 
 	// Distance from goal is within tolerance
 	if( current_linear_error_ < distance_tol_ ){
@@ -230,6 +219,12 @@ void PointShoot::getCurrentPoseTwist_(const nav_msgs::Odometry::ConstPtr &msg)
 {
 	current_pose_ = msg->pose.pose;
 	current_twist_ = msg->twist.twist;
+
+	// Output to trajectory
+	uf_common::PoseTwistStamped traj;
+	traj.posetwist.pose = msg->pose.pose;
+	traj.posetwist.twist = msg->twist.twist;
+	trajectory_pub_.publish(traj);
 
 	updateErrors_();
 }
@@ -394,7 +389,7 @@ double PointShoot::scaleRads_(double rads)
  * 		accept a new goal
  *	Set the desired position and reset the errors
  */
-void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
+/*void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 {
 	ROS_INFO("Got new goal");
 
@@ -405,12 +400,13 @@ void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 
 	clearErrors_(); // todo: why do we clear the errors at this time
 }
+*/
 
 /*
  * 		Preempt the goal
  * 	The goal has been canceled so stop and set current position
  * 		as desired position
- */
+ *
 void PointShoot::goalPreempt_()
 {
 	ROS_INFO("Goal preempted");
@@ -420,6 +416,7 @@ void PointShoot::goalPreempt_()
 	clearErrors_();
 
 }
+*/
 
 
 /************************
