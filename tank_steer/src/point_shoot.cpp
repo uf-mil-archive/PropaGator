@@ -127,11 +127,13 @@ PointShoot::PointShoot() :
 
 }
 
+geometry_msgs::Vector3 previous_force;
+
 /*
  * 		Update
  * 	This function updates the controller
  */
-void PointShoot::update_(const ros::TimerEvent& nononononononon)
+void PointShoot::update_(const ros::TimerEvent& nononononononono)
 {
 
 	//
@@ -174,7 +176,7 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 	geometry_msgs::WrenchStamped wrench_msg = zero_wrench_;
 	geometry_msgs::Wrench &wrench = wrench_msg.wrench;
 
-	// Distance from goal is within tolerance
+	// Distance from goal is within tolerance and the boat has not overshot its target goal
 	if( current_linear_error_ < distance_tol_ ){
 
 		if ( current_angular_error_ < angle_to_goal_tol_ ){
@@ -207,6 +209,8 @@ void PointShoot::update_(const ros::TimerEvent& nononononononon)
 	servo_pub_.publish(zero_port_servo_);
 	// Publish wrench
 	thrust_pub_.publish(wrench_msg);
+
+	previous_force = wrench.force; // give calculateForce_() some frame of reference
 
 }
 
@@ -290,12 +294,29 @@ void PointShoot::updateErrors_()
 	int_angular_error_ += (current_angular_error_ + last_angular_error_) * time_step.toSec() / 2;
 }
 
+/*
+ * 		calculateForce
+ * 	Taking in the error and performing the K-Sqare Root of Error
+ */
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
 
-	resulting_force.x = 50;
+	double &x = resulting_force.x;
 	resulting_force.y = 0;
 	resulting_force.z = 0;
+
+	double error_sqrt = sqrt(current_linear_error_);
+
+	if(previous_force.x < MAX_FORCE && error_sqrt > MAX_FORCE){
+		// don't just launch at highest speed; ramp up to it
+
+		x = (MAX_FORCE / RAMP_UP_TIME) * (ros::Time::now().toSec() - last_goal_acceptance_time_.toSec());
+
+	}else{
+		// too close for max force; use k square root of error
+
+		x = error_sqrt;
+	}
 
 	return resulting_force;
 }
@@ -397,6 +418,7 @@ double PointShoot::scaleRads_(double rads)
 	// Drop the last goal and set a new one
 	desired_pose_ = goal->posetwist.pose;
 	desired_twist_ = goal->posetwist.twist;		// We don't use this for anything yet
+	last_goal_acceptance_time_ = ros::Time::now();
 
 	clearErrors_(); // todo: why do we clear the errors at this time
 }

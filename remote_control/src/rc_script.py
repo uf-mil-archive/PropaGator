@@ -47,7 +47,6 @@ pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queu
 pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
 
 
-
 def start():
 	#Init node
 	rospy.init_node('remote_control', anonymous=True)
