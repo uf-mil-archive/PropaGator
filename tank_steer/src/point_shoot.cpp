@@ -7,6 +7,11 @@
 // TODO: Kevin PID controller
 // TODO: Debug
 
+// SUPER TODO:
+// TODO: TODO: TODO:
+// TODO: TODO: TODO:		STOP MOTORS ON EXIT!!!!!!!!!!!!
+// TODO: TODO: TODO:
+
 /****************************************************************************
  * 							Point and shoot for tank steer					*
  * 	This node implements the moveit simple action server					*
