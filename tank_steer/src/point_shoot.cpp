@@ -282,7 +282,7 @@ void PointShoot::updateErrors_()
 	current_linear_error_ = get2DDistance_(current_pose_.position, desired_pose_.position);
 
 	// Set the sign of the current_linear_error_ based on the orientation of the boat
-	if(abs(angular_error_to_path) > (PI / 2))
+	if(fabs(angular_error_to_path) > (PI / 2.0))
 	{
 		current_linear_error_ *= -1;		// The boat overshot so we need to reverse
 	}
@@ -401,7 +401,7 @@ double PointShoot::getYaw_(geometry_msgs::Quaternion q)
 }
 
 /*
- *		scaleRads
+ *		ScaleRads
  *	Make sure that a rad is between -PI and PI
  */
 double PointShoot::scaleRads_(double rads)
