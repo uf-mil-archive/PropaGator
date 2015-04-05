@@ -105,6 +105,10 @@ class PointShoot{
 		double angle_d_gain_;
 		double angle_p_gain_;
 
+		// backward/forward bubble
+		double bubble_radius_;
+		bool bubble_breached_;
+
 	// Public functions
 	public:
 		PointShoot();

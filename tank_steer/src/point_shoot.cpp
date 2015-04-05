@@ -46,7 +46,8 @@ PointShoot::PointShoot() :
 	angle_to_path_tol_(10),
 	angle_to_goal_tol_(15),
 	angle_vel_tol_(0.3),
-	linear_vel_tol_(0.1)
+	linear_vel_tol_(0.1),
+	bubble_breached_(false)
 {
 	//moveto_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 	// TODO: figure out how to put in initilizer
@@ -92,6 +93,8 @@ PointShoot::PointShoot() :
 	nh_.param<double>("angle_to_path_tol", angle_to_path_tol_, 0.1);
 	nh_.param<double>("angle_to_goal_tol", angle_to_goal_tol_, 0.1);
 	nh_.param<double>("angle_vel_tol", angle_vel_tol_, 0.1);
+
+	nh_.param<double>("bubble_radius", bubble_radius_, 5);
 
 	// TODO: add timeout to waiting sections
 
@@ -184,6 +187,11 @@ void PointShoot::update_(const ros::TimerEvent& nononononononono)
 			//ROS_INFO("Station hold");
 			// stationHold()
 
+			if(bubble_breached_){
+				bubble_breached_ = false;
+				bubble_radius_--;
+			}
+
 		}else{
 			ROS_INFO("Standing on top of proper position; correcting Orientation");
 			//ROS_INFO("Orient to point");
@@ -196,6 +204,18 @@ void PointShoot::update_(const ros::TimerEvent& nononononononono)
 		if(!is_oriented_to_path_){ clearErrors_(); }
 		is_oriented_to_path_ = true;
 
+		// bubble interactions
+		if(current_linear_error_ < bubble_radius_){ // breach of bubble space
+
+			if(!bubble_breached_) bubble_radius_++;
+			bubble_breached_ = true;
+
+		}else{ // accidental drift out of bubble space
+			if(bubble_breached_) bubble_radius_--;
+			bubble_breached_ = false;
+		}
+
+		// pointing and shooting behaviors
 		if ( fabs(current_angular_error_) > angle_to_path_tol_ ){
 			ROS_INFO("Far away from target; Orient to path");
 			wrench.torque = calculateTorque_();
@@ -203,7 +223,6 @@ void PointShoot::update_(const ros::TimerEvent& nononononononono)
 		}else{
 			ROS_INFO("Far away from target but aiming at it; Move toward Goal");
 			wrench.force = calculateForce_();
-
 		}
 	}
 
@@ -305,25 +324,9 @@ void PointShoot::updateErrors_()
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
 
-	double &x = resulting_force.x;
+	resulting_force.x = linear_p_gain_ * current_linear_error_ + linear_d_gain_ * diff_linear_error_;
 	resulting_force.y = 0;
 	resulting_force.z = 0;
-
-	//double error_sqrt = sqrt(current_linear_error_);
-
-	/*if(previous_force.x < MAX_FORCE && error_sqrt > MAX_FORCE){
-		// don't just launch at highest speed; ramp up to it
-
-		x = (MAX_FORCE / RAMP_UP_TIME) * (ros::Time::now().toSec() - last_goal_acceptance_time_.toSec());
-
-	}else{
-		// too close for max force; use k square root of error
-
-		x = error_sqrt;
-	}*/
-
-	x = linear_p_gain_ * current_linear_error_ +
-			linear_d_gain_ * diff_linear_error_;
 
 	return resulting_force;
 }
@@ -418,8 +421,8 @@ double PointShoot::scaleRads_(double rads)
 /*
  * 		accept a new goal
  *	Set the desired position and reset the errors
- */
-/*void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
+ *
+void PointShoot::newGoal_(const uf_common::MoveToGoal::ConstPtr &goal)
 {
 	ROS_INFO("Got new goal");
 
