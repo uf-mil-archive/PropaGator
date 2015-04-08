@@ -11,6 +11,7 @@
 #include <tf/LinearMath/Transform.h>
 
 #include <cmath>
+#include <iostream>
 
 #include "uf_common/MoveToAction.h"
 #include <uf_common/PoseTwistStamped.h>
@@ -108,6 +109,9 @@ class PointShoot{
 		// backward/forward bubble
 		double bubble_radius_;
 		bool bubble_breached_;
+
+		// debug statement containers
+		std::string current_debug_msg_, previous_debug_msg_;
 
 	// Public functions
 	public:
