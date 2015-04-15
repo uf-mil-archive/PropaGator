@@ -39,17 +39,17 @@ class Controller(object):
 
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
-
         # Constants
         self.left_id = 3
         self.right_id = 2
-        # self.control_timeout = 2
+        # self.control_timeout = 2  # sec
         self.control_timeout = np.inf
 
         # Left, right
         self.cur_theta_L = 0.1
         self.cur_theta_R = 0.1
         self.cur_angles = np.array([self.cur_theta_L, self.cur_theta_R])
+        
         self.cur_force_L = 0.0
         self.cur_force_R = 0.0
         self.cur_forces = np.array([self.cur_force_L, self.cur_force_R])
@@ -124,24 +124,29 @@ class Controller(object):
 
     def set_servo_angles(self, (theta_left, theta_right)):
         rospy.loginfo("Assigning angles [{}, {}]".format(theta_left, theta_right))
-        self.servo_pub.publish(DynamixelFullConfig(
-            id=                    self.left_id,
-            goal_position=         theta_left,
-            moving_speed=          self.servo_max_rotation, # near maximum, not actually achievable ...
-            torque_limit=          1023,
-            goal_acceleration=     38,
-            control_mode=          DynamixelFullConfig.JOINT,
-            goal_velocity=         self.servo_max_rotation,
-        ))
-        self.servo_pub.publish(DynamixelFullConfig(
-            id=                    self.right_id,
-            goal_position=         theta_right,
-            moving_speed=          self.servo_max_rotation, # near maximum, not actually achievable ...
-            torque_limit=          1023,
-            goal_acceleration=     38,
-            control_mode=          DynamixelFullConfig.JOINT,
-            goal_velocity=         self.servo_max_rotation,
-        ))
+        self.servo_pub.publish(
+            DynamixelFullConfig(
+                id=self.left_id,
+                goal_position=theta_left,
+                moving_speed=self.servo_max_rotation,
+                torque_limit=1023,
+                goal_acceleration=38,
+                control_mode=DynamixelFullConfig.JOINT,
+                goal_velocity=self.servo_max_rotation,
+            )
+        )
+        self.servo_pub.publish(
+            DynamixelFullConfig(
+                id=self.right_id,
+                goal_position=theta_right,
+                moving_speed=self.servo_max_rotation,
+                torque_limit=1023,
+                goal_acceleration=38,
+                control_mode=DynamixelFullConfig.JOINT,
+                goal_velocity=self.servo_max_rotation,
+            )
+        )
+
 
 if __name__ == '__main__':
     controller = Controller()

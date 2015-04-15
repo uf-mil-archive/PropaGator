@@ -19,6 +19,7 @@ class Test_Azi_Drive(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
+        self.test_time = True
 
     def test_thrust_matrix(self):
         '''Test the thrust matrix
@@ -138,7 +139,7 @@ class Test_Azi_Drive(unittest.TestCase):
             alpha_0 = np.array(test['alpha_0'])
             delta_angle = np.array(test['delta_angle'])
 
-            jacobian = Azi_Drive.thrust_jacobian(u_0, alpha_0)
+            jacobian = Azi_Drive.thrust_jacobian(alpha_0, u_0)
 
             initial_thrust_matrix = Azi_Drive.thrust_matrix(alpha_0)
             linear_estimate = np.dot(initial_thrust_matrix, u_0) + np.dot(jacobian, delta_angle)
@@ -160,17 +161,14 @@ class Test_Azi_Drive(unittest.TestCase):
             )
 
     def test_allocation(self):
+        max_time = 0.05
         def run_test(fx, fy, moment):
             u_nought = np.array([0.0, 0.0])
             alpha_nought = np.array([0.1, 0.1])
 
-            tau = np.matrix([
-                fx, 
-                fy, 
-                moment
-            ]).T
+            tau = np.array([fx, fy, moment])
 
-            #  Run 20 iterations
+            #  Accumulate 20 iterations
             for k in range(20):
                 tic = time()
                 thrust_solution = Azi_Drive.map_thruster(
@@ -180,38 +178,42 @@ class Test_Azi_Drive(unittest.TestCase):
                     alpha_0=alpha_nought, 
                     u_0=u_nought
                 )
-
                 toc = time() - tic
 
                 d_theta, d_force = thrust_solution
-
                 alpha_nought += d_theta
                 u_nought += d_force
 
+                if self.test_time:
+                    self.assertLess(toc, max_time, msg="Executon took more then {} sec")
+
             net = Azi_Drive.net_force(alpha_nought, u_nought)
-            print 'Asking thrusts:\n', u_nought
-            print 'Asking angles:\n', alpha_nought
-            print 'Net:\n', net
-            difference = net - tau, 
-            success = np.linalg.norm(net - tau) < 0.1
-            print 'Difference\n', difference
+            difference = np.linalg.norm(net - tau)
+            success = difference < 0.1
+
+            self.assertLess(
+                difference, 
+                0.1, 
+                msg="Failed on request {}, with error {}".format(
+                    (fx, fy, moment), 
+                    difference
+                )
+            )
             return success
 
-        tests = {
-            (0, 0, 0): True,
-            (20, 70, -3): True,
-            (100, 0, 0): True,
-            (0, 0, 5): True,
-            (180, 0, 0): True,
-            (200, 0, 0): True,
-            (100, 20, -3): True,
-            (120, 15, 12): True,
-        }
+        tests = [
+            (0, 0, 0),
+            (20, 70, -3),
+            (100, 0, 0),
+            (0, 0, 5),
+            (180, 0, 0),
+            (200, 0, 0),
+            (100, 20, -3),
+            (120, 15, 12),
+        ]
         results = {}
-        for test in tests.keys():
+        for test in tests:
             result = run_test(*test)
-            results[test] = result
-        self.assertEqual(tests, results)
 
 
 if __name__ == '__main__':
