@@ -21,17 +21,39 @@ class Azi_Drive(object):
 
     positions = [
         # l_x, l_y
-        (0.1, +2),
-        (0.1, -2),
+        (-0.15, -0.3),
+        (-0.15, 0.3),
     ]
+
+    # Max/min force from each thruster
     u_max = 100
     u_min = -100
+
+    # Max/min angle of each thruster
     alpha_max = np.pi
     alpha_min = -np.pi
-    delta_alpha_max = np.pi / 10
-    delta_alpha_min = -np.pi / 10
 
-    power_cost_scale = 1.0
+    # Max/min change in thruster angle (Rotation speed of servo, really)
+    delta_alpha_max = np.pi / 10
+    delta_alpha_min = -delta_alpha_max
+
+    # Derivative of cost for greater trust (Not doing any nonlinear modelling for power cost)
+    power_cost_scale = 20.0
+
+    @classmethod
+    def set_delta_alpha_max(self, bound):
+        self.delta_alpha_max = bound
+        self.delta_alpha_min = -bound
+
+    @classmethod
+    def set_alpha_bound(self, (_min, _max)):
+        self.alpha_max = _max
+        self.alpha_min = _min
+
+    @classmethod
+    def set_thrust_bound(self, (_min, _max)):
+        self.u_max = _max
+        self.u_min = _min
 
     @classmethod
     def thrust_matrix(self, alpha):
@@ -52,9 +74,10 @@ class Azi_Drive(object):
             s = np.sin(angle)
             thruster_column = np.transpose(
                 np.array([[
-                    c,
-                    s,
-                    (l_y * c) + (l_x * s),
+                    c, # f in x
+                    s, # f in y
+                    # (c * l_y) - (s * l_x), # Moment about z
+                    np.cross((c, s), (l_x, l_y))
                 ]])
             )
             thruster_matrix.append(thruster_column)
@@ -94,7 +117,7 @@ class Azi_Drive(object):
 
     @classmethod
     def map_thruster(self, fx_des, fy_des, m_des, alpha_0, u_0):
-        '''Optimize for a single thruster using the Fossen method
+        '''Compute the optimal thruster configuration for Propagator using the Fossen method
         To make this work, alpha_0 and u_0 must be varied
 
         u_0 -> Root force
@@ -108,7 +131,8 @@ class Azi_Drive(object):
         It turns out that this problem is approximately convex in the range of allowable delta_theta
             so that if we linearize the problem, we can find an acceptable accurate minimum
 
-        It is due to this linearization that we are computing over the FOTA and using u_0 + delta_u instead of u directly.
+        It is due to this linearization that we are computing over the FOTA and using u_0 + delta_u 
+            instead of u directly.
 
         Glossary:
             FOTA: First Order Taylor Approximation
@@ -119,7 +143,8 @@ class Azi_Drive(object):
             alpha_0: vector of current thruster orientations
             d_alpha: vector of angle changes
 
-            B, or thrust_matrix: Matrix that maps a control input, "u" at a particular "alpha" to a net force exerted by the boat
+            B, or thrust_matrix: Matrix that maps a control input, "u" at a particular "alpha" 
+                to a net force exerted by the boat
             singularity: when B becomes singular (noninvertible)
         '''
         # Convert to numpy arrays
@@ -158,20 +183,20 @@ class Azi_Drive(object):
             s = get_s((delta_angle, delta_u))
 
             # Sub-costs
-            power = np.sum(np.power(d_power * (u_0 + delta_u), 2))
+            power = np.sum(d_power * (u_0 + delta_u))
 
             G = thrust_error_weights = np.diag([20, 20, 20])
             thrust_error = (s * G * s.T).A1
 
-            Q = angle_change_weight = np.diag([10, 10])
+            Q = angle_change_weight = np.diag([4, 4])
             angle_change = np.dot(
                 np.dot(delta_angle, angle_change_weight),
                 np.transpose(delta_angle))
 
             singularity = np.dot(d_singularity, delta_angle).A1
 
-            # cost = power + thrust_error + angle_change + singularity
-            cost = thrust_error + angle_change
+            # Note, the error will increase when adding power and singularity costs
+            cost = power + thrust_error + angle_change + singularity
             return cost
 
         def objective_r(*args):
@@ -229,18 +254,18 @@ class Azi_Drive(object):
                 {'type': 'ineq', 'fun': 
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 - delta_alpha_min},
             ]
-
         )
-        # assert minimization
-    
+        if not minimization.success:
+            print "-----------FAILED TO ACHIEVE--------------"
         delta_alpha_1, delta_alpha_2, delta_u_1, delta_u_2 = minimization.x
         return np.array([delta_alpha_1, delta_alpha_2]), np.array([delta_u_1, delta_u_2])
 
 
 if __name__ == '__main__':
+    print "Don't execute this as main."
     tic = time.time()
     u_0 = np.array([0.0, 0.0])
-    alpha_0 = np.array([0.8, 0.1])
+    alpha_0 = np.array([0.0, 0.0])
 
     for k in range(10):
 
@@ -249,9 +274,8 @@ if __name__ == '__main__':
             alpha_0=alpha_0, 
             u_0=u_0,
         )
-        # print 'delta', delta_alpha, delta_u
         toc = time.time() - tic
-        # print 'took', toc
+        print 'took {} seconds'.format(toc)
         u_0 += delta_u
         alpha_0 += delta_alpha
         print u_0
