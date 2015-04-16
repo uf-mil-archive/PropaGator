@@ -3,7 +3,9 @@ Azi\_Drive
 
 Azimuth Drive Controller
 
-Takes a Wrench, and attempts to achieve that wrench using the available actuators
+Takes a Wrench, and attempts to achieve that wrench using the available actuators.
+
+This is not trivial, because the boat is overactuated, and there is thus no simple way to choose the pair of thruster forces and thruster angles that 'optimally' achieves some desired boat-force and boat-torque.
 
 # Notes
 
@@ -19,9 +21,16 @@ For the old controller,
 
 # Testing
 To run  unittests, do
-    catkin_make tests
+    python azi_drive/tests/test_azi_drive.py
 
 If the unittests are not passing, this node will not work.
+
+# What's in here?
+
+* A module for control allocation for azimuth thrusters
+* A node for taking a wrench on /wrench and producing thrust and angle requests that satisfy it
+* A tool for numerical estimation of jacobians for functions that give and take numpy arrays
+* A tool for numerical estimation of partial derivatives
 
 # TODO
 - Use CVXOPT or try C++ implementation 
@@ -30,6 +39,6 @@ If the unittests are not passing, this node will not work.
 - Implement actual ROS node
 
 # Issues
-- Does not always converge
+- Does not correctly produce pure strafing motion (Error in B matrix?)
 
-With questions and concerns, please contact Jacob Panikulam.
+With questions and concerns, please contact Jacob Panikulam via email or facebook (If he is still alive).

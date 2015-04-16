@@ -15,12 +15,17 @@ TODO:
         --> easier unit testing
     - Add THEORY, PRINCIPLE and JUSTIFICATION sections to documentation
 
+ISSUES:
+    - There are still some problems commanding a force purely in the Y direction
+        - Nail these out (Have Jason double-check the B matrix)
+
+
 '''
 
 class Azi_Drive(object):    
 
     positions = [
-        # l_x, l_y
+        # l_x, l_y, offsets from [2]
         (-0.15, -0.3),
         (-0.15, 0.3),
     ]
@@ -76,8 +81,7 @@ class Azi_Drive(object):
                 np.array([[
                     c, # f in x
                     s, # f in y
-                    # (c * l_y) - (s * l_x), # Moment about z
-                    np.cross((c, s), (l_x, l_y))
+                    np.cross((c, s), (l_x, l_y)) # Moment about Z
                 ]])
             )
             thruster_matrix.append(thruster_column)
@@ -86,7 +90,9 @@ class Azi_Drive(object):
 
     @classmethod
     def singularity_avoidance(self, alpha):
-        '''Cost for approaching singularity'''
+        '''Cost for approaching singularity
+            In practice, this cost appears to be generally very small
+        '''
         epsilon = 0.1
         q = 1
         B_alpha = self.thrust_matrix(alpha)
@@ -112,21 +118,21 @@ class Azi_Drive(object):
 
     @classmethod
     def net_force(self, alpha, u):
+        '''Determine the net force given an angle list and thruster force list'''
         B = self.thrust_matrix(alpha)
         return np.dot(B, u)
 
     @classmethod
-    def map_thruster(self, fx_des, fy_des, m_des, alpha_0, u_0):
+    def map_thruster(self, fx_des, fy_des, m_des, alpha_0, u_0, test_plot=False):
         '''Compute the optimal thruster configuration for Propagator using the Fossen method
         To make this work, alpha_0 and u_0 must be varied
 
         u_0 -> Root force
         alpha_0 -> Root angle (initial angle)
 
-
         We compute based on the minimization of the following nonlinear cost function:
 
-        power(u) + s.T * G * s + (delta_theta).T * Q * (delta_theta) + (q / det(B(theta) * B(theta).T))
+        power(u) + s.T * G * s + (delta_theta).T * Q * (delta_theta) + (q / det(B(theta) * B(theta).T)) [1]
 
         It turns out that this problem is approximately convex in the range of allowable delta_theta
             so that if we linearize the problem, we can find an acceptable accurate minimum
@@ -134,18 +140,48 @@ class Azi_Drive(object):
         It is due to this linearization that we are computing over the FOTA and using u_0 + delta_u 
             instead of u directly.
 
-        Glossary:
-            FOTA: First Order Taylor Approximation
-            power(u): Cost for the power consumption of a thruster exerting an effort, u
-            Tau: Desired forces
-            s: Control error (What the boat is doing minus Tau), you want this to be zero
-            alpha: vector of angles
-            alpha_0: vector of current thruster orientations
-            d_alpha: vector of angle changes
+        Arguments:
+            fx_des, fy_des - X and Y components of desired force
+            m_des - Desired torque about the Z axis
+            alpha_0 - Current or initial thruster orientations (angle from the x-axis, positive left)
+            u_0 - Current or initial thruster efforts
+            test_plot - This should always be false in practice. Used to visually test for objective convexity
 
-            B, or thrust_matrix: Matrix that maps a control input, "u" at a particular "alpha" 
-                to a net force exerted by the boat
-            singularity: when B becomes singular (noninvertible)
+        Glossary of Terms:
+            FOTA - First Order Taylor Approximation
+            power(u) - Cost for the power consumption of a thruster exerting an effort, u
+            Tau - Desired action (Fx, Fy, Torque about Z)
+            Underactuated - B (The control-input-matrix, or thruster_matrix) is noninvertible
+            B, or thrust_matrix - Matrix that maps a control input, "u" at a particular "alpha" 
+                to a net force and torque experienced by the boat
+            Singularity - when B becomes singular (noninvertible), we try to avoid 
+                thruster configurations where the boat becomes underactuated
+
+        Glossary of Variables:
+            s - Control error (What the boat is doing minus Tau), you want this to be zero
+            alpha - vector of angles
+            alpha_0 - vector of current thruster orientations
+            d_alpha - vector of angle changes
+            u - vector of thruster forces
+            u_0 - vector of current thruster forces
+            d_u - vector of force changes
+            q - boat manueverability constant
+            epsilon - Used to avoid numerical issues when dividing by numbers near zero
+
+
+        Bibliography:
+            [1] Tor A. Johansen, Thor I. Fossen, and Svein P. Berge, 
+                "Constrained Nonlinear Control Allocation With Singularity 
+                    Avoidance Using Sequential Quadratic Programming",
+                See: http://www.fossen.biz/home/papers/tcst04.pdf
+
+            [2] Darsan Patel, Daniel Frank, and Dr. Carl Crane, 
+                "Controlling an Overactuated Vehicle with Application to an Autonomous
+                    Surface Vehicle Utilizing Azimuth Thrusters",
+                See: http://bit.ly/1ayOdlg
+
+        Author: Jacob Panikulam
+
         '''
         # Convert to numpy arrays
         alpha_0 = np.array(alpha_0)
@@ -199,9 +235,8 @@ class Azi_Drive(object):
             cost = power + thrust_error + angle_change + singularity
             return cost
 
-        def objective_r(*args):
-            return objective(args)
-
+        # Formatted as such because I thought I would do something 
+        #  funky by varying the bounds
         u_max = self.u_max
         u_min = self.u_min
         alpha_max = self.alpha_max
@@ -209,24 +244,27 @@ class Azi_Drive(object):
         delta_alpha_min = self.delta_alpha_min
         delta_alpha_max = self.delta_alpha_max
 
-        '''Plot the cost function (visually observe convexity)'''
-        # x_range = np.linspace(-np.pi, np.pi, 100)
-        # y_range = np.linspace(-np.pi, np.pi, 100)
+        # Plot the cost function (visually observe convexity)
+        if test_plot:
+            def objective_r(*args):
+                return objective(args)
 
-        # X, Y = np.meshgrid(x_range, y_range)
-        # f = np.vectorize(objective_r)
-        # Z = f(X, Y, np.zeros(len(X)), np.zeros(len(Y)))
+            x_range = np.linspace(-np.pi, np.pi, 100)
+            y_range = np.linspace(-np.pi, np.pi, 100)
 
-        # fig = plt.figure(figsize=(14, 6))
-        # ax = fig.add_subplot(1, 2, 1, projection='3d')
-        # p = ax.plot_surface(X, Y, Z, rstride=4, cstride=4, linewidth=0)
-        # plt.show()
+            X, Y = np.meshgrid(x_range, y_range)
+            f = np.vectorize(objective_r)
+            Z = f(X, Y, np.zeros(len(X)), np.zeros(len(Y)))
+
+            fig = plt.figure(figsize=(14, 6))
+            ax = fig.add_subplot(1, 2, 1, projection='3d')
+            p = ax.plot_surface(X, Y, Z, rstride=4, cstride=4, linewidth=0)
+            plt.show()
 
         minimization = optimize.minimize(
             fun=objective,
             x0=(0.0, 0.0, 0.0, 0.0),
             method='SLSQP',
-
             constraints=[
                 {'type': 'ineq', 'fun': 
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_1 + u_0[0]) + u_max},
@@ -256,9 +294,10 @@ class Azi_Drive(object):
             ]
         )
         if not minimization.success:
-            print "-----------FAILED TO ACHIEVE--------------"
+            print "-----------FAILED TO DETERMINE VALID SOLUTION--------------"
         delta_alpha_1, delta_alpha_2, delta_u_1, delta_u_2 = minimization.x
-        return np.array([delta_alpha_1, delta_alpha_2]), np.array([delta_u_1, delta_u_2])
+        delta_alpha, delta_u = np.array([delta_alpha_1, delta_alpha_2]), np.array([delta_u_1, delta_u_2])
+        return delta_alpha, delta_u
 
 
 if __name__ == '__main__':
