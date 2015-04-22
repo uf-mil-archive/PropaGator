@@ -15,10 +15,11 @@ TODO:
         --> easier unit testing
     - Add THEORY, PRINCIPLE and JUSTIFICATION sections to documentation
 
+    - If we fail to find a solution, try again with an angle slightly outside of jacobian singularity
+
 ISSUES:
     - There are still some problems commanding a force purely in the Y direction
         - Nail these out (Have Jason double-check the B matrix)
-
 
 '''
 
@@ -26,8 +27,12 @@ class Azi_Drive(object):
 
     positions = [
         # l_x, l_y, offsets from [2]
-        (-0.15, -0.3),
-        (-0.15, 0.3),
+        # (-0.15, -0.3),
+        # (-0.15, 0.3),
+
+        # Taken from simulation
+        (-0.7239, -0.3048),
+        (-0.7239, 0.3048),
     ]
 
     # Max/min force from each thruster
@@ -80,8 +85,8 @@ class Azi_Drive(object):
             thruster_column = np.transpose(
                 np.array([[
                     c, # f in x
-                    s, # f in y
-                    np.cross((c, s), (l_x, l_y)) # Moment about Z
+                    -s, # f in y
+                    np.cross((l_x, l_y), (c, -s)) # Moment about Z
                 ]])
             )
             thruster_matrix.append(thruster_column)
@@ -233,6 +238,7 @@ class Azi_Drive(object):
 
             # Note, the error will increase when adding power and singularity costs
             cost = power + thrust_error + angle_change + singularity
+            # cost = thrust_error
             return cost
 
         # Formatted as such because I thought I would do something 
@@ -263,7 +269,7 @@ class Azi_Drive(object):
 
         minimization = optimize.minimize(
             fun=objective,
-            x0=(0.0, 0.0, 0.0, 0.0),
+            x0=(0.1, 0.1, 0.0, 0.0),
             method='SLSQP',
             constraints=[
                 {'type': 'ineq', 'fun': 

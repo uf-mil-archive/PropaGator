@@ -53,7 +53,22 @@ class Test_Azi_Drive(unittest.TestCase):
                 'angles': (np.pi, np.pi),
                 'u': (10, 10),
                 'answer': [-20.0, 0.0, 0.0],
-            }
+            },
+            {
+                'angles': (0.0, 0.0),
+                'u': (10, -10),
+                'answer': [0.0, 0.0, -6.0],
+            },
+            {
+                'angles': (0.0, 0.0),
+                'u': (10, -10),
+                'answer': [0.0, 0.0, -6.0],
+            },
+            # {
+            #     'angles': (np.pi / 2, 0.0),
+            #     'u': (10, 0.0),
+            #     'answer': [0.0, 0.0, -6.0],
+            # }
 
         ]
         for test in tests:
@@ -69,7 +84,7 @@ class Test_Azi_Drive(unittest.TestCase):
                 )
             )
 
-    @unittest.skip("Not implemented")
+    @unittest.skip("Redundant - test_thrust_matrix does this")
     def test_net_force(self):
         net = Azi_Drive.net_force((0.0, 0.0), (10.0, 10.0))
         self.assertTrue(np.allclose(net.T, [-20, 0, 0]))

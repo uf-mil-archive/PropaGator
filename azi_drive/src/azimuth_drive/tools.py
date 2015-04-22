@@ -4,6 +4,14 @@ import numpy as np
 class Tools(object):
     @staticmethod
     def partial_derivative(func, var=0, point=[], order=3, dx=1e-6):
+        '''Compute a numerical estimate of the  partial derivative of a function 'func'
+             at point 'point'
+        point - A numpy array setting the point to evaluate around
+        var - Take the partial derivative in terms of this argument
+        order - Number of points to use in finite-differencing
+        dx - Step-size to use in finite-differencing
+
+        '''
         args = np.copy(point[:])
         def wraps(x):
             args[var] = x
@@ -12,12 +20,19 @@ class Tools(object):
 
     @staticmethod
     def jacobian(func, pt, order=3, dx=1e-6):
-        '''Compute an numerical extimate of the jacobian at pt=pt for a function 'func',
+        '''Compute an numerical extimate of the jacobian at a point defined by a numpy array, 'pt' 
+                for a function 'func',
 
-        Reminder for Jacob:
-        J = 
-        [dF_1/dx1, ... , dF_1/dx_n]
-        [dF_2/dx1, ... , dF_1/dx_n]
+            order - Number of points to use for computing partial_derivatives
+            dx - Step-size for finite-differencing
+
+        Special reminder for Jake:
+        
+        Jacobian F = 
+        [dF_1/dx_1, ... , dF_1/dx_n]
+        [dF_2/dx_1, ... , dF_2/dx_n]
+         ...        ...         ...
+        [dF_m/dx_1  ... , dF_m/dx_n]
 
         '''
         jac = [None] * len(pt)

@@ -12,10 +12,6 @@ from dynamixel_servo.msg import DynamixelFullConfig
 from time import time
 
 '''
-TODO:
-    - log the actual thrust being commanded (after 0.0 clipping)
-    - Force things that are close to zero to be zero to avoid floating pt issues
-
 Max thrust: 100
 Min thrust: -100
 Max angle: pi
@@ -30,16 +26,17 @@ class Controller(object):
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
         rospy.init_node('azi_drive')
-        rospy.logwarn("Setting maximum rotation to {}".format(self.controller_max_rotation))
+        rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
-
         
         # These should not be queued! Old commands are garbage.
+        # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
+        #  thrust messages as quickly as they are sent
         self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size=4)
         self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size=4)
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
-        # thrust topic id's for each thruster
+        # Thrust topic id's for each thruster
         self.left_id = 3
         self.right_id = 2
         # Time between messages before azi_drive shuts off
@@ -49,10 +46,9 @@ class Controller(object):
         self.default_angles = np.array([np.pi, np.pi])
         self.default_forces = np.array([0.0, 0.0])
 
-
-        # Left, right
-        self.cur_angles = self.default_angles
-        self.cur_forces = self.default_forces
+        # Left, Right
+        self.cur_angles = self.default_angles[:]
+        self.cur_forces = self.default_forces[:]
 
         self.set_servo_angles(self.cur_angles)
         self.set_forces(self.cur_forces)
@@ -69,7 +65,7 @@ class Controller(object):
             rospy.loginfo("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
             if (cur_time - self.last_msg_time) > self.control_timeout:
                 rospy.logwarn("AZI DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
-                self.reset_all()
+                self.stop()
                 continue
 
             thrust_solution = Azi_Drive.map_thruster(
@@ -89,6 +85,13 @@ class Controller(object):
             rospy.loginfo("Achieving net: {}".format(Azi_Drive.net_force(self.cur_angles, self.cur_forces)))
 
             rate.sleep()
+
+        # On shutdown, kill thrust
+        self.reset_all()
+        rospy.sleep(0.2)
+
+    def stop(self):
+        self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
 
     def reset_all(self):
         rospy.logwarn("Resetting Azi Drive orientations and thrusts")
