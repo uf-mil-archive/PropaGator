@@ -17,13 +17,18 @@ Thruster 2 is on the right, thruster 3 is on the left
     rosrun azi_drive azi_drive.py
 
 For the old controller, 
+
     roslaunch boat_launch controller.launch
 
 # Testing
+
 To run  unittests, do
+
     python azi_drive/tests/test_azi_drive.py
 
-If the unittests are not passing, this node will not work.
+
+If the unittests are not passing, this node _will not_ work.
+
 
 # What's in here?
 
@@ -33,12 +38,17 @@ If the unittests are not passing, this node will not work.
 * A tool for numerical estimation of partial derivatives
 
 # TODO
+
+- Implement a 2D simulation in pygame that is less...janky
 - Use CVXOPT or try C++ implementation 
 - Implement path planner that takes advantage of this tool
 - Add water drag terms
-- Implement actual ROS node
 
 # Issues
+
 - Does not correctly produce pure strafing motion (Error in B matrix?)
+-- Fixed, using [this line from zdrive2](https://github.com/uf-mil/PropaGator/blob/master/z_drive2/scripts/z_drive2#L130)
+-- wtf?
+
 
 With questions and concerns, please contact Jacob Panikulam via email or facebook (If he is still alive).

@@ -141,10 +141,11 @@ class Controller(object):
 
         self.cur_angles = np.array([theta_left, theta_right])
 
+        # Got the weird angle offset from zdrive2. Not...sure...why...gearing?
         self.servo_pub.publish(
             DynamixelFullConfig(
                 id=self.left_id,
-                goal_position=theta_left,
+                goal_position=(2 * theta_left) + np.pi,
                 moving_speed=self.servo_max_rotation,
                 torque_limit=1023,
                 goal_acceleration=38,
@@ -156,7 +157,7 @@ class Controller(object):
         self.servo_pub.publish(
             DynamixelFullConfig(
                 id=self.right_id,
-                goal_position=theta_right,
+                goal_position=(2 * theta_right) + np.pi,
                 moving_speed=self.servo_max_rotation,
                 torque_limit=1023,
                 goal_acceleration=38,
