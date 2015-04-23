@@ -25,8 +25,8 @@ class Controller(object):
         self.servo_max_rotation = 0.1
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
-        # rospy.init_node('azi_drive', log_level=rospy.DEBUG)
-        rospy.init_node('azi_drive', log_level=rospy.WARN)
+        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
