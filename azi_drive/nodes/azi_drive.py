@@ -8,7 +8,7 @@ import rospy
 
 from geometry_msgs.msg import WrenchStamped
 from motor_control.msg import thrusterNewtons
-from dynamixel_servo.msg import DynamixelJointConfig
+from dynamixel_servo.msg import DynamixelFullConfig
 from time import time
 
 '''
@@ -22,7 +22,7 @@ class Controller(object):
     def __init__(self, rate=20):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
-        self.servo_max_rotation = 0.1
+        self.servo_max_rotation = 0.8
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
         rospy.init_node('azi_drive', log_level=rospy.DEBUG)
@@ -145,26 +145,26 @@ class Controller(object):
 
         # Got the weird angle offset from zdrive2. Not...sure...why...gearing?
         self.servo_pub.publish(
-            DynamixelJointConfig(
+            DynamixelFullConfig(
                 id=self.left_id,
-                goal_position=(2 * theta_left) + np.pi,
-                # moving_speed=self.servo_max_rotation,
-                # torque_limit=1023,
-                # goal_acceleration=38,
-                # control_mode=DynamixelFullConfig.JOINT,
-                # goal_velocity=self.servo_max_rotation,
+                goal_position=((2 * theta_left) + np.pi) % (2 * np.pi),
+                moving_speed=self.servo_max_rotation,
+                torque_limit=1023,
+                goal_acceleration=38,
+                control_mode=DynamixelFullConfig.JOINT,
+                goal_velocity=self.servo_max_rotation,
             )
         )
 
         self.servo_pub.publish(
-            DynamixelJointConfig(
+            DynamixelFullConfig(
                 id=self.right_id,
-                goal_position=(2 * theta_right) + np.pi,
-                # moving_speed=self.servo_max_rotation,
-                # torque_limit=1023,
-                # goal_acceleration=38,
-                # control_mode=DynamixelFullConfig.JOINT,
-                # goal_velocity=self.servo_max_rotation,
+                goal_position=((2 * theta_right) + np.pi) % (2 * np.pi),
+                moving_speed=self.servo_max_rotation,
+                torque_limit=1023,
+                goal_acceleration=38,
+                control_mode=DynamixelFullConfig.JOINT,
+                goal_velocity=self.servo_max_rotation,
             )
         )
 
