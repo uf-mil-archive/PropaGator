@@ -145,7 +145,7 @@ class Controller(object):
 
         # Got the weird angle offset from zdrive2. Not...sure...why...gearing?
         self.servo_pub.publish(
-            DynamixelFullConfig(
+            DynamixelJointConfig(
                 id=self.left_id,
                 goal_position=(2 * theta_left) + np.pi,
                 # moving_speed=self.servo_max_rotation,
@@ -157,7 +157,7 @@ class Controller(object):
         )
 
         self.servo_pub.publish(
-            DynamixelFullConfig(
+            DynamixelJointConfig(
                 id=self.right_id,
                 goal_position=(2 * theta_right) + np.pi,
                 # moving_speed=self.servo_max_rotation,
