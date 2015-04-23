@@ -57,7 +57,7 @@ class Controller(object):
 
         # Initializations
         self.last_msg_time = time()
-        self.des_fx, self.des_fy, self.des_torque = 0.0, 10.0, 0.0
+        self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
 
     def main_loop(self):
         rate = rospy.Rate(self.rate)
