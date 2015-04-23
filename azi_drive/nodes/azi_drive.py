@@ -8,7 +8,7 @@ import rospy
 
 from geometry_msgs.msg import WrenchStamped
 from motor_control.msg import thrusterNewtons
-from dynamixel_servo.msg import DynamixelFullConfig
+from dynamixel_servo.msg import DynamixelJointConfig
 from time import time
 
 '''
@@ -35,7 +35,7 @@ class Controller(object):
         # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
         #  thrust messages as quickly as they are sent
         self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size=4)
-        self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size=4)
+        self.servo_pub = rospy.Publisher('dynamixel/dynamixel_joint_config', DynamixelJointConfig, queue_size=4)
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
         # Thrust topic id's for each thruster
@@ -148,11 +148,11 @@ class Controller(object):
             DynamixelFullConfig(
                 id=self.left_id,
                 goal_position=(2 * theta_left) + np.pi,
-                moving_speed=self.servo_max_rotation,
-                torque_limit=1023,
-                goal_acceleration=38,
-                control_mode=DynamixelFullConfig.JOINT,
-                goal_velocity=self.servo_max_rotation,
+                # moving_speed=self.servo_max_rotation,
+                # torque_limit=1023,
+                # goal_acceleration=38,
+                # control_mode=DynamixelFullConfig.JOINT,
+                # goal_velocity=self.servo_max_rotation,
             )
         )
 
@@ -160,11 +160,11 @@ class Controller(object):
             DynamixelFullConfig(
                 id=self.right_id,
                 goal_position=(2 * theta_right) + np.pi,
-                moving_speed=self.servo_max_rotation,
-                torque_limit=1023,
-                goal_acceleration=38,
-                control_mode=DynamixelFullConfig.JOINT,
-                goal_velocity=self.servo_max_rotation,
+                # moving_speed=self.servo_max_rotation,
+                # torque_limit=1023,
+                # goal_acceleration=38,
+                # control_mode=DynamixelFullConfig.JOINT,
+                # goal_velocity=self.servo_max_rotation,
             )
         )
 
