@@ -22,10 +22,12 @@ class Controller(object):
     def __init__(self, rate=20):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
-        self.servo_max_rotation = 1
+        self.servo_max_rotation = 0.1
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
-        rospy.init_node('azi_drive')
+        # rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        rospy.init_node('azi_drive', log_level=rospy.WARN)
+
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
         
@@ -64,9 +66,8 @@ class Controller(object):
 
             rospy.loginfo("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
             if (cur_time - self.last_msg_time) > self.control_timeout:
-                rospy.logwarn("AZI DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
+                rospy.logerr("AZI DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
                 self.stop()
-                continue
 
             thrust_solution = Azi_Drive.map_thruster(
                 fx_des=self.des_fx,
@@ -124,6 +125,7 @@ class Controller(object):
 
     def send_thrust(self, force, thruster):
         '''Publish thrust for a particular thruster'''
+        force = np.clip(force, -20, 20)
         self.thrust_pub.publish(
             thrusterNewtons(
                 id=thruster,
