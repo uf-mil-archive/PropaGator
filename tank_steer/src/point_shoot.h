@@ -9,13 +9,17 @@
 #include <geometry_msgs/WrenchStamped.h>
 #include <tf/LinearMath/Quaternion.h>
 #include <tf/LinearMath/Transform.h>
+#include <kill_handling/Kill.h>
+//#include "kill_handling/listener.h"
 
 #include <cmath>
+#include <iostream>
 
 #include "uf_common/MoveToAction.h"
 #include <uf_common/PoseTwistStamped.h>
 //#include <uf_common/param_helpers.h>
 #include "dynamixel_servo/DynamixelFullConfig.h"
+
 
 #define PI 3.14159265359
 
@@ -92,6 +96,10 @@ class PointShoot{
 		// ROS node handle
 		ros::NodeHandle nh_, private_nh_;
 
+		// kill handler
+		//kill_handling::KillListener kill_listener_;
+		bool killed_;
+
 		// Update frequency
 		ros::Duration update_freq_;
 
@@ -101,17 +109,21 @@ class PointShoot{
 		dynamixel_servo::DynamixelFullConfig zero_port_servo_;
 		dynamixel_servo::DynamixelFullConfig zero_starboard_servo_;
 
-		// Controller PID constants
+		// Controller PD constants
 		double linear_p_gain_;
 		double linear_d_gain_;
 
+		// Controller PID constants
+		double angle_p_gain_;
 		double angle_i_gain_;
 		double angle_d_gain_;
-		double angle_p_gain_;
 
 		// backward/forward bubble
 		double bubble_radius_;
 		bool bubble_breached_;
+
+		// debug statement containers
+		std::string current_debug_msg_, previous_debug_msg_;
 
 	// Public functions
 	public:
@@ -142,6 +154,8 @@ class PointShoot{
 		//void newGoal_(const uf_common::MoveToGoal::ConstPtr &goal);
 
 		//void goalPreempt_();
+
+	    void killed_callback();
 };
 
 #endif

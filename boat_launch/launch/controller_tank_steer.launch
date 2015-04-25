@@ -1,40 +1,26 @@
 <launch>
 
-  <arg name="simulate" default="0"/>
-  
-  <node name="kill_master" pkg="kill_handling" type="kill_master" respawn="true"/>
-  
-  <node pkg="c3_trajectory_generator" type="c3_trajectory_generator" name="trajectory_generator">
-    <rosparam>
-      fixed_frame: /enu
-      body_frame: /base_link
-      vmin_b: [-0.75,  -0.5,  -0.4,   -0.75, -0.5, -2]
-      vmax_b: [2.5,  0.5,   0.4,    0.75,  0.5,  2]
-      amin_b: [-1,  -0.25, -0.1,   -1.5,  -0.2, -1]
-      amax_b: [ 1,  0.25,  0.125,  1.5,   0.2,  1]
-      arevoffset_b: [0.0, 0, 0]
-      umax_b: [ 0.25,  0.25,  0.25,   0.1,   0.1,  0.1]
-    </rosparam>
-  </node>
-  
-  <node pkg="rise_6dof" type="rise_6dof" name="rise_6dof">
-    <remap from="current" to="odom"/>
-    <remap from="desired" to="trajectory"/>
-    <remap from="output" to="wrench"/>
-    <rosparam file="$(find boat_launch)/launch/rise_6dof.yaml"/>
-  </node>
-  <group ns="param_saver/rise_6dof">
-    <param name="filename" value="$(find boat_launch)/launch/rise_6dof.yaml"/>
-    <rosparam>
-      file_basepath: /rise_6dof
-      param_paths: [k, ks, alpha, beta, use_rise, accel_feedforward, vel_feedforward, two_d_mode]
-    </rosparam>
-  </group>
+   <!-- Run launch file with 'roslaunch tank_steer controller_tank_steer.launch simulate:=0' -->
 
-  <node pkg="uf_common" type="param_saver" name="param_saver"/>
+   <node pkg="tank_steer" type="tank_steer.py" name="tank_steer">
+      <param name="simulate" value="$(arg simulate)"/>
+   </node>
 
-  <node pkg="tank_steer" type="tank_steer.py" name="tank_steer">
-    <param name="simulate" value="$(arg simulate)"/>
-  </node>
+   <node pkg="tank_steer" type="point_shoot_node" name="point_shoot_node">
+      <rosparam>
+         /linear_p_gain: 4
+         /linear_d_gain: 0
+
+         /angle_p_gain: 4.0
+         /angle_i_gain: 2.0
+         /angle_d_gain: 2.0
+
+         /angle_to_path_tol: 0.1
+         /angle_to_goal_tol: 0.1
+         /angle_vel_tol: 0.1
+
+         /bubble_radius: 5
+      </rosparam>
+   </node>
 
 </launch>

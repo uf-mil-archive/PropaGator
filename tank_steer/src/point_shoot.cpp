@@ -3,7 +3,7 @@
 
 #include "point_shoot.h"
 
-// TODO: James K sqrt(error)
+// TODO: James PD controller
 // TODO: Kevin PID controller
 // TODO: Debug
 
@@ -54,7 +54,9 @@ PointShoot::PointShoot() :
 	linear_vel_tol_(0.1),
 	bubble_breached_(false),
 	current_force_(0),
-	current_torque_(0)
+	current_torque_(0),
+	current_debug_msg_(""), previous_debug_msg_(""),
+	/*kill_listener_(boost::bind(&PointShoot::killed_callback, this)), */killed_(false)
 {
 	//moveto_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 	// TODO: figure out how to put in initilizer
@@ -91,11 +93,12 @@ PointShoot::PointShoot() :
 	trajectory_pub_ = nh_.advertise<uf_common::PoseTwistStamped>("trajectory", 1);
 
 	// ROS params
-	nh_.param<double>("linear_p_gain", linear_p_gain_, 777);
-	nh_.param<double>("linear_d_gain", linear_d_gain_, 777);
-	nh_.param<double>("angle_i_gain", angle_i_gain_, 777);
-	nh_.param<double>("angle_d_gain", angle_d_gain_, 777);
-	nh_.param<double>("angle_p_gain", angle_p_gain_, 777);
+	nh_.param<double>("linear_p_gain", linear_p_gain_, 1); // with a gain of 4, any error >= 50 will result in max force (200/2 = 100)
+	nh_.param<double>("linear_d_gain", linear_d_gain_, 0); // start with 0 for tuning
+
+	nh_.param<double>("angle_p_gain", angle_p_gain_, 1);
+	nh_.param<double>("angle_i_gain", angle_i_gain_, 0);
+	nh_.param<double>("angle_d_gain", angle_d_gain_, 0);
 
 	nh_.param<double>("angle_to_path_tol", angle_to_path_tol_, 0.1);
 	nh_.param<double>("angle_to_goal_tol", angle_to_goal_tol_, 0.1);
@@ -142,102 +145,124 @@ PointShoot::PointShoot() :
  * 		Update
  * 	This function updates the controller
  */
-void PointShoot::update_(const ros::TimerEvent& nononononononono)
+void PointShoot::update_(const ros::TimerEvent& notused)
 {
 
-	//
-	// Action server section
-	//
+	// dont do anything if global kill is activated
+	if(!killed_){
 
-	// Check for new goal
-	if(moveto_.isNewGoalAvailable()){
-		boost::shared_ptr<const uf_common::MoveToGoal> goal = moveto_.acceptNewGoal();
-		desired_pose_ = goal->posetwist.pose;
-		desired_twist_ = goal->posetwist.twist;	// Not used yet...
+		//
+		// Action server section
+		//
 
-		ROS_INFO("New goal is: %f, %f", desired_pose_.position.x, desired_pose_.position.y);
-		ROS_INFO("I am here: %f, %f", current_pose_.position.x, current_pose_.position.y);
+		// Check for new goal
+		if(moveto_.isNewGoalAvailable()){
+			boost::shared_ptr<const uf_common::MoveToGoal> goal = moveto_.acceptNewGoal();
+			desired_pose_ = goal->posetwist.pose;
+			desired_twist_ = goal->posetwist.twist;	// Not used yet...
 
-		// Clear errors
-		clearErrors_();
-	}
+			//ROS_INFO("New goal is: %f, %f", desired_pose_.position.x, desired_pose_.position.y);
+			//ROS_INFO("I am here: %f, %f", current_pose_.position.x, current_pose_.position.y);
 
-	// Check if goal preempted
-	if(moveto_.isPreemptRequested())
-	{
-		ROS_INFO("Goal preempted");
-		// Set our current position to desired position
-		desired_pose_ = current_pose_;
-		desired_twist_ = zero_twist_;
+			std::cout << "\n\t> Present Location @ ("
+					  << std::setprecision(5) << current_pose_.position.x
+					  << ", " << std::setprecision(5) << current_pose_.position.y
+					  << ")\n\t> TARGET located @ ("
+					  << std::setprecision(5) << desired_pose_.position.x
+					  << ", " << std::setprecision(5) << desired_pose_.position.y
+					  << ")\n\n";
 
-		// Clear errors
-		clearErrors_();
+			// Clear errors
+			clearErrors_();
+		}
 
-		return;
-	}
+		// Check if goal preempted
+		if(moveto_.isPreemptRequested())
+		{
+			ROS_INFO("Goal preempted");
+			// Set our current position to desired position
+			desired_pose_ = current_pose_;
+			desired_twist_ = zero_twist_;
 
-	//
-	// Controller logic section
-	//
+			// Clear errors
+			clearErrors_();
 
-	// TODO: add velocity considerations
+			return;
+		}
 
-	geometry_msgs::WrenchStamped wrench_msg = zero_wrench_;
-	geometry_msgs::Wrench &wrench = wrench_msg.wrench;
+		//
+		// Controller logic section
+		//
 
-	// Distance from goal is within tolerance and the boat has not overshot its target goal
-	if( fabs(current_linear_error_) < distance_tol_ ){
-		if(is_oriented_to_path_){ clearErrors_(); }
-		is_oriented_to_path_ = false;
+		// TODO: add velocity considerations
 
-		if ( fabs(current_angular_error_) < angle_to_goal_tol_ ){
-			//ROS_INFO("Station hold");
-			// stationHold()
+		geometry_msgs::WrenchStamped wrench_msg = zero_wrench_;
+		geometry_msgs::Wrench &wrench = wrench_msg.wrench;
 
-			if(bubble_breached_){
-				bubble_breached_ = false;
-				bubble_radius_--;
+		// Distance from goal is within tolerance and the boat has not overshot its target goal
+		if( fabs(current_linear_error_) < distance_tol_ ){
+			if(is_oriented_to_path_){ clearErrors_(); }
+			is_oriented_to_path_ = false;
+				// if an overshoot occurs, it's safe to assume that you're no longer oriented to the path
+
+			if ( fabs(current_angular_error_) < angle_to_goal_tol_ ){
+				// stationHold()
+				current_debug_msg_ = "Station holding.";
+
+				/*if(bubble_breached_){
+					bubble_breached_ = false;
+					bubble_radius_--;
+				}*/
+
+			}else{
+				current_debug_msg_ = "Standing on top of proper position; correcting Orientation";
+				wrench.torque = calculateTorque_();
 			}
 
+		// Distance from goal is far; boat is on the path
 		}else{
-			ROS_INFO("Standing on top of proper position; correcting Orientation");
-			//ROS_INFO("Orient to point");
-			wrench.torque = calculateTorque_();
+			if(!is_oriented_to_path_){ clearErrors_(); }
+			is_oriented_to_path_ = true;
 
+			// bubble interactions
+			/*if(current_linear_error_ < bubble_radius_){ // breach of bubble space
+
+				if(!bubble_breached_) bubble_radius_++;
+				bubble_breached_ = true;
+
+			}else{ // accidental drift out of bubble space
+				if(bubble_breached_) bubble_radius_--;
+				bubble_breached_ = false;
+			}*/
+
+			// pointing and shooting behaviors
+			if ( fabs(current_angular_error_) > angle_to_path_tol_ ){
+				current_debug_msg_ = "Orienting to path";
+				wrench.torque = calculateTorque_();
+
+			}else{
+				current_debug_msg_ = "Aiming at target waypoint; Move toward Goal";
+				wrench.force = calculateForce_();
+			}
 		}
 
-	// Distance from goal is far; boat is on the path
+		// Zero servos
+		servo_pub_.publish(zero_starboard_servo_);
+		servo_pub_.publish(zero_port_servo_);
+		// Publish wrench
+		thrust_pub_.publish(wrench_msg);
+
 	}else{
-		if(!is_oriented_to_path_){ clearErrors_(); }
-		is_oriented_to_path_ = true;
+		current_debug_msg_ = "Point & Shoot has been killed!";
 
-		// bubble interactions
-		if(current_linear_error_ < bubble_radius_){ // breach of bubble space
-
-			if(!bubble_breached_) bubble_radius_++;
-			bubble_breached_ = true;
-
-		}else{ // accidental drift out of bubble space
-			if(bubble_breached_) bubble_radius_--;
-			bubble_breached_ = false;
-		}
-
-		// pointing and shooting behaviors
-		if ( fabs(current_angular_error_) > angle_to_path_tol_ ){
-			ROS_INFO("Far away from target; Orient to path");
-			wrench.torque = calculateTorque_();
-
-		}else{
-			ROS_INFO("Far away from target but aiming at it; Move toward Goal");
-			wrench.force = calculateForce_();
-		}
+		thrust_pub_.publish(zero_wrench_);
 	}
 
-	// Zero servos
-	servo_pub_.publish(zero_starboard_servo_);
-	servo_pub_.publish(zero_port_servo_);
-	// Publish wrench
-	thrust_pub_.publish(wrench_msg);
+	if(previous_debug_msg_ != current_debug_msg_){
+		printf("%s\n", current_debug_msg_.c_str());
+
+		previous_debug_msg_ = current_debug_msg_;
+	}
 
 }
 
@@ -317,13 +342,17 @@ void PointShoot::updateErrors_()
 	diff_linear_error_ = (current_linear_error_ - last_linear_error_) / time_step.toSec();
 	diff_angular_error_= (current_angular_error_ - last_angular_error_) / time_step.toSec();
 
+	printf("time step: %f\n", time_step.toSec());
+
 	int_linear_error_ += (current_linear_error_ + last_linear_error_) * time_step.toSec() / 2;
 	int_angular_error_ += (current_angular_error_ + last_angular_error_) * time_step.toSec() / 2;
 }
 
+double now = 1.0, then = 2.0;
+
 /*
  * 		calculateForce
- * 	Taking in the error and performing the K-Sqare Root of Error
+ * 	Taking in the error and performing the K-Square Root of Error
  *
  * 	This is no longer the case; now a Proportional-Derivative
  * 	controller is used:		force = (Kp * E) + (Kd * dE)
@@ -335,9 +364,28 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	resulting_force.y = 0;
 	resulting_force.z = 0;
 
+	now = resulting_force.x; // debug
+
+	/*ROS_INFO("Apply this force: %f = (%f * %f) + (%f * %f)",
+			resulting_force.x, linear_p_gain_, current_linear_error_, linear_d_gain_, diff_linear_error_);*/
+
+	if(!(std::abs(then - now) < 0.001)){ // use an epsilon value to compare two floating-points
+		/*printf("Apply this force: %f = (%f * %f) + (%f * %f)\n",
+				resulting_force.x, linear_p_gain_, current_linear_error_, linear_d_gain_, diff_linear_error_);*/
+
+		printf(">>> %f <<<\t\terror: %f\t\t %f = (%f - %f) / t\n",
+						resulting_force.x, current_linear_error_, diff_linear_error_, current_linear_error_, last_linear_error_);
+
+		then = now;
+	}
+
 	return resulting_force;
 }
 
+/*
+ * 		calculateTorque
+ * 	Uses a PID controller to calculate appropriate torque
+ */
 geometry_msgs::Vector3 PointShoot::calculateTorque_(){
 	geometry_msgs::Vector3 resulting_torque;
 
@@ -460,6 +508,10 @@ void PointShoot::goalPreempt_()
 }
 */
 
+
+void PointShoot::killed_callback() {
+    killed_ = true;
+}
 
 /************************
  * 			Main		*
