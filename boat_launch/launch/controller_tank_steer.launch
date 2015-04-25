@@ -1,19 +1,19 @@
 <launch>
 
    <!-- Run launch file with 'roslaunch tank_steer controller_tank_steer.launch simulate:=0' -->
-
+   <arg name="simulate" default="0"/>
    <node pkg="tank_steer" type="tank_steer.py" name="tank_steer">
       <param name="simulate" value="$(arg simulate)"/>
    </node>
 
    <node pkg="tank_steer" type="point_shoot_node" name="point_shoot_node">
       <rosparam>
-         /linear_p_gain: 4
-         /linear_d_gain: 0
+         /linear_p_gain: 0.4
+         /linear_d_gain: 0.0
 
-         /angle_p_gain: 4.0
-         /angle_i_gain: 2.0
-         /angle_d_gain: 2.0
+         /angle_p_gain: 0.4
+         /angle_i_gain: 0.2
+         /angle_d_gain: 0.2
 
          /angle_to_path_tol: 0.1
          /angle_to_goal_tol: 0.1

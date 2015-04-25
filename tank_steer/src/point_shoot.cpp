@@ -113,8 +113,8 @@ PointShoot::PointShoot() :
 	while(servo_pub_.getNumSubscribers() <= 0 && ros::ok());
 	ROS_INFO("Dynamixel server active, zeroing servos");
 	// Initialize servos to zero
-	servo_pub_.publish(zero_starboard_servo_);
-	servo_pub_.publish(zero_port_servo_);
+	//servo_pub_.publish(zero_starboard_servo_);
+	//servo_pub_.publish(zero_port_servo_);
 
 	// Make sure we have odometry before moving on
 	ROS_INFO("Waiting for odom publisher");
@@ -247,8 +247,8 @@ void PointShoot::update_(const ros::TimerEvent& notused)
 		}
 
 		// Zero servos
-		servo_pub_.publish(zero_starboard_servo_);
-		servo_pub_.publish(zero_port_servo_);
+		//servo_pub_.publish(zero_starboard_servo_);
+		//servo_pub_.publish(zero_port_servo_);
 		// Publish wrench
 		thrust_pub_.publish(wrench_msg);
 
