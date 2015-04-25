@@ -108,7 +108,7 @@ class Node(object):
 #	L is the length between thrusters
 #
 #	| Fx |   | 1     1 | | Fm1 |
-#	| T  | = | L/2  L/2| | Fm2 |
+#	| T  | = | L/2  -L/2| | Fm2 |
 #
 # Logic:
 #	Multiply by inverse(wrench_tf) of 2X2 matrix to solve for required motor force

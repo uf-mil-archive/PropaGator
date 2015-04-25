@@ -44,6 +44,10 @@ class PointShoot{
 
 		bool has_goal_;
 
+		// Current Settings
+		double current_force_;
+		double current_torque_;
+
 		// Linear error = strait line distance between current_xyz_ and desired_xyz_
 		double last_linear_error_;
 		double current_linear_error_;

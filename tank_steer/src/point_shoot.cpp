@@ -52,7 +52,9 @@ PointShoot::PointShoot() :
 	angle_to_goal_tol_(15),
 	angle_vel_tol_(0.3),
 	linear_vel_tol_(0.1),
-	bubble_breached_(false)
+	bubble_breached_(false),
+	current_force_(0),
+	current_torque_(0)
 {
 	//moveto_(nh_, "moveit", boost::bind(&PointShoot::newGoal_, this, _1), false)		// Causes seg. fault
 	// TODO: figure out how to put in initilizer
@@ -329,7 +331,7 @@ void PointShoot::updateErrors_()
 geometry_msgs::Vector3 PointShoot::calculateForce_(){
 	geometry_msgs::Vector3 resulting_force;
 
-	resulting_force.x = linear_p_gain_ * current_linear_error_ + linear_d_gain_ * diff_linear_error_;
+	resulting_force.x = current_force_ + linear_p_gain_ * current_linear_error_ + linear_d_gain_ * diff_linear_error_;
 	resulting_force.y = 0;
 	resulting_force.z = 0;
 
@@ -339,7 +341,8 @@ geometry_msgs::Vector3 PointShoot::calculateForce_(){
 geometry_msgs::Vector3 PointShoot::calculateTorque_(){
 	geometry_msgs::Vector3 resulting_torque;
 
-	resulting_torque.z = angle_p_gain_ 		* current_angular_error_
+	resulting_torque.z =			current_torque_ +
+						angle_p_gain_ 		* current_angular_error_
 					   + angle_i_gain_		* int_angular_error_
 					   + angle_d_gain_		* diff_angular_error_;
 	resulting_torque.x = 0;
