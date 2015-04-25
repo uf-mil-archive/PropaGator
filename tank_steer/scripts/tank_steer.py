@@ -85,7 +85,7 @@ class Node(object):
 			rospy.loginfo('dynamixel server found')
 
 	# Zero servos
-		for x in range(2,3):
+		for x in range(2,4):
 			self.servo_pub.publish(DynamixelFullConfig(
 				id=						x,
 				goal_position= 			math.pi,
