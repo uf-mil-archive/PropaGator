@@ -26,8 +26,8 @@ class Controller(object):
         self.servo_max_rotation = 0.3
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
-        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
-        # rospy.init_node('azi_drive', log_level=rospy.WARN)
+        # rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
@@ -89,11 +89,16 @@ class Controller(object):
             toc = time() - cur_time
             print 'Took {} seconds'.format(toc)
 
-            d_theta, d_force = thrust_solution
+            d_theta, d_force, success = thrust_solution
             self.cur_angles += d_theta
             self.cur_forces += d_force
             self.set_servo_angles(self.cur_angles)
-            self.set_forces(self.cur_forces)
+
+            if success:
+                self.set_forces(self.cur_forces)
+            else:
+                rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                self.set_forces((0.0, 0.0))
 
             rospy.loginfo("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
@@ -138,7 +143,6 @@ class Controller(object):
 
     def send_thrust(self, force, thruster):
         '''Publish thrust for a particular thruster'''
-        force = np.clip(force, -75, 75)
         self.thrust_pub.publish(
             thrusterNewtons(
                 id=thruster,
@@ -154,7 +158,7 @@ class Controller(object):
             theta_right = 0.0
 
         if self.prev_angles is not None:
-            if (all(np.fabs(np.array([theta_left, theta_right]) - self.prev_angles))) < 0.02:
+            if (all(np.fabs(np.array([theta_left, theta_right]) - self.prev_angles) < 0.2)):
                 rospy.loginfo("Angle change too small, holding {}".format(np.round(self.cur_angles, 2)))
                 return
         # else:

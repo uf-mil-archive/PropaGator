@@ -62,6 +62,7 @@ class Azi_Drive(object):
 
     @classmethod
     def set_thrust_bound(self, (_min, _max)):
+        print 'setting max'
         self.u_max = _max
         self.u_min = _min
 
@@ -274,6 +275,7 @@ class Azi_Drive(object):
             x0=(0.1, 0.1, 0.0, 0.0),
             method='SLSQP',
             constraints=[
+                # Inequality requires nonnegativity, i.e. fun(o) >= 0
                 {'type': 'ineq', 'fun': 
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_1 + u_0[0]) + u_max},
                 {'type': 'ineq', 'fun': 
@@ -303,12 +305,14 @@ class Azi_Drive(object):
         )
         delta_alpha_1, delta_alpha_2, delta_u_1, delta_u_2 = minimization.x
         delta_alpha, delta_u = np.array([delta_alpha_1, delta_alpha_2]), np.array([delta_u_1, delta_u_2])
+
         if not minimization.success:
-            print "-----------FAILED TO DETERMINE VALID SOLUTION--------------"
+            success = False
             if minimization.message == 'Inequality constraints incompatible':
-                # return np.array([0.0, 0.0]), np.array([0.0, 0.0])
-                pass
-        return delta_alpha, delta_u
+                pass  # WE FUCT UP!
+        else:
+            success = True
+        return delta_alpha, delta_u, success
 
 
 if __name__ == '__main__':
