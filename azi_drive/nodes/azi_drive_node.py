@@ -75,7 +75,7 @@ class Controller(object):
 
             rospy.loginfo("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
             if (cur_time - self.last_msg_time) > self.control_timeout:
-                rospy.logerr("AZI DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
+                rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
                 self.stop()
 
             thrust_solution = Azi_Drive.map_thruster(
@@ -98,6 +98,10 @@ class Controller(object):
             rospy.loginfo("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
             rate.sleep()
+
+    def shutdown(self):
+        rospy.logwarn("AZI_DRIVE: Shutting down Azi Drive")
+        self.stop_boat_proxy()
 
     def stop(self):
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
@@ -193,5 +197,5 @@ class Controller(object):
 if __name__ == '__main__':
     controller = Controller()
     # Add a shutdown hook to stop motors and servos when we die
-    rospy.on_shutdown(controller.stop_boat_proxy)
+    rospy.on_shutdown(controller.shutdown)
     controller.main_loop()

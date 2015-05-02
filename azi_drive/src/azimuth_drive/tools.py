@@ -47,21 +47,18 @@ class Tools(object):
         else:
             return jacobian.T
 
+            
 def clamp_angles(input_angle):
     angle = np.clip(input_angle, -np.pi/2, np.pi/2)
     if input_angle != angle:
         print "------CHANGE COMPATIBILITY-----"
     go_ang = (2 * angle) + np.pi
     return go_ang
-    if go_ang > 0.0:
-        return go_ang % (2 * np.pi)
-    else:
-        return ((2 * np.pi) - (go_ang % (2 * np.pi)))
-
 
 
 def exfun((x, y)):
     return (x ** 2) + (y ** 2)
+
 
 def zfun((x, y)):
     return np.array([(x ** 2) + (y ** 3), 3 * y])

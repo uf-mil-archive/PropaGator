@@ -10,8 +10,8 @@
     <node name="motor_newtons" pkg="motor_control" type="thruster_control.py"> 
     </node>
 
-    <node name="azi_drive" pkg="azi_drive" type="azi_drive.py" 
-        output="screen" />
+    <node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py" 
+         output="screen" /> 
 
     <!-- <include /home/jacob/repos/mil_ws/src/uf-mil/PropaGator/dynamixel_servo/launch/dynamixel_servo_server.launch -->
 

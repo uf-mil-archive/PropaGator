@@ -1,0 +1,11 @@
+<launch>
+    <group ns="/" >
+        <node name="joystick_control" pkg="azi_drive" type="joystick_node.py" 
+            output="screen" />
+        <node name="motor_newtons" pkg="motor_control" type="thruster_control.py"> 
+        </node>
+        <node name="jsn" pkg="joy" type="joy_node" />
+        <node name="joy_azi" pkg="azi_drive" type="joystick_node.py" />
+    </group>
+</launch>
+
