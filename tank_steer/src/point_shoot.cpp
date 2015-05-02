@@ -342,7 +342,7 @@ void PointShoot::updateErrors_()
 	diff_linear_error_ = (current_linear_error_ - last_linear_error_) / time_step.toSec();
 	diff_angular_error_= (current_angular_error_ - last_angular_error_) / time_step.toSec();
 
-	printf("time step: %f\n", time_step.toSec());
+	//printf("time step: %f\n", time_step.toSec());
 
 	int_linear_error_ += (current_linear_error_ + last_linear_error_) * time_step.toSec() / 2;
 	int_angular_error_ += (current_angular_error_ + last_angular_error_) * time_step.toSec() / 2;
