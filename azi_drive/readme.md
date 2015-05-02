@@ -37,6 +37,9 @@ If the unittests are not passing, this node _will not_ work.
 * A tool for numerical estimation of jacobians for functions that give and take numpy arrays
 * A tool for numerical estimation of partial derivatives
 
+# Shutdown procedure
+For now, you must command a zero wrench directly. The boat control architecture was not designed around services (We should do a redesign), which are required for using rospy's on_shutdown callback. In on_shutdown, _messages) are not guaranteed to be sent, only service calls and parameters.
+
 # TODO
 
 - Implement a 2D simulation in pygame that is less...janky

@@ -40,8 +40,8 @@ class Azi_Drive(object):
     u_min = -100
 
     # Max/min angle of each thruster
-    alpha_max = np.pi
-    alpha_min = -np.pi
+    alpha_max = np.pi / 2
+    alpha_min = -np.pi / 2
 
     # Max/min change in thruster angle (Rotation speed of servo, really)
     delta_alpha_max = np.pi / 10
@@ -224,9 +224,11 @@ class Azi_Drive(object):
             s = get_s((delta_angle, delta_u))
 
             # Sub-costs
-            power = np.sum(d_power * (u_0 + delta_u))
+            # power = np.sum(d_power * np.power(u_0 + delta_u, 2))
+            # power = np.sum(d_power * np.power(delta_u, 2))
+            power = 0
 
-            G = thrust_error_weights = np.diag([20, 20, 20])
+            G = thrust_error_weights = np.diag([20, 20, 40])
             thrust_error = (s * G * s.T).A1
 
             Q = angle_change_weight = np.diag([4, 4])
@@ -237,7 +239,7 @@ class Azi_Drive(object):
             singularity = np.dot(d_singularity, delta_angle).A1
 
             # Note, the error will increase when adding power and singularity costs
-            cost = power + thrust_error + angle_change + singularity
+            cost = power + thrust_error + angle_change + singularity + np.sum(np.power(delta_angle + alpha_0, 2))
             # cost = thrust_error
             return cost
 
@@ -299,10 +301,13 @@ class Azi_Drive(object):
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 - delta_alpha_min},
             ]
         )
-        if not minimization.success:
-            print "-----------FAILED TO DETERMINE VALID SOLUTION--------------"
         delta_alpha_1, delta_alpha_2, delta_u_1, delta_u_2 = minimization.x
         delta_alpha, delta_u = np.array([delta_alpha_1, delta_alpha_2]), np.array([delta_u_1, delta_u_2])
+        if not minimization.success:
+            print "-----------FAILED TO DETERMINE VALID SOLUTION--------------"
+            if minimization.message == 'Inequality constraints incompatible':
+                # return np.array([0.0, 0.0]), np.array([0.0, 0.0])
+                pass
         return delta_alpha, delta_u
 
 

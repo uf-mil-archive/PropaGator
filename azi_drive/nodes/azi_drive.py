@@ -2,7 +2,7 @@
 from __future__ import division
 import roslib; roslib.load_manifest('azi_drive')
 from azimuth_drive import Azi_Drive
-
+from azimuth_drive import clamp_angles
 import numpy as np
 import rospy
 
@@ -22,11 +22,11 @@ class Controller(object):
     def __init__(self, rate=20):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
-        self.servo_max_rotation = 0.8
+        self.servo_max_rotation = 1.0
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
-        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
-        # rospy.init_node('azi_drive', log_level=rospy.WARN)
+        # rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
@@ -35,29 +35,35 @@ class Controller(object):
         # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
         #  thrust messages as quickly as they are sent
         self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size=4)
-        self.servo_pub = rospy.Publisher('dynamixel/dynamixel_joint_config', DynamixelJointConfig, queue_size=4)
+        self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size=4)
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
         # Thrust topic id's for each thruster
         self.left_id = 3
         self.right_id = 2
+
         # Time between messages before azi_drive shuts off
         # self.control_timeout = 2  # secs
         self.control_timeout = np.inf
 
-        self.default_angles = np.array([np.pi, np.pi])
-        self.default_forces = np.array([0.0, 0.0])
+        self.default_angles = np.array([0.0, 0.0], dtype=np.float32)
+        self.default_forces = np.array([0.0, 0.0], dtype=np.float32)
 
         # Left, Right
         self.cur_angles = self.default_angles[:]
         self.cur_forces = self.default_forces[:]
 
+        # self.prev_angles = np.copy(self.cur_angles)
+        self.prev_angles = None
         self.set_servo_angles(self.cur_angles)
         self.set_forces(self.cur_forces)
 
         # Initializations
         self.last_msg_time = time()
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
+
+        # rospy.loginfo("----------Attempting to find thruster stop service-------------")
+        # rospy.wait_for_service('/robot/xmega_connector/get_odometry')
 
     def main_loop(self):
         rate = rospy.Rate(self.rate)
@@ -83,13 +89,12 @@ class Controller(object):
             self.set_servo_angles(self.cur_angles)
             self.set_forces(self.cur_forces)
 
-            rospy.loginfo("Achieving net: {}".format(Azi_Drive.net_force(self.cur_angles, self.cur_forces)))
+            rospy.loginfo("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
             rate.sleep()
 
         # On shutdown, kill thrust
         self.reset_all()
-        rospy.sleep(0.2)
 
     def stop(self):
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
@@ -106,6 +111,7 @@ class Controller(object):
 
         self.des_fx, self.des_fy = force.x, force.y
         self.des_torque = torque.z
+        self.last_msg_time = time()
 
     def set_forces(self, (force_left, force_right)):
         '''Issue commands to the thrusters'''
@@ -117,15 +123,15 @@ class Controller(object):
         if np.fabs(force_right) < 0.01:
             force_right = 0.0
 
-        self.cur_forces = np.array([force_left, force_right])
+        # self.cur_forces = np.array([force_left, force_right])
         self.send_thrust(force_right, self.right_id)
         self.send_thrust(force_left, self.left_id)
 
-        rospy.loginfo("Assigning forces [{}, {}]".format(force_left, force_right))
+        rospy.loginfo("Assigning forces [{}, {}]".format(round(force_left, 2), round(force_right, 2)))
 
     def send_thrust(self, force, thruster):
         '''Publish thrust for a particular thruster'''
-        force = np.clip(force, -20, 20)
+        force = np.clip(force, -75, 75)
         self.thrust_pub.publish(
             thrusterNewtons(
                 id=thruster,
@@ -134,20 +140,31 @@ class Controller(object):
         )
 
     def set_servo_angles(self, (theta_left, theta_right)):
-        rospy.loginfo("Assigning angles [{}, {}]".format(theta_left, theta_right))
         if np.fabs(theta_left) < 0.01:
             theta_left = 0.0
 
         if np.fabs(theta_right) < 0.01:
             theta_right = 0.0
 
-        self.cur_angles = np.array([theta_left, theta_right])
+        if self.prev_angles is not None:
+            if (all(np.fabs(np.array([theta_left, theta_right]) - self.prev_angles))) < 0.02:
+                rospy.loginfo("Angle change too small, holding {}".format(np.round(self.cur_angles, 2)))
+                return
+        # else:
+            # self.prev_angles = np.copy(self.cur_angles)
+        rospy.loginfo("Assigning angles [{}, {}]".format(round(theta_left, 2), round(theta_right, 2)))
+
+        self.prev_angles = np.copy(self.cur_angles)
+
+        theta_left = np.round(theta_left, 1)
+        theta_right = np.round(theta_right, 1)
 
         # Got the weird angle offset from zdrive2. Not...sure...why...gearing?
         self.servo_pub.publish(
             DynamixelFullConfig(
                 id=self.left_id,
-                goal_position=((2 * theta_left) + np.pi) % (2 * np.pi),
+                # goal_position=((2 * theta_left) + np.pi) % (2 * np.pi),
+                goal_position=clamp_angles(theta_left),
                 moving_speed=self.servo_max_rotation,
                 torque_limit=1023,
                 goal_acceleration=38,
@@ -159,7 +176,8 @@ class Controller(object):
         self.servo_pub.publish(
             DynamixelFullConfig(
                 id=self.right_id,
-                goal_position=((2 * theta_right) + np.pi) % (2 * np.pi),
+                # goal_position=((2 * theta_right) + np.pi) % (2 * np.pi),
+                goal_position=clamp_angles(theta_right),
                 moving_speed=self.servo_max_rotation,
                 torque_limit=1023,
                 goal_acceleration=38,
@@ -171,4 +189,5 @@ class Controller(object):
 
 if __name__ == '__main__':
     controller = Controller()
+    rospy.on_shutdown(controller.reset_all)
     controller.main_loop()

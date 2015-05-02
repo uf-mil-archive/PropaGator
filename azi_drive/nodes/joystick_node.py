@@ -66,7 +66,7 @@ def got_joy_msg(joy_msg):
 # These values are hardcoded for now.
 max_x_force = 75
 max_y_force = 75
-max_z_torque = 125
+max_z_torque = 75
 
 rospy.Subscriber('/joy', Joy, got_joy_msg, queue_size=2)
 
