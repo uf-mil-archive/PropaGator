@@ -9,6 +9,7 @@ import rospy
 from geometry_msgs.msg import WrenchStamped
 from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelFullConfig
+from azi_drive.srv import *
 from time import time
 
 '''
@@ -22,11 +23,11 @@ class Controller(object):
     def __init__(self, rate=20):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
-        self.servo_max_rotation = 1.0
+        self.servo_max_rotation = 0.3
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
-        # rospy.init_node('azi_drive', log_level=rospy.DEBUG)
-        rospy.init_node('azi_drive', log_level=rospy.WARN)
+        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
@@ -62,8 +63,10 @@ class Controller(object):
         self.last_msg_time = time()
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
 
-        # rospy.loginfo("----------Attempting to find thruster stop service-------------")
-        # rospy.wait_for_service('/robot/xmega_connector/get_odometry')
+        # Prepare a shutdown service
+        rospy.loginfo("----------Waiting for control_manager service-------------")
+        rospy.wait_for_service('azi_drive/stop')
+        self.stop_boat_proxy = rospy.ServiceProxy('azi_drive/stop', AziStop)
 
     def main_loop(self):
         rate = rospy.Rate(self.rate)
@@ -83,6 +86,9 @@ class Controller(object):
                 u_0=self.cur_forces,
             )
 
+            toc = time() - cur_time
+            print 'Took {} seconds'.format(toc)
+
             d_theta, d_force = thrust_solution
             self.cur_angles += d_theta
             self.cur_forces += d_force
@@ -92,9 +98,6 @@ class Controller(object):
             rospy.loginfo("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
             rate.sleep()
-
-        # On shutdown, kill thrust
-        self.reset_all()
 
     def stop(self):
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
@@ -189,5 +192,6 @@ class Controller(object):
 
 if __name__ == '__main__':
     controller = Controller()
-    rospy.on_shutdown(controller.reset_all)
+    # Add a shutdown hook to stop motors and servos when we die
+    rospy.on_shutdown(controller.stop_boat_proxy)
     controller.main_loop()
