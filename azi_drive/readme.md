@@ -26,6 +26,9 @@ For the old controller,
 
     roslaunch boat_launch controller.launch
 
+or
+    rosrun controller pd_controller.py  # This actually works, but commands insane forces
+
 # Testing
 
 To run  unittests, do

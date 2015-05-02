@@ -62,7 +62,6 @@ class Azi_Drive(object):
 
     @classmethod
     def set_thrust_bound(self, (_min, _max)):
-        print 'setting max'
         self.u_max = _max
         self.u_min = _min
 

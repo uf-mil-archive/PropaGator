@@ -1,0 +1,20 @@
+<launch>
+    <node pkg="stm32f3discovery_imu_driver" type="stm32f3discovery_imu_driver" name="stm32f3discovery_imu_driver" respawn="true">
+        <param name="port" value="/dev/serial/by-id/usb-uf-mil_subbus_290307f5-if00"/>
+        <param name="dest" value="0x290307f5"/>
+        <remap from="imu/data_raw" to="stmimu/data_raw"/>
+        <remap from="imu/mag_raw" to="stmimu/mag_raw"/>
+    </node>
+
+    <include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch"/>
+    <node name="motor_newtons" pkg="motor_control" type="thruster_control.py"> 
+    </node>
+
+    <node name="azi_drive_control_manager" pkg="azi_drive" type="control_manager.py" 
+         output="screen" /> 
+
+    <node name="controller" pkg="controller" type="pd_controller.py" />
+    
+    <!-- <include /home/jacob/repos/mil_ws/src/uf-mil/PropaGator/dynamixel_servo/launch/dynamixel_servo_server.launch -->
+
+</launch>

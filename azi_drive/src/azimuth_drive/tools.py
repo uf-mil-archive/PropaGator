@@ -51,7 +51,7 @@ class Tools(object):
 def clamp_angles(input_angle):
     angle = np.clip(input_angle, -np.pi/2, np.pi/2)
     if input_angle != angle:
-        print "------CHANGE COMPATIBILITY-----"
+        print "------ANGLE RANGE ERROR-----"
     go_ang = (2 * angle) + np.pi
     return go_ang
 
