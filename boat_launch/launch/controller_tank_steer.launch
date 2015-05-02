@@ -8,10 +8,10 @@
 
    <node pkg="tank_steer" type="point_shoot_node" name="point_shoot_node">
       <rosparam>
-         /linear_p_gain: 10.0
+         /linear_p_gain: 0.0
          /linear_d_gain: 0.0
 
-         /angle_p_gain: 100.0
+         /angle_p_gain: 15.0
          /angle_i_gain: 0.0
          /angle_d_gain: 0.0
 
@@ -22,5 +22,7 @@
          /bubble_radius: 5
       </rosparam>
    </node>
+
+   <node pkg="motor_control" type="thruster_control.py" name="newtons_to_pwm"/>
 
 </launch>
