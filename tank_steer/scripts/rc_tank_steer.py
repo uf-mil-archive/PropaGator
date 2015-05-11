@@ -25,20 +25,21 @@ def start():
 	#Init subscribers and publishers
 	joy_sub = rospy.Subscriber('joy', Joy, xbox_cb, queue_size = 10)
 
-	while rospy.OK():
-		if rospy.Time() - last_xbox_cmd_time > zero_time:
-			pwm1 = Float64(0.015)  #L_STICK
+	while not rospy.is_shutdown():
+		if rospy.get_rostime() - last_xbox_cmd_time > zero_time:
+			pwm1 = Float64(0.0015)  #L_STICK
 			pwm_port_pub.publish(pwm1)
-			pwm2 = Float64(0.015) #R_STICK
+			pwm2 = Float64(0.0015) #R_STICK
 			pwm_starboard_pub.publish(pwm2) 
 
 
 
 def xbox_cb(joy_msg):
-	last_xbox_cmd_time = rospy.Time()
-	pwm1 = Float64(0.005*(joy_msg.axes[1]) + 0.015)  #L_STICK
+	global last_xbox_cmd_time
+	last_xbox_cmd_time = rospy.get_rostime()
+	pwm1 = Float64(0.0005*(joy_msg.axes[1]) + 0.0015)  #L_STICK
 	pwm_port_pub.publish(pwm1)
-	pwm2 = Float64(0.005*(joy_msg.axes[3]) + 0.015) #R_STICK
+	pwm2 = Float64(0.0005*(joy_msg.axes[3]) + 0.0015) #R_STICK
 	pwm_starboard_pub.publish(pwm2) 
 
 if __name__ == '__main__':

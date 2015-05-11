@@ -57,12 +57,12 @@ class Test_Azi_Drive(unittest.TestCase):
             {
                 'angles': (0.0, 0.0),
                 'u': (10, -10),
-                'answer': [0.0, 0.0, -6.0],
+                'answer': [0.0, 0.0, 6.0],
             },
             {
                 'angles': (0.0, 0.0),
                 'u': (10, -10),
-                'answer': [0.0, 0.0, -6.0],
+                'answer': [0.0, 0.0, 6.0],
             },
             # {
             #     'angles': (np.pi / 2, 0.0),
@@ -199,7 +199,7 @@ class Test_Azi_Drive(unittest.TestCase):
                 )
                 toc = time() - tic
 
-                d_theta, d_force = thrust_solution
+                d_theta, d_force, success = thrust_solution
                 alpha_nought += d_theta
                 u_nought += d_force
 

@@ -47,14 +47,24 @@ class Tools(object):
         else:
             return jacobian.T
 
+            
+def clamp_angles(input_angle):
+    angle = np.clip(input_angle, -np.pi/2, np.pi/2)
+    if input_angle != angle:
+        print "------ANGLE RANGE ERROR-----"
+    go_ang = (2 * angle) + np.pi
+    return go_ang
+
 
 def exfun((x, y)):
     return (x ** 2) + (y ** 2)
+
 
 def zfun((x, y)):
     return np.array([(x ** 2) + (y ** 3), 3 * y])
 
 
 if __name__ == '__main__':
-    print Tools.jacobian(zfun, np.array([1.0, 1.0]))
-    print Tools.jacobian(exfun, np.array([0.0, 0.0]))
+    tests = [-np.pi/2, 0.0, np.pi/2]
+    for test in tests:
+        print clamp_angles(test)
