@@ -15,6 +15,8 @@ from std_msgs.msg import Float64
 pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
 pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
 
+last_xbox_cmd_time = rospy.Time()
+zero_time = rospy.Duration(1)
 
 def start():
 	#Init node
@@ -23,10 +25,17 @@ def start():
 	#Init subscribers and publishers
 	joy_sub = rospy.Subscriber('joy', Joy, xbox_cb, queue_size = 10)
 
-	#Spin
-	rospy.spin()
+	while rospy.OK():
+		if rospy.Time() - last_xbox_cmd_time > zero_time:
+			pwm1 = Float64(0.015)  #L_STICK
+			pwm_port_pub.publish(pwm1)
+			pwm2 = Float64(0.015) #R_STICK
+			pwm_starboard_pub.publish(pwm2) 
+
+
 
 def xbox_cb(joy_msg):
+	last_xbox_cmd_time = rospy.Time()
 	pwm1 = Float64(0.005*(joy_msg.axes[1]) + 0.015)  #L_STICK
 	pwm_port_pub.publish(pwm1)
 	pwm2 = Float64(0.005*(joy_msg.axes[3]) + 0.015) #R_STICK
