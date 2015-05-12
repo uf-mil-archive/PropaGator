@@ -10,6 +10,11 @@ with:
 
     sudo apt-get install socat
 
+and autoreconf, installable with:
+
+    sudo apt-get install autoconf
+
+
 This repository also depends on the lms1xx package,
 installable with:
 
