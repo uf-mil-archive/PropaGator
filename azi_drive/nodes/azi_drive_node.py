@@ -15,8 +15,8 @@ from time import time
 '''
 Max thrust: 100
 Min thrust: -100
-Max angle: pi
-min angle: -pi
+Max angle: pi/2
+min angle: -pi/2
 '''
 
 class Controller(object):
@@ -54,7 +54,6 @@ class Controller(object):
         self.cur_angles = self.default_angles[:]
         self.cur_forces = self.default_forces[:]
 
-        # self.prev_angles = np.copy(self.cur_angles)
         self.prev_angles = None
         self.set_servo_angles(self.cur_angles)
         self.set_forces(self.cur_forces)
@@ -70,7 +69,9 @@ class Controller(object):
 
     def main_loop(self):
         rate = rospy.Rate(self.rate)
+        iteration_num = 0
         while not rospy.is_shutdown():
+            iteration_num += 1
             cur_time = time()
 
             rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
@@ -90,17 +91,22 @@ class Controller(object):
             # print 'Took {} seconds'.format(toc)
 
             d_theta, d_force, success = thrust_solution
+            if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
+                self.cur_angles = np.array([0.0, 0.0])
+                continue
+
             self.cur_angles += d_theta
             self.cur_forces += d_force
-            self.set_servo_angles(self.cur_angles)
 
-            if success:
-                self.set_forces(self.cur_forces)
-            else:
-                rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
-                self.set_forces((0.0, 0.0))
-
-            rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+            if iteration_num > 4:
+                iteration_num = 0
+                self.set_servo_angles(self.cur_angles)
+                if success:
+                    self.set_forces(self.cur_forces)
+                else:
+                    rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                    self.set_forces((0.0, 0.0))
+                rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
             rate.sleep()
 
@@ -121,8 +127,9 @@ class Controller(object):
         force = msg.wrench.force
         torque = msg.wrench.torque
 
+        # I put a negative sign here to work with Forrest's pd_controller
         self.des_fx, self.des_fy = np.clip(force.x, -70, 70), -np.clip(force.y, -50, 50)
-        self.des_torque = np.clip(torque.z, -10, 10)
+        self.des_torque = np.clip(torque.z, -30, 30)
         self.last_msg_time = time()
 
     def set_forces(self, (force_left, force_right)):
@@ -135,7 +142,6 @@ class Controller(object):
         if np.fabs(force_right) < 0.01:
             force_right = 0.0
 
-        # self.cur_forces = np.array([force_left, force_right])
         self.send_thrust(force_right, self.right_id)
         self.send_thrust(force_left, self.left_id)
 
@@ -161,8 +167,7 @@ class Controller(object):
             if (all(np.fabs(np.array([theta_left, theta_right]) - self.prev_angles) < 0.2)):
                 rospy.logdebug("Angle change too small, holding {}".format(np.round(self.cur_angles, 2)))
                 return
-        # else:
-            # self.prev_angles = np.copy(self.cur_angles)
+
         rospy.logdebug("Assigning angles [{}, {}]".format(round(theta_left, 2), round(theta_right, 2)))
 
         self.prev_angles = np.copy(self.cur_angles)
@@ -170,30 +175,19 @@ class Controller(object):
         theta_left = np.round(theta_left, 1)
         theta_right = np.round(theta_right, 1)
 
-        # Got the weird angle offset from zdrive2. Not...sure...why...gearing?
-        self.servo_pub.publish(
-            DynamixelFullConfig(
-                id=self.left_id,
-                # goal_position=((2 * theta_left) + np.pi) % (2 * np.pi),
-                goal_position=clamp_angles(theta_left),
-                moving_speed=self.servo_max_rotation,
-                torque_limit=1023,
-                goal_acceleration=38,
-                control_mode=DynamixelFullConfig.JOINT,
-                goal_velocity=self.servo_max_rotation,
-            )
-        )
+        self.send_angle(theta_left, self.left_id)
+        self.send_angle(theta_right, self.right_id)
 
+    def send_angle(self, angle, servo):
         self.servo_pub.publish(
             DynamixelFullConfig(
-                id=self.right_id,
-                # goal_position=((2 * theta_right) + np.pi) % (2 * np.pi),
-                goal_position=clamp_angles(theta_right),
-                moving_speed=self.servo_max_rotation,
+                id=servo,
+                goal_position=clamp_angles(angle),
+                moving_speed=self.servo_max_rotation * 16,
                 torque_limit=1023,
                 goal_acceleration=38,
                 control_mode=DynamixelFullConfig.JOINT,
-                goal_velocity=self.servo_max_rotation,
+                goal_velocity=0.0  # This is for wheel mode, we don't use it
             )
         )
 
