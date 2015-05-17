@@ -25,6 +25,7 @@ ISSUES:
 
 class Azi_Drive(object):    
 
+    center_of_mass = np.array([0.0, 0.0])  # This is NOT actually true!
     positions = [
         # l_x, l_y, offsets from [2]
         # (-0.15, -0.3),
@@ -78,7 +79,9 @@ class Azi_Drive(object):
             "angles differs {} vs {}").format(len(alpha), len(self.positions))
 
         thruster_matrix = []
-        for thruster, (l_x, l_y) in enumerate(self.positions):
+        for thruster, position in enumerate(self.positions):
+            
+            l_x, l_y = np.subtract(position, self.center_of_mass)
             angle = alpha[thruster]
             c = np.cos(angle)
             s = np.sin(angle)

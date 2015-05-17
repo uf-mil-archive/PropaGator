@@ -11,6 +11,11 @@ This is not trivial, because the boat is overactuated, and there is thus no simp
 
 Thruster 2 is on the right, thruster 3 is on the left
 
+### Frames
+
+Forward is x-positive, right is y-positive, down is z-positive. According to nautical convention.
+
+
 # Usage
 
     rosrun boatsim sim
@@ -27,6 +32,7 @@ For the old controller,
     roslaunch boat_launch controller.launch
 
 or
+    roslaunch boat_launch navigation.launch
     rosrun controller pd_controller.py  # This actually works, but commands insane forces
 
 # Testing
@@ -49,6 +55,7 @@ If the unittests are not passing, this node _will not_ work.
 * A pygame node for visualizing the force vectors generated
 
 # Shutdown procedure
+
 For now, you must command a zero wrench directly. The boat control architecture was not designed around services (We should do a redesign), which are required for using rospy's on_shutdown callback. In on_shutdown, _messages) are not guaranteed to be sent, only service calls and parameters.
 
 # TODO
@@ -57,15 +64,16 @@ For now, you must command a zero wrench directly. The boat control architecture 
 - Use CVXOPT or try C++ implementation 
 - Implement path planner that takes advantage of this tool
 - Add water drag terms
+- A velocity controller that allows a Twist set with an arbitrary reference frame
+- More reasonable force-clipping (Not attempting unchievable force, but also being smarter about it)
 
 # Issues
 
-- Does not correctly produce pure strafing motion (Error in B matrix?)
--- Fixed, using [this line from zdrive2](https://github.com/uf-mil/PropaGator/blob/master/z_drive2/scripts/z_drive2#L130)
+- Does not correctly produce pure strafing motion in _real_ world, but does in simulation. This is because the simulation and the real boat have differing centers of mass.
 
--- wtf?
+
+- Sometimes goes out of angle bounds (on unachievable commands), don't allow this.
 
 - There may be a problem relating to the inequality constraints in map_thrusters. Haven't been able to nail it down.
-
 
 With questions and concerns, please contact Jacob Panikulam via email or facebook (If he is still alive).
