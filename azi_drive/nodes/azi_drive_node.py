@@ -123,13 +123,36 @@ class Controller(object):
         self.set_forces(self.default_forces)
 
     def _wrench_cb(self, msg):
-        '''Recieve a force, torque command for the mapper to achieve'''
+        '''Recieve a force, torque command for the mapper to achieve
+
+        Compute the minimum and maximum wrenches by multiplying the minimum and maximum thrusts 
+          by the thrust matrix at the current thruster orientations. This gives a strong estimate
+          for what is a feasible wrench in the neighborhood of linearity
+
+        The 0.9 is just a fudge factor for extra certainty
+        '''
         force = msg.wrench.force
         torque = msg.wrench.torque
 
+        # Compute the minimum and maximum wrenches the boat can produce
+        #  By linearity, everything in between should be reasonably achievable
+        max_fx, max_fy, _ = Azi_Drive.net_force(self.cur_angles, [80, 80])
+        min_fx, min_fy, _ = Azi_Drive.net_force(self.cur_angles, [-70, -70])
+
+        _, _, max_torque = Azi_Drive.net_force(self.cur_angles, [-70, 80])
+        _, _, min_torque = Azi_Drive.net_force(self.cur_angles, [80, -70])
+
+        # max_f* could be positive, and min_f* could be negative; clip requires ordered inputs
+        fx_range = (min_fx, max_fx)
+        fy_range = (min_fy, max_fy)
+        tz_range = (min_torque, max_torque)
+        print tz_range
+
+        self.des_fx = np.clip(force.x, min(fx_range), max(fx_range)) * 0.9 
         # I put a negative sign here to work with Forrest's pd_controller
-        self.des_fx, self.des_fy = np.clip(force.x, -70, 70), -np.clip(force.y, -50, 50)
-        self.des_torque = np.clip(torque.z, -30, 30)
+        self.des_fy = -np.clip(force.y, min(fy_range), max(fy_range)) * 0.9
+        self.des_torque = np.clip(torque.z, min(tz_range), max(tz_range)) * 0.9
+
         self.last_msg_time = time()
 
     def set_forces(self, (force_left, force_right)):
