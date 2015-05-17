@@ -14,9 +14,10 @@ from azimuth_drive import Azi_Drive
 ## Ros Msgs
 from std_msgs.msg import Header, Float64
 from geometry_msgs.msg import Point, PointStamped, Quaternion
-from geometry_msgs.msg import WrenchStamped
+from geometry_msgs.msg import WrenchStamped, Wrench, Vector3
+from nav_msgs.msg import Odometry
 from motor_control.msg import thrusterNewtons
-from dynamixel_servo.msg import DynamixelFullConfig
+from dynamixel_servo.msg import DynamixelFullConfig, DynamixelStatus
 
 SCREEN_DIM = (750, 750)
 ORIGIN = np.array([SCREEN_DIM[0] / 2.0, SCREEN_DIM[1] / 2.0])
@@ -39,7 +40,7 @@ def round_point((x, y)):
 
 def unround_point((x, y)):
     '''Change center-origin coordinates to pygame coordinates'''
-    return ((y - ORIGIN[0]) / 30.0, (-x + ORIGIN[1]) / 30.0)
+    return (-(y - ORIGIN[0]) / 30.0, -(-x + ORIGIN[1]) / 30.0)
 
 
 def norm_angle_diff(ang_1, ang_2):
@@ -64,15 +65,29 @@ class Azi_Drive_Visual(object):
         rospy.Subscriber('dynamixel/dynamixel_full_config', DynamixelFullConfig, 
             self._dynamixel_cb, queue_size=4)
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
+        rospy.Subscriber('dynamixel/dynamixel_status_post', DynamixelStatus, self._dynamixel_cur_cb, queue_size=4)
+
+        rospy.Subscriber('odom', Odometry, self._odometry_cb, queue_size=4)
 
         # Thruster 2 is on the right, thruster 3 is on the left
         self.thruster_forces = {2: 0, 3: 0}
-        self.thruster_angles = {2: 0.0, 3: 0.0}
+        self.thruster_goal_angles = {2: 0.0, 3: 0.0}
+        self.thruster_cur_angles = {2: 0.0, 3:0.0}
+
+        self.pos_x, self.pos_y = 0.0, 0.0
+        self.yaw = 0.0
+
+
         self.thruster_positions = {
             # Taken from simulation
             3: (-0.7239, -0.3048),
             2: (-0.7239, 0.3048),
         }
+
+    def _odometry_cb(self, msg):
+        quat2quat = lambda quat: (quat.x, quat.y, quat.z, quat.w)
+        self.pos_x, self.pos_y = msg.pose.pose.position.x, msg.pose.pose.position.y
+        self.yaw = tf_trans.euler_from_quaternion(quat2quat(msg.pose.pose.orientation))[2]
 
     def _thruster_cb(self, msg):
         self.thruster_forces[msg.id] = msg.thrust
@@ -81,11 +96,13 @@ class Azi_Drive_Visual(object):
         pass
 
     def _dynamixel_cb(self, msg):
-        self.thruster_angles[msg.id] = msg.goal_position
+        self.thruster_goal_angles[msg.id] = msg.goal_position
 
-    def ray(self, display, start, angle, length, scale=0.1):
-        # pygame.draw.line(display, color, start_pos, end_pos, width=1): return Rect
+    def _dynamixel_cur_cb(self, msg):
+        if msg.id in self.thruster_cur_angles.keys():
+            self.thruster_cur_angles[msg.id] = msg.present_position
 
+    def ray(self, display, start, angle, length, scale=0.1, color=(255, 0, 0), text=None, width=3):
         unit_v = np.array([np.sin(angle), np.cos(angle)])
         _start = round_point(start)
         _end = round_point(start + (unit_v * length * scale))
@@ -93,21 +110,18 @@ class Azi_Drive_Visual(object):
 
         pygame.draw.circle(display, (255, 200, 80), _start, 5)
 
-        pygame.draw.line(display, (255, 0, 0), 
+        pygame.draw.line(display, color,
             _start,
             _end,
-            3
+            width
         )
 
-        Text_Box.draw(display, 
-            pos=_end,
-            color=(255, 0, 0), 
-            text="Force: {}\nReal Angle: {}\n".format(
-                round(length, 4),
-                round(angle, 4)
-            ),
-        )
-
+        if text is not None:
+            Text_Box.draw(display, 
+                pos=_end,
+                color=(255, 0, 0), 
+                text=text
+            )
 
     def vector(self, display, start, direction, scale=0.1):
         pygame.draw.circle(display, (200, 255, 20), round_point(start), 5)
@@ -116,35 +130,73 @@ class Azi_Drive_Visual(object):
             round_point(np.array(start) + (np.array(direction) * scale)),
         )
 
-
     def draw(self, display):
-        '''Draw the whole arm'''
         # Update positions given current angles
         for _id, position in self.thruster_positions.items():
             self.ray(display, 
                 start=position, 
-                angle=saneify_angle(self.thruster_angles[_id]) - (np.pi / 2), 
-                length=self.thruster_forces[_id],
-                scale=0.1
+                angle=saneify_angle(self.thruster_cur_angles[_id]) - (np.pi / 2),
+                length=10,
+                scale=0.25,
+                color=(50, 30, 255),
+                width=5
             )        
+
+            angle = saneify_angle(self.thruster_goal_angles[_id]) - (np.pi / 2)
+            length = self.thruster_forces[_id]
+            self.ray(display, 
+                start=position, 
+                angle=angle, 
+                length=length,
+                scale=0.1,
+                text="{}Force: {}\nAngle: {}\n".format(
+                    "\n\n" * (_id - 2),
+                    round(length, 4),
+                    round(angle, 4),
+                ),
+            )        
+
         
-        net = Azi_Drive.net_force(
-            alpha=[saneify_angle(self.thruster_angles[3]), saneify_angle(self.thruster_angles[2])],
+        desired_net = Azi_Drive.net_force(
+            alpha=[saneify_angle(self.thruster_goal_angles[3]), saneify_angle(self.thruster_goal_angles[2])],
             u=[self.thruster_forces[3], self.thruster_forces[2]],
         )
-        # Swapped x and y
-        self.vector(display, start=(0, 0), direction=(net[0], net[1]), scale=0.1)
+        # Swapped x and y, draw desired net force
+        self.vector(display, start=(0, 0), direction=(desired_net[0], desired_net[1]), scale=0.1)
+
+        # Current net force
+        real_net = Azi_Drive.net_force(
+            alpha=[saneify_angle(self.thruster_cur_angles[3]), saneify_angle(self.thruster_cur_angles[2])],
+            u=[self.thruster_forces[3], self.thruster_forces[2]],
+        )
 
         Text_Box.draw(display, 
             pos=(475, 200),
             color=(60, 200, 30), 
-            text="Fx: {}\nFy: {}\nTorque: {}\n".format(
-                round(net[0], 4), 
-                round(net[1], 4),
-                round(net[2], 4),
+            text="Fx: {} (Target)\nFy: {} (Target)\nTorque: {} (Target)\n".format(
+                round(desired_net[0], 4),
+                round(desired_net[1], 4),
+                round(desired_net[2], 4),
             ),
         )
-
+        Text_Box.draw(display, 
+            pos=(475, 200),
+            color=(60, 30, 200), 
+            text="\n\n\nFx: {} (Actual)\nFy: {} (Actual)\nTorque: {} (Actual)\n".format(
+                round(real_net[0], 4),
+                round(real_net[1], 4),
+                round(real_net[2], 4),
+            ),
+        )
+        Text_Box.draw(display, 
+            pos=(475, 200),
+            color=(250, 30, 250), 
+            text="\n\n\n\n\n\nOdom X: {}\nOdom Y: {}\nYaw: {}\n".format(
+                round(self.pos_x, 4),
+                round(self.pos_y, 4),
+                round(self.yaw, 4),
+            ),
+        )
 
 
 class Text_Box(object):
@@ -187,8 +239,30 @@ class Text_Box(object):
             height += self.font.get_linesize()
 
 
+wrench_pub = rospy.Publisher('wrench', WrenchStamped, queue_size=2)
+
+def publish_wrench(fx, fy, tau):
+    wrench = WrenchStamped()
+    wrench.wrench = Wrench()
+    wrench.wrench.force = Vector3()
+    wrench.wrench.torque = Vector3()
+
+    wrench.wrench.force.x = fx
+    wrench.wrench.force.y = fy
+    wrench.wrench.force.z = 0
+    
+    wrench.wrench.torque.x = 0
+    wrench.wrench.torque.y = 0
+    wrench.wrench.torque.z = tau
+
+    wrench.header.seq = 0
+    wrench.header.frame_id = '/base_link'
+    wrench.header.stamp = rospy.Time.now()
+
+    wrench_pub.publish(wrench)
+
+
 def main():
-    '''In principle, we can support an arbitrary number of arms in simulation'''
     draws = [
         Azi_Drive_Visual()
     ]
@@ -198,6 +272,8 @@ def main():
 
     clock = pygame.time.Clock()
 
+    last_time = 0
+    targeted = False
     while not rospy.is_shutdown():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -207,7 +283,29 @@ def main():
                 if (event.key == pygame.K_ESCAPE) or (event.key == pygame.K_q):
                     return
 
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if not pygame.mouse.get_pressed()[0]:
+                    continue
+
+                last_time = time.time()
+                pos = pygame.mouse.get_pos()
+                point = unround_point(pos)
+                publish_wrench(
+                    fx=point[0] * 5, 
+                    fy=point[1] * 5, 
+                    tau=0.0,
+                )
+                targeted = True
+
+            if pygame.mouse.get_pressed()[0]:
+                last_time = time.time()
+
         t = time.time()
+        if (t - last_time > 2) and targeted:
+            rospy.logwarn("Stopping")
+            publish_wrench(0, 0, 0)
+            targeted = False
+
         for draw in draws:
             draw.draw(display)
         
