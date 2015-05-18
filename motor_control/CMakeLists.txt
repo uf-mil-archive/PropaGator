@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   message_generation
+  kill_handling
 )
 
 ## System dependencies are found with CMake's conventions
@@ -84,7 +85,7 @@ catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES motor_control
 #  CATKIN_DEPENDS roscpp rospy std_msgs
-  DEPENDS message_runtime
+  DEPENDS message_runtime kill_handling
 )
 
 ###########
