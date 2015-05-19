@@ -1,0 +1,7 @@
+<launch>
+
+<include file="$(find ueye_cam)/launch/rgb8.launch"/>
+
+<node pkg="camera_docking" name="camera_docking" type="camera_docking"/>
+
+</launch>

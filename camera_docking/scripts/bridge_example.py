@@ -17,8 +17,8 @@ class image_converter:
 
     cv2.namedWindow("Image window", 1)
     self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("image_raw/theora",Image,self.callback)
-
+#    self.image_sub = rospy.Subscriber("image_raw/theora",Image,self.callback)
+    self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
   def callback(self,data):
     try:
       cv_image = self.bridge.imgmsg_to_cv2(data, "rgb8")
@@ -26,12 +26,12 @@ class image_converter:
       print e
 
     (rows,cols,channels) = cv_image.shape
-    if cols > 60 and rows > 60 :
-      cv2.circle(cv_image, (50,50), 10, 255)
 
-    cv2.imshow("Image window", cv_image)
-    cv2.waitKey(3)
+    cv2.circle(cv_image, (cols/2,rows/2), 100, (255,0,0), 10) 
 
+    #cv2.imshow("Image window", cv_image)
+    #cv2.waitKey(1)
+    
     try:
       self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "rgb8"))
     except CvBridgeError, e:
