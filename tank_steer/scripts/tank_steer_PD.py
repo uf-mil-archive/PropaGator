@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+#				Tank Steer Primative Driver
 # This node maps a wrench message to a thruster configuration with the thrusters locked in the reverse position
 #	Note any refrence to a cordinate system in this node unless otherwise specified is to the robot frame
 #		with x looking forward towards the bow, z is up and standard right hand conventions apply
@@ -30,13 +31,19 @@ class Node(object):
 
 # Constructor
 	def __init__(self):
-		rospy.init_node('tank_steer', anonymous=True)
+		rospy.init_node('tank_steer_pd', anonymous=True)
 
 	# Grab params
 		if rospy.has_param('~simulate'):
 			self.simulate = rospy.get_param('~simulate')
 		else:
 			self.simulate = 0
+
+
+		self.max_thrust = rospy.get_param('max_thrust', 100.0)
+		self.min_thrust = rospy.get_param('min_thrust', -100.0)
+
+		self.L = rospy.get_param('distance_between_thrusters', 0.6096) #meters
 
 	# Set up publishers for servo position and prop speed
 		self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size = 10)
@@ -69,10 +76,6 @@ class Node(object):
 			),
 		]
 		"""
-		self.max_thrust = 100
-		self.min_thrust = -100
-
-		self.L = 0.6096 #meters
 
 		# See Wrench Callback for deffinition of wrench_tf
 		self.wrench_tf = np.matrix([[0.5, -1 / self.L], [0.5, 1 / self.L]])
