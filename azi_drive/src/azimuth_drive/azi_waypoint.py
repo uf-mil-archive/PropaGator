@@ -7,6 +7,7 @@ import rospy
 import actionlib
 from uf_common.msg import PoseTwistStamped, MoveToAction
 from kill_handling.listener import KillListener
+from kill_handling.broadcaster import KillBroadcaster
 
 '''
 
@@ -17,15 +18,21 @@ TODO: Right now values are oonly coming in from the waypoint node
 
 class send_action:
 
-    def __init__(self):
+    def __init__(self, name):
         self.action = actionlib.SimpleActionServer('moveto', MoveToAction, self.new_goal, False)
         self.trajectory_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size=10)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
+        self.kill_broadcaster = KillBroadcaster(id=name, description='Azi_waypoints shutdown')
+
+        try:
+            self.kill_broadcaster.clear()
+        except rospy.service.ServiceException, e:
+            rospy.logwarn(str(e))
+
         self.action.start()
         self.to_pose = PoseTwistStamped()
         self.temp_pose = PoseTwistStamped()
         self.killed = False
-
 
     def set_kill(self):
 
@@ -52,6 +59,7 @@ class send_action:
         r = rospy.Rate(1)
         if self.killed == True:
             rospy.logwarn('Azi_Drive waypoint kill flag on  -- Waypoints disabled: %s' % self.kill_listener.get_kills())
+            self.kill_broadcaster.send(self.killed)
         if self.killed == False:
             self.to_pose = self.temp_pose
             self.trajectory_pub.publish(self.to_pose)
@@ -61,7 +69,7 @@ class send_action:
 
 if __name__ == '__main__':
         rospy.init_node('azi_waypoint')
-        action = send_action()
+        action = send_action(rospy.get_name())
         while not rospy.is_shutdown():
             action.over_and_over()
 

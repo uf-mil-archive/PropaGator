@@ -14,19 +14,49 @@ from tf import transformations
 from uf_common.orientation_helpers import xyz_array, xyzw_array
 from uf_common.msg import PoseTwistStamped
 from controller.srv import Enable,EnableResponse
-
+from kill_handling.listener import KillListener
+from kill_handling.broadcaster import KillBroadcaster
 
 rospy.init_node('controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':0.8,'y':0.8,'yaw':0.8})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':75,'y':75,'yaw':100})
+rospy.set_param('p_gain', {'x':0.4,'y':0.4,'yaw':0.4})#5,.8//4.0,.8
+rospy.set_param('d_gain', {'x':10,'y':20,'yaw':30})
 #.25,400
 #-----------
 
 #----------------------------------------------------------------------------------
+
+
+# KILL MANAGER SETTINGS -----------------------------------------------------------
+
+killed = False
+
+def set_kill():
+    global killed 
+    killed = True
+    rospy.logwarn('PD_Controller KILLED: %s' % kill_listener.get_kills())
+
+def clear_kill():
+    global killed 
+    killed = False
+    rospy.logwarn('PD_Controller ACTIVE: %s' % kill_listener.get_kills())
+
+kill_listener = KillListener(set_kill, clear_kill)
+kill_broadcaster = KillBroadcaster(id=rospy.get_name(), description='PD Controller shutdown')
+
+try:
+    kill_broadcaster.clear()
+except rospy.service.ServiceException, e:
+    rospy.logwarn(str(e))
+
+# Kill publisher on line 179
+
+# basing wrench output on the 'killed' variable
+
+# KILL MANAGER SETTINGS -----------------------------------------------------------
 
 def _jacobian(x):
     # maps body linear+angular velocities -> global linear velocity/euler rates
@@ -137,7 +167,7 @@ def update_callback(event):
     
     if (not(odom_active)):
         output = [0,0,0,0,0,0]
-    if (enable):
+    if (enable & killed==False):
         controller_wrench.publish(WrenchStamped(
             header = Header(
                 stamp=rospy.Time.now(),
@@ -149,6 +179,21 @@ def update_callback(event):
                 ))
                 
                 )
+        kill_broadcaster.send(killed)
+    if (killed == True):
+        rospy.logwarn('PD_Controller KILLED: %s' % kill_listener.get_kills())
+        controller_wrench.publish(WrenchStamped(
+                header = Header(
+                    stamp=rospy.Time.now(),
+                    frame_id="/base_link",
+                    ),
+                wrench=Wrench(
+                    force = Vector3(x= 0,y= 0,z= 0),
+                    torque = Vector3(x=0,y= 0,z= 0),
+                    ))
+                    
+                    )
+        kill_broadcaster.send(killed)
 
 def setStatus(action):
     global enable
