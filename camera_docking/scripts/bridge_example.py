@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import roslib
-#roslib.load_manifest('my_package')
+roslib.load_manifest('camera_docking')
 import sys
 import rospy
 import cv2
@@ -8,18 +8,20 @@ from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
+
+
 class image_converter:
 
   def __init__(self):
-    self.image_pub = rospy.Publisher("image_topic_2",Image)
+    self.image_pub = rospy.Publisher("image_topic_2",Image, queue_size = 1)
 
     cv2.namedWindow("Image window", 1)
     self.bridge = CvBridge()
-    self.image_sub = rospy.Subscriber("ueye2",Image,self.callback)
+    self.image_sub = rospy.Subscriber("image_raw/theora",Image,self.callback)
 
   def callback(self,data):
     try:
-      cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
+      cv_image = self.bridge.imgmsg_to_cv2(data, "rgb8")
     except CvBridgeError, e:
       print e
 
@@ -31,13 +33,14 @@ class image_converter:
     cv2.waitKey(3)
 
     try:
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "rgb8"))
     except CvBridgeError, e:
       print e
 
 def main(args):
+  i = 0
   ic = image_converter()
-  rospy.init_node('image_converter', anonymous=True)
+  rospy.init_node('image_converter')
 
   try:
     rospy.spin()
