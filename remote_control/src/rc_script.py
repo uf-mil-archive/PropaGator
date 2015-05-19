@@ -7,7 +7,6 @@
 ### std_msgs :: pwm1 and pwm2. The servos are held in one position.
 ###												
 
-### To Do:: Listen to Global Kill node and Give the RC ability to kill everything by one Kill button allocation
 ### To Do:: Define Modes :: RC // Autonomous // Etc
 ### To Do:: Define all joystick buttons and axes 
 ### Authored by Khimya Khetarpal on March,20,2015
@@ -22,14 +21,17 @@ from std_msgs.msg import Float64
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Header
 from std_msgs.msg import Float64
+from std_msgs.msg import Bool
 
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 
 killed = False
 zero_pwm = 1.5e-3
+rc_active = True
+back_btn_pressed = False
 
-X360_AXIS_IDS = {
+AXIS = {
 	'LEFT_STICK_X': 0,
 	'LEFT_STICK_Y': 1,
 	'RIGHT_STICK_X': 2,
@@ -37,7 +39,7 @@ X360_AXIS_IDS = {
 	
 }
 
-X360_BUTTONS_IDS = {
+BTNS = {
 	'A':0, #Green
 	'B':1, #Red
 	'X':2, #Blue
@@ -51,6 +53,7 @@ X360_BUTTONS_IDS = {
 
 pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
 pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
+rc_state_pub = rospy.Publisher('rc/status', Bool, queue_size = 10)
 
 def killed_cb():
 	global killed
@@ -73,6 +76,9 @@ def zero_pwms():
 	pwm2 = Float64(zero_pwm)
 	pwm_starboard_pub.publish(pwm2)
 
+def pub_rc_state(event):
+	rc_state_pub.publish(rc_active)
+
 def start():
 	global kill_listener
 	global kill_broadcaster
@@ -90,6 +96,9 @@ def start():
 	#Init subscribers and publishers
 	rospy.Subscriber('joy', Joy, xbox_cb, queue_size = 10)
 
+	#Timer to output if the RC node is active
+	rospy.Timer(rospy.Duration(0.5), pub_rc_state)
+
 	# Add a shutdown hook
 	rospy.on_shutdown(on_shutdown)
 
@@ -98,35 +107,39 @@ def start():
 
 def xbox_cb(joy_msg):
 	global killed
+	global back_btn_pressed
+	global rc_active
+
+	# Toggle RC state
+	if joy_msg.buttons[BTNS['BACK']]:
+		if not back_btn_pressed:
+			back_btn_pressed = True
+			rc_active = not rc_active
+	else:
+		back_btn_pressed = False
+
+
 	
 	# If kill_broadcaster.send(killed) is put outside these if statments then
 	#	rc will echo any other kill with its own kill msg which prevents the RC node from ever coming out of a kill
 	#	without pressing the start button
-	if (joy_msg.buttons[8] == 1):	#Press KILL Switch
+	if (joy_msg.buttons[BTNS['KILL']] == 1):	#Press KILL Switch
 		# Kill the boat
 		killed = True
 		kill_broadcaster.send(True)
 
-	if (joy_msg.buttons[7] == 1):	#Press START Switch
-		# Do not update kill here as there may be other kills that affect the weather the boat should or shouldn't be killed
+	if (joy_msg.buttons[BTNS['START']] == 1):	#Press START Switch
+		# Do not update killed here as there may be other kills that affect the weather the boat should or shouldn't be killed
 		kill_broadcaster.send(False)
 
-	
 		
 	if killed:
 		zero_pwms()
 	else:
-		pwm1 = Float64(0.0005*(joy_msg.axes[1]) + zero_pwm)  #LEFT_STICK
+		pwm1 = Float64(0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm)  #LEFT_STICK
 		pwm_port_pub.publish(pwm1)
-		pwm2 = Float64(0.0005*(joy_msg.axes[3]) + zero_pwm)  #RIGHT_STICK
+		pwm2 = Float64(0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + zero_pwm)  #RIGHT_STICK
 		pwm_starboard_pub.publish(pwm2) 
-
-	
-	
-
-	
-
-		
 
 if __name__ == '__main__':
 	try:
