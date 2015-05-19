@@ -40,8 +40,8 @@ class Node(object):
 			self.simulate = 0
 
 
-		self.max_thrust = rospy.get_param('max_thrust', 100.0)
-		self.min_thrust = rospy.get_param('min_thrust', -100.0)
+		self.max_thrust = rospy.get_param('/max_thrust', 100.0)
+		self.min_thrust = rospy.get_param('/min_thrust', -100.0)
 
 		self.L = rospy.get_param('distance_between_thrusters', 0.6096) #meters
 
