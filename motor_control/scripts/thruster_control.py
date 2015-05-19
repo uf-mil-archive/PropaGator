@@ -25,6 +25,8 @@ from motor_control.msg import thrusterPWM
 from motor_control.msg import thrusterNewtons
 import time
 from std_msgs.msg import Float64
+from kill_handling.broadcaster import KillBroadcaster
+from kill_handling.listener import KillListener
 
 #Define some constants
 #Note: these should be replaced with ros Params
@@ -63,6 +65,9 @@ starboard_current = 0.0
 PUB_RATE = rospy.Duration(0.01)
 UPDATE_RATE = 100                      #Update at 100 Hz
 RAMP_RATE = 100.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
+
+# Kill vars
+killed = False
 
 #Pub
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
@@ -114,6 +119,10 @@ def motorConfigCallback(config):
     #Check to ensure we are working with an appropriate thruster
     if (config.id != STARBOARD_THRUSTER and config.id != PORT_THRUSTER):
         rospy.logwarn("Id: %i, is not a known id", config.id);
+        return
+
+    # Check if the boat is killed
+    if killed:
         return
     
     thrust = config.thrust
@@ -188,6 +197,41 @@ def pubStatus(event):
     thruster = thrusterNewtons(PORT_THRUSTER, port_current)
     newton_pub.publish(thruster)
 
+#   Set Kill
+# On a kill we should stop all thrusters imideatly
+def set_kill():
+    global killed    #Zero internal varibles
+    global starboard_setpoint
+    global port_setpoint
+    global starboard_current
+    global port_current
+
+    killed = True
+    starboard_setpoint = 0.0;
+    port_setpoint = 0.0;
+    starboard_current = 0.0
+    port_current = 0.0
+
+    rospy.logwarn('Newtons to PWM Killed because: %s' % kill_listener.get_kills())
+
+#   Clear Kill
+# On an unkill we should start all thrusters from 0!
+def clear_kill():
+    global killed
+    global starboard_setpoint
+    global port_setpoint
+    global starboard_current
+    global port_current
+
+    starboard_setpoint = 0.0;
+    port_setpoint = 0.0;
+    starboard_current = 0.0
+    port_current = 0.0
+
+    killed = False
+
+    rospy.loginfo('Newtons to PWM Unkilled')
+
 #   thrusterCtrl
 # Input: None
 # Output: None
@@ -197,12 +241,23 @@ def pubStatus(event):
 def thrusterCtrl():
     global port_current
     global starboard_current
+    global kill_listener
+    global kill_broadcaster
     
     #Setup ros
     rospy.init_node('thruster_control')
     rospy.Subscriber("thruster_config", thrusterNewtons, motorConfigCallback)
     r = rospy.Rate(UPDATE_RATE)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)
+
+    # Initilize kill
+    kill_listener = KillListener(set_kill, clear_kill)
+    kill_broadcaster = KillBroadcaster(id=rospy.get_name(), description='Newtons to PWM shutdown')
+    # Clear in case it was previously killed
+    try:
+        kill_broadcaster.clear()
+    except rospy.service.ServiceException, e:
+        rospy.logwarn(str(e))
     
     #Initilize the motors to 0
     stopThrusters()
@@ -263,6 +318,9 @@ def thrusterCtrl():
     
     #Clean up
     stopThrusters()         #Stop motors
+
+    # Kill the system
+    kill_broadcaster.send(True)
 
 if __name__ == '__main__':
     try:
