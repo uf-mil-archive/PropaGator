@@ -22,8 +22,8 @@ controller_wrench = rospy.Publisher('wrench', WrenchStamped)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':0.4,'y':0.4,'yaw':0.4})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':10,'y':20,'yaw':30})
+rospy.set_param('p_gain', {'x':.5,'y':.5,'yaw':0.4})#5,.8//4.0,.8
+rospy.set_param('d_gain', {'x':10,'y':-.3,'yaw':2})
 #.25,400
 #-----------
 
