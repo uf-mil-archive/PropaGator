@@ -47,12 +47,23 @@ class low_level_path_planner:
 
 		# RC handling
 
+		# Start the main update loop
+		rospy.Timer(rospy.Duration(0.1), self.update)
+
 		# Implement the moveto action server
-		self.moveto_as = actionlib.SimpleActionServer('moveto', MoveToAction, self.new_goal, False)
+		self.moveto_as = actionlib.SimpleActionServer('moveto', MoveToAction, None, False)
+		self.moveto_as.register_goal_callback(self.new_goal)
+		self.moveto_as.register_preempt_callback(self.goal_preempt)
 		self.moveto_as.start()
 
-	def new_goal(self, goal):
-		self.moveto_as.set_succeeded()
+	def new_goal(self):
+		goal = self.moveto_as.accept_new_goal()
+		self.desired_pose = goal.posetwist.pose
+		self.desired_twist = goal.posetwist.twist
+
+	def goal_preempt(self):
+		self.moveto_as.set_preempted()
+		
 
 	def set_kill(self):
 		rospy.logwarn('Tank steer low level path planner killed because: %s' % self.kill_listener.get_kills())
@@ -68,6 +79,10 @@ class low_level_path_planner:
 		self.current_pose = msg.pose.pose
 		self.current_twist = msg.twist.twist
 
+	# Update loop
+	def update(self, event):
+		if self.moveto_as.is_active():
+			self.moveto_as.set_succeeded(None)
 
 if __name__ == '__main__':
 	rospy.init_node('low_level_path_planner')
