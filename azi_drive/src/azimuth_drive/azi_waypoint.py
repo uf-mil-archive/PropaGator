@@ -8,6 +8,7 @@ import actionlib
 from uf_common.msg import PoseTwistStamped, MoveToAction
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
+from std_msgs.msg import Bool
 
 '''
 
@@ -21,6 +22,7 @@ class send_action:
     def __init__(self, name):
         self.action = actionlib.SimpleActionServer('moveto', MoveToAction, self.new_goal, False)
         self.trajectory_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size=10)
+        self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
         self.kill_broadcaster = KillBroadcaster(id=name, description='Azi_waypoints shutdown')
 
@@ -33,6 +35,11 @@ class send_action:
         self.to_pose = PoseTwistStamped()
         self.temp_pose = PoseTwistStamped()
         self.killed = False
+        self.waypoint = False
+
+    def callback(self, msg):
+        self.waypoint = msg.data
+
 
     def set_kill(self):
 
@@ -53,7 +60,11 @@ class send_action:
         self.temp_pose = PoseTwistStamped()
         self.temp_pose.posetwist = goal.posetwist
         self.temp_pose.header = goal.header
+
+        while self.waypoint == False:
+            pass
         self.action.set_succeeded()
+        self.waypoint = False
 
     def over_and_over(self):
         r = rospy.Rate(1)

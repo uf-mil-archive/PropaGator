@@ -1,0 +1,4 @@
+<launch>
+	<node name="motor_newtons" pkg="motor_control" type="thruster_control.py"/>
+	<node name="pd_controller" pkg="controller" type="pd_controller.py"/>
+</launch>

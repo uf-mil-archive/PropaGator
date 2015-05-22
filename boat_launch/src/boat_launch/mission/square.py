@@ -11,5 +11,5 @@ def main(nh):
     
     for i in xrange(4):
         print 'Side', i
-        yield boat.move.forward(2).go()
-        yield boat.move.turn_left_deg(90).go()
+        yield boat.move.forward(5).go()
+       # yield boat.move.turn_left_deg(90).go()
