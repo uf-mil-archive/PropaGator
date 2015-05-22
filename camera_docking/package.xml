@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<package>
+  <name>camera_docking</name>
+  <version>1.0.0</version>
+  <description>The camera_docking package</description>
+
+  <maintainer email="andygrayia@gmail.com">root</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>opencv2</build_depend>
+  <build_depend>rospy</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>opencv2</run_depend>
+  <run_depend>rospy</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
+
+  <export>
+
+  </export>
+</package>
