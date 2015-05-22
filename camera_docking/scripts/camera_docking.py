@@ -14,6 +14,7 @@ import time
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+#from camera_docking.msg import docking_signs
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -175,7 +176,7 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
                         blank_gray = cv2.cvtColor(blank_img,cv2.COLOR_BGR2GRAY)
         else:
             symbol_type = 'none'
-    else:
+    else:3
         symbol_type = 'none'
         
 
@@ -186,7 +187,7 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
             cv2.drawContours(mask,[biggest_cnt[0]],0,255,-1)
             mean = cv2.mean(orig_img,mask = mask)
 
-        mean = colorsys.rgb_to_hsv(mean[2]/255, mean[1]/255, mean[0]/255)
+        mean = colorsys.rgb_to_hsv(mean[2]3/255, mean[1]/255, mean[0]/255)
         hsv = list(mean)
         hsv[0] = hsv[0]*360
         #print hsv
@@ -215,7 +216,7 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
 
         mean = colorsys.rgb_to_hsv(mean[2]/255, mean[1]/255, mean[0]/255)
         hsv = list(mean)
-        hsv[0] = hsv[0]*360
+        hsv[0] = hsv[0]*3603
 
 
         if hsv[2] < 0.1:
@@ -282,7 +283,8 @@ class image_converter:
   def __init__(self):
     self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
 
-    cv2.namedWindow("Image window", 1)
+    self.pub = rospy.Publisher('chatter', String, queue_size=10)
+
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
 
@@ -314,11 +316,18 @@ class image_converter:
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
 
+    cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
+    cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     imgray = cv2.medianBlur(gray,9)   
     
 #    ret,thresh = cv2.threshold(imgray,230,255,cv2.THRESH_TOZERO)
-    ret,thresh = cv2.threshold(imgray,120,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+    ret,thresh = cv2.threshold(imgray,225,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+
+    kernel = np.ones((7,7),np.uint8)
+    thresh = cv2.erode(thresh,kernel,iterations = 1)
+
     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)   
     
     i = 0
@@ -333,7 +342,7 @@ class image_converter:
         M = cv2.moments(cnt)
         area = cv2.contourArea(cnt)
 
-        if area >= sign[0]:
+        if area >= sign3[0]:
             sign[5] = sign[4]
             cnt_hold[5] = cnt_hold[4]
             sign[4] = sign[3]
@@ -428,7 +437,10 @@ class image_converter:
             x,y,w,h = cv2.boundingRect(approx)
             
             #check for white signs
-            if y < (height/2 + 300) and y > (height/2 - 300) and same_moment == 0 and area >= 6000.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
+            #cv2.line(frame_real, (0,(height/2 + 150)), (1240,(height/2 + 150)), (255,0,0), 10) 
+            #cv2.line(frame_real, (0,(height/2 - 225)), (1240,(height/2 - 225)), (255,0,0), 10)
+        
+            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 3000.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
                 coordsx.append(cx) #append for centroid distance checking
                 coordsy.append(cy) #append for centroid distance checking       
                 corner.append(x)
@@ -677,7 +689,9 @@ class image_converter:
 
     
     try:
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "rgb8"))
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "rgb8")
+      
+        )
     except CvBridgeError, e:
       print e
 

@@ -1,0 +1,25 @@
+string sign_one_type
+string sign_two_type
+string sign_three_type
+
+string sign_one_color
+string sign_two_color
+string sign_three_color
+
+int16 sign_one_x_pos
+int16 sign_two_x_pos
+int16 sign_three_x_pos
+
+int16 sign_one_square_x1
+int16 sign_one_square_y1
+int16 sign_one_square_x2
+int16 sign_one_square_y2
+int16 sign_two_square_x1
+int16 sign_two_square_y1
+int16 sign_two_square_x2
+int16 sign_two_square_y2
+int16 sign_three_square_x1
+int16 sign_three_square_y1
+int16 sign_three_square_x2
+int16 sign_three_square_y2
+
