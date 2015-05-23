@@ -23,8 +23,8 @@ waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':3,'y':3,'yaw':1})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':60,'y':60,'yaw':2})
+rospy.set_param('p_gain', {'x':.8,'y':.8,'yaw':.1})#5,.8//4.0,.8
+rospy.set_param('d_gain', {'x':120,'y':120,'yaw':20})
 #.25,400
 #-----------
 
@@ -159,7 +159,7 @@ def update_callback(event):
     def smallest_coterminal_angle(x):
         return (x + math.pi) % (2*math.pi) - math.pi
 
-
+    print desired_state[1] - state[1]
 
     # sub pd-controller sans rise
     e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
