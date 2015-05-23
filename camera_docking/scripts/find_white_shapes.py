@@ -14,7 +14,7 @@ from cv_bridge import CvBridge, CvBridgeError
 class image_converter:
 
   def __init__(self):
-    self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
+    self.image_pub = rospy.Publisher("finding_white",Image, queue_size = 1)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
@@ -27,8 +27,8 @@ class image_converter:
 
     (rows,cols,channels) = cv_image.shape
 
-    cv2.line(cv_image, (0,280), (1240,280), (255,0,0), 10) 
-    cv2.line(cv_image, (0,600), (1240,600), (255,0,0), 10)
+    #cv2.line(cv_image, (0,280), (1240,280), (255,0,0), 10) 
+    #cv2.line(cv_image, (0,600), (1240,600), (255,0,0), 10)
 
     cap = cv_image
     
@@ -44,20 +44,23 @@ class image_converter:
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
 
-    cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
-    cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
+    #cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
+    #cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    imgray = cv2.medianBlur(gray,9)   
+    thresh = cv2.medianBlur(gray,3)   
 
 
 
     
 #    ret,thresh = cv2.threshold(imgray,230,255,cv2.THRESH_TOZERO)
-    ret,thresh = cv2.threshold(imgray,220,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+    ret,thresh = cv2.threshold(thresh,235,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+    #thresh = cv2.adaptiveThreshold(thresh,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,55,2)
+    #thresh = cv2.adaptiveThreshold(thresh,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,55,2)
+
     #contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
     
-    kernel = np.ones((7,7),np.uint8)
-    thresh = cv2.erode(thresh,kernel,iterations = 1)
+    #kernel = np.ones((7,7),np.uint8)
+    #thresh = cv2.erode(thresh,kernel,iterations = 1)
 
 
     try:
