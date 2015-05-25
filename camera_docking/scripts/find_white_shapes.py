@@ -5,16 +5,29 @@ import sys
 import rospy
 import cv2
 import numpy as np
+import math
+import cv2.cv as cv
+import colorsys
+import time
+
 from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
+#Hough_circle values
+p1 = 100 #100
+p2 = 13 #13
+nr = 5 #20
+mr = 5000 #30
+#*******************
 
 
 class image_converter:
 
   def __init__(self):
-    self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
+
+    self.mask = rospy.Publisher("mask",Image, queue_size = 1)
+    self.contours = rospy.Publisher("contours",Image, queue_size = 1)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
@@ -27,8 +40,8 @@ class image_converter:
 
     (rows,cols,channels) = cv_image.shape
 
-    cv2.line(cv_image, (0,280), (1240,280), (255,0,0), 10) 
-    cv2.line(cv_image, (0,600), (1240,600), (255,0,0), 10)
+    #cv2.line(cv_image, (0,280), (1240,280), (255,0,0), 10) 
+    #cv2.line(cv_image, (0,600), (1240,600), (255,0,0), 10)
 
     cap = cv_image
     
@@ -44,30 +57,97 @@ class image_converter:
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
 
-    cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
-    cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    imgray = cv2.medianBlur(gray,9)   
+    #cv2.rectangle(frame,(0,0),(1240,50),(0,0,0),-1)
+    cv2.rectangle(frame,(0,300),(1240,1080),(0,0,0),-1)
+    imgray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #imgray = cv2.medianBlur(imgray,3)   
+
+    imgray2 = imgray
+
+    imgray = cv2.GaussianBlur(imgray,(3,3),1)
 
 
+
+    #imgray2 = cv2.equalizeHist(imgray2)
+    #clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(11,11))
+    #imgray2 = clahe.apply(imgray2)
+
+    #self.mask.publish(self.bridge.cv2_to_imgmsg(imgray2, "8UC1")) 
+
+    #cdf = hist.cumsum()
+    #cdf_normalized = cdf * hist.max()/ cdf.max()
 
     
 #    ret,thresh = cv2.threshold(imgray,230,255,cv2.THRESH_TOZERO)
-    ret,thresh = cv2.threshold(imgray,220,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+
+    #ret,thresh = cv2.threshold(imgray,200,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+
+    #ret, thresh = cv2.threshold(imgray,127,255,0)
+    #ret, thresh = cv2.threshold(imgray,130,255,0)
+
+    thresh = cv2.adaptiveThreshold(imgray,255,1,1,5,2)
+    
+    thresh2 = thresh
+
+    #kernel = np.ones((1,1),np.uint8)
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+
+    mask = np.zeros(thresh.shape,np.uint8)
+
+
     #contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
     
+    #kernel = np.ones((7,7),np.uint8)
+    #thresh = cv2.erode(thresh,kernel,iterations = 1)
+
+    contours, hier = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        x,y,w,h = cv2.boundingRect(cnt)
+        aspect_ratio = float(w)/h
+
+        if 200<cv2.contourArea(cnt)<50000 and aspect_ratio > .8 and aspect_ratio < 1.2:
+
+            area = cv2.contourArea(cnt)
+            x,y,w,h = cv2.boundingRect(cnt)
+            rect_area = w*h
+            extent = float(area)/rect_area
+
+            if extent >= .3:
+
+
+                cv2.drawContours(mask,[cnt],0,255,-1)
+
     kernel = np.ones((7,7),np.uint8)
-    thresh = cv2.erode(thresh,kernel,iterations = 1)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    dst = cv2.goodFeaturesToTrack(mask,25,0.2,15)
+
+    if dst != None:
+        #print len(dst)
+        corners = np.int0(dst)
+
+        for i in corners:
+            x,y = i.ravel()
+            cv2.circle(cv_image,(x,y),3,255,-1)
+
+
+
+    circles = cv2.HoughCircles(mask,cv.CV_HOUGH_GRADIENT,1, width, param1=p1,param2=p2,minRadius=nr,maxRadius=mr)            
+    if circles != None:
+        a, b, c = circles.shape
+        for i in range(b):
+            cv2.circle(cv_image, (circles[0][i][0], circles[0][i][1]), circles[0][i][2], (0, 255, 0), 3)
 
 
     try:
-#      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame, "rgb8"))
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
+      self.mask.publish(self.bridge.cv2_to_imgmsg(cv_image, "rgb8"))
+      self.contours.publish(self.bridge.cv2_to_imgmsg(mask, "8UC1"))    
+      #self.image_pub.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
     except CvBridgeError, e:
       print e
 
 def main(args):
-  rospy.init_node('image_converter')
+  rospy.init_node('finding_white_signs')
 
   i = 0
   ic = image_converter()

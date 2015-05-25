@@ -23,8 +23,8 @@ waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':.8,'y':.8,'yaw':.1})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':120,'y':120,'yaw':20})
+rospy.set_param('p_gain', {'x':10,'y':10,'yaw':.1})#5,.8//4.0,.8
+rospy.set_param('d_gain', {'x':75,'y':250,'yaw':0.1})
 #.25,400
 #-----------
 
