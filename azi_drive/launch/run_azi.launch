@@ -1,6 +1,5 @@
 <launch>
 
-
 <node name="azi_drive_control_manager" pkg="azi_drive" type="control_manager.py" 
          output="screen" /> 
 <node name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py" 

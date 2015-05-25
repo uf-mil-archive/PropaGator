@@ -25,6 +25,7 @@ mr = 5000 #30
 class image_converter:
 
   def __init__(self):
+
     self.mask = rospy.Publisher("mask",Image, queue_size = 1)
     self.contours = rospy.Publisher("contours",Image, queue_size = 1)
 
@@ -71,8 +72,6 @@ class image_converter:
     #clahe = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(11,11))
     #imgray2 = clahe.apply(imgray2)
 
-
-
     #self.mask.publish(self.bridge.cv2_to_imgmsg(imgray2, "8UC1")) 
 
     #cdf = hist.cumsum()
@@ -80,8 +79,6 @@ class image_converter:
 
     
 #    ret,thresh = cv2.threshold(imgray,230,255,cv2.THRESH_TOZERO)
-    
-
 
     #ret,thresh = cv2.threshold(imgray,200,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
 
@@ -97,12 +94,11 @@ class image_converter:
 
     mask = np.zeros(thresh.shape,np.uint8)
 
+
     #contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
     
     #kernel = np.ones((7,7),np.uint8)
     #thresh = cv2.erode(thresh,kernel,iterations = 1)
-
-
 
     contours, hier = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
     for cnt in contours:

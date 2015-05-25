@@ -282,8 +282,9 @@ class image_converter:
 
   def __init__(self):
     self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
+    self.image_white = rospy.Publisher("finding_white",Image, queue_size = 1)
 
-    self.pub = rospy.Publisher('chatter', String, queue_size=10)
+    #self.pub = rospy.Publisher('chatter', String, queue_size=10)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
@@ -320,15 +321,18 @@ class image_converter:
     #cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    imgray = cv2.medianBlur(gray,9)   
+    imgray = cv2.medianBlur(gray,3)   
     
 #    ret,thresh = cv2.threshold(imgray,230,255,cv2.THRESH_TOZERO)
     ret,thresh = cv2.threshold(imgray,225,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+    #thresh = cv2.adaptiveThreshold(thresh,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,55,2)
 
-    kernel = np.ones((7,7),np.uint8)
-    thresh = cv2.erode(thresh,kernel,iterations = 1)
+    protect = thresh
 
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)   
+    #kernel = np.ones((7,7),np.uint8)
+    #thresh = cv2.erode(thresh,kernel,iterations = 1)
+
+    contours, hierarchy = cv2.findContours(protect, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)   
     
     i = 0
 
@@ -440,7 +444,8 @@ class image_converter:
             #cv2.line(frame_real, (0,(height/2 + 150)), (1240,(height/2 + 150)), (255,0,0), 10) 
             #cv2.line(frame_real, (0,(height/2 - 225)), (1240,(height/2 - 225)), (255,0,0), 10)
         
-            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 3000.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
+            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 2500.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
+            #if same_moment == 0 and area >= 3000.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
                 coordsx.append(cx) #append for centroid distance checking
                 coordsy.append(cy) #append for centroid distance checking       
                 corner.append(x)
@@ -689,9 +694,8 @@ class image_converter:
 
     
     try:
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "rgb8")
-      
-        )
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "rgb8"))
+      #self.image_white.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
     except CvBridgeError, e:
       print e
 

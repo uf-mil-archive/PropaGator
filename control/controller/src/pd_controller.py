@@ -6,7 +6,7 @@ import roslib
 roslib.load_manifest('controller')
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Vector3Stamped, Point, Wrench, PoseStamped
-from std_msgs.msg import Header
+from std_msgs.msg import Header,Bool
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 import numpy,math,tf,threading
@@ -18,12 +18,13 @@ from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 
 rospy.init_node('controller')
-controller_wrench = rospy.Publisher('wrench', WrenchStamped)
+controller_wrench = rospy.Publisher('wrench', WrenchStamped, queue_size = 1)
+waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':.5,'y':.5,'yaw':0.4})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':10,'y':-.3,'yaw':2})
+rospy.set_param('p_gain', {'x':10,'y':10,'yaw':.1})#5,.8//4.0,.8
+rospy.set_param('d_gain', {'x':75,'y':250,'yaw':0.1})
 #.25,400
 #-----------
 
@@ -132,6 +133,9 @@ Ks = numpy.array([
     [0,0,0,0,0,0],
     [0,0,0,0,0,0],
     [0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
+
+
+
 def odom_callback(current_posetwist):
     global desired_state,desired_state_dot,state,stat_dot,state_dot_body,desired_state_set,odom_active
     lock.acquire()
@@ -154,17 +158,18 @@ def update_callback(event):
     #print 'current_state', state
     def smallest_coterminal_angle(x):
         return (x + math.pi) % (2*math.pi) - math.pi
-    
-    
+
+    print desired_state[1] - state[1]
+
     # sub pd-controller sans rise
     e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
     vbd = _jacobian_inv(state).dot(K.dot(e) + desired_state_dot)
     e2 = vbd - state_dot_body
     output = Ks.dot(e2)
+
     
-    #print 'output',output
     lock.release()
-    
+    print desired_state[1] - state[1]
     if (not(odom_active)):
         output = [0,0,0,0,0,0]
     if (enable & killed==False):
@@ -179,7 +184,12 @@ def update_callback(event):
                 ))
                 
                 )
-        kill_broadcaster.send(killed)
+
+        if (desired_state[1] - state[1] < .009) & (desired_state[1] - state[1] > -.009):
+            waypoint_progress.publish(True)
+        else:
+            waypoint_progress.publish(False)
+
     if (killed == True):
         rospy.logwarn('PD_Controller KILLED: %s' % kill_listener.get_kills())
         controller_wrench.publish(WrenchStamped(
@@ -207,6 +217,7 @@ rospy.Service('~enable', Enable, setStatus)
 def timeout_callback(event):
     global odom_active
     odom_active = False
+
 rospy.Timer(rospy.Duration(.1),update_callback)
 rospy.Timer(rospy.Duration(1),timeout_callback)
 rospy.Subscriber('/odom', Odometry, odom_callback)
