@@ -176,7 +176,7 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
                         blank_gray = cv2.cvtColor(blank_img,cv2.COLOR_BGR2GRAY)
         else:
             symbol_type = 'none'
-    else:3
+    else:
         symbol_type = 'none'
         
 
@@ -187,7 +187,7 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
             cv2.drawContours(mask,[biggest_cnt[0]],0,255,-1)
             mean = cv2.mean(orig_img,mask = mask)
 
-        mean = colorsys.rgb_to_hsv(mean[2]3/255, mean[1]/255, mean[0]/255)
+        mean = colorsys.rgb_to_hsv(mean[2]/255, mean[1]/255, mean[0]/255)
         hsv = list(mean)
         hsv[0] = hsv[0]*360
         #print hsv
@@ -316,8 +316,8 @@ class image_converter:
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
 
-    cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
-    cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
+    #cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
+    #cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
 
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     imgray = cv2.medianBlur(gray,9)   
@@ -342,7 +342,7 @@ class image_converter:
         M = cv2.moments(cnt)
         area = cv2.contourArea(cnt)
 
-        if area >= sign3[0]:
+        if area >= sign[0]:
             sign[5] = sign[4]
             cnt_hold[5] = cnt_hold[4]
             sign[4] = sign[3]
