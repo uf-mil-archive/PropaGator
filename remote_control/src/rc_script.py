@@ -135,7 +135,7 @@ def xbox_cb(joy_msg):
 		
 	if killed:
 		zero_pwms()
-	else:
+	elif rc_active:
 		pwm1 = Float64(0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm)  #LEFT_STICK
 		pwm_port_pub.publish(pwm1)
 		pwm2 = Float64(0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + zero_pwm)  #RIGHT_STICK
