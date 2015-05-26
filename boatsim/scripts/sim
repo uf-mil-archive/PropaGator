@@ -425,18 +425,7 @@ def world_tick():
     contactgroup.empty()
 
     pos = body.getPosition()
-    
-    msg = Odometry()
-    msg.header.stamp = rospy.Time(world_time)
-    msg.header.frame_id = '/enu'
-    msg.child_frame_id = '/base_link'
-    msg.pose.pose.position = Point(*pos)
     q = V(body.getQuaternion())
-    msg.pose.pose.orientation = Quaternion(q[1], q[2], q[3], q[0])
-   
-    msg.twist.twist.linear = Vector3(*q.conj().quat_rot(body.getLinearVel()))
-    msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
-    odom_pub.publish(msg)
 
     # Publish tf /enu
     enu_tf_br.sendTransform(
@@ -445,6 +434,18 @@ def world_tick():
         time = rospy.Time(world_time),
         child = '/base_link',
         parent = '/enu')
+    
+    # Publish odom
+    msg = Odometry()
+    msg.header.stamp = rospy.Time(world_time)
+    msg.header.frame_id = '/enu'
+    msg.child_frame_id = '/base_link'
+    msg.pose.pose.position = Point(*pos)
+    msg.pose.pose.orientation = Quaternion(q[1], q[2], q[3], q[0])
+   
+    msg.twist.twist.linear = Vector3(*q.conj().quat_rot(body.getLinearVel()))
+    msg.twist.twist.angular = Vector3(*q.conj().quat_rot(body.getAngularVel()))
+    odom_pub.publish(msg)
     
     # XXX
     msg = Odometry()
