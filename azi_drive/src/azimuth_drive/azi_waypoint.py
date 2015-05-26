@@ -3,6 +3,7 @@
 import roslib
 import rospy
 import os
+import time
 
 # Brings in the SimpleActionaction
 import actionlib
@@ -23,7 +24,6 @@ class send_action:
     def __init__(self, name):
         self.action = actionlib.SimpleActionServer('moveto', MoveToAction, self.new_goal, False)
         self.trajectory_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size=10)
-        self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
 
         self.action.start()
@@ -56,8 +56,9 @@ class send_action:
         self.temp_pose = PoseTwistStamped()
         self.temp_pose.posetwist = goal.posetwist
         self.temp_pose.header = goal.header
-
-        while self.waypoint != True:
+        time.sleep(5)
+        self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
+        while self.waypoint == False:
             None
 
         self.action.set_succeeded()
