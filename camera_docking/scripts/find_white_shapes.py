@@ -93,6 +93,7 @@ class image_converter:
     #thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
     mask = np.zeros(thresh.shape,np.uint8)
+    mask2 = np.zeros(thresh.shape,np.uint8)
 
 
     #contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
@@ -108,17 +109,29 @@ class image_converter:
         if 200<cv2.contourArea(cnt)<50000 and aspect_ratio > .8 and aspect_ratio < 1.2:
 
             area = cv2.contourArea(cnt)
-            x,y,w,h = cv2.boundingRect(cnt)
+            x,y,w,h = cv2.boundingRect(cnt)            
+
             rect_area = w*h
             extent = float(area)/rect_area
 
             if extent >= .3:
-
-
                 cv2.drawContours(mask,[cnt],0,255,-1)
+                cv2.drawContours(mask2,[cnt],0,255,-1)   
 
     kernel = np.ones((7,7),np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask2 = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    self.contours.publish(self.bridge.cv2_to_imgmsg(mask, "8UC1"))
+   
+    
+    contours, hier = cv2.findContours(mask2,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        print cnt
+        if cnt != None: 
+            x,y,w,h = cv2.boundingRect(cnt) 
+            crop = mask[y-5:y+h+5, x-5:x+w+5]
+
 
     dst = cv2.goodFeaturesToTrack(mask,25,0.2,15)
 
@@ -140,8 +153,9 @@ class image_converter:
 
 
     try:
-      self.mask.publish(self.bridge.cv2_to_imgmsg(cv_image, "rgb8"))
-      self.contours.publish(self.bridge.cv2_to_imgmsg(mask, "8UC1"))    
+      #self.mask.publish(self.bridge.cv2_to_imgmsg(cv_image, "rgb8"))
+      self.mask.publish(self.bridge.cv2_to_imgmsg(crop, "8UC1"))
+    
       #self.image_pub.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
     except CvBridgeError, e:
       print e
