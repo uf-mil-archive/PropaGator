@@ -3,6 +3,30 @@ from uf_common.orientation_helpers import rotvec_to_quat
 from geometry_msgs.msg import Quaternion, Vector3
 import numpy as np
 
+class line:
+	def __init__(self, p1, p2):
+		self.p1 = p1
+		self.p2 = p2
+		self.s = p2 - p1	# Shifted vector
+		if self.s.any():
+			self.hat = self.s / np.linalg.norm(self.s)
+			x_hat = np.zeros_like(self.hat)
+			x_hat[0] = 1
+			self.angle = np.arccos(np.dot(x_hat, self.hat))
+		else:
+			rospy.logerr('0 length line in tank steer trajectory generator')
+			self.s = np.array([1, 0, 0])
+			self.norm = np.array([1, 0, 0])
+			self.angle = 0
+
+	# Projects a point onto the line
+	# Returns a vector to the projection
+	def proj_pt(self, pt):
+		# Shift everything p1
+		pt = pt - self.p1
+		# Project in the shifted cords then shift back
+		return ( np.dot(pt, self.s) / np.dot(self.s, self.s) ) * self.s + self.p1
+
 #def linear_velocity_from_posetwist(pt):
 #	return linear_velocity_from_twist(pt)
 
@@ -39,7 +63,7 @@ def quaternion_from_rotvec(rot):
 # Converts rotation vector to [x, y, z] to unit vector in the pointed to direction
 #	Since we only care about orientation in the x y plane we ignore the x y components of the rotation vector
 def normal_vector_from_rotvec(rot):
-	theta = rot[2] - np.pi		# Shift the angle pi degrees since pi is considered strait forward
+	theta = rot[2] - 0#np.pi		# Shift the angle pi degrees since pi is considered strait forward
 	return np.array([np.cos(theta), np.sin(theta), 0])
 
 def normal_vector_from_posetwist(pt):

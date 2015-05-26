@@ -17,30 +17,7 @@ from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.orientation_helpers import rotvec_to_quat
 import numpy as np
 import tools
-
-class line:
-	def __init__(self, p1, p2):
-		self.p1 = p1
-		self.p2 = p2
-		self.s = p2 - p1	# Shifted vector
-		if self.s.any():
-			self.norm = self.s / np.linalg.norm(self.s)
-			x_hat = np.zeros_like(self.norm)
-			x_hat[0] = 1
-			self.angle = np.arccos(np.dot(x_hat, self.norm))
-		else:
-			rospy.logerr('0 length line in tank steer trajectory generator')
-			self.s = np.array([1, 0, 0])
-			self.norm = np.array([1, 0, 0])
-			self.angle = 0
-
-	# Projects a point onto the line
-	# Returns a vector to the projection
-	def proj_pt(self, pt):
-		# Shift everything p1
-		pt = pt - self.p1
-		# Project in the shifted cords then shift back
-		return ( np.dot(pt, self.s) / np.dot(self.s, self.s) ) * self.s + self.p1
+from tools import line
 
 
 class trajectory_generator:
@@ -57,9 +34,9 @@ class trajectory_generator:
 		self.slow_down_radius = rospy.get_param('slow_down_radius', 5)
 
 		# Speed parameters
-		self.max_tracking_distance = rospy.get_param('max_tracking_distance', 5)
+		self.max_tracking_distance = rospy.get_param('max_tracking_distance', 10)
 		self.min_tracking_distance = rospy.get_param('min_tracking_distance', 0.5)
-		self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 10)
+		self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 20)
 		self.tracking_slope = (self.max_tracking_distance - self.min_tracking_distance) / (self.slow_down_radius - self.orientation_radius)
 		self.tracking_intercept = self.tracking_slope * self.orientation_radius + self.min_tracking_distance
 
@@ -69,6 +46,9 @@ class trajectory_generator:
 		# Set desired twist to 0
 		#self.desired_twist.linear.x = self.desired_twist.linear.y = self.desired_twist.linear.z = 0
 		#self.desired_twist.angular.x = self.desired_twist.angular.y = self.desired_twist.angular.z = 0
+
+		# Initilize a line
+		self.line = line(np.zeros(3), np.ones(3))
 
 		# Wait for current position and set as desired position
 		rospy.loginfo('Waiting for /odom')
@@ -153,8 +133,13 @@ class trajectory_generator:
 		self.current_position = tools.position_from_pose(msg.pose.pose)
 		self.current_orientation = tools.orientation_from_pose(msg.pose.pose)
 		# Get distance to the goal
-		self.distance_to_goal = np.linalg.norm((self.desired_position - self.current_position))
-		self.angle_to_goal = abs((self.desired_orientation % (2 * np.pi)) - (self.current_orientation % (2 * np.pi)))
+		vector_to_goal = self.desired_position - self.current_position
+		self.distance_to_goal = np.linalg.norm(vector_to_goal)
+		self.angle_to_goal_orientation = abs((self.desired_orientation % (2 * np.pi)) - (self.current_orientation % (2 * np.pi)))
+		# overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
+		#		Side of said line
+		overshoot = np.dot(vector_to_goal / self.distance_to_goal, self.line.hat)
+		self.overshoot = overshoot / abs(overshoot) 
 
 	# Get the speed setting of the trajectory
 	#				Value					:	Condition
@@ -176,8 +161,8 @@ class trajectory_generator:
 		#rospy.loginfo('Projection: ' + str(Bproj))
 
 		# Default carrot to desired position
-		c_pos = Bproj + self.line.norm * self.get_tracking_distance()
 		tracking_step = self.get_tracking_distance()
+		c_pos = Bproj + self.overshoot * self.line.hat * tracking_step
 
 		if self.distance_to_goal < self.orientation_radius:
 			c_pos = self.desired_position
@@ -193,7 +178,7 @@ class trajectory_generator:
 					position = tools.vector3_from_xyz_array(c_pos),
 					orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
 				twist = Twist(
-					linear = Vector3(tracking_step * self.tracking_to_speed_conv, 0, 0),
+					linear = Vector3(tracking_step * self.tracking_to_speed_conv, 0, 0),		# Wrench Generator handles the sine of the velocity
 					angular = Vector3())
 				)
 			)
@@ -212,12 +197,12 @@ class trajectory_generator:
 			rospy.loginfo('Redrawing trajectory line')
 			self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
 
-		rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
+		rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
 		# Check if goal is reached
 		if self.moveto_as.is_active():
 			if self.distance_to_goal < self.linear_tolerance:
-				if self.angle_to_goal[2] < self.angular_tolerance:
+				if self.angle_to_goal_orientation[2] < self.angular_tolerance:
 					rospy.loginfo('succeded')
 					self.moveto_as.set_succeeded(None)
 
