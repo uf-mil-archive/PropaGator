@@ -46,12 +46,6 @@ def clear_kill():
     rospy.logwarn('PD_Controller ACTIVE: %s' % kill_listener.get_kills())
 
 kill_listener = KillListener(set_kill, clear_kill)
-kill_broadcaster = KillBroadcaster(id=rospy.get_name(), description='PD Controller shutdown')
-
-try:
-    kill_broadcaster.clear()
-except rospy.service.ServiceException, e:
-    rospy.logwarn(str(e))
 
 # Kill publisher on line 179
 
@@ -203,7 +197,6 @@ def update_callback(event):
                     ))
                     
                     )
-        kill_broadcaster.send(killed)
 
 def setStatus(action):
     global enable

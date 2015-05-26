@@ -29,6 +29,7 @@ installable with:
   * On startup create a kill listner and kill broadcaster
   * Directly after initlizing the kill broadcaster, call its clear function (in case the node previously called a kill)
   * The kill listener's killed callback should imideatly stop normal operation and output the nodes zero
+    * Do not echo the kill by broadcasting your own kill, only kill when your node needs to call a kill such as on shutdown
   * The kill listener's unkilled callback should resume normal operation
   * On shutdown broadcast a kill to the kill master (if the chain of motor command is broken the entire system should be killed until it can be resolved)
     * Make sure that you are killing on shutdown appropriatly the lowest level control nodes must take special care to zero there actuators since they directly interface with the actuators

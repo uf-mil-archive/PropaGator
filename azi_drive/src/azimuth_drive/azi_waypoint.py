@@ -24,12 +24,6 @@ class send_action:
         self.trajectory_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size=10)
         self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
-        self.kill_broadcaster = KillBroadcaster(id=name, description='Azi_waypoints shutdown')
-
-        try:
-            self.kill_broadcaster.clear()
-        except rospy.service.ServiceException, e:
-            rospy.logwarn(str(e))
 
         self.action.start()
         self.to_pose = PoseTwistStamped()
@@ -70,7 +64,6 @@ class send_action:
         r = rospy.Rate(1)
         if self.killed == True:
             rospy.logwarn('Azi_Drive waypoint kill flag on  -- Waypoints disabled: %s' % self.kill_listener.get_kills())
-            self.kill_broadcaster.send(self.killed)
         if self.killed == False:
             self.to_pose = self.temp_pose
             self.trajectory_pub.publish(self.to_pose)
