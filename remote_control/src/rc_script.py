@@ -162,7 +162,7 @@ def xbox_cb(joy_msg):
 	else:
 		#pwm1 = Float64(0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm)  #LEFT_STICK
 		pwm1 = Float64((0.0001*logit((joy_msg.axes[AXIS['LEFT_STICK_Y']])/2+0.5))+0.0015)
-        pwm1 = clip(pwm1)
+		pwm1 = clip(pwm1)
 		pwm_port_pub.publish(pwm1)
 		#pwm2 = Float64(0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + zero_pwm)  #RIGHT_STICK
 		pwm2 = Float64((0.0001*logit((joy_msg.axes[AXIS['RIGHT_STICK_Y']])/2+0.5))+0.0015)
