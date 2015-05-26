@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 
-## 			Low Level Path Planner
+## 			Trajectory generator
 ## This node plans a strait line path to the goal and publishes it on the trajectory topic
 
 import rospy
@@ -16,40 +16,7 @@ from geometry_msgs.msg import Quaternion, Vector3
 from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.orientation_helpers import rotvec_to_quat
 import numpy as np
-
-# Conversion functions
-def position_from_posetwiststamped(pts):
-	return position_from_posetwist(pts.posetwist)
-
-def position_from_posetwist(pt):
-	return position_from_pose(pt.pose)
-
-def position_from_pose(p):
-	return xyz_array(p.position)
-
-def orientation_from_posetwiststamped(pts):
-	return orientation_from_posetwist(pts.posetwist)
-
-def orientation_from_posetwist(pt):
-	return orientation_from_pose(pt.pose)
-
-def orientation_from_pose(p):
-	return quat_to_rotvec(xyzw_array(p.orientation))
-
-def vector3_from_xyz_array(xyz):
-	return Vector3(xyz[0], xyz[1], xyz[2])
-
-def quaternion_from_xyzw_array(xyzw):
-	return Quaternion(xyzw[0], xyzw[1], xyzw[2], xyzw[3])
-
-def quaternion_from_rotvec(rot):
-	return quaternion_from_xyzw_array(rotvec_to_quat(rot))
-
-# Converts rotation vector to [x, y, z] to unit vector in the pointed to direction
-#	Since we only care about orientation in the x y plane we ignore the x y components of the rotation vector
-def normal_vector_from_rotvec(rot):
-	theta = rot[2] - np.pi		# Shift the angle pi degrees since pi is considered strait forward
-	return np.array([np.cos(theta), np.sin(theta), 0])
+import tools
 
 class line:
 	def __init__(self, p1, p2):
@@ -76,11 +43,11 @@ class line:
 		return ( np.dot(pt, self.s) / np.dot(self.s, self.s) ) * self.s + self.p1
 
 
-class low_level_path_planner:
+class trajectory_generator:
 	def __init__(self, name):
 		# Desired pose
 		self.desired_position = self.current_position = np.zeros(3)
-		self.desired_orientation = self.orientation = np.zeros(3)
+		self.desired_orientation = self.current_orientation = np.zeros(3)
 		#self.desired_twist = self.current_twist = Twist()
 
 		# Goal tolerances before seting succeded
@@ -99,10 +66,6 @@ class low_level_path_planner:
 		# Publishers
 		self.traj_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size = 10)
 
-		# Set current Pose to 0
-		self.current_position = np.zeros(3)
-		self.current_orientation = np.zeros(3)
-
 		# Set desired twist to 0
 		#self.desired_twist.linear.x = self.desired_twist.linear.y = self.desired_twist.linear.z = 0
 		#self.desired_twist.angular.x = self.desired_twist.angular.y = self.desired_twist.angular.z = 0
@@ -118,7 +81,7 @@ class low_level_path_planner:
 		self.desired_position = self.current_position
 		self.desired_orientation = self.current_orientation
 		# 	Make a line along the orientation
-		self.line = line(self.current_position, normal_vector_from_rotvec(self.current_orientation) + self.current_position)
+		self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.current_orientation) + self.current_position)
 		self.redraw_line = False
 		rospy.loginfo('Got current pose from /odom')
 
@@ -145,8 +108,8 @@ class low_level_path_planner:
 
 	def new_goal(self):
 		goal = self.moveto_as.accept_new_goal()
-		self.desired_position = position_from_posetwist(goal.posetwist)
-		self.desired_orientation = orientation_from_posetwist(goal.posetwist)
+		self.desired_position = tools.position_from_posetwist(goal.posetwist)
+		self.desired_orientation = tools.orientation_from_posetwist(goal.posetwist)
 		#self.linear_tolerance = goal.linear_tolerance
 		#self.angular_tolerance = goal.angular_tolerance
 
@@ -166,7 +129,7 @@ class low_level_path_planner:
 			self.line = line(self.current_position, self.desired_position)
 			self.redraw_line = True
 		else:
-			self.line = line(self.current_position, normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
+			self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
 			self.redraw_line = False
 
 	def goal_preempt(self):
@@ -187,8 +150,8 @@ class low_level_path_planner:
 
 	# Update pose and twist
 	def odom_cb(self, msg):
-		self.current_position = position_from_pose(msg.pose.pose)
-		self.current_orientation = orientation_from_pose(msg.pose.pose)
+		self.current_position = tools.position_from_pose(msg.pose.pose)
+		self.current_orientation = tools.orientation_from_pose(msg.pose.pose)
 		# Get distance to the goal
 		self.distance_to_goal = np.linalg.norm((self.desired_position - self.current_position))
 		self.angle_to_goal = abs((self.desired_orientation % (2 * np.pi)) - (self.current_orientation % (2 * np.pi)))
@@ -227,8 +190,8 @@ class low_level_path_planner:
 			),
 			posetwist = PoseTwist(
 				pose = Pose(
-					position = vector3_from_xyz_array(c_pos),
-					orientation = quaternion_from_rotvec([0, 0, self.line.angle])),
+					position = tools.vector3_from_xyz_array(c_pos),
+					orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
 				twist = Twist(
 					linear = Vector3(tracking_step * self.tracking_to_speed_conv, 0, 0),
 					angular = Vector3())
@@ -247,7 +210,7 @@ class low_level_path_planner:
 		if self.redraw_line and self.distance_to_goal < self.orientation_radius:
 			self.redraw_line = False
 			rospy.loginfo('Redrawing trajectory line')
-			self.line = line(self.current_position, normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
+			self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
 
 		rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
@@ -260,6 +223,6 @@ class low_level_path_planner:
 
 
 if __name__ == '__main__':
-	rospy.init_node('low_level_path_planner')
-	node = low_level_path_planner(rospy.get_name())
+	rospy.init_node('trajectory_generator')
+	node = trajectory_generator(rospy.get_name())
 	rospy.spin()
