@@ -2,6 +2,7 @@
 
 import roslib
 import rospy
+import os
 
 # Brings in the SimpleActionaction
 import actionlib
@@ -51,14 +52,18 @@ class send_action:
         rospy.logwarn('Azi_Drive waypoint kill flag off -- Waypoints enabled: %s' % self.kill_listener.get_kills())
 
     def new_goal(self, goal):
+        self.waypoint = False
         self.temp_pose = PoseTwistStamped()
         self.temp_pose.posetwist = goal.posetwist
         self.temp_pose.header = goal.header
 
-        while self.waypoint == False:
-            pass
+        while self.waypoint != True:
+            None
+
         self.action.set_succeeded()
-        self.waypoint = False
+        self.waypoint = True
+
+        
 
     def over_and_over(self):
         r = rospy.Rate(1)
