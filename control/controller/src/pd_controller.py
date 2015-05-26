@@ -19,12 +19,11 @@ from kill_handling.broadcaster import KillBroadcaster
 
 rospy.init_node('controller')
 controller_wrench = rospy.Publisher('wrench', WrenchStamped, queue_size = 1)
-waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':10,'y':10,'yaw':.1})#5,.8//4.0,.8
-rospy.set_param('d_gain', {'x':75,'y':250,'yaw':0.1})
+rospy.set_param('p_gain', {'x':2.5,'y':2.5, 'yaw':.15})#5,.8//4.0,.8
+rospy.set_param('d_gain', {'x':19,'y':11, 'yaw':20})
 #.25,400
 #-----------
 
@@ -153,7 +152,14 @@ def update_callback(event):
     def smallest_coterminal_angle(x):
         return (x + math.pi) % (2*math.pi) - math.pi
 
-    print desired_state[1] - state[1]
+    x_error = abs(abs(desired_state[1]) - abs(state[1]))
+    y_error = abs(abs(desired_state[0]) - abs(state[0]))
+    z_error = abs((desired_state[5] % 2*math.pi) - ((state[5] + 3.14) % 2*math.pi))
+
+    
+    print "Y: ", x_error
+    print "X: ", y_error
+    print "Z: ", z_error
 
     # sub pd-controller sans rise
     e = numpy.concatenate([desired_state[0:3] - state[0:3], map(smallest_coterminal_angle, desired_state[3:6] - state[3:6])]) # e_1 in paper
@@ -163,7 +169,6 @@ def update_callback(event):
 
     
     lock.release()
-    print desired_state[1] - state[1]
     if (not(odom_active)):
         output = [0,0,0,0,0,0]
     if (enable & killed==False):
@@ -179,10 +184,9 @@ def update_callback(event):
                 
                 )
 
-        if (desired_state[1] - state[1] < .009) & (desired_state[1] - state[1] > -.009):
-            waypoint_progress.publish(True)
-        else:
-            waypoint_progress.publish(False)
+        if((x_error < .5) & (y_error < .5) & (z_error < .3)):
+                waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
+                waypoint_progress.publish(True)
 
     if (killed == True):
         rospy.logwarn('PD_Controller KILLED: %s' % kill_listener.get_kills())
