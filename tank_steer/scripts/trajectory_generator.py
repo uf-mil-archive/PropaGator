@@ -34,7 +34,7 @@ class trajectory_generator:
 		self.slow_down_radius = rospy.get_param('slow_down_radius', 5)
 
 		# Speed parameters
-		self.max_tracking_distance = rospy.get_param('max_tracking_distance', 10)
+		self.max_tracking_distance = rospy.get_param('max_tracking_distance', 5)
 		self.min_tracking_distance = rospy.get_param('min_tracking_distance', 0.5)
 		self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 20)
 		self.tracking_slope = (self.max_tracking_distance - self.min_tracking_distance) / (self.slow_down_radius - self.orientation_radius)

@@ -63,7 +63,7 @@ def quaternion_from_rotvec(rot):
 # Converts rotation vector to [x, y, z] to unit vector in the pointed to direction
 #	Since we only care about orientation in the x y plane we ignore the x y components of the rotation vector
 def normal_vector_from_rotvec(rot):
-	theta = rot[2] - 0#np.pi		# Shift the angle pi degrees since pi is considered strait forward
+	theta = rot[2] #- np.pi		# Shift the angle pi degrees since pi is considered strait forward
 	return np.array([np.cos(theta), np.sin(theta), 0])
 
 def normal_vector_from_posetwist(pt):
