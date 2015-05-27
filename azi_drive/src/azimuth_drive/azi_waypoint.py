@@ -2,6 +2,8 @@
 
 import roslib
 import rospy
+import os
+import time
 
 # Brings in the SimpleActionaction
 import actionlib
@@ -22,7 +24,6 @@ class send_action:
     def __init__(self, name):
         self.action = actionlib.SimpleActionServer('moveto', MoveToAction, self.new_goal, False)
         self.trajectory_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size=10)
-        self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
 
         self.action.start()
@@ -51,14 +52,19 @@ class send_action:
         rospy.logwarn('Azi_Drive waypoint kill flag off -- Waypoints enabled: %s' % self.kill_listener.get_kills())
 
     def new_goal(self, goal):
+        self.waypoint = False
         self.temp_pose = PoseTwistStamped()
         self.temp_pose.posetwist = goal.posetwist
         self.temp_pose.header = goal.header
-
+        time.sleep(5)
+        self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
         while self.waypoint == False:
-            pass
+            None
+
         self.action.set_succeeded()
-        self.waypoint = False
+        self.waypoint = True
+
+        
 
     def over_and_over(self):
         r = rospy.Rate(1)
