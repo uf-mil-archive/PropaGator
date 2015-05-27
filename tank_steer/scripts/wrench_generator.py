@@ -12,10 +12,26 @@ from tools import line
 import numpy as np
 import math
 import tf
+from kill_handling.broadcaster import KillBroadcaster
+from kill_handling.listener import KillListener
 
 
 class wrench_generator:
 	def __init__(self, name):
+		# Set up publishers
+		self.wrench_pub = rospy.Publisher('wrench', WrenchStamped, queue_size = 10)
+
+		# Initilize kill
+		self.killed = False
+		self.kill_listener = KillListener(self.set_kill, self.clear_kill)
+		self.kill_broadcaster = KillBroadcaster(id=name, description='Tank steer wrench_generator shutdown')
+		rospy.on_shutdown(self.on_shutdown)
+		# Clear in case it was previously killed
+		try:
+			self.kill_broadcaster.clear()
+		except rospy.service.ServiceException, e:
+			rospy.logwarn(str(e))
+
 		# Current pose
 		self.carrot_position = self.current_position = np.zeros(3)
 		self.carrot_position = self.current_orientation = np.zeros(3)
@@ -34,8 +50,7 @@ class wrench_generator:
 		self.tf_listener = tf.TransformListener()
 		#self.tf_listener.waitForTransform('/enu', '/base_link', rospy.Time(0), rospy.Time(10000))
 
-		# Set up publishers
-		self.wrench_pub = rospy.Publisher('wrench', WrenchStamped, queue_size = 10)
+
 
 		# Wait for current position and set as desired position
 		rospy.loginfo('Waiting for /odom')
@@ -45,6 +60,21 @@ class wrench_generator:
 
 		# Start traj subscriber
 		self.traj_sub = rospy.Subscriber('/trajectory', PoseTwistStamped, self.traj_cb, queue_size = 10)
+
+	# On shutdown
+	def on_shutdown(self):
+		self.kill_broadcaster.send(True)
+
+	# Set kill
+	def set_kill(self):
+		self.killed = True
+		self.wrench_pub.publish(WrenchStamped())
+		rospy.logwarn('Tank steer wrench_generator Killed because: %s' % self.kill_listener.get_kills())
+
+	# Clear kill
+	def clear_kill(self):
+		self.killed = False
+		rospy.loginfo('Tank steer wrench_generator Unkilled')
 
 	# Calculate error
 	def traj_cb(self, traj):
@@ -133,14 +163,18 @@ class wrench_generator:
 		rospy.loginfo('torque: ' + str(torque))
 
 		# Output a wrench!
-		self.wrench_pub.publish(
-			WrenchStamped(
-				header = Header(
-					frame_id = '/base_link',
-					stamp = now),
-				wrench = Wrench(
-					force = Vector3(force, 0, 0),
-					torque = Vector3(0, 0, torque))))
+		if not self.killed:
+			self.wrench_pub.publish(
+				WrenchStamped(
+					header = Header(
+						frame_id = '/base_link',
+						stamp = now),
+					wrench = Wrench(
+						force = Vector3(force, 0, 0),
+						torque = Vector3(0, 0, torque))))
+		else:
+			# Publish zero wrench
+			self.wrench_pub.publish(WrenchStamped())
 
 
 	# Update pose and twist
