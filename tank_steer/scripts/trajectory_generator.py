@@ -68,7 +68,7 @@ class trajectory_generator:
 		# Kill handling
 		self.killed = False
 		self.kill_listener = KillListener(self.set_kill, self.clear_kill)
-		self.kill_broadcaster = KillBroadcaster(id=name, description='Tank steer low level path planner shutdown')
+		self.kill_broadcaster = KillBroadcaster(id=name, description='Tank steer trajectory_generator shutdown')
 		try:
 			self.kill_broadcaster.clear()			# In case previously killed
 		except rospy.service.ServiceException, e:
@@ -120,10 +120,12 @@ class trajectory_generator:
 		
 
 	def set_kill(self):
-		rospy.logwarn('Tank steer low level path planner killed because: %s' % self.kill_listener.get_kills())
+		self.killed = True
+		rospy.logwarn('Tank steer trajectory_generator killed because: %s' % self.kill_listener.get_kills())
 
 	def clear_kill(self):
-		rospy.loginfo('Tank steer low level path planner unkilled')
+		self.killed = False
+		rospy.loginfo('Tank steer trajectory_generator unkilled')
 
 	def on_shutdown(self):
 		self.kill_broadcaster.send(True)
@@ -190,7 +192,8 @@ class trajectory_generator:
 		# Publish trajectory
 		traj = self.get_carrot()
 		#rospy.loginfo('Trajectory: ' + str(traj))
-		self.traj_pub.publish(traj)
+		if not self.killed:
+			self.traj_pub.publish(traj)
 
 		if self.redraw_line and self.distance_to_goal < self.orientation_radius:
 			self.redraw_line = False
