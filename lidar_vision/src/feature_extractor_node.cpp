@@ -18,7 +18,7 @@ private:	//Typedefs
 
 private:	//Vars
 	ros::Subscriber pc_sub_;					//Subscriber to segmented point cloud data
-	ros::Publisher buoy_pub_, shore_pub_;	//publisher for buoy's and land masses respectively
+	ros::Publisher buoy_pub_, shore_pub_, buoy_pc_pub_;	//publisher for buoy's and land masses respectively
 	ros::Publisher buoy_marker_pub_;			//publisher for buoy markers (visualization)
 	double distance_threshold_;					//... TODO: figure out exactly how this effects the computation
 	int max_iterations_;						//Maximum number of itterations before giving up
@@ -68,13 +68,15 @@ private:	//Functions
 		//Index 3 is radius as defined in http://docs.pointclouds.org/trunk/group__sample__consensus.html
 
 		//Publish to correct topic
-		//sensor_msgs::PointCloud2::Ptr out_msg(new sensor_msgs::PointCloud2);		//Make output msg
+		sensor_msgs::PointCloud2::Ptr out_pc_msg(new sensor_msgs::PointCloud2);		//Make output msg
 		pcl::PointCloud<point>::Ptr out_pc(new pcl::PointCloud<point>);				//Make out point cloud
 		if(coeff[3] < max_buoy_radius_)
 		{
 			//Publish buoy point cloud
-			//pcl::copyPointCloud(*pc_in, inliers, *out_pc);							//Copy inliers from out_pc
-			//pcl::toROSMsg(*out_pc, *out_msg);										//Generate msg
+			pcl::copyPointCloud(*pc_in, inliers, *out_pc);							//Copy inliers from out_pc
+			pcl::toROSMsg(*out_pc, *out_pc_msg);										//Generate msg
+			buoy_pc_pub_.publish(out_pc_msg);
+
 			lidar_vision::buoy::Ptr out_msg(new lidar_vision::buoy);
 			out_msg->header.frame_id = "base_link";
 			out_msg->header.stamp = ros::Time::now();
@@ -161,6 +163,7 @@ public:		//Functions
 		topic = public_nh.resolveName("segmented_pc");		//Get the topic
 		pc_sub_ = public_nh.subscribe<sensor_msgs::PointCloud2>(topic.c_str(), 100, &FeatureExtractor::extract, this);
 		buoy_pub_ = public_nh.advertise<lidar_vision::buoy>("buoy", 100);
+		buoy_pc_pub_ = public_nh.advertise<sensor_msgs::PointCloud2>("buoy_pc", 10);
 		buoy_marker_pub_ = public_nh.advertise<visualization_msgs::Marker>("buoy_marker", 100);
 	}
 };
