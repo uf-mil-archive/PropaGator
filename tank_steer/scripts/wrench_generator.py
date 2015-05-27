@@ -23,7 +23,7 @@ class wrench_generator:
 		self.last_perp_velocity = 0
 
 		# Grab gains
-		self.p = rospy.get_param('p', 10)
+		self.p = rospy.get_param('p', 500)
 		self.i = rospy.get_param('i', 5)
 		self.d = rospy.get_param('d', 0)
 

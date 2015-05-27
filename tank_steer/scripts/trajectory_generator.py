@@ -35,8 +35,8 @@ class trajectory_generator:
 
 		# Speed parameters
 		self.max_tracking_distance = rospy.get_param('max_tracking_distance', 5)
-		self.min_tracking_distance = rospy.get_param('min_tracking_distance', 0.5)
-		self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 20)
+		self.min_tracking_distance = rospy.get_param('min_tracking_distance', 1)
+		self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 10)
 		self.tracking_slope = (self.max_tracking_distance - self.min_tracking_distance) / (self.slow_down_radius - self.orientation_radius)
 		self.tracking_intercept = self.tracking_slope * self.orientation_radius + self.min_tracking_distance
 
