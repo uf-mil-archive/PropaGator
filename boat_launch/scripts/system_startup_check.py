@@ -31,6 +31,51 @@ def system_test():
 
     try:
         while not rospy.is_shutdown():  
+            print ("Tilting LIDAR up...")     
+            for x in range(0, 20):
+                servo_joint_pub.publish(DynamixelJointConfig(
+                    id=            1,
+                    goal_position= 3.80
+                ))
+                rate.sleep()
+            raw_input("Press enter to continue")
+
+            print ("Tilting LIDAR down...")    
+            for x in range(0, 20):
+                servo_joint_pub.publish(DynamixelJointConfig(
+                    id=            1,
+                    goal_position= 2.65
+                ))
+                rate.sleep()
+            raw_input("Press enter to continue")
+
+            print ("Tilting LIDAR to horizontal...")     
+            for x in range(0, 20):
+                servo_joint_pub.publish(DynamixelJointConfig(
+                    id=            1,
+                    goal_position= 3.14
+                ))
+                rate.sleep()
+            raw_input("Press enter to continue")
+
+            print ("Deploying SONAR...")     
+            for x in range(0, 125):
+                servo_joint_pub.publish(DynamixelJointConfig(
+                    id=            4,
+                    goal_position= -2
+                ))
+                rate.sleep()
+            raw_input("Press enter to continue")
+
+            print ("Recovering SONAR...")    
+            for x in range(0, 175):
+                servo_joint_pub.publish(DynamixelJointConfig(
+                    id=            4,
+                    goal_position= 4.2
+                ))
+                rate.sleep()
+            raw_input("Press enter to continue")
+
             print ("Moving port thruster to the left...")     
             for x in range(0, 20):
                 servo_joint_pub.publish(DynamixelJointConfig(
@@ -75,7 +120,7 @@ def system_test():
             raw_input("Press enter to continue")
 
             print ("stopping port thruster...") 
-            for x in range(0, 20):
+            for x in range(0, 10):
                 speed = 1.50e-3
                 port_propeller.publish(speed)                 
                 rate.sleep()
@@ -127,7 +172,7 @@ def system_test():
             raw_input("Press enter to continue")
 
             print ("stopping port thruster...") 
-            for x in range(0, 20):
+            for x in range(0, 10):
                 speed = 1.50e-3
                 stbd_propeller.publish(speed)                 
                 rate.sleep()
