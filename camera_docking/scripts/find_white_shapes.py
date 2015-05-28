@@ -97,6 +97,7 @@ class image_converter:
     #ret, thresh = cv2.threshold(imgray,130,255,0)
 
     thresh = cv2.adaptiveThreshold(imgray,255,1,1,5,2)
+    #thresh = cv2.adaptiveThreshold(imgray,255,1,1,7,2)
     
     thresh2 = thresh
 
