@@ -6,7 +6,7 @@ import roslib
 roslib.load_manifest('controller')
 import rospy
 from geometry_msgs.msg import WrenchStamped, Vector3, Vector3Stamped, Point, Wrench, PoseStamped
-from std_msgs.msg import Header,Bool
+from std_msgs.msg import Header,Bool, Float64
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 import numpy,math,tf,threading
@@ -22,11 +22,85 @@ controller_wrench = rospy.Publisher('wrench', WrenchStamped, queue_size = 1)
 lock = threading.Lock()
 
 #set controller gains
-rospy.set_param('p_gain', {'x':2.5,'y':2.5, 'yaw':.15})#5,.8//4.0,.8
+'''
+rospy.set_param('p_gain', {'x':2,'y':2, 'yaw':.15})#5,.8//4.0,.8
 rospy.set_param('d_gain', {'x':19,'y':11, 'yaw':20})
 #.25,400
 #-----------
+'''
 
+d_x = 19
+d_y = 11
+d_z = 20
+p_x = 2
+p_y = 2
+p_z =.15
+
+K = numpy.array([
+    [p_x,0,0,0,0,0],
+    [0,p_y,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,p_z]])
+
+Ks = numpy.array([
+    [d_x,0,0,0,0,0],
+    [0,d_y,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,d_z]])
+
+def d_gain_cb(msg):
+    global d_z, Ks
+    d_z = msg.data
+    Ks[5,5] = d_z
+
+
+def p_gain_cb(msg):
+    global p_z, K
+    p_z = msg.data
+    K[5,5] = p_z
+
+rospy.Subscriber("pd_d_gain", Float64, d_gain_cb)
+rospy.Subscriber("pd_p_gain", Float64, p_gain_cb)
+
+'''
+
+
+def d_gain_cb(msg):
+    global d_x, d_y, d_z, Ks
+    d_x = msg.x
+    d_y = msg.y
+    d_z = msg.z
+
+    Ks = numpy.array([
+    [d_x,0,0,0,0,0],
+    [0,d_y,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,d_z]])
+
+def p_gain_cb(msg):
+    global p_x, p_y, p_z, K
+    p_x = msg.x
+    p_y = msg.y
+    p_z = msg.z
+
+    K = numpy.array([
+    [p_x,0,0,0,0,0],
+    [0,p_y,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,0],
+    [0,0,0,0,0,p_z]])
+
+d_gain_sub = rospy.Subscriber("pd_d_gain", Point, d_gain_cb)
+p_gain_sub = rospy.Subscriber("pd_p_gain", Point, p_gain_cb)
+
+'''
 #----------------------------------------------------------------------------------
 
 
@@ -49,8 +123,6 @@ kill_listener = KillListener(set_kill, clear_kill)
 # Kill publisher on line 179
 
 # basing wrench output on the 'killed' variable
-
-# KILL MANAGER SETTINGS -----------------------------------------------------------
 
 def _jacobian(x):
     # maps body linear+angular velocities -> global linear velocity/euler rates
@@ -111,21 +183,7 @@ rospy.Subscriber('/trajectory', PoseTwistStamped, desired_state_callback)
 
 #----------------------------------------------------------------------------------
 
-K = numpy.array([
-    [rospy.get_param('p_gain/x'),0,0,0,0,0],
-    [0,rospy.get_param('p_gain/y'),0,0,0,0],
-    [0,0,0,0,0,0],
-    [0,0,0,0,0,0],
-    [0,0,0,0,0,0],
-    [0,0,0,0,0,rospy.get_param('p_gain/yaw')]])
 
-Ks = numpy.array([
-    [rospy.get_param('d_gain/x'),0,0,0,0,0],
-    [0,rospy.get_param('d_gain/y'),0,0,0,0],
-    [0,0,0,0,0,0],
-    [0,0,0,0,0,0],
-    [0,0,0,0,0,0],
-    [0,0,0,0,0,rospy.get_param('d_gain/yaw')]])
 
 
 
@@ -156,9 +214,8 @@ def update_callback(event):
     y_error = abs(abs(desired_state[0]) - abs(state[0]))
     z_error = abs((desired_state[5] % 2*math.pi) - ((state[5] + 3.14) % 2*math.pi))
 
-    
-    print "Y: ", x_error
     print "X: ", y_error
+    print "Y: ", x_error
     print "Z: ", z_error
 
     # sub pd-controller sans rise
@@ -184,7 +241,7 @@ def update_callback(event):
                 
                 )
 
-        if((x_error < .5) & (y_error < .5) & (z_error < .3)):
+        if((x_error < 1) & (y_error < 1) & (z_error < 1)):
                 waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
                 waypoint_progress.publish(True)
 
