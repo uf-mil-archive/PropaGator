@@ -67,7 +67,7 @@ private:
       stat.summary(2, "Joystick not open.");
     
     stat.add("topic", pub_.getTopic());
-    stat.add("device", joy_dev_);
+    joy_dev_ = "/dev/input/by-id/usb-©Microsoft_Xbox_360_Wireless_Receiver_for_Windows_E00F14A0-joystick";
     stat.add("dead zone", deadzone_);
     stat.add("autorepeat rate (Hz)", autorepeat_rate_);
     stat.add("coalesce interval (s)", coalesce_interval_);
