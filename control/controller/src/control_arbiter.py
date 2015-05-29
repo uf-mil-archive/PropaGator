@@ -8,7 +8,7 @@ from std_msgs.msg import Bool, Int64
 
 def callback(msg):
 
-	admin = rospy.Publisher("control_arbiter", Int64, queue_size =1)
+	admin = rospy.Publisher("control_arbiter", Bool, queue_size =1)
 	if msg.data == True:
 		admin.publish(False)
 
