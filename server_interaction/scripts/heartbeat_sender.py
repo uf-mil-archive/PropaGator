@@ -146,10 +146,10 @@ def GetGpsData(gpsPos):
 
 		sublinkMain = '/heartbeat/%s/UF' %course
 
-		url = mainUrl +  sublinkMain
+		#url = mainUrl +  sublinkMain
 
 		#d ump server to test that data is being posted
-		# url = 'https://posttestserver.com/post.php'
+		url = 'https://posttestserver.com/post.php'
 
 		#payload to send to server
 
