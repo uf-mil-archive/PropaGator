@@ -2,12 +2,15 @@
 
 import roslib
 import rospy
+import os
+import time
 
 # Brings in the SimpleActionaction
 import actionlib
 from uf_common.msg import PoseTwistStamped, MoveToAction
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
+from std_msgs.msg import Bool
 
 '''
 
@@ -22,17 +25,16 @@ class send_action:
         self.action = actionlib.SimpleActionServer('moveto', MoveToAction, self.new_goal, False)
         self.trajectory_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size=10)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
-        self.kill_broadcaster = KillBroadcaster(id=name, description='Azi_waypoints shutdown')
-
-        try:
-            self.kill_broadcaster.clear()
-        except rospy.service.ServiceException, e:
-            rospy.logwarn(str(e))
 
         self.action.start()
         self.to_pose = PoseTwistStamped()
         self.temp_pose = PoseTwistStamped()
         self.killed = False
+        self.waypoint = False
+
+    def callback(self, msg):
+        self.waypoint = msg.data
+
 
     def set_kill(self):
 
@@ -50,16 +52,24 @@ class send_action:
         rospy.logwarn('Azi_Drive waypoint kill flag off -- Waypoints enabled: %s' % self.kill_listener.get_kills())
 
     def new_goal(self, goal):
+        self.waypoint = False
         self.temp_pose = PoseTwistStamped()
         self.temp_pose.posetwist = goal.posetwist
         self.temp_pose.header = goal.header
+        time.sleep(5)
+        self.waypoint_progress = rospy.Subscriber('/waypoint_progress', Bool, self.callback)
+        while self.waypoint == False:
+            None
+
         self.action.set_succeeded()
+        self.waypoint = True
+
+        
 
     def over_and_over(self):
         r = rospy.Rate(1)
         if self.killed == True:
             rospy.logwarn('Azi_Drive waypoint kill flag on  -- Waypoints disabled: %s' % self.kill_listener.get_kills())
-            self.kill_broadcaster.send(self.killed)
         if self.killed == False:
             self.to_pose = self.temp_pose
             self.trajectory_pub.publish(self.to_pose)

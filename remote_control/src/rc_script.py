@@ -14,7 +14,15 @@
 ### Please update revisons to it with your name and date and valuable comments. 
 ###	Github handles this just look at the file history or use git blame (Kevin French)
 
+
+## May 25, 2015 #Khimya Khetarpal
+### Using the logit function for finer control on the remote.
+### For reference: non linear function used is: y = [((0.0001*logit(x/2+0.5))+0.0015) for x in arange(-1, 1.1, 0.1)]
+
+
+
 import rospy
+import math
 
 from dynamixel_servo.msg import DynamixelFullConfig
 from std_msgs.msg import Float64
@@ -54,6 +62,20 @@ BTNS = {
 pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
 pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
 rc_state_pub = rospy.Publisher('rc/status', Bool, queue_size = 10)
+
+def logit(p):
+	l = math.log(p + 0.00001) - math.log(1.00001 - p)
+	#l = math.log(p) - math.log(1 - p)
+	return l
+
+def clip(val):
+	if (val < 0.001):
+		val = 0.001
+	elif (val > 0.002):
+		val = 0.002
+	else:
+		val = val
+	return val
 
 def killed_cb():
 	global killed
@@ -135,10 +157,14 @@ def xbox_cb(joy_msg):
 		
 	if killed:
 		zero_pwms()
-	else:
-		pwm1 = Float64(0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm)  #LEFT_STICK
+	elif rc_active:
+		pwm1 = 0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm  #LEFT_STICK
+		#pwm1 = (0.0001*logit((joy_msg.axes[AXIS['LEFT_STICK_Y']])/2+0.5))+0.0015
+		pwm1 = Float64(clip(pwm1))
 		pwm_port_pub.publish(pwm1)
-		pwm2 = Float64(0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + zero_pwm)  #RIGHT_STICK
+		pwm2 = 0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + zero_pwm  #RIGHT_STICK
+		#pwm2 = (0.0001*logit((joy_msg.axes[AXIS['RIGHT_STICK_Y']])/2+0.5))+0.0015
+		pwm2 = Float64(clip(pwm2))
 		pwm_starboard_pub.publish(pwm2) 
 
 if __name__ == '__main__':

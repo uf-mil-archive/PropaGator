@@ -1,0 +1,28 @@
+Docking Behaviors
+
+Assumptions:
+    -Boat will be facing signs, will be mostly perpendicular relative to the signs
+    -Boat has been given the two desired signs
+
+Steps
+    1) Are any signs visible?
+        -NO
+            -drive forward 1 meter
+        -YES
+            -go to to step 2
+    2) Are all three signs visible?
+        -NO
+            -wait until all three are visible (1 sec)
+            a) is the first desired sign visible?
+                -NO
+                    -drive forward .5 meter
+                    -return to step 2
+                -YES
+                    -proceed to step 3
+
+    3) Is the desired sign in the center of the camera's FOV?
+        -NO
+            -adjust left/right until desired target is within the center x-vals
+            -repeat step 3
+        -YES
+            -drive forward 1 meter ||OR|| LIDAR detects nearest object is < *some_distance
