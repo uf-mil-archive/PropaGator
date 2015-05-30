@@ -1,0 +1,4 @@
+string file_name
+string image_shape
+---
+bool is_right_image

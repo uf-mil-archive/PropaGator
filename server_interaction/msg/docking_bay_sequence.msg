@@ -1,0 +1,4 @@
+string first_dock_symbol
+string first_dock_color
+string second_dock_symbol
+string second_dock_color
