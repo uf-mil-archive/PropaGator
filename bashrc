@@ -1,4 +1,4 @@
-function 0w(){
+ function 0w(){
 rostopic pub /wrench geometry_msgs/WrenchStamped "header:
   seq: 0
   stamp:
@@ -23,17 +23,14 @@ function h(){
 
 alias sim="rosrun boatsim sim"
 alias vis="rosrun boatsim path_visualizer.py"
-alias azi="roslaunch azi_drive run.launch"
+alias azi="roslaunch azi_drive run_azi.launch"
 alias controller="roslaunch boat_launch controller.launch"
 alias run="roslaunch boat_launch run.launch"
+alias nav="roslaunch boat_launch navigation.launch"
 
 function core(){
 roscore &
-echo ""
 echo "ROSCORE STARTED" 
-echo ""
-echo ""
 echo "KILL HANDLER STARTED" 
-echo ""
 rosrun kill_handling kill_master 
 }
