@@ -34,6 +34,8 @@ from std_msgs.msg import Bool
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 
+from dynamixel_servo.msg import DynamixelFullConfig
+
 killed = False
 zero_pwm = 1.5e-3
 rc_active = True
@@ -61,6 +63,8 @@ BTNS = {
 
 pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
 pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
+servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size = 10)
+
 rc_state_pub = rospy.Publisher('rc/status', Bool, queue_size = 10)
 
 def logit(p):
@@ -166,6 +170,19 @@ def xbox_cb(joy_msg):
 		#pwm2 = (0.0001*logit((joy_msg.axes[AXIS['RIGHT_STICK_Y']])/2+0.5))+0.0015
 		pwm2 = Float64(clip(pwm2))
 		pwm_starboard_pub.publish(pwm2) 
+
+
+			# Zero servos
+		for x in range(2,4):
+			servo_pub.publish(DynamixelFullConfig(
+				id=						x,
+				goal_position= 			math.pi,
+				moving_speed=			12, # near maximum, not actually achievable ...
+				torque_limit=			1023,
+				goal_acceleration=		38,
+				control_mode=			DynamixelFullConfig.JOINT,
+				goal_velocity=			10,
+			))
 
 if __name__ == '__main__':
 	try:

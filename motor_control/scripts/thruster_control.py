@@ -24,7 +24,7 @@ import serial
 from motor_control.msg import thrusterPWM
 from motor_control.msg import thrusterNewtons
 import time
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Int64, Bool
 from kill_handling.broadcaster import KillBroadcaster
 from kill_handling.listener import KillListener
 
@@ -51,6 +51,7 @@ ZERO_PW = 1500
 REV_CONV = (ZERO_PW - ABS_MIN_PW) / (0 - MIN_NEWTONS)
 FWD_CONV = (ABS_MAX_PW - ZERO_PW) / MAX_NEWTONS
 
+#control_kill = True
 
 #These are the valuse that the thrusters 
 # attempt to achieve in newtons
@@ -232,6 +233,13 @@ def clear_kill():
 
     rospy.loginfo('Newtons to PWM Unkilled')
 
+#def control_callback(msg):
+#    global control_kill
+#    if msg.data == True:
+#        control_kill = False
+#    if msg.data == False:
+#        control_kill = True
+
 #   thrusterCtrl
 # Input: None
 # Output: None
@@ -243,9 +251,11 @@ def thrusterCtrl():
     global starboard_current
     global kill_listener
     global kill_broadcaster
+    global control_kill
     
     #Setup ros
     rospy.init_node('thruster_control')
+    #rospy.Subscriber("control_arbiter", Bool, control_callback)
     rospy.Subscriber("thruster_config", thrusterNewtons, motorConfigCallback)
     r = rospy.Rate(UPDATE_RATE)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)
@@ -267,6 +277,7 @@ def thrusterCtrl():
     
     #Main loop
     while not rospy.is_shutdown():
+
         #Simple ramping function
         #If its less than the setpoint add RAMP_RATE
         #If its greater than the setpoint subtract RAMP_RATE
@@ -299,6 +310,7 @@ def thrusterCtrl():
         #msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
         #print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
         #pwm_pub.publish(msg);
+        #if control_kill == False:
         msg = Float64(convertNewtonsToPW(port_current) / 1000000.0)
         pwm_port_pub.publish(msg)   
 
@@ -313,6 +325,10 @@ def thrusterCtrl():
 
         starboard_last_value = starboard_current;
         port_last_value = port_current;
+        #else:
+         #   None
+
+        
         #Wait till next cycle
         r.sleep()
     

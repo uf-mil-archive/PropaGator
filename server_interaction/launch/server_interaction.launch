@@ -1,0 +1,10 @@
+<launch>
+   	
+	<node pkg="server_interaction" type="docking_bay_provider.py" name="dokcing_bay_provider" output="screen" />
+	<node pkg="server_interaction" type="gate_code_provider.py" name="gate_code_provider" output="screen" />
+	<node pkg="server_interaction" type="heartbeat_sender.py" name="heartbeat" output="screen" />
+	<node pkg="server_interaction" type="image_info_sender.py" name="send_image_info_server" output="screen" />
+	<node pkg="server_interaction" type="pinger_buoy_color_sender.py" name="buoy_color_sender" output="screen" />	
+	<node pkg="server_interaction" type="server_image_getter.py" name="from_server_image_getter" output="screen" />
+
+ </launch>

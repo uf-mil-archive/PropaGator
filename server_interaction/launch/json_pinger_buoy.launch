@@ -1,0 +1,6 @@
+<launch>
+   	
+	<node pkg="server_interaction" type="heartbeat_sender.py" name="heartbeat" output="screen" />
+	<node pkg="server_interaction" type="pinger_buoy_color_sender.py" name="buoy_color_sender" output="screen" />	
+
+ </launch>

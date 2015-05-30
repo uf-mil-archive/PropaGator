@@ -1,0 +1,6 @@
+<launch>
+   	
+	<node pkg="server_interaction" type="gate_code_provider.py" name="gate_code_provider" output="screen" />
+	<node pkg="server_interaction" type="heartbeat_sender.py" name="heartbeat" output="screen" />	
+
+ </launch>

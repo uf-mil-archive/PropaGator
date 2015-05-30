@@ -1,0 +1,2 @@
+string entrance
+string exit
