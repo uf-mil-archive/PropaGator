@@ -28,9 +28,9 @@ class trajectory_generator:
 		#self.desired_twist = self.current_twist = Twist()
 
 		# Goal tolerances before seting succeded
-		self.linear_tolerance = rospy.get_param('linear_tolerance', 0.25)
+		self.linear_tolerance = rospy.get_param('linear_tolerance', 0.5)
 		self.angular_tolerance = rospy.get_param('angular_tolerance', np.pi / 10)
-		self.orientation_radius = rospy.get_param('orientation_radius', 0.5)
+		self.orientation_radius = rospy.get_param('orientation_radius', 0.75)
 		self.slow_down_radius = rospy.get_param('slow_down_radius', 5)
 
 		# Speed parameters

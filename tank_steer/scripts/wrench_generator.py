@@ -39,9 +39,12 @@ class wrench_generator:
 		self.last_perp_velocity = 0
 
 		# Grab gains
-		self.p = rospy.get_param('p', 10)
+		self.p = rospy.get_param('p', 30)
 		self.i = rospy.get_param('i', 5)
 		self.d = rospy.get_param('d', 0)
+
+		# Distance before we only orient to goal
+		self.orientation_radius = rospy.get_param('orientation_radius', 0.5)
 
 		# Controller vars
 		self.last_time = rospy.get_rostime()
@@ -88,7 +91,7 @@ class wrench_generator:
 		#rospy.loginfo('o : ' + str(o))
 		o_hat = o / np.linalg.norm(o)
 		#rospy.loginfo('o hat: ' + str(o_hat))
-		o_norm = np.cross([0, 0, 1], o_hat)
+		o_norm = np.cross([0, 0, -1], o_hat)
 		#rospy.loginfo('o norm: ' + str(o_norm))
 
 		# Overshoot = 1 if the boat is behind a line drawn perpendicular to the trajectory orientation
@@ -99,9 +102,10 @@ class wrench_generator:
 		#rospy.loginfo('traj: ' + str(traj_position))
 		#rospy.loginfo('traj - Boat_proj: ' + str(traj_position - boat_proj))
 		boat_to_traj = traj_position - self.current_position
-		boat_to_traj_hat = boat_to_traj / np.linalg.norm(boat_to_traj)
-		boat_to_traj_norm = np.cross([0,0,1], boat_to_traj_hat)
-		overshoot = np.dot(boat_to_traj, o_hat)
+		boat_dist_to_traj = np.linalg.norm(boat_to_traj)
+		boat_to_traj_hat = boat_to_traj / boat_dist_to_traj
+		boat_to_traj_norm = np.cross([0,0,-1], boat_to_traj_hat)
+		overshoot = np.dot(boat_to_traj_hat, o_hat)
 		overshoot = overshoot / abs(overshoot)
 		rospy.loginfo('overshoot: ' + str(overshoot))
 		if math.isnan(overshoot):
@@ -111,17 +115,51 @@ class wrench_generator:
 		#
 		##		P error = - angle(between boat and trajectory)
 		#
-		enu_angle_to_traj = np.arccos(np.dot(boat_to_traj / np.linalg.norm(boat_to_traj), np.array([1, 0, 0])))
-		enu_angle_to_traj = math.copysign(enu_angle_to_traj, np.dot(boat_to_traj_norm, self.current_position))
-		boat_angle_to_traj = (self.current_orientation[2] - enu_angle_to_traj) % (np.pi)
+		#enu_angle_to_traj = np.arccos(boat_to_traj_hat, np.array([1, 0, 0])))
+		#enu_angle_to_traj = math.copysign(enu_angle_to_traj, np.dot(boat_to_traj_norm, self.current_position))
+		#boat_angle_to_traj = (self.current_orientation[2] - enu_angle_to_traj) % (np.pi)
 
-		boat_orientation_normal = tools.normal_vector_from_rotvec(self.current_orientation)
-		angle_error = np.arccos(np.dot(boat_orientation_normal, boat_to_traj_hat)) * np.dot(boat_to_traj_norm, boat_orientation_normal) * -1 * overshoot
+
+		boat_orientation_vec = tools.normal_vector_from_rotvec(self.current_orientation)
+
+		#angle_error = 0
+		#torque_dir = 1
+		if boat_dist_to_traj > self.orientation_radius:
+			rospy.loginfo('Location: Outside orientation radius')
+			# Is the angle to trajectory positive or negative ( dot product of two unit vectors is negative when the 
+				# angle between them is greater than 90, by doting the orientation of the boat with a vector that is 90 degrees
+				# to the trajectory and pointed to the right  we get positive numbers if we are pointed to the right and negative 
+				# if we are on the left side)
+			torque_dir = math.copysign(1, np.dot(boat_to_traj_norm, boat_orientation_vec))
+								# angle between path to traj and boat orientation 			  		
+			angle_error = np.arccos(np.dot(boat_orientation_vec, boat_to_traj_hat))
+		else:
+			rospy.loginfo('Location: Inside orientation radius')
+			# Same as above but now we are orienting to the desired final orientation instead of towards the trajectory
+			torque_dir = math.copysign(1, np.dot(o_norm, boat_orientation_vec))
+								# Angle between traj_orientation and boat orientation
+			angle_error = np.arccos(np.dot(boat_orientation_vec, o_hat))
+
 		#rospy.loginfo('enu_angle_to_traj:\t' + str(enu_angle_to_traj * 180 / np.pi))
 		#rospy.loginfo('Boat orientation:\t' + str(self.current_orientation[2] * 180 / np.pi))
 		#rospy.loginfo('Boat angle to traj\t' + str((boat_angle_to_traj) * 180 / np.pi ))
-		rospy.loginfo('Angle error: ' + str(angle_error * 180 / np.pi))
-		torque = angle_error * self.p
+		
+
+		torque = angle_error * torque_dir * self.p
+		force = traj.posetwist.twist.linear.x
+		if boat_dist_to_traj < self.orientation_radius and overshoot == -1:
+			rospy.loginfo('Status: Overshoot in orientation radius')
+			force = force * -1
+		elif abs(angle_error) > np.pi / 2:
+			rospy.loginfo('Status: angle error > 90')
+			#force = 0
+		else:
+			rospy.loginfo('Status: Normal')
+
+		rospy.loginfo('Angle error: ' + str(angle_error * torque_dir * 180 / np.pi))
+
+		rospy.loginfo('torque: ' + str(torque))
+		rospy.loginfo('Force: ' + str(force))
 
 		""" Method 1:
 		#
@@ -156,11 +194,11 @@ class wrench_generator:
 
 		torque = velocity_error + pos_error + acceleration_error
 
-		"""
 
 		# Reverse force if overshoot
 		force = traj.posetwist.twist.linear.x * overshoot
 		rospy.loginfo('torque: ' + str(torque))
+		"""
 
 		# Output a wrench!
 		if not self.killed:
@@ -195,7 +233,7 @@ class wrench_generator:
 			vec = self.tf_listener.transformVector3('/enu', vec)
 			#rospy.loginfo('Vec after transform: ' + str(vec))
 		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as err:
-			rospy.logwarn('Tf error: ' + str(err))
+			#rospy.logwarn('Tf error: ' + str(err))
 			return
 
 		self.current_velocity = xyz_array(vec.vector)
