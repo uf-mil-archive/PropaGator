@@ -39,7 +39,7 @@ class wrench_generator:
 		self.last_perp_velocity = 0
 
 		# Grab gains
-		self.p = rospy.get_param('p', 30)
+		self.p = rospy.get_param('p', 15)
 		self.i = rospy.get_param('i', 5)
 		self.d = rospy.get_param('d', 0)
 
@@ -152,7 +152,7 @@ class wrench_generator:
 			force = force * -1
 		elif abs(angle_error) > np.pi / 2:
 			rospy.loginfo('Status: angle error > 90')
-			#force = 0
+			force = 0
 		else:
 			rospy.loginfo('Status: Normal')
 
