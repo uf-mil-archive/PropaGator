@@ -38,7 +38,7 @@ from dynamixel_servo.msg import DynamixelFullConfig
 
 killed = False
 zero_pwm = 1.5e-3
-rc_active = True
+rc_active = False
 back_btn_pressed = False
 
 AXIS = {
@@ -61,8 +61,8 @@ BTNS = {
 	'KILL':8, #Kill Switch #Center Big Switch
 }
 
-pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
-pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
+pwm_port_pub = rospy.Publisher('pwm1_alias', Float64, queue_size = 10)
+pwm_starboard_pub = rospy.Publisher('pwm2_alias', Float64, queue_size = 10)
 servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size = 10)
 
 rc_state_pub = rospy.Publisher('rc/status', Bool, queue_size = 10)
@@ -161,7 +161,7 @@ def xbox_cb(joy_msg):
 		
 	if killed:
 		zero_pwms()
-	elif rc_active:
+	elif rc_active == False:
 		pwm1 = 0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm  #LEFT_STICK
 		#pwm1 = (0.0001*logit((joy_msg.axes[AXIS['LEFT_STICK_Y']])/2+0.5))+0.0015
 		pwm1 = Float64(clip(pwm1))
