@@ -6,6 +6,5 @@
 	<node pkg="server_interaction" type="image_info_sender.py" name="send_image_info_server" output="screen" />
 	<node pkg="server_interaction" type="pinger_buoy_color_sender.py" name="buoy_color_sender" output="screen" />	
 	<node pkg="server_interaction" type="server_image_getter.py" name="from_server_image_getter" output="screen" />
-	<node pkg="server_interaction" type="url_scanner.py" name="url_challenge_course_provider" output="screen" />
 
  </launch>
