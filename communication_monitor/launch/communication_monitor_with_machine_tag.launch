@@ -2,6 +2,7 @@
 
 <launch>
 	<!-- Machines -->
+	<!-- TODO figure out how to make machine work, currently having ssh issues, maybe need to set up keys? -->
 	<machine name="command" address="localhost"/>
 	<machine name="propagator" address="propagator" user="propagator"/>
 	
@@ -13,14 +14,10 @@
 
 	<group ns="comms">
 		<!-- Propagator node -->
-		<node pkg="communication_monitor" type="communication_monitor_node" name="propagator" respawn="true" output="screen" machine="propagator">
-			<param name="id" value="propagator"/>
-		</node>
+		<node pkg="communication_monitor" type="communication_monitor_node" name="propagator" respawn="true" output="screen" machine="propagator"/>
 
 		<!-- Command computer node -->
-		<node pkg="communication_monitor" type="communication_monitor_node" name="command" respawn="true" output="screen" machine="command">
-			<param name="id" value="command"/>
-		</node>
+		<node pkg="communication_monitor" type="communication_monitor_node" name="command" respawn="true" output="screen" machine="command"/>
 
 	</group>
 

@@ -7,6 +7,10 @@
   <!-- <include file="$(find lidar_control)/launch/lidar.launch"/> -->
 
   <node pkg="kill_handling" type="kill_master" name="kill_master" respawn="true"/>
+
+  <group ns="comms">
+    <node pkg="communication_monitor" type="communication_monitor_node" name="propagator_communication_monitor" respawn="true"/>
+  </group>
   
   <node pkg="stm32f3discovery_imu_driver" type="stm32f3discovery_imu_driver" name="stm32f3discovery_imu_driver" respawn="true">
     <param name="port" value="/dev/serial/by-id/usb-uf-mil_subbus_290307f5-if00"/>

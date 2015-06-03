@@ -1,0 +1,16 @@
+<!-- This file launches one communication monitor -->
+<!-- It should be launched on a computer that will remain in communicaiton with the propagator for the duration of the usage period -->
+
+<launch>
+	<!-- Args -->
+	<!-- This is the frequency in Hz to check for communications -->
+	<arg name="update_freq" default="1"/>
+	<!-- This is the maximum number of cycles before we throw an error -->
+	<arg name="max_num_of_drops" default="10"/>
+
+	<group ns="comms">
+		<!-- Shore computer -->
+		<node pkg="communication_monitor" type="communication_monitor_node" name="shore_communication_monitor" respawn="true" output="screen"/>
+	</group>
+
+</launch>
