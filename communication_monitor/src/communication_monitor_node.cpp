@@ -2,6 +2,7 @@
 #include <std_msgs/String.h>
 #include <map>
 #include <cmath>
+#include <kill_handling/broadcaster.h>
 /********************************************************************************
  * The purpose of this node is to notify the system of loss of communications	*
  * It is designed to have one node per machine on the network					*
@@ -17,7 +18,7 @@
  * See if we can use ros diagnostics to make this system more reusable
  * 		Do so
  * Add error checking to input parameters
- * Add the ability to tell the systems that a id is being shutdown on purpose i.e. two
+ * Add the ability to tell the systems that an id is being shutdown on purpose i.e. two
  * 		users are on the ros system each with there own CommMonitor and one leaves
  */
 
@@ -38,11 +39,13 @@ private:		//Vars
 	std_msgs::String name_msg_;
 	ros::Publisher pub_;
 	ros::Subscriber sub_;
+	kill_handling::KillBroadcaster kill_broadcaster_;
 
 private:		//Functions
 	//Subscriber callback, register new ids and reset number of drops
 	void UpdateMap(const std_msgs::String::ConstPtr& id)
 	{
+		// Don't listen to your own msgs
 		if(id->data == id_.c_str())
 		{
 			return;
@@ -81,16 +84,16 @@ private:		//Functions
 
 public:			//Functions
 	//Constructor
-	CommMonitor() :
-		update_rate_(1.0)
+	CommMonitor(std::string name) :
+		update_rate_(1.0),
+		kill_broadcaster_(name, "Lost communication link")
 	{
 		ros::NodeHandle private_nh("~");
 		ros::NodeHandle nh;
 		std::string topic;
 
 		//Get some private parameters
-		topic = private_nh.resolveName("id");
-		private_nh.getParam(topic.c_str(), id_);
+		id_ = name;
 		//Initialize the only message we'll ever use
 		name_msg_.data = id_.c_str();
 
@@ -105,9 +108,6 @@ public:			//Functions
 		//Initialize publisher and subscribers
 		pub_ = nh.advertise<std_msgs::String>("comm_check", 1);
 		sub_ = nh.subscribe<std_msgs::String>("comm_check", 1, &CommMonitor::UpdateMap, this);
-
-		//Initilize the only message we'll ever use
-		name_msg_.data = id_.c_str();
 	}
 
 	//Run (this is the main logic)
@@ -117,17 +117,30 @@ public:			//Functions
 		pub_.publish(name_msg_);
 
 		//Update
+		bool lost_communication = false;
 		for(comm_itter it = registered_communicators.begin(); it != registered_communicators.end(); ++it)
 		{
 			it->second++;
 			if(it->second > max_num_of_drops_)
 			{
+				lost_communication = true;
 				ROS_ERROR("Lost communications with %s, from %s for %f seconds",
 						it->first.c_str(),
 						id_.c_str(),
 						it->second * pow(static_cast<float>(update_freq_), -1.0));
 			}
 		}
+
+		// Kill if communication is lost
+		if (lost_communication)
+		{
+			kill_broadcaster_.send(true);
+		}
+		else
+		{
+			kill_broadcaster_.send(false);
+		}
+
 		update_rate_.sleep();
 		ros::spinOnce();
 	}
@@ -141,10 +154,10 @@ int main(int argc, char** argv)
 {
 
 	//Initialize ROS
-	ros::init(argc, argv, "you_forgot_to_name_me_node");
+	ros::init(argc, argv, "Unnamed_communication_monitor_", ros::init_options::AnonymousName);
 	ros::NodeHandle nh;
 
-	CommMonitor monitor;
+	CommMonitor monitor(ros::this_node::getName());
 
 	while(ros::ok())
 	{

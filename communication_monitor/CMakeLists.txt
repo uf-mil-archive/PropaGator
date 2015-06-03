@@ -7,6 +7,7 @@ project(communication_monitor)
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs
+  kill_handling
 )
 
 ## System dependencies are found with CMake's conventions
@@ -81,7 +82,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES communication_monitor
-#  CATKIN_DEPENDS roscpp std_msgs
+  CATKIN_DEPENDS roscpp std_msgs kill_handling
 #  DEPENDS system_lib
 )
 
@@ -106,6 +107,7 @@ add_executable(communication_monitor_node src/communication_monitor_node.cpp)
 target_link_libraries(communication_monitor_node
   ${catkin_LIBRARIES}
 )
+add_dependencies(communication_monitor_node kill_handling_generate_messages_cpp)
 
 #############
 ## Install ##
