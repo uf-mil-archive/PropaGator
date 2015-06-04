@@ -23,10 +23,15 @@ function h(){
 
 alias sim="rosrun boatsim sim"
 alias vis="rosrun boatsim path_visualizer.py"
+
 alias azi="roslaunch azi_drive run_azi.launch"
-alias controller="roslaunch boat_launch controller.launch"
 alias run="roslaunch boat_launch run.launch"
 alias nav="roslaunch boat_launch navigation.launch"
+
+function controller(){
+xboxdrv & 
+roslaunch boat_launch controller.launch
+}
 
 function core(){
 roscore &
