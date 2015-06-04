@@ -31,16 +31,16 @@ class Controller(object):
         self.enable = True
         self.odom_active = False
 
-        self.K_p = numpy.zeros((6,6))
-        self.K_d = numpy.zeros((6,6))
+        self.K_p = numpy.ones((6,6))
+        self.K_d = numpy.ones((6,6))
         
         self.desired_state_set = False
-        self.desired_state = numpy.zeros(6)
-        self.desired_state_dot = numpy.zeros(6)
-        self.state = numpy.zeros(6)
-        self.previous_error = numpy.zeros(6)
-        self.state_dot = numpy.zeros(6)
-        self.state_dot_body = numpy.zeros(6)
+        self.desired_state = numpy.ones(6)
+        self.desired_state_dot = numpy.ones(6)
+        self.state = numpy.ones(6)
+        self.previous_error = numpy.ones(6)
+        self.state_dot = numpy.ones(6)
+        self.state_dot_body = numpy.ones(6)
 
         self.lock = threading.Lock()
 
@@ -94,14 +94,14 @@ class Controller(object):
         self.lock.acquire()
         self.desired_state_set = True
         self.desired_state = numpy.concatenate([xyz_array(desired_posetwist.posetwist.pose.position), transformations.euler_from_quaternion(xyzw_array(desired_posetwist.posetwist.pose.orientation))])
-        self.desired_state_dot = _jacobian(self.desired_state).dot(numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)]))
+        self.desired_state_dot = self._jacobian(self.desired_state).dot(numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)]))
         self.lock.release()
 
     def odom_callback(self, current_posetwist):
         self.lock.acquire()
         self.odom_active = True
         self.state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
-        self.state_dot = _jacobian(self.state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
+        self.state_dot = self._jacobian(self.state).dot(numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)]))
         self.state_dot_body = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
         if (not self.desired_state_set):
             self.desired_state = self.state
@@ -113,7 +113,7 @@ class Controller(object):
         sphi, cphi = math.sin(x[3]), math.cos(x[3])
         stheta, ctheta, ttheta = math.sin(x[4]), math.cos(x[4]), math.tan(x[4])
         spsi, cpsi = math.sin(x[5]), math.cos(x[5])
-        
+        rate
         J = numpy.zeros((6, 6))
         J[0:3, 0:3] = [
             [ ctheta * cpsi, -cphi * spsi + sphi * stheta * cpsi,  sphi * spsi + cphi * stheta * cpsi],
@@ -198,6 +198,9 @@ class Controller(object):
                         
                         )
 
+    def timeout_callback(self, event):
+        self.odom_active = False
+
     def to_terminal(self):
         print "X: ", self.x_error
         print "Y: ", self.y_error
@@ -208,4 +211,5 @@ if __name__ == '__main__':
     controller = Controller()
     #rospy.on_shutdown(controller.shutdown)
     rospy.Timer(rospy.Duration(1.0/35.0), controller.main_loop)
+    rospy.Timer(rospy.Duration(1), controller.timeout_callback)
     rospy.spin()

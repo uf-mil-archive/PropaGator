@@ -29,7 +29,7 @@ class Controller(object):
         rospy.Subscriber("control_arbiter", Bool, self.control_callback)
         rospy.Subscriber("pwm1_alias", Float64, self.pwm1_cb)
         rospy.Subscriber("pwm2_alias", Float64, self.pwm2_cb)
-        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
@@ -114,57 +114,53 @@ class Controller(object):
         self.pwm_forces[1] = temp
 
 
-    def main_loop(self):
+    def main_loop(self, event):
         rate = rospy.Rate(self.rate)
         iteration_num = 0
-        while not rospy.is_shutdown():
-            if self.control_kill == True:
-                angles = np.array([0, 0])
-                self.set_servo_angles(angles)
-                print self.pwm_forces
-                self.set_forces(self.pwm_forces)
-            else:
-                iteration_num += 1
-                cur_time = time()
+        if self.control_kill == True:
+            angles = np.array([0, 0])
+            self.set_servo_angles(angles)
+            print self.pwm_forces
+            self.set_forces(self.pwm_forces)
+        else:
+            iteration_num += 1
+            cur_time = time()
 
-                rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
-                if (cur_time - self.last_msg_time) > self.control_timeout:
-                    rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
-                    self.stop()
+            rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
+            if (cur_time - self.last_msg_time) > self.control_timeout:
+                rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
+                self.stop()
 
-                thrust_solution = Azi_Drive.map_thruster(
-                    fx_des=self.des_fx,
-                    fy_des=self.des_fy,
-                    m_des=self.des_torque, 
-                    alpha_0= self.cur_angles,
-                    u_0=self.cur_forces,
-                )
+            thrust_solution = Azi_Drive.map_thruster(
+                fx_des=self.des_fx,
+                fy_des=self.des_fy,
+                m_des=self.des_torque, 
+                alpha_0= self.cur_angles,
+                u_0=self.cur_forces,
+            )
 
-                # toc = time() - cur_time
-                # print 'Took {} seconds'.format(toc)
+            # toc = time() - cur_time
+            # print 'Took {} seconds'.format(toc)
 
-                d_theta, d_force, success = thrust_solution
-                if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
-                    self.cur_angles = np.array([0.0, 0.0])
-                    continue
+            d_theta, d_force, success = thrust_solution
+            if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
+                self.cur_angles = np.array([0.0, 0.0])
+                return
 
-                self.cur_angles += d_theta
-                self.cur_forces += d_force
+            self.cur_angles += d_theta
+            self.cur_forces += d_force
 
-                if iteration_num > 4:
-                    iteration_num = 0
-                    self.set_servo_angles(self.cur_angles)
-                    if success:
-                        self.set_forces(self.cur_forces)
-                    else:
-                        rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
-                        self.set_forces((0.0, 0.0))
-                    rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+            if iteration_num > 4:
+                iteration_num = 0
+                self.set_servo_angles(self.cur_angles)
+                if success:
+                    self.set_forces(self.cur_forces)
+                else:
+                    rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                    self.set_forces((0.0, 0.0))
+
+                rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
                 
-                
-
-
-            rate.sleep()
 
     def control_callback(self, msg):
         
@@ -195,7 +191,7 @@ class Controller(object):
         The 0.9 is just a fudge factor for extra certainty
         '''
         force = msg.wrench.force
-        torque = msg.wrench.torque
+        torque = msg.wrench.torquetim
 
         # Compute the minimum and maximum wrenches the boat can produce
         #  By linearity, everything in between should be reasonably achievable
@@ -279,7 +275,9 @@ class Controller(object):
 
 
 if __name__ == '__main__':
+    rospy.init_node('azi_drive', log_level=rospy.DEBUG)
     controller = Controller()
     # Add a shutdown hook to stop motors and servos when we die
     rospy.on_shutdown(controller.shutdown)
-    controller.main_loop()
+    rospy.Timer(rospy.Duration(1.0/35.0), controller.main_loop)
+    rospy.spin()
