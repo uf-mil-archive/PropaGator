@@ -134,7 +134,110 @@ class image_converter:
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask2 = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
 
-    self.contours.publish(self.bridge.cv2_to_imgmsg(mask, "8UC1"))  
+    self.contours.publish(self.bridge.cv2_to_imgmsg(mask, "8UC1"))
+   
+    contours, hier = cv2.findContours(mask2,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        #print cnt
+        #epsilon = 0.001*cv2.arcLength(cnt,True)
+        #approx = cv2.approxPolyDP(cnt,epsilon,True)
+        #cv2.drawContours(cv_image, approx, -1, (255,255,0), 3)
+
+        #k = cv2.isContourConvex(cnt)
+        #if k == True:
+        #    cv2.drawContours(cv_image, contours, -1, (255,255,0), -1)
+
+
+        #cv2.circle(cv_image,(rightmost),3,255,-1)
+        #cv2.circle(cv_image,(topmost),3,255,-1)
+        #cv2.circle(cv_image,(bottommost),3,255,-1)
+
+
+        
+
+        if cnt != None: 
+            x,y,w,h = cv2.boundingRect(cnt) 
+            crop = mask2[y:y+h, x:x+w]
+            self.mask.publish(self.bridge.cv2_to_imgmsg(crop, "8UC1"))
+
+            contours, hier = cv2.findContours(crop,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+
+                area = cv2.contourArea(cnt)
+                hull = cv2.convexHull(cnt)
+                hull_area = cv2.contourArea(hull)
+
+                if hull_area > 0:
+                    solidity = float(area)/hull_area
+
+
+                    if solidity < .67 and solidity > .5:
+                        #print len(cnt)
+                        
+                        shift = np.array([x,y])
+                        for c in contours:
+                            c += shift
+                        
+                        cnt = contours[0]
+                        M = cv2.moments(cnt)
+
+                        if M['m00'] != 0:
+
+                            cx = int(M['m10']/M['m00'])
+
+                            x_pos = cx - 500
+                            self.cross_detected.publish(1)
+                            self.cross_x_pos.publish(x_pos)
+                           
+                            cv2.drawContours(cv_image, contours, -1, (0,255,0), -1)
+
+                leftmost = tuple(cnt[cnt[:,:,0].argmin()][0])
+                rightmost = tuple(cnt[cnt[:,:,0].argmax()][0])
+                topmost = tuple(cnt[cnt[:,:,1].argmin()][0])
+                bottommost = tuple(cnt[cnt[:,:,1].argmax()][0])
+
+                if abs(leftmost[1]-bottommost[1]) <= 7 and abs(rightmost[1]-bottommost[1]) <= 7:
+                    area_of_triangle = abs((leftmost[0]*(topmost[1]-rightmost[1]) + topmost[0]*(rightmost[1] - leftmost[1]) + rightmost[0]*(leftmost[0]-topmost[0]))/2)
+
+                    #print area_of_triangle
+                    if area_of_triangle >= 60:
+                        cv2.line(cv_image, (leftmost[0]+x, leftmost[1]+y), (topmost[0]+x, topmost[1]+y), (255,255,0), 2)
+                        cv2.line(cv_image, (rightmost[0]+x, rightmost[1]+y), (topmost[0]+x, topmost[1]+y), (255,255,0), 2)
+                        cv2.line(cv_image, (leftmost[0]+x, leftmost[1]+y), (rightmost[0]+x, rightmost[1]+y), (255,255,0), 2)
+
+                        x_pos = ((leftmost[0]+x)+(rightmost[0]+x))/2 - 500
+                        self.triangle_detected.publish(1)
+                        self.triangle_x_pos.publish(x_pos)
+
+                    else:
+                        self.triangle_detected.publish(0)
+
+                        #cv2.drawContours(cv_image, contours, -1, (255,255,0), -1)
+
+
+    #dst = cv2.goodFeaturesToTrack(mask,25,0.2,15)
+
+    #if dst != None:
+        #print len(dst)
+        #corners = np.int0(dst)
+
+        #for i in corners:
+            #x,y = i.ravel()
+            #cv2.circle(cv_image,(x,y),3,255,-1)
+
+
+
+
+    circles = cv2.HoughCircles(mask,cv.CV_HOUGH_GRADIENT,1, width, param1=p1,param2=p2,minRadius=nr,maxRadius=mr)            
+    if circles != None:
+        a, b, c = circles.shape
+        for i in range(b):
+            self.circle_detected.publish(1)
+            x_pos = circles[0][i][0] - 500
+            self.circle_x_pos.publish(x_pos)
+            cv2.circle(cv_image, (circles[0][i][0], circles[0][i][1]), circles[0][i][2], (0, 255, 0), 2)
+    else:
+        self.circle_detected.publish(0)
 
     try:
       self.cv_image.publish(self.bridge.cv2_to_imgmsg(cv_image, "rgb8"))

@@ -144,7 +144,7 @@ def GetGpsData(gpsPos):
 
 		longitude = longitude[0:10]	
 
-		sublinkMain = '/heartbeat/%s/UF' %course
+		#sublinkMain = '/heartbeat/%s/UF' %course
 
 		#url = mainUrl +  sublinkMain
 
