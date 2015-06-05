@@ -18,7 +18,7 @@ class object_handler:
 		self.object_sub = rospy.Subscriber('/lidar/buoy', buoy, self.objectCb)
 		# Parameters
 		self.same_object_distance = [ # to be to different objects they must be this far apart
-			rospy.get_param('~same_buoy_distance', 0.1)]
+			rospy.get_param('~same_buoy_distance', 0.5)]
 
 		self.object_lifetime = [# to be to different objects they must be this far apart
 			rospy.get_param('~buoy_lifetime', 5.0)]
@@ -37,14 +37,15 @@ class object_handler:
 	# Check the distance and type of object
 	def isSameObject(self, obj1, obj2):
 		# Check type
-		if obj1.type != obj2.type:
-			return False
+		#if obj1.type != obj2.type:
+		#	return False
 
 		# Get the distance
 		distance = self.getDistanceBetweenObjects(obj1, obj2)
 
 		# Check distance
-		if distance < self.same_object_distance[obj1.type]:
+		#if distance < self.same_object_distance[obj1.type]:
+		if distance < self.same_object_distance[0]:				# temporary
 			return True
 		else:
 			return False
@@ -52,21 +53,25 @@ class object_handler:
 	# make sure the object hasn't lived longer than it should
 	def isFreshObject(self, obj):
 		now = rospy.get_time()
-		if now - obj.header.stamp.to_sec() < self.object_lifetime[obj.type]:
+		#if now - obj.header.stamp.to_sec() < self.object_lifetime[obj.type]:
+		if now - obj.header.stamp.to_sec() < self.object_lifetime[0]:		# Temporary
 			return True
 		else:
 			return False
 
 	def objectCb(self, new_obj):
 		# Put the object in the object list
-		for i, old_obj in enumerate(self.objects[new_obj.type]):
+		#for i, old_obj in enumerate(self.objects[new_obj.type]):
+		for i, old_obj in enumerate(self.objects[0]):					# Temporary
 			if self.isSameObject(new_obj, old_obj):
 				# Replace the current object with its newer self
-				self.objects[new_obj.type][i] = new_obj
+				#self.objects[new_obj.type][i] = new_obj
+				self.objects[0][i] = new_obj							# Temporary
 				return
 
 		# If we are this far then its a new object yay
-		self.objects[new_obj.type].append(new_obj)
+		#self.objects[new_obj.type].append(new_obj)
+		self.objects[0].append(new_obj)									# Temporary
 
 	# Check that all objects are "Fresh" and publish them 
 	def updateCb(self, event):
