@@ -111,10 +111,10 @@ include_directories(
 # )
 
 ## Declare a cpp executable
-add_executable(point_shoot_node src/point_shoot.cpp)
-target_link_libraries(point_shoot_node  ${catkin_LIBRARIES})
-add_dependencies(point_shoot_node ${PROJECT_NAME}_generate_messages_cpp)
-add_dependencies(point_shoot_node uf_common_generate_messages_cpp)
+#add_executable(point_shoot_node src/point_shoot.cpp)
+#target_link_libraries(point_shoot_node  ${catkin_LIBRARIES})
+#add_dependencies(point_shoot_node ${PROJECT_NAME}_generate_messages_cpp)
+#add_dependencies(point_shoot_node uf_common_generate_messages_cpp)
 
 ## Add cmake target dependencies of the executable/library
 ## as an example, message headers may need to be generated before nodes

@@ -1,0 +1,6 @@
+<launch>
+	<node pkg="tank_steer" type="trajectory_generator.py" name="trajectory_generator"/>
+    <node pkg="motor_control" type="thruster_control.py" name="motor_newtons" /> 
+    <node pkg="tank_steer" type="wrench_generator.py" name="wrench_generator"/>
+    <node pkg="tank_steer" type="tank_steer_PD.py" name="tank_steer_PD"/>
+</launch>

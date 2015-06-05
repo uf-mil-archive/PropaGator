@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+#				Tank Steer Primative Driver
 # This node maps a wrench message to a thruster configuration with the thrusters locked in the reverse position
 #	Note any refrence to a cordinate system in this node unless otherwise specified is to the robot frame
 #		with x looking forward towards the bow, z is up and standard right hand conventions apply
@@ -26,11 +27,14 @@ from std_msgs.msg import Float64
 
 import rospy
 
+from kill_handling.broadcaster import KillBroadcaster
+from kill_handling.listener import KillListener
+
 class Node(object):
 
 # Constructor
 	def __init__(self):
-		rospy.init_node('tank_steer', anonymous=True)
+		rospy.init_node('tank_steer_pd', anonymous=False)
 
 	# Grab params
 		if rospy.has_param('~simulate'):
@@ -38,9 +42,26 @@ class Node(object):
 		else:
 			self.simulate = 0
 
+
+		self.max_thrust = rospy.get_param('/max_thrust', 100.0)
+		self.min_thrust = rospy.get_param('/min_thrust', -100.0)
+
+		self.L = rospy.get_param('distance_between_thrusters', 0.6096) #meters
+
 	# Set up publishers for servo position and prop speed
 		self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size = 10)
 		self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size = 10)
+
+	# Initilize kill
+		self.killed = False
+		self.kill_listener = KillListener(self.set_kill, self.clear_kill)
+		self.kill_broadcaster = KillBroadcaster(id=rospy.get_name(), description='Tank steer PD shutdown')
+		rospy.on_shutdown(self.on_shutdown)
+		# Clear in case it was previously killed
+		try:
+			self.kill_broadcaster.clear()
+		except rospy.service.ServiceException, e:
+			rospy.logwarn(str(e))
 
 	# Get subscriber to wrench topic (from trajectory generator)
 		self.wrench_sub = rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size = 10)
@@ -69,10 +90,6 @@ class Node(object):
 			),
 		]
 		"""
-		self.max_thrust = 100
-		self.min_thrust = -100
-
-		self.L = 0.6096 #meters
 
 		# See Wrench Callback for deffinition of wrench_tf
 		self.wrench_tf = np.matrix([[0.5, -1 / self.L], [0.5, 1 / self.L]])
@@ -98,6 +115,29 @@ class Node(object):
 
 	# Wait for wrench msgs
 		rospy.spin()
+
+	# On shutdown
+	def on_shutdown(self):
+		self.kill_broadcaster.send(True)
+
+	# Set kill
+	def set_kill(self):
+		self.killed = True
+		# Zero thrust
+		self.thrust_pub.publish(thrusterNewtons(
+                id = 3,
+                thrust = 0
+            ))
+		self.thrust_pub.publish(thrusterNewtons(
+                id = 2,
+                thrust = 0
+            ))
+		rospy.logwarn('Tank steer PD Killed because: %s' % self.kill_listener.get_kills())
+
+	# Clear kill
+	def clear_kill(self):
+		self.killed = False
+		rospy.loginfo('Tank steer PD Unkilled')
 
 #Callback for wrench input
 #		
@@ -184,15 +224,26 @@ class Node(object):
 				goal_velocity=			10,
 			))
 
-		# Output thrust
-		self.thrust_pub.publish(thrusterNewtons(
-                id = 3,
-                thrust = thrust[0,0]
-            ))
-		self.thrust_pub.publish(thrusterNewtons(
-                id = 2,
-                thrust = thrust[1,0]
-            ))
+		if not self.killed:
+			# Output thrust
+			self.thrust_pub.publish(thrusterNewtons(
+	                id = 3,
+	                thrust = thrust[0,0]
+	            ))
+			self.thrust_pub.publish(thrusterNewtons(
+	                id = 2,
+	                thrust = thrust[1,0]
+	            ))
+		else:
+			# Output thrust
+			self.thrust_pub.publish(thrusterNewtons(
+	                id = 3,
+	                thrust = 0
+	            ))
+			self.thrust_pub.publish(thrusterNewtons(
+	                id = 2,
+	                thrust = 0
+	            ))
 
 if __name__ == '__main__':
 	try:
