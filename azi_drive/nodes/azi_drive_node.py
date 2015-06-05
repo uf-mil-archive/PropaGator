@@ -11,6 +11,7 @@ from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelFullConfig
 from azi_drive.srv import *
 from time import time
+from std_msgs.msg import Bool, Float64
 
 '''
 Max thrust: 100
@@ -25,8 +26,10 @@ class Controller(object):
         self.rate = rate
         self.servo_max_rotation = 0.3
         self.controller_max_rotation = self.servo_max_rotation / self.rate
-
-        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        rospy.Subscriber("control_arbiter", Bool, self.control_callback)
+        rospy.Subscriber("pwm1_alias", Float64, self.pwm1_cb)
+        rospy.Subscriber("pwm2_alias", Float64, self.pwm2_cb)
+        
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
@@ -43,12 +46,18 @@ class Controller(object):
         self.left_id = 3
         self.right_id = 2
 
+        self.control_kill = False
+
         # Time between messages before azi_drive shuts off
         # self.control_timeout = 2  # secs
         self.control_timeout = np.inf
 
         self.default_angles = np.array([0.0, 0.0], dtype=np.float32)
         self.default_forces = np.array([0.0, 0.0], dtype=np.float32)
+
+        self.pwm_forces = np.array([0.0, 0.0], dtype=np.float64)
+        self.pwm_forces2 = np.array([0.0, 0.0], dtype=np.float64)
+
 
         # Left, Right
         self.cur_angles = self.default_angles[:]
@@ -67,10 +76,53 @@ class Controller(object):
         rospy.wait_for_service('azi_drive/stop')
         self.stop_boat_proxy = rospy.ServiceProxy('azi_drive/stop', AziStop)
 
-    def main_loop(self):
+        self.MAX_NEWTONS =  100.0         #Full forward Jacksons motors
+        self.MIN_NEWTONS =  -100.0        #Full reverse Jacksons
+        self.ABS_MAX_PW = .002
+        self.ABS_MIN_PW = .001
+        self.ZERO_NEWTONS = 0
+        self.REV_CONV = (self.ZERO_NEWTONS - self.MIN_NEWTONS) / (0 - self.ABS_MIN_PW)
+        self.FWD_CONV = (self.MAX_NEWTONS - self.ZERO_NEWTONS) / self.ABS_MAX_PW
+
+    def convertNewtonsToPW(self, newtons):
+        out = newtons
+
+        if out < .0015:
+            #out = 0.0055*out**3 + 0.224*out**2 + 3.9836 * out + 86.679
+            out = ((self.REV_CONV * out + self.ZERO_NEWTONS)+150)*-1.4
+            #print("Reverse: %i" % out)
+        elif out > .0015:
+            #out = 0.0016*out**3 - 0.1027*out**2 + 2.812*out + 96.116
+            out = ((self.FWD_CONV * out + self.ZERO_NEWTONS)-75)*((1/out)/150)
+            #print("Forward: %i" % out)
+        else:
+            #out = ZERO_DEG;
+            out = self.ZERO_NEWTONS
+            #print("Zero: %i" % ZERO_PW)
+
+        #Bounds should be taken care of in the motor callback
+        #Just in case we double check the bounds after conversion
+        #print "Bounded out: %i" % out
+        return out
+
+    def pwm1_cb(self, msg):
+        temp = self.convertNewtonsToPW(msg.data)
+        self.pwm_forces[0] = temp
+
+    def pwm2_cb(self, msg):
+        temp = self.convertNewtonsToPW(msg.data)
+        self.pwm_forces[1] = temp
+
+
+    def main_loop(self, event):
         rate = rospy.Rate(self.rate)
         iteration_num = 0
-        while not rospy.is_shutdown():
+        if self.control_kill == True:
+            angles = np.array([0, 0])
+            self.set_servo_angles(angles)
+            print self.pwm_forces
+            self.set_forces(self.pwm_forces)
+        else:
             iteration_num += 1
             cur_time = time()
 
@@ -93,7 +145,7 @@ class Controller(object):
             d_theta, d_force, success = thrust_solution
             if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
                 self.cur_angles = np.array([0.0, 0.0])
-                continue
+                return
 
             self.cur_angles += d_theta
             self.cur_forces += d_force
@@ -106,9 +158,16 @@ class Controller(object):
                 else:
                     rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
                     self.set_forces((0.0, 0.0))
-                rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
-            rate.sleep()
+                rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+                
+
+    def control_callback(self, msg):
+        
+        if msg.data == True:
+            self.control_kill = True
+        if msg.data == False:
+            self.control_kill = False
 
     def shutdown(self):
         rospy.logwarn("AZI_DRIVE: Shutting down Azi Drive")
@@ -132,7 +191,7 @@ class Controller(object):
         The 0.9 is just a fudge factor for extra certainty
         '''
         force = msg.wrench.force
-        torque = msg.wrench.torque
+        torque = msg.wrench.torquetim
 
         # Compute the minimum and maximum wrenches the boat can produce
         #  By linearity, everything in between should be reasonably achievable
@@ -216,7 +275,9 @@ class Controller(object):
 
 
 if __name__ == '__main__':
+    rospy.init_node('azi_drive', log_level=rospy.DEBUG)
     controller = Controller()
     # Add a shutdown hook to stop motors and servos when we die
     rospy.on_shutdown(controller.shutdown)
-    controller.main_loop()
+    rospy.Timer(rospy.Duration(1.0/35.0), controller.main_loop)
+    rospy.spin()

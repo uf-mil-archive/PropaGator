@@ -33,7 +33,7 @@ from geometry_msgs.msg import PointStamped, Wrench, WrenchStamped, Vector3
 from dynamixel_servo.msg import DynamixelFullConfig 
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
 from sensor_msgs.msg import LaserScan
-
+from sensor_msgs.msg import Image
 
 
 class _PoseProxy(object):
@@ -80,9 +80,9 @@ class _Boat(object):
 
         self._lidar_sub = self._node_handle.subscribe('lidar/scan', LaserScan)
         
-        self._buoy_sub = self._node_handle.subscribe('lidar/buoy', buoy)
+        #self._buoy_sub = self._node_handle.subscribe('lidar/buoy', buoy)
 
-        self._current_image_sub = self._node_handle.subscribe('/camera/image_raw')
+        #self._current_image_sub = self._node_handle.subscribe('/camera/image_raw', Image)
 
 
         if(need_trajectory == True):
