@@ -12,7 +12,7 @@ from nav_msgs.msg import Odometry
 import time
 import math
 
-## This node just send the heartbeat to the server.
+## This node just sends the heartbeat to the server.
 
 def StoreMainServerUrl(serverUrl):
 
@@ -39,7 +39,7 @@ def GetCurrentTask(current_challenge):
 
 	currentChallenge = current_challenge.data
 
-
+#convert ecef to latitude and longitude
 def ecef2lla(ecef):
 
 	a = 6378137 # earths's radius in meters
@@ -148,7 +148,7 @@ def GetGpsData(gpsPos):
 
 		#url = mainUrl +  sublinkMain
 
-		#d ump server to test that data is being posted
+		#dump server to test that data is being posted
 		url = 'https://posttestserver.com/post.php'
 
 		#payload to send to server

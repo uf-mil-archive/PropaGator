@@ -67,7 +67,7 @@ def StoreCourseInfo(courseInfo):
 	
 	#### UNCOMMENT headers #####
 
-	#headers = 'Content-Type: text/html'
+	#headers = {'content-type':'text/html'}
 
 	#creating request object
 
