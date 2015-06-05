@@ -76,8 +76,7 @@ def SendImageInfo(msg):
 	# wait two seconds... just for the heck of it
 	time.sleep(2)
 
-	imageID = "a4aa8224-07f2-4b57-a03a-c8887c2505c7"
-	# imageID = request1.json()['id']
+	imageID = request1.json()['id']
 
 	#########################################################################################################
 
