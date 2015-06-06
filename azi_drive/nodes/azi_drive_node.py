@@ -150,17 +150,17 @@ class Controller(object):
             self.cur_angles += d_theta
             self.cur_forces += d_force
 
-            if iteration_num > 4:
-                iteration_num = 0
-                self.set_servo_angles(self.cur_angles)
-                if success:
-                    self.set_forces(self.cur_forces)
-                else:
-                    rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
-                    self.set_forces((0.0, 0.0))
+           # if iteration_num > 4:
+           #     iteration_num = 0
+            self.set_servo_angles(self.cur_angles)
+            if success:
+                self.set_forces(self.cur_forces)
+            else:
+                rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                self.set_forces((0.0, 0.0))
 
-                rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
-                
+            rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+            
 
     def control_callback(self, msg):
         
