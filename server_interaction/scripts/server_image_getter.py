@@ -19,6 +19,7 @@ from server_interaction.msg import images_info
 # custom iterator
 
 def my_range(start, end, step):
+
     while start < end:
         yield start
         start += step
@@ -96,13 +97,9 @@ def StoreCourseInfo(courseInfo):
 			#print (r.text)
 
 			string = r.text
-
 			links = string.split('"')
-
 			links2 = []
-
 			imageNames = []
-
 			counter = -1
 
 			for index in my_range(0, len(links), 1):
@@ -116,17 +113,13 @@ def StoreCourseInfo(courseInfo):
 				imageNames.append(sublink.split("/")[3])
 
 			global imgCount
-
 			global path
-
 			imgCount = 0		
 			
 			for sublink in links2:
 				
 				requestLink = mainUrl + sublink
-
 				counter = counter + 1
-
 				imageName = imageNames[counter]
 
 					#after having parsed the html that the server returned
@@ -134,9 +127,7 @@ def StoreCourseInfo(courseInfo):
 					#and saves the images to ~/output/ServerImages/
 					
 				time.sleep(3)
-
 				r = requests.get(requestLink, stream = True)
-
 				path = os.path.join(os.path.expanduser('~'), 'output', 'ServerImages/')
 
 				if os.path.isdir(path):
@@ -160,6 +151,7 @@ def StoreCourseInfo(courseInfo):
 		else:
 			
 			raise rospy.ServiceException('Bad Request')
+
 	except rospy.ServiceException:
 
 		main()		
@@ -170,7 +162,7 @@ def StoreCourseInfo(courseInfo):
 
 	status_pub = rospy.Publisher('server_images_info', images_info, queue_size=10)
 	
-	rate = rospy.Rate(10)	
+	rate = rospy.Rate(1)	
 			
 	while not rospy.is_shutdown():
 
@@ -192,11 +184,8 @@ def main():
 	# and we have to process and identify one of them
 
 	rospy.Subscriber('main_server_url', String, StoreServerUrl) 
-
 	rospy.Subscriber('course_code', String, StoreCourseInfo)
-
 	time.sleep(5)
-	
 	rospy.spin()
 			
 

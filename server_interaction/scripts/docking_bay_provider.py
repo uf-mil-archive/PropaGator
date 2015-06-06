@@ -21,15 +21,12 @@ from server_interaction.msg import docking_bay_sequence
 def StoreCourseCode(courseCode):
 
 	global course
-
 	course = courseCode.data
-
 	postDockingSequence()
 
 def StoreServerUrl(serverUrl):
 
 	global mainUrl
-
 	mainUrl = serverUrl.data
 
 def postDockingSequence():	
@@ -37,31 +34,20 @@ def postDockingSequence():
 	try:
 
 		sublinkMain = '/automatedDocking/%s/UF/docking.json' %course
-
 		url = mainUrl +  sublinkMain
-
 		r = requests.get(url) #creating request object
-		
 		#evaluating response status code
-
 		try:
-		
 			if(r.status_code == 200):
 
-				#deicoding json received from server
-
+				#decoding json received from server
+				
 				dataList = r.json()['dockingBaySequence']
-				
 				firstDockInfo = dataList[0]
-				
 				secondDockInfo = dataList[1]
-				
-				firstDockSymbol = firstDockInfo['symbol']
-				
-				firstDockColor = firstDockInfo['color']
-				
-				secondDockSymbol = secondDockInfo['symbol']
-				
+				firstDockSymbol = firstDockInfo['symbol']				
+				firstDockColor = firstDockInfo['color']				
+				secondDockSymbol = secondDockInfo['symbol']							
 				secondDockColor =  secondDockInfo['color']
 
 				####### message with data to be published #######
@@ -74,7 +60,7 @@ def postDockingSequence():
 
 				docking_sequence_pub = rospy.Publisher('docking_bay_sequence', docking_bay_sequence, queue_size=10)
 				
-				rate = rospy.Rate(10)
+				rate = rospy.Rate(1)
 				
 				while not rospy.is_shutdown():
 					

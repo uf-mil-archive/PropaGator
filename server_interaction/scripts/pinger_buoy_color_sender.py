@@ -17,7 +17,6 @@ def StoreServerUrl(serverUrl):
 	#store the main url for the server
 
 	global url
-
 	url = serverUrl.data
 
 def StoreCourseCode(courseCode):
@@ -25,7 +24,6 @@ def StoreCourseCode(courseCode):
 	#store course that we are currently attempting e.g. "courseA"
 
 	global course
-
 	course = courseCode.data	
 
 def SendBuoyColor(buoyColor):
@@ -33,20 +31,15 @@ def SendBuoyColor(buoyColor):
 	#color of the pinger buoy e.g. "blue"
 
 	color = buoyColor.buoy_color
-
 	reportColorLink = '/pinger/%s/UF' %course
-
 	fullLink = url + reportColorLink
 
 	#post test server
 	#fullLink = 'https://posttestserver.com/post.php'
 
 	jsonString = {'course':'temp','team':'UF','buoyColor':'temp'}
-
 	jsonString['course'] = course
-
 	jsonString['buoyColor'] = color
-
 	headers = {'content-type': 'application/json'}
 	
 	try:
@@ -89,15 +82,12 @@ def send_buoy_color_server():
 	#subscribe to topics
 
 	rospy.Subscriber('main_server_url', String, StoreServerUrl)
-
 	rospy.Subscriber('course_code', String, StoreCourseCode)
 
 	#initialize service
 
 	s = rospy.Service('send_buoy_color', buoy_color, SendBuoyColor)
-
 	print('ready to receive buoy color')
-
 	rospy.spin()
 
 if __name__ == '__main__':
