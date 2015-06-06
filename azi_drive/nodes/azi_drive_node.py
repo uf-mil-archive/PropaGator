@@ -205,7 +205,7 @@ class Controller(object):
         fx_range = (min_fx, max_fx)
         fy_range = (min_fy, max_fy)
         tz_range = (min_torque, max_torque)
-        print tz_range
+        #print tz_range
 
         self.des_fx = np.clip(force.x, min(fx_range), max(fx_range)) * 0.9 
         # I put a negative sign here to work with Forrest's pd_controller
@@ -275,7 +275,7 @@ class Controller(object):
 
 
 if __name__ == '__main__':
-    rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+    rospy.init_node('azi_drive')#, log_level=rospy.DEBUG)
     controller = Controller()
     # Add a shutdown hook to stop motors and servos when we die
     rospy.on_shutdown(controller.shutdown)

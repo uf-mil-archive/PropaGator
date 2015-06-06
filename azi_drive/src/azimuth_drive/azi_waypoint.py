@@ -18,6 +18,7 @@ from uf_common.orientation_helpers import rotvec_to_quat
 import numpy as np
 import tools
 from tools import line
+import math
 
 
 class trajectory_generator:
@@ -140,8 +141,18 @@ class trajectory_generator:
         self.angle_to_goal_orientation = abs((self.desired_orientation % (2 * np.pi)) - (self.current_orientation % (2 * np.pi)))
         # overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
         #       Side of said line
+        #print 'Distance to goal: ', self.distance_to_goal
+        #print 'line.hat: ', self.line.hat
+        #print 'Vector to goal: ', vector_to_goal
+        
         overshoot = np.dot(vector_to_goal / self.distance_to_goal, self.line.hat)
+
         self.overshoot = overshoot / abs(overshoot) 
+
+        if math.isnan(self.overshoot):
+            self.overshoot = 1
+
+        #print 'Overshoot: ', self.overshoot
 
     # Get the speed setting of the trajectory
     #               Value                   :   Condition
@@ -180,7 +191,7 @@ class trajectory_generator:
                     position = tools.vector3_from_xyz_array(c_pos),
                     orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
                 twist = Twist(
-                    linear = Vector3(tracking_step * self.tracking_to_speed_conv, 0, 0),        # Wrench Generator handles the sine of the velocity
+                    linear = Vector3(tracking_step * self.tracking_to_speed_conv * self.overshoot, 0, 0),        # Wrench Generator handles the sine of the velocity
                     angular = Vector3())
                 )
             )
@@ -205,9 +216,9 @@ class trajectory_generator:
         # Check if goal is reached
         if self.moveto_as.is_active():
             if self.distance_to_goal < self.linear_tolerance:
-                if self.angle_to_goal_orientation[2] < self.angular_tolerance:
-                    rospy.loginfo('succeded')
-                    self.moveto_as.set_succeeded(None)
+                #if self.angle_to_goal_orientation[2] < self.angular_tolerance:
+                rospy.loginfo('succeded')
+                self.moveto_as.set_succeeded(None)
 
 
 if __name__ == '__main__':
