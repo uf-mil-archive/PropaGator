@@ -113,7 +113,6 @@ class Controller(object):
         sphi, cphi = math.sin(x[3]), math.cos(x[3])
         stheta, ctheta, ttheta = math.sin(x[4]), math.cos(x[4]), math.tan(x[4])
         spsi, cpsi = math.sin(x[5]), math.cos(x[5])
-        rate
         J = numpy.zeros((6, 6))
         J[0:3, 0:3] = [
             [ ctheta * cpsi, -cphi * spsi + sphi * stheta * cpsi,  sphi * spsi + cphi * stheta * cpsi],

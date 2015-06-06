@@ -33,7 +33,7 @@ class Controller(object):
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
-        Azi_Drive.set_delta_alpha_max(self.controle[0]ler_max_rotation)
+        Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
         
         # These should not be queued! Old commands are garbage.
         # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
@@ -191,7 +191,7 @@ class Controller(object):
         The 0.9 is just a fudge factor for extra certainty
         '''
         force = msg.wrench.force
-        torque = msg.wrench.torquetim
+        torque = msg.wrench.torque
 
         # Compute the minimum and maximum wrenches the boat can produce
         #  By linearity, everything in between should be reasonably achievable
