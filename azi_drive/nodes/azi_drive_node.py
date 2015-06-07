@@ -33,7 +33,7 @@ class Controller(object):
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
-        Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
+        Azi_Drive.set_delta_alpha_max(self.controle[0]ler_max_rotation)
         
         # These should not be queued! Old commands are garbage.
         # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
@@ -279,5 +279,5 @@ if __name__ == '__main__':
     controller = Controller()
     # Add a shutdown hook to stop motors and servos when we die
     rospy.on_shutdown(controller.shutdown)
-    rospy.Timer(rospy.Duration(1.0/35.0), controller.main_loop)
+    rospy.Timer(rospy.Duration(1.0/50.0), controller.main_loop)
     rospy.spin()

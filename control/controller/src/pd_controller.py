@@ -152,18 +152,20 @@ class Controller(object):
         def smallest_coterminal_angle(x):
             return (x + math.pi) % (2*math.pi) - math.pi
 
-        self.x_error = abs(abs(self.desired_state[1]) - abs(self.state[1]))
-        self.y_error = abs(abs(self.desired_state[0]) - abs(self.state[0]))
-        self.z_error = abs((self.desired_state[5] % 2*math.pi) - ((self.state[5] + 3.14) % 2*math.pi))
-
-        self.to_terminal()
+        
 
         # sub pd-controller sans rise
         e = numpy.concatenate([self.desired_state[0:3] - self.state[0:3], map(smallest_coterminal_angle, self.desired_state[3:6] - self.state[3:6])]) # e_1 in paper
+        
+        self.x_error = e[0]
+        self.y_error = e[1]
+        self.z_error = e[5]
+
+        self.to_terminal()
+
         vbd = self._jacobian_inv(self.state).dot(self.K_p.dot(e) + self.desired_state_dot)
         e2 = vbd - self.state_dot_body
         output = self.K_d.dot(e2)
-
         
         self.lock.release()
         if (not(self.odom_active)):
@@ -210,6 +212,6 @@ if __name__ == '__main__':
     rospy.init_node('controller')
     controller = Controller()
     #rospy.on_shutdown(controller.shutdown)
-    rospy.Timer(rospy.Duration(1.0/35.0), controller.main_loop)
+    rospy.Timer(rospy.Duration(1.0/50.0), controller.main_loop)
     rospy.Timer(rospy.Duration(1), controller.timeout_callback)
     rospy.spin()
