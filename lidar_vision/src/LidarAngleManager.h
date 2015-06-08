@@ -77,7 +77,7 @@ public:
  *  Constructor
  */
 LidarAngleManager::LidarAngleManager():
-		current_angle_(3.14159), max_angle_(3.14159), min_angle_(2.625),
+		current_angle_(3.14159), max_angle_(3.14159), min_angle_(2.7),
 		sin_sample_count_(0), in_frequency_(100), out_frequency_(1)
 {
 	// offset = (max + min) / 2
@@ -124,7 +124,7 @@ void LidarAngleManager::Setup()
 	//Holds the maximum angle (rad) to set the lidar to
 	//n.param<float>("lidar/max_angle", max_angle_, 3.14159);
 	//Holds the minimum angle (rad) to set the lidar to
-	//n.param<float>("lidar/min_angle", min_angle_, 2.625);
+	//n.param<float>("lidar/min_angle", min_angle_, 2.7);
 	//Holds the angular speed (rad/s)
 	//n.param<float>
 
