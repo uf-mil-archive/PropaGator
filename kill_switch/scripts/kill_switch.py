@@ -41,6 +41,8 @@ if __name__ == '__main__':
 
 		status = str(status)
 
+		time.sleep(5)
+
 		if 'O' in status:
 
 			msg = "OK"
