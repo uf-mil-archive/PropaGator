@@ -148,7 +148,7 @@ def GetGpsData(gpsPos):
 def main():
 	
 	rospy.init_node('heartbeat')
-	rospy.Subscriber('main_server_url', String, StoreMainServerUrl
+	rospy.Subscriber('main_server_url', String, StoreMainServerUrl)
 	rospy.Subscriber('absodom', Odometry, GetGpsData)
 	rospy.Subscriber('course_code', String, StoreCourseInfo)
 	rospy.Subscriber('current_challenge', String, GetCurrentTask)	
