@@ -155,18 +155,21 @@ class Controller(object):
 
         # sub pd-controller sans rise
         e = numpy.concatenate([self.desired_state[0:3] - self.state[0:3], map(smallest_coterminal_angle, self.desired_state[3:6] - self.state[3:6])]) # e_1 in paper
-        
+        e_dot = self.desired_state_dot - self.state_dot
+        output = self.K_p.dot(e) + self.K_d.dot(e_dot)
+        self.lock.release()
+
         self.x_error = e[0]
         self.y_error = e[1]
         self.z_error = e[5]
 
         self.to_terminal()
 
-        vbd = self._jacobian_inv(self.state).dot(self.K_p.dot(e) + self.desired_state_dot)
-        e2 = vbd - self.state_dot_body
-        output = self.K_d.dot(e2)
+        #vbd = self._jacobian_inv(self.state).dot(self.K_p.dot(e) + self.desired_state_dot)
+        #e2 = vbd - self.state_dot_body
+        #output = self.K_d.dot(e2)
         
-        self.lock.release()
+        
         if (not(self.odom_active)):
             output = [0,0,0,0,0,0]
         if (self.enable & self.killed==False):
