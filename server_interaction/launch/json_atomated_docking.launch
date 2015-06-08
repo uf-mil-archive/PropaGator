@@ -1,6 +1,0 @@
-<launch>
-   	
-	<node pkg="server_interaction" type="docking_bay_provider.py" name="dokcing_bay_provider" output="screen" />
-	<node pkg="server_interaction" type="heartbeat_sender.py" name="heartbeat" output="screen" />
-
- </launch>
