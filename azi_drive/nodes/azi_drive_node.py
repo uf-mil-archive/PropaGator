@@ -26,7 +26,8 @@ class Controller(object):
         self.rate = rate
         self.servo_max_rotation = 0.3
         self.controller_max_rotation = self.servo_max_rotation / self.rate
-        rospy.Subscriber("control_arbiter", Bool, self.control_callback)
+        if rospy.get_param('simulate', False) is False:
+            rospy.Subscriber("control_arbiter", Bool, self.control_callback)
         rospy.Subscriber("pwm1_alias", Float64, self.pwm1_cb)
         rospy.Subscriber("pwm2_alias", Float64, self.pwm2_cb)
         

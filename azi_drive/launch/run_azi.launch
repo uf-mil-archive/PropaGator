@@ -1,4 +1,5 @@
 <launch>
+    <arg name="simulate" default="false"/> 
 
 <node name="azi_drive_control_manager" pkg="azi_drive" type="control_manager.py" 
          output="screen" /> 
@@ -6,7 +7,8 @@
          output="screen" /> 
 <node name="azi_waypoint" pkg="azi_drive" type="azi_waypoint.py" 
          output="screen" /> 
-<node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py" 
-         output="screen" /> 
+<node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py" output="screen">
+	<param name="simulate" value="$(arg simulate)"/>
+	</node> 
 
 </launch>

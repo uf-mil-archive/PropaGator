@@ -31,6 +31,7 @@ alias nav="roslaunch boat_launch navigation.launch"
 function controller(){
 #sudo xboxdrv --detach-kernel-driver & 
 roslaunch boat_launch controller.launch port:=$1
+
 }
 
 function core(){
