@@ -11,7 +11,7 @@ from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 import numpy,math,tf,threading
 from tf import transformations
-from uf_common.orientation_helpers import xyz_array, xyzw_array
+from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.msg import PoseTwistStamped
 from controller.srv import Enable, EnableResponse
 from kill_handling.listener import KillListener
@@ -43,6 +43,9 @@ class Controller(object):
         self.state_dot_body = numpy.ones(6)
 
         self.lock = threading.Lock()
+
+        # Get tf listener
+        self.tf_listener = tf.TransformListener()
 
         rospy.Subscriber("pd_d_gain", Point, self.d_gain_callback)
         rospy.Subscriber("pd_p_gain", Point, self.p_gain_callback)
@@ -144,7 +147,6 @@ class Controller(object):
 
     def main_loop(self, event):
         
-        
         self.lock.acquire()
         #print 'desired state', desired_state
         #print 'current_state', state
@@ -154,53 +156,69 @@ class Controller(object):
         
 
         # sub pd-controller sans rise
-        e = numpy.concatenate([self.desired_state[0:3] - self.state[0:3], map(smallest_coterminal_angle, self.desired_state[3:6] - self.state[3:6])]) # e_1 in paper
-        e_dot = self.desired_state_dot - self.state_dot
-        output = self.K_p.dot(e) + self.K_d.dot(e_dot)
-        self.lock.release()
+        rot = None
+        try:
+            (_, rot) = self.tf_listener.lookupTransform('/base_link', '/enu', rospy.Time(0))
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
+            rospy.logwarn('Tf exception: ' + str(e))
 
-        self.x_error = e[0]
-        self.y_error = e[1]
-        self.z_error = e[5]
+        if rot is not None:
 
-        self.to_terminal()
+            to_desired_state = self.desired_state[0:3] - self.state[0:3]
+            
+            e = numpy.concatenate([qv_mult(rot, to_desired_state), map(smallest_coterminal_angle, self.desired_state[3:6] - self.state[3:6])]) # e_1 in paper
+            #print 'Error: ', e
+            #print 'Kp*Error: ', self.K_p.dot(e)
+            e_dot = self.desired_state_dot - self.state_dot
+            output = self.K_p.dot(e) + self.K_d.dot(e_dot)
+            #print 'Output: ', output
+            self.lock.release()
 
-        #vbd = self._jacobian_inv(self.state).dot(self.K_p.dot(e) + self.desired_state_dot)
-        #e2 = vbd - self.state_dot_body
-        #output = self.K_d.dot(e2)
-        
-        
-        if (not(self.odom_active)):
-            output = [0,0,0,0,0,0]
-        if (self.enable & self.killed==False):
-            self.controller_wrench.publish(WrenchStamped(
-                header = Header(
-                    stamp=rospy.Time.now(),
-                    frame_id="/base_link",
-                    ),
-                wrench=Wrench(
-                    force = Vector3(x= output[0],y= output[1],z= 0),
-                    torque = Vector3(x=0,y= 0,z= output[5]),
-                    ))
-                    
-                    )
+            self.x_error = e[0]
+            self.y_error = e[1]
+            self.z_error = e[5]
 
-            if((self.x_error < 1) & (self.y_error < 1) & (self.z_error < 1)):
-                    self.waypoint_progress.publish(True)
+            self.to_terminal()
 
-        if (self.killed == True):
-            rospy.logwarn('PD_Controller KILLED: %s' % self.kill_listener.get_kills())
-            self.controller_wrench.publish(WrenchStamped(
+            #vbd = self._jacobian_inv(self.state).dot(self.K_p.dot(e) + self.desired_state_dot)
+            #e2 = vbd - self.state_dot_body
+            #output = self.K_d.dot(e2)
+            
+            
+            if (not(self.odom_active)):
+                output = [0,0,0,0,0,0]
+            if (self.enable & self.killed==False):
+                self.controller_wrench.publish(WrenchStamped(
                     header = Header(
                         stamp=rospy.Time.now(),
                         frame_id="/base_link",
                         ),
                     wrench=Wrench(
-                        force = Vector3(x= 0,y= 0,z= 0),
-                        torque = Vector3(x=0,y= 0,z= 0),
+                        force = Vector3(x= output[0],y= output[1],z= 0),
+                        torque = Vector3(x=0,y= 0,z= output[5]),
                         ))
                         
                         )
+
+                if((self.x_error < 1) & (self.y_error < 1) & (self.z_error < 1)):
+                        self.waypoint_progress.publish(True)
+
+            if (self.killed == True):
+                rospy.logwarn('PD_Controller KILLED: %s' % self.kill_listener.get_kills())
+                self.controller_wrench.publish(WrenchStamped(
+                        header = Header(
+                            stamp=rospy.Time.now(),
+                            frame_id="/base_link",
+                            ),
+                        wrench=Wrench(
+                            force = Vector3(x= 0,y= 0,z= 0),
+                            torque = Vector3(x=0,y= 0,z= 0),
+                            ))
+                            
+                            )
+
+        else:
+            self.lock.release()
 
     def timeout_callback(self, event):
         self.odom_active = False
@@ -209,6 +227,23 @@ class Controller(object):
         print "X: ", self.x_error
         print "Y: ", self.y_error
         print "Z: ", self.z_error
+
+def q_mult(q1, q2):
+    x1, y1, z1, w1 = q1
+    x2, y2, z2, w2 = q2
+    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+    y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
+    z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
+    return numpy.array([x, y, z, w])
+
+def q_conjugate(q):
+    x, y, z, w = q
+    return numpy.array([-x, -y, -z, w])
+
+def qv_mult(q1, v1):
+    q2 = numpy.insert(v1, 3, 0.0)
+    return q_mult(q_mult(q1, q2), q_conjugate(q1))[0:3]
 
 if __name__ == '__main__':
     rospy.init_node('controller')

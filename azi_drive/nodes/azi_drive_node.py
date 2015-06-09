@@ -116,14 +116,14 @@ class Controller(object):
 
     def main_loop(self, event):
         rate = rospy.Rate(self.rate)
-        iteration_num = 0
+        #iteration_num = 0
         if self.control_kill == True:
             angles = np.array([0, 0])
             self.set_servo_angles(angles)
             print self.pwm_forces
             self.set_forces(self.pwm_forces)
         else:
-            iteration_num += 1
+            #iteration_num += 1
             cur_time = time()
 
             rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))

@@ -134,8 +134,6 @@ def normal_vector_from_rotvec(rot):
 def normal_vector_from_posetwist(pt):
     return normal_vector_from_rotvec(orientation_from_posetwist(pt))
 
-
-
 if __name__ == '__main__':
     tests = [-np.pi/2, 0.0, np.pi/2]
     for test in tests:

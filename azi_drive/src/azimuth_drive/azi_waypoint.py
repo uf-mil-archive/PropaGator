@@ -11,7 +11,7 @@ from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Header
-from geometry_msgs.msg import Pose, Twist
+from geometry_msgs.msg import Pose, Twist, PoseStamped
 from geometry_msgs.msg import Quaternion, Vector3
 from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.orientation_helpers import rotvec_to_quat
@@ -20,6 +20,8 @@ import tools
 from tools import line
 import math
 
+def smallest_coterminal_angle(x):
+    return x % (2*math.pi)
 
 class trajectory_generator:
     def __init__(self, name):
@@ -35,14 +37,15 @@ class trajectory_generator:
         self.slow_down_radius = rospy.get_param('slow_down_radius', 5)
 
         # Speed parameters
-        self.max_tracking_distance = rospy.get_param('max_tracking_distance', 5)
-        self.min_tracking_distance = rospy.get_param('min_tracking_distance', 1)
-        self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 1)
+        self.max_tracking_distance = rospy.get_param('max_tracking_distance', 1.0)
+        self.min_tracking_distance = rospy.get_param('min_tracking_distance', .1)
+        self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', .10)
         self.tracking_slope = (self.max_tracking_distance - self.min_tracking_distance) / (self.slow_down_radius - self.orientation_radius)
         self.tracking_intercept = self.tracking_slope * self.orientation_radius + self.min_tracking_distance
 
         # Publishers
         self.traj_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size = 10)
+        self.traj_debug_pub = rospy.Publisher('/trajectory_debug', PoseStamped, queue_size = 10)
 
         # Set desired twist to 0
         #self.desired_twist.linear.x = self.desired_twist.linear.y = self.desired_twist.linear.z = 0
@@ -171,25 +174,41 @@ class trajectory_generator:
     def get_carrot(self):
         # Project current position onto trajectory line
         Bproj = self.line.proj_pt(self.current_position)
+        parallel_distance = np.linalg.norm(self.desired_position - Bproj)
         #rospy.loginfo('Projection: ' + str(Bproj))
 
         # Default carrot to desired position
         tracking_step = self.get_tracking_distance()
         c_pos = Bproj + self.overshoot * self.line.hat * tracking_step
 
-        if self.distance_to_goal < self.orientation_radius:
+        if parallel_distance < self.orientation_radius:
             c_pos = self.desired_position
+
+        header = Header(
+                stamp = rospy.get_rostime(),
+                frame_id = '/enu'
+            )
+
+        pose = Pose(
+                    position = tools.vector3_from_xyz_array(c_pos),
+                    orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle]))
+
+        self.traj_debug_pub.publish(PoseStamped(header=header, pose=pose))
+
+        pose = Pose(
+                    position = tools.vector3_from_xyz_array(c_pos),
+                    orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle]))
+
+        
 
         # Fill up PoseTwistStamped
         carrot = PoseTwistStamped(
             header = Header(
                 stamp = rospy.get_rostime(),
-                frame_id = '/base_link'
+                frame_id = '/enu'
             ),
             posetwist = PoseTwist(
-                pose = Pose(
-                    position = tools.vector3_from_xyz_array(c_pos),
-                    orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
+                pose = pose,
                 twist = Twist(
                     linear = Vector3(tracking_step * self.tracking_to_speed_conv * self.overshoot, 0, 0),        # Wrench Generator handles the sine of the velocity
                     angular = Vector3())
