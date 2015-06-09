@@ -12,12 +12,9 @@ from tf import transformations as tf_trans
 from std_msgs.msg import Header, Float64
 from geometry_msgs.msg import Point, PointStamped, PoseStamped, Pose, Quaternion
 
-from spline import Hermite
-
-
 SCREEN_DIM = (750, 750)
 ORIGIN = np.array([SCREEN_DIM[0]/2.0, SCREEN_DIM[1]/2.0])
-
+SCALE = 10.
 
 def print_in(f):
     print("Defining " + f.func_name)
@@ -31,43 +28,116 @@ def print_in(f):
 
 def round_point((x, y)):
     '''Round and change point to centered coordinate system'''
-    return map(int, ((10 * x) + ORIGIN[0], -(10 * y) + ORIGIN[1]))
+    return map(int, ((SCALE * x) + ORIGIN[0], -(SCALE * y) + ORIGIN[1]))
 
 
 def unround_point((x, y)):
     '''Change center-origin coordinates to pygame coordinates'''
-    return ((x - ORIGIN[0]) / 10.0, (-y + ORIGIN[1]) / 10.0)
+    return ((x - ORIGIN[0]) / SCALE, (-y + ORIGIN[1]) / SCALE)
 
 
-def draw_spline(display, start_pt, start_m, end_pt, end_m, max_t):
-    prev_pt = start_pt
-    for iteration in np.arange(0, max_t, 0.01):
-        pt = Hermite.hermite_interpolate(start_pt, start_m, end_pt, np.array([0.1, 0.1]), iteration)
-        pygame.draw.line(display, (255, 0, 0), round_point(prev_pt), round_point(pt))
-        prev_pt = pt
+def vector(display, start, direction, scale=0.1, color=(0, 255, 0)):
+    pygame.draw.line(display, color,
+        round_point(start),
+        round_point(np.array(start) + (np.array(direction) * scale)),
+    )
+
+
+def draw_spline(display, spline, iteration=10, color=(255, 0, 0), draw_slopes=False):
+    speed = np.diff(spline, 1, 0) / 0.01
+    acc = np.diff(spline, 2, 0) / 0.01
+
+    if len(spline) > 2:
+        prev_pt = spline[0]
+        for ind, pt in enumerate(spline):
+            if ind >= iteration:
+                break
+
+            pygame.draw.line(display, color, round_point(pt), round_point(prev_pt))
+            prev_pt = pt
+            if ind < len(speed) and draw_slopes:
+                vector(display, spline[ind], speed[ind], 0.1, color=(255, 200, 0))
+
+        if ind > 2:
+            # if Hermite.spline_max_q(spline[max(0, ind - 10):ind]) >= Hermite.spline_max_q(spline):
+                # dot_color = (0, 0, 255)
+            # else:
+                # dot_color = (0, 255, 0)
+            dot_color = (0, 255, 0)
+            pygame.draw.circle(display, dot_color, round_point(spline[ind]), 3)
+
+        if ind < len(acc):
+            vector(display, spline[ind], speed[ind], 0.1, color=(255, 255, 0))
+            vector(display, spline[ind], acc[ind], 0.5, color=(0, 255, 255))
+
+
+def visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1):
+    display = pygame.display.set_mode(SCREEN_DIM)
+    pygame.display.set_caption(title)
+
+    clock = pygame.time.Clock()
+    iteration = 0.0
+
+    while not rospy.is_shutdown():
+
+        if animate:
+            iteration += iteration_speed
+            if iteration >= len(spline):
+                iteration = 0
+        else:
+            iteration = len(spline) - 1
+
+        draw_spline(display, spline, iteration, draw_slopes=(not animate))
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+
+            if event.type == pygame.KEYDOWN:
+                if (event.key == pygame.K_ESCAPE) or (event.key == pygame.K_q):
+                    return
+
+        t = time.time()        
+        pygame.display.update()
+        clock.tick(20)
+        display.fill((0, 0, 0))
 
 
 def main():
     '''Core draw loop'''
+    from spline.spline import Hermite, Waypoint
+    from policy_search import Policy_Search
 
     display = pygame.display.set_mode(SCREEN_DIM)
-    pygame.display.set_caption("Spline Simulation")
+    pygame.display.set_caption("Spline pathing visualization")
 
     clock = pygame.time.Clock()
 
     iteration = 0.0
     start_pt = np.array([0.0, 0.0])
-    start_m = np.array([-19.0, 40.0])    
-    end_pt = np.array([10.0, -30.0])
+    start_m = np.array([10.0, 10.0])    
+    end_pt = np.array([30.0, 30.0])
+    end_m = np.array([-10.0, -10.0])
+
+    spline = Hermite.spline(Waypoint(start_pt, start_m), Waypoint(end_pt, end_m))
+    # opt_spline = Policy_Search.compute_policy(start_pt, end_pt, end_m)
 
     while not rospy.is_shutdown():
 
-        # for t in np.arange(0, 1.05, 0.05):
-        iteration += 0.01
-        if iteration >= 1.05:
+        iteration += 1
+        if iteration >= len(spline):
+            print "Resetting splines"
+            start_m = np.random.uniform(-1, 1, 2) * 30
+            end_pt = np.random.uniform(-1, 1, 2) * 30
+            end_m = np.random.uniform(-1, 1, 2) * 100
+            spline = Hermite.spline(Waypoint(start_pt, start_m), Waypoint(end_pt, end_m))
+            print "Raw path computed (red)"
+            # opt_spline = Policy_Search.compute_policy(start_pt, end_pt, end_m)
+            print "Optimal path computed (blue)"
             iteration = 0
 
-        draw_spline(display, start_pt, start_m, end_pt, np.array([0.0, 0.0]), iteration)
+        draw_spline(display, spline, iteration)
+        # draw_spline(display, opt_spline, iteration, color=(0, 0, 255))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
