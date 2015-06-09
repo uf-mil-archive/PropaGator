@@ -11,13 +11,13 @@ from cv_bridge import CvBridge, CvBridgeError
 
 import numpy as np
 
-cascade_path = os.path.join(os.path.expanduser('~'), 'catkin_ws', 'src','uf-mil', 'PropaGator', 'camera_docking', 'scripts','cascade.xml')
+cascade_path = os.path.join(os.path.expanduser('~'), 'catkin_ws', 'src','uf-mil', 'PropaGator', 'camera_docking', 'scripts','cross_01.xml')
 print(cascade_path)
 
 class image_converter:
   def __init__(self):
     self.bridge = CvBridge()
-    self.image_pub = rospy.Publisher("/camera/cv2_out", Image, queue_size = 1)
+    self.image_pub = rospy.Publisher("/camera/cascade_out", Image, queue_size = 1)
     self.image_sub = rospy.Subscriber("/camera/image_raw", Image, self.callback)
 
   def callback(self,data):
@@ -25,6 +25,8 @@ class image_converter:
       cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
     except CvBridgeError, e:
       print e
+
+    cv2.rectangle(cv_image,(0,300),(1240,1080),(0,0,0),-1)
 
     final_img = image_process(cv_image)
 
@@ -41,7 +43,7 @@ def image_process(cv_image):
     buoys = buoy_cascade.detectMultiScale(cv_grey, 3, 5)
 
     for (x,y,w,h) in buoys:
-        cv2.rectangle(cv_image,(x,y),(x+w,y+h),(0,0,255),2)
+        cv2.rectangle(cv_image,(x,y),(x+w,y+h),(0,200,25),2)
         roi_gray = cv_grey[y:y+h, x:x+w]
         roi_color = cv_image[y:y+h, x:x+w]
     return cv_image
