@@ -34,7 +34,7 @@ from dynamixel_servo.msg import DynamixelFullConfig
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
 from sensor_msgs.msg import LaserScan
 from sensor_msgs.msg import Image
-
+from object_handling.msg import Buoys
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
@@ -56,7 +56,9 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def _init(self, need_trajectory=True):
+        print 1
         self._trajectory_sub = self._node_handle.subscribe('trajectory', PoseTwistStamped)
+        print 2
         self._moveto_action_client = action.ActionClient(self._node_handle, 'moveto', MoveToAction)
         self._tf_listener = tf.TransformListener(self._node_handle)
         self._camera_2d_action_clients = dict(
@@ -80,9 +82,9 @@ class _Boat(object):
 
         self._lidar_sub = self._node_handle.subscribe('lidar/scan', LaserScan)
         
-        #self._buoy_sub = self._node_handle.subscribe('lidar/buoy', buoy)
+        self._object_sub = self._node_handle.subscribe('object', Buoys)
 
-        #self._current_image_sub = self._node_handle.subscribe('/camera/image_raw', Image)
+        self._current_image_sub = self._node_handle.subscribe('/camera/image_raw', Image)
 
 
         if(need_trajectory == True):
@@ -192,10 +194,10 @@ class _Boat(object):
         msg = yield self._lidar_sub.get_next_message()
         defer.returnValue(msg)
     
-
+    
     @util.cancellableInlineCallbacks
-    def get_buoy(self):
-        msg = yield self._buoy_sub.get_next_message()
+    def get_objects(self):
+        msg = yield self._object_sub.get_next_message()
         defer.returnValue(msg)
     
     @util.cancellableInlineCallbacks

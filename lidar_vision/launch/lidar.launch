@@ -37,7 +37,7 @@
         </node>
         
         <!-- Controls the angle of the dynamixel servo that moves the lidar -->
-        <!-- node pkg="lidar_control" type="lidar_control_node" name="lidar_angle_control"/ -->
+        <node pkg="lidar_vision" type="lidar_control_node" name="lidar_angle_control"/>
 	
         <!-- Converts a sensor_msgs::laser_scan to sensor_msgs::point_cloud2 -->
 	<node pkg="lidar_vision" type="laser_to_pc_node" name="laser_to_pc_node"/>
