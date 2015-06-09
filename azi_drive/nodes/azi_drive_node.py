@@ -26,8 +26,11 @@ class Controller(object):
         self.rate = rate
         self.servo_max_rotation = 0.3
         self.controller_max_rotation = self.servo_max_rotation / self.rate
-        if rospy.get_param('simulate', False) is False:
+        print rospy.get_param('~simulate')
+        if rospy.get_param('~simulate', False) is False:
+            print 'simulate is false'
             rospy.Subscriber("control_arbiter", Bool, self.control_callback)
+        else: print "simulate is true"
         rospy.Subscriber("pwm1_alias", Float64, self.pwm1_cb)
         rospy.Subscriber("pwm2_alias", Float64, self.pwm2_cb)
         
@@ -117,16 +120,14 @@ class Controller(object):
 
     def main_loop(self, event):
         rate = rospy.Rate(self.rate)
-        iteration_num = 0
+        #iteration_num = 0
         if self.control_kill == True:
             angles = np.array([0, 0])
             self.set_servo_angles(angles)
             print self.pwm_forces
             self.set_forces(self.pwm_forces)
         else:
-            iteration_num += 1
             cur_time = time()
-
             rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
             if (cur_time - self.last_msg_time) > self.control_timeout:
                 rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
@@ -151,16 +152,16 @@ class Controller(object):
             self.cur_angles += d_theta
             self.cur_forces += d_force
 
-            if iteration_num > 4:
-                iteration_num = 0
-                self.set_servo_angles(self.cur_angles)
-                if success:
-                    self.set_forces(self.cur_forces)
-                else:
-                    rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
-                    self.set_forces((0.0, 0.0))
 
-                rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+            self.set_servo_angles(self.cur_angles)
+            if success:
+                print "success"
+                self.set_forces(self.cur_forces)
+            else:
+                rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                self.set_forces((0.0, 0.0))
+
+            rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
                 
 
     def control_callback(self, msg):
