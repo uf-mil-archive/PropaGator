@@ -20,12 +20,12 @@ from kill_handling.broadcaster import KillBroadcaster
 class Controller(object):
     def __init__(self):
 
-        self.d_x = 30
-        self.d_y = 20
-        self.d_z = 1
+        self.d_x = 60
+        self.d_y = 60
+        self.d_z = 10
         self.p_x = .5
         self.p_y = .5
-        self.p_z = 3
+        self.p_z = .3
 
         self.killed = False
         self.enable = True
