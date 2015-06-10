@@ -196,7 +196,7 @@ class Azi_Drive(object):
         u_0 = np.array(u_0)
 
         # Desired
-        tau = np.array([fx_des, fy_des, m_des])
+        tau = np.array([fx_des, fy_des, -1 * m_des])
 
         # Linearizations
         d_singularity = Tools.jacobian(self.singularity_avoidance, pt=alpha_0, order=3, dx=0.01)
