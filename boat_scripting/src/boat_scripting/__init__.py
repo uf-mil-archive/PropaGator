@@ -56,9 +56,7 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def _init(self, need_trajectory=True):
-        print 1
         self._trajectory_sub = self._node_handle.subscribe('trajectory', PoseTwistStamped)
-        print 2
         self._moveto_action_client = action.ActionClient(self._node_handle, 'moveto', MoveToAction)
         self._tf_listener = tf.TransformListener(self._node_handle)
         self._camera_2d_action_clients = dict(
@@ -82,7 +80,7 @@ class _Boat(object):
 
         self._lidar_sub = self._node_handle.subscribe('lidar/scan', LaserScan)
         
-        self._object_sub = self._node_handle.subscribe('object', Buoys)
+        self._object_sub = self._node_handle.subscribe('objects', Buoys)
 
         self._current_image_sub = self._node_handle.subscribe('/camera/image_raw', Image)
 
@@ -199,7 +197,7 @@ class _Boat(object):
     def get_objects(self):
         msg = yield self._object_sub.get_next_message()
         defer.returnValue(msg)
-    
+        
     @util.cancellableInlineCallbacks
     def get_current_image(self):
         msg = yield self._current_image_sub.get_next_message()
