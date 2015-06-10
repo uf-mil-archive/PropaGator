@@ -114,7 +114,7 @@ class trajectory_generator:
             self.line = line(self.current_position, self.desired_position)
             self.redraw_line = True
         else:
-            self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
+            self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
             self.redraw_line = False
 
     def goal_preempt(self):
@@ -219,7 +219,7 @@ class trajectory_generator:
         if self.redraw_line and self.distance_to_goal < self.orientation_radius:
             self.redraw_line = False
             rospy.loginfo('Redrawing trajectory line')
-            self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
+            self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
 
         rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
