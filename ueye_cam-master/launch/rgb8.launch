@@ -41,7 +41,7 @@
     <param name="blue_gain" type="int" value="50" />
     <param name="gain_boost" type="bool" value="False" />
 
-    <param name="auto_exposure" type="bool" value="False" />
+    <param name="auto_exposure" type="bool" value="True" />
     <param name="exposure" type="int" value="20" /> <!-- in ms -->
 
     <param name="auto_white_balance" type="bool" value="True" />

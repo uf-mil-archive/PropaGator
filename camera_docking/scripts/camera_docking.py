@@ -313,6 +313,8 @@ class image_converter:
 
     frame = cap
     frame_real = cap
+
+    cv2.rectangle(frame_real,(0,300),(1240,1080),(0,0,0),-1)
     
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
