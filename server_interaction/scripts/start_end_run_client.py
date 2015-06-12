@@ -22,7 +22,7 @@ def start_end_run_client():
 		response = sendStatus('start')
 		#print the response from the service. This is a boolean
 		#based on what the server returned: either true or false
-		#as per the rules, return from server is false is run void
+		#as per the rules, return from server is false if run is void
 		print response.success
 		return response.success
 
