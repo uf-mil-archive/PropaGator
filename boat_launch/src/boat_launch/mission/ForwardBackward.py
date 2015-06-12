@@ -12,15 +12,15 @@ def main(nh):
     boat = yield boat_scripting.get_boat(nh)
     
     print 'Next'
-    yield boat.move.forward(-2).go()
+    yield boat.move.forward(2).go()
     print 'Next'
-    yield boat.move.forward(-2).go()
+    yield boat.move.forward(2).go()
     print 'Next0'
-    yield boat.move.forward(-2).go()
+    yield boat.move.forward(2).go()
     print 'Next'
-    yield boat.move.forward(-2).go()
+    yield boat.move.forward(2).go()
     print 'Next'
-    yield boat.move.forward(-2).go()
+    yield boat.move.forward(2).go()
 
 
     print 'Next'

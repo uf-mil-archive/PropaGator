@@ -4,9 +4,6 @@ import sys
 from std_msgs.msg import String
 
 ## Scans information pertaining the server
-
-
-
 def ScanMainUrl():
 	
 	mainurl = raw_input("What is the MAIN server URL?: ")	

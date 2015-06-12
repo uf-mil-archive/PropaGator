@@ -1,9 +1,10 @@
 <launch>
-    <arg name="simulate" default="false"/> 
+    <arg name="simulate" default="false"/>
+    <arg name="visualize" default="false"/> 
 
 <node name="azi_drive_control_manager" pkg="azi_drive" type="control_manager.py" 
          output="screen" /> 
-<node name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py" 
+<node if="$(arg visualize)" name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py" 
          output="screen" /> 
 <node name="azi_waypoint" pkg="azi_drive" type="azi_waypoint.py" 
          output="screen" /> 

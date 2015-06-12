@@ -77,7 +77,7 @@ public:
  *  Constructor
  */
 LidarAngleManager::LidarAngleManager():
-		current_angle_(3.14159), max_angle_(3.14159), min_angle_(2.7),
+		current_angle_(3.14159), max_angle_(3.4), min_angle_(2.7),
 		sin_sample_count_(0), in_frequency_(100), out_frequency_(1)
 {
 	// offset = (max + min) / 2

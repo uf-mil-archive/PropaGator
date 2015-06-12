@@ -21,7 +21,8 @@ from tools import line
 import math
 
 def smallest_coterminal_angle(x):
-    return x % (2*math.pi)
+    # Bounded between [-pi, pi]
+    return (x + math.pi) % (2*math.pi) - math.pi
 
 class trajectory_generator:
     def __init__(self, name):
@@ -113,7 +114,7 @@ class trajectory_generator:
             self.line = line(self.current_position, self.desired_position)
             self.redraw_line = True
         else:
-            self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
+            self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
             self.redraw_line = False
 
     def goal_preempt(self):
@@ -141,7 +142,7 @@ class trajectory_generator:
         # Get distance to the goal
         vector_to_goal = self.desired_position - self.current_position
         self.distance_to_goal = np.linalg.norm(vector_to_goal)
-        self.angle_to_goal_orientation = abs((self.desired_orientation % (2 * np.pi)) - (self.current_orientation % (2 * np.pi)))
+        self.angle_to_goal_orientation = map(smallest_coterminal_angle, self.desired_orientation - self.current_orientation)
         # overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
         #       Side of said line
         #print 'Distance to goal: ', self.distance_to_goal
@@ -188,25 +189,15 @@ class trajectory_generator:
                 stamp = rospy.get_rostime(),
                 frame_id = '/enu'
             )
-
         pose = Pose(
                     position = tools.vector3_from_xyz_array(c_pos),
                     orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle]))
 
-        self.traj_debug_pub.publish(PoseStamped(header=header, pose=pose))
-
-        pose = Pose(
-                    position = tools.vector3_from_xyz_array(c_pos),
-                    orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle]))
-
-        
+        self.traj_debug_pub.publish(PoseStamped(header=header, pose=pose))        
 
         # Fill up PoseTwistStamped
         carrot = PoseTwistStamped(
-            header = Header(
-                stamp = rospy.get_rostime(),
-                frame_id = '/enu'
-            ),
+            header = header,
             posetwist = PoseTwist(
                 pose = pose,
                 twist = Twist(
@@ -228,16 +219,16 @@ class trajectory_generator:
         if self.redraw_line and self.distance_to_goal < self.orientation_radius:
             self.redraw_line = False
             rospy.loginfo('Redrawing trajectory line')
-            self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.current_position)
+            self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
 
         rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
         # Check if goal is reached
         if self.moveto_as.is_active():
             if self.distance_to_goal < self.linear_tolerance:
-                #if self.angle_to_goal_orientation[2] < self.angular_tolerance:
-                rospy.loginfo('succeded')
-                self.moveto_as.set_succeeded(None)
+                if abs(self.angle_to_goal_orientation[2]) < self.angular_tolerance:
+                    rospy.loginfo('succeded')
+                    self.moveto_as.set_succeeded(None)
 
 
 if __name__ == '__main__':

@@ -20,7 +20,6 @@ def StoreMainServerUrl(serverUrl):
 	global mainUrl
 	mainUrl = serverUrl.data
 
-
 def StoreCourseInfo(courseInfo):
 
 	#get the course information e.g. courseA
@@ -53,20 +52,13 @@ def ecef2lla(ecef):
 	lat = math.atan2( (z + math.pow(ep,2)*b*math.pow(math.sin(th),3) ), (p - esq*a*math.pow(math.cos(th),3)) )
 	N = a/( math.sqrt(1-esq*math.pow(math.sin(lat),2)) )
 	alt = p / math.cos(lat) - N
-
 	#mod lat to 0-2pi
-
 	lon = lon % (2*math.pi)
-
 	#correction for altitude near poles left out.
-
 	#changing radians to degrees
-
 	lat = math.degrees(lat)
 	lon = math.degrees(lon)
-
 	#normalizing angle
-
 	lat = normalizeAngle(lat)
 	lon = normalizeAngle(lon)
 	ret = (lat, lon)
@@ -76,19 +68,12 @@ def ecef2lla(ecef):
 def normalizeAngle(angle):
 
 	#normalize angle to keep it between -179 and 180 degrees
-
-	newAngle = angle
-	
+	newAngle = angle	
 	while newAngle <= -180: 
-
-		newAngle += 360
-	
+		newAngle += 360	
 	while newAngle > 180: 
-
-		newAngle -= 360
-	
+		newAngle -= 360	
 	return newAngle;	
-
 
 def GetGpsData(gpsPos):
 
@@ -109,15 +94,13 @@ def GetGpsData(gpsPos):
 		latitude = latitude[0:9]
 		longitude = longitude[0:10]	
 
-		#sublinkMain = '/heartbeat/%s/UF' %course
-
-		#url = mainUrl +  sublinkMain
+		sublinkMain = '/heartbeat/%s/UF' %course
+		url = mainUrl +  sublinkMain
 
 		#dump server to test that data is being posted
-		url = 'https://posttestserver.com/post.php'
+		#url = 'https://posttestserver.com/post.php'
 
 		#payload to send to server
-
 		payload = {'timestamp':'temp','challenge':'temp','position':{'datum':'WGS84','latitude':'temp','longitude':'temp'}} 
 		payload['timestamp'] = timeStamp
 		payload['challenge'] = currentChallenge
@@ -154,11 +137,8 @@ def main():
 	rospy.Subscriber('current_challenge', String, GetCurrentTask)	
 	rospy.spin()
 
-if __name__ == '__main__':
-	
-	try:
-		
+if __name__ == '__main__':	
+	try:	
 		main()
-	
 	except rospy.ROSInterruptException:
 		pass

@@ -28,6 +28,7 @@ add_service_files(
    FILES
    image_info.srv
    buoy_color.srv
+   start_end_run.srv	
 #   Service2.srv
  )
 
