@@ -26,8 +26,9 @@ def print_in(f):
     return(print_on_entry)
 
 
-def round_point((x, y)):
+def round_point(pt):
     '''Round and change point to centered coordinate system'''
+    x, y = pt[:2]
     return map(int, ((SCALE * x) + ORIGIN[0], -(SCALE * y) + ORIGIN[1]))
 
 
@@ -71,13 +72,24 @@ def draw_spline(display, spline, iteration=10, color=(255, 0, 0), draw_slopes=Fa
             vector(display, spline[ind], acc[ind], 0.5, color=(0, 255, 255))
 
 
-def visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1):
+def visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0, end_point=None):
+    '''visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0):
+    Visualize a sequence of points
+        title: String that will set the window title
+        animate: Animate the motion of the particle along the spline. If False, will draw the whole spline in one frame
+        iteration_speed: Higher is faster
+        lasts: Number of seconds to hold the window open. 0 or inf will keep it open until the user exits
+
+    Exit the window with q or the exit button
+
+    '''
     display = pygame.display.set_mode(SCREEN_DIM)
     pygame.display.set_caption(title)
 
     clock = pygame.time.Clock()
     iteration = 0.0
 
+    start_time = time.time()
     while not rospy.is_shutdown():
 
         if animate:
@@ -86,6 +98,9 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
                 iteration = 0
         else:
             iteration = len(spline) - 1
+
+        if end_point is not None:
+            pygame.draw.circle(display, (255, 0, 0,), round_point(end_point), 6)
 
         draw_spline(display, spline, iteration, draw_slopes=(not animate))
 
@@ -97,7 +112,11 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
                 if (event.key == pygame.K_ESCAPE) or (event.key == pygame.K_q):
                     return
 
-        t = time.time()        
+        t = time.time()
+
+        if (t - start_time > lasts) and (lasts > 0):
+            return
+
         pygame.display.update()
         clock.tick(20)
         display.fill((0, 0, 0))
