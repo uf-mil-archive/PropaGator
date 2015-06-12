@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 
 #reference paper = Nonlinear Control of an Autonomous Underwater Vehicle: A RISE-Based Approach
+# Reference Frames:
+#       odom.pose                   /enu
+#       odom.Twist                  /base_link
+#       desired_posetwist.pose      /enu
+#       desired_posetwist.twist     desired_posetwist.pose   i.e. /enu + desired angle
+#       Wrench                      /base_link
 
 import roslib
 roslib.load_manifest('controller')
@@ -100,6 +106,7 @@ class Controller(object):
     def desired_state_callback(self,desired_posetwist):
         self.lock.acquire()
         self.desired_state_set = True
+
         self.desired_state = numpy.concatenate([xyz_array(desired_posetwist.posetwist.pose.position), transformations.euler_from_quaternion(xyzw_array(desired_posetwist.posetwist.pose.orientation))])
         self.desired_state_dot = numpy.concatenate([xyz_array(desired_posetwist.posetwist.twist.linear), xyz_array(desired_posetwist.posetwist.twist.angular)])
         self.lock.release()
@@ -126,19 +133,52 @@ class Controller(object):
 
         # sub pd-controller sans rise
         rot = None
+        # Get tf from /enu to /base_link
+        #   Since we are dealing with differences and not absolute positions not translation is required
         try:
             (_, rot) = self.tf_listener.lookupTransform('/base_link', '/enu', rospy.Time(0))
         except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
             rospy.logwarn('Tf exception: ' + str(e))
 
         if rot is not None:
+            # Convert to euler angle ( we only care about rotation about z)
+            theta = quat_to_rotvec(numpy.array(rot))[2] 
 
-            to_desired_state = self.desired_state[0:3] - self.state[0:3]
-            
-            e = numpy.concatenate([qv_mult(rot, to_desired_state), map(smallest_coterminal_angle, self.desired_state[3:6] - self.state[3:6])]) # e_1 in paper
-            #print 'Error: ', e
-            #print 'Kp*Error: ', self.K_p.dot(e)
-            e_dot = self.desired_state_dot - self.state_dot
+            # Difference in /enu frame
+            to_desired_state = self.desired_state[0:2] - self.state[0:2]
+
+            # Convert to base_link
+            s = numpy.sin(theta)
+            c = numpy.cos(theta)
+            rot_matrix_enu_base = numpy.array([[c, -s],
+                                               [s, c]])
+            to_desired_state = rot_matrix_enu_base.dot(to_desired_state)
+            to_desired_state = numpy.insert(to_desired_state, 2, 0) # Append a zero for z
+
+
+            #                                    Note: Angular differences are the same in base_link as enu so no tf required
+            e = numpy.concatenate([to_desired_state, map(smallest_coterminal_angle, self.desired_state[3:6] - self.state[3:6])]) # e_1 in paper
+
+            # Convert desired state dot into base_link
+            #   angular velocities do not rquire transformation as they are differences (rendering them frameless)
+            #   To convert velocites from enu + desired_orientation to base link:
+            #       transform to enu: rotate the velocity vector by desired_orientation
+            #       transform to base link: rotate the velocity vector by the angle between enu and base_link
+            vels = self.desired_state_dot[0:2]
+            theta2 = self.desired_state[5]
+            s = numpy.sin(theta2)
+            c = numpy.cos(theta2)
+            rot_matrix_desired_enu = numpy.array([[c, -s],
+                                                  [s, c]])
+            vels = rot_matrix_desired_enu.dot(vels)
+            vels = rot_matrix_enu_base.dot(vels)
+
+            vels = numpy.insert(vels, 2, 0)
+
+            desired_state_dot = numpy.concatenate([vels, self.desired_state_dot[3:6]])
+
+            print 'Desired_state tf: ', desired_state_dot
+            e_dot = desired_state_dot - self.state_dot
             output = self.K_p.dot(e) + self.K_d.dot(e_dot)
             #print 'Output: ', output
             self.lock.release()
@@ -199,23 +239,6 @@ class Controller(object):
         print "dX: ", self.dx_error
         print "dY: ", self.dy_error
         print "dZ: ", self.dz_error
-
-def q_mult(q1, q2):
-    x1, y1, z1, w1 = q1
-    x2, y2, z2, w2 = q2
-    w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
-    x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
-    y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
-    z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
-    return numpy.array([x, y, z, w])
-
-def q_conjugate(q):
-    x, y, z, w = q
-    return numpy.array([-x, -y, -z, w])
-
-def qv_mult(q1, v1):
-    q2 = numpy.insert(v1, 3, 0.0)
-    return q_mult(q_mult(q1, q2), q_conjugate(q1))[0:3]
 
 if __name__ == '__main__':
     rospy.init_node('controller')
