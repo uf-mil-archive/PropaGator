@@ -42,6 +42,7 @@ def SendBuoyColor(buoyColor):
 	try:
 		#create request objet: post link is "fullLink", headers, data is the json string.	
 		r = requests.post(fullLink, headers=headers, data=json.dumps(jsonString), verify=False)
+		print r.text
 		if(r.status_code == 200): 
 			success = r.json()
 			#if the right buoy color was sent, server return a json structure: {"success":"true"}.. else false

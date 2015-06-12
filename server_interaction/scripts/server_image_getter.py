@@ -46,7 +46,7 @@ def StoreCourseInfo(courseInfo):
 	# the actual link is: /interop/images/%s/UF
 	# this is just to test on my server
 
-	sublinkMain = '/interop/images/%s/UF/imageList.htm' %course
+	sublinkMain = '/interop/images/%s/UF' %course
 	#creating url
 	url = mainUrl +  sublinkMain
 	headers = {'content-type':'text/html'}
@@ -113,17 +113,12 @@ def StoreCourseInfo(courseInfo):
 		status_pub.publish(msg) 				
 		rate.sleep()			
 
-		
-
-
 def main():
 	
 	rospy.init_node('from_server_image_getter')	
-
 	#no drone challege, where we receive an image list
 	# in html and each request needs to be done separately
 	# and we have to process and identify one of them
-
 	rospy.Subscriber('main_server_url', String, StoreServerUrl) 
 	rospy.Subscriber('course_code', String, StoreCourseInfo)
 	time.sleep(5)

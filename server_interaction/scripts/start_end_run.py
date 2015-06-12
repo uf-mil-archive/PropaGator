@@ -9,6 +9,8 @@ import time
 from std_msgs.msg import String
 from server_interaction.srv import start_end_run
 
+#this service send the start/end run request to notify the server
+#that a run is being started or ended.
 def StoreServerUrl(serverUrl):
 
 	global url

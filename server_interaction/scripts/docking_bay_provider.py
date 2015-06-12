@@ -32,7 +32,7 @@ def StoreServerUrl(serverUrl):
 def postDockingSequence():	
 
 	try:
-		sublinkMain = '/automatedDocking/%s/UF/docking.json' %course
+		sublinkMain = '/automatedDocking/%s/UF' %course
 		url = mainUrl +  sublinkMain
 		r = requests.get(url, verify = False) #creating request object
 		#evaluating response status code

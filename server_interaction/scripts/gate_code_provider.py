@@ -19,9 +19,7 @@ def StoreCourseCode(courseCode):
 def SendRequest(serverUrl):
 	try:
 		mainUrl = serverUrl.data
-		# Actual link is '/obstacleAvoidance/%s/UF'
-		#/gateCode.json is to test on my server
-		sublinkMain = '/obstacleAvoidance/%s/UF/gateCode.json' %course
+		sublinkMain = '/obstacleAvoidance/%s/UF' %course
 		url = mainUrl +  sublinkMain
 		r = requests.get(url, verify = False)	
 
