@@ -18,57 +18,41 @@ def StoreCourseCode(courseCode):
 
 def SendRequest(serverUrl):
 	try:
-
 		mainUrl = serverUrl.data
+		# Actual link is '/obstacleAvoidance/%s/UF'
+		#/gateCode.json is to test on my server
 		sublinkMain = '/obstacleAvoidance/%s/UF/gateCode.json' %course
 		url = mainUrl +  sublinkMain
-		r = requests.get(url)	
+		r = requests.get(url, verify = False)	
 
-		if(r.status_code == 200):
-				
+		if(r.status_code == 200):		
 			gatecode_all = r.json()['gateCode']
-
 			#parse json data obtained from server
-
 			temp = gatecode_all.split(",")
 			entrance = temp[0].replace("(","")
 			exit = temp[1].replace(")","")
-
 			#ready message data to be pubslished
-
 			msg = gate_code()
 			msg.entrance = entrance
 			msg.exit= exit
 			gatecode_pub = rospy.Publisher('gate_code_data', gate_code, queue_size=10)
-			rate = rospy.Rate(1)
-			
+			rate = rospy.Rate(1)			
 			while not rospy.is_shutdown():
-
 				rospy.loginfo(msg)				
 				gatecode_pub.publish(msg)				
 				rate.sleep()
-
 		else:
-
-			raise rospy.ServiceException
-	
-	except (rospy.ServiceException, NameError) as e:
-		
+			raise rospy.ServiceException	
+	except (rospy.ServiceException, NameError) as e:		
 		pass		
-
 def main():
-
 	rospy.init_node('gate_code_provider')
 	rospy.Subscriber('course_code', String, StoreCourseCode)
 	rospy.Subscriber('main_server_url', String, SendRequest)
 	rospy.spin()
 
 if __name__ == '__main__':
-
 	try:
-
 		main()
-
-	except rospy.ROSInterruptException:
-		
+	except rospy.ROSInterruptException:		
 		pass	
