@@ -77,7 +77,7 @@ private:
 public:
 	//TODO: Replace base_link with map for slam
 	LaserToPC2():
-		frame_("/enu")
+		frame_("/base_link")
 	{
 		ros::NodeHandle nh;
 		std::string topic = nh.resolveName("scan");		//Get the topic

@@ -82,6 +82,10 @@ class lidar_theta(object):
 	    self.solve_angles(2)
 	    self.solve_angles(3)
 
+	    print "x: ", self.x
+	    print "y: ", self.y
+	    print "z: ", self.z
+
 
 
 	def callback(self, data):
