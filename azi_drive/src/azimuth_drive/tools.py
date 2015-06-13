@@ -75,9 +75,9 @@ class line:
         self.s = p2 - p1    # Shifted vector
         if self.s.any():
             self.hat = self.s / np.linalg.norm(self.s)
-            x_hat = np.zeros_like(self.hat)
-            x_hat[0] = 1
-            self.angle = np.arccos(np.dot(x_hat, self.hat))
+            #                           Y           X
+            self.angle = np.arctan2(self.hat[1], self.hat[0])
+            print self.angle
         else:
             rospy.logerr('0 length line in tank steer trajectory generator')
             self.s = np.array([1, 0, 0])
