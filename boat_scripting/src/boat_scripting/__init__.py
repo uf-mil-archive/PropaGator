@@ -82,14 +82,12 @@ class _Boat(object):
         
         self._object_sub = self._node_handle.subscribe('objects', Buoys)
 
-        self._current_image_sub = self._node_handle.subscribe('/camera/image_raw', Image)
-
+        self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
         if(need_trajectory == True):
             yield self._trajectory_sub.get_next_message()
-        
         defer.returnValue(self)
-    
+
     @property
     def pose(self):
         return orientation_helpers.PoseEditor.from_PoseTwistStamped(
@@ -196,13 +194,12 @@ class _Boat(object):
     @util.cancellableInlineCallbacks
     def get_objects(self):
         msg = yield self._object_sub.get_next_message()
-        defer.returnValue(msg)
+        defer.returnValue(msg.buoys)
         
     @util.cancellableInlineCallbacks
-    def get_current_image(self):
-        msg = yield self._current_image_sub.get_next_message()
+    def get_start_gate_vision(self):
+        msg = yield self._start_gate_vision_sub.get_next_message()
         defer.returnValue(msg)
-    
 
     #SPP allign the craft based on what pings the hydrophones hear for a given freq
     @util.cancellableInlineCallbacks
