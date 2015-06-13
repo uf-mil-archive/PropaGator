@@ -11,7 +11,7 @@ from cv_bridge import CvBridge, CvBridgeError
 
 import numpy as np
 
-cascade_path = os.path.join(os.path.expanduser('~'), 'catkin_ws', 'src','uf-mil', 'PropaGator', 'camera_docking', 'scripts','cross_01.xml')
+cascade_path = os.path.join(os.path.expanduser('~'), 'catkin_ws', 'src','uf-mil', 'PropaGator', 'camera_docking', 'scripts','cross_02.xml')
 print(cascade_path)
 
 class image_converter:
