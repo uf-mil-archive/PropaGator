@@ -28,12 +28,12 @@ class image_converter:
     img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)#HSV is good for color detection with lighting flux  
 
     #thresholding and building heat mask
-    h1 = 66
-    s1 = 126
-    v1 = 130
+    h1 = 45
+    s1 = 163
+    v1 = 69
     h2 = 179
-    s2 = 220
-    v2 = 255
+    s2 = 223
+    v2 = 117
     lower_value = np.array([h1, s1, v1], np.uint8)
     upper_value = np.array([h2, s2, v2], np.uint8)
     #endthresholding
@@ -70,7 +70,7 @@ class image_converter:
     #img = cv2.drawContours(img, contours, 1, (0,0,0), 3)
     collums_midpoint = (cx0+cx1)/2
     midpoint_rela_centerline = collums_midpoint - 500
-    angle = midpoint_rela_centerline*((np.pi/2)/1000)#1000 pixels over pi/2 radians view
+    angle = midpoint_rela_centerline*((np.pi*5/9)/960)#960 pixels over 5pi/9 radians view
     #cnt = contours[0]                        #selecting main contour    
     #x,y,w,h = cv2.boundingRect(cnt)
     #cv2.rectangle(img,(x,y),(x+w,y+h),(0,255,0),2)
