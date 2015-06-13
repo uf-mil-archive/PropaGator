@@ -69,7 +69,8 @@ class image_converter:
     #img = cv2.drawContours(img, contours, 0, (0,0,0), 3)
     #img = cv2.drawContours(img, contours, 1, (0,0,0), 3)
     collums_midpoint = (cx0+cx1)/2
-    angle = collums_midpoint*((np.pi/2)/1000)#1000 pixels over pi/2 radians view
+    midpoint_rela_centerline = collums_midpoint - 500
+    angle = midpoint_rela_centerline*((np.pi/2)/1000)#1000 pixels over pi/2 radians view
     #cnt = contours[0]                        #selecting main contour    
     #x,y,w,h = cv2.boundingRect(cnt)
     #cv2.rectangle(img,(x,y),(x+w,y+h),(0,255,0),2)
