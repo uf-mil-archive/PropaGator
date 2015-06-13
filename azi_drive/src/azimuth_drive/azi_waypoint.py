@@ -100,8 +100,8 @@ class trajectory_generator:
 
         rospy.loginfo('Desired position:' + str(self.desired_position))
         rospy.loginfo('Current position:' + str(self.current_position))
-        rospy.loginfo('Desired orientation:' + str(self.desired_orientation))
-        rospy.loginfo('Current orientation:' + str(self.current_orientation))
+        rospy.loginfo('Desired orientation:' + str(self.desired_orientation * 180 / np.pi))
+        rospy.loginfo('Current orientation:' + str(self.current_orientation * 180 / np.pi))
         rospy.loginfo('linear_tolerance:' + str(self.linear_tolerance))
         rospy.loginfo('angular_tolerance:' + str(self.angular_tolerance))
         # This controller doesn't handle desired twist
@@ -221,7 +221,7 @@ class trajectory_generator:
             rospy.loginfo('Redrawing trajectory line')
             self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
 
-        rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
+        #rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
         # Check if goal is reached
         if self.moveto_as.is_active():
