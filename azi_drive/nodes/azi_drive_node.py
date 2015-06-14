@@ -118,48 +118,56 @@ class Controller(object):
         self.pwm_forces[1] = temp
 
 
-    def main_loop(self, event):
+    def main_loop(self):
         rate = rospy.Rate(self.rate)
-        #iteration_num = 0
-        if self.control_kill == True:
-            angles = np.array([0, 0])
-            self.set_servo_angles(angles)
-            print self.pwm_forces
-            self.set_forces(self.pwm_forces)
-        else:
-            cur_time = time()
-            rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
-            if (cur_time - self.last_msg_time) > self.control_timeout:
-                rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
-                self.stop()
+        iteration_num = 0
+        while not rospy.is_shutdown():
+            iteration_num += 1
 
-            thrust_solution = Azi_Drive.map_thruster(
-                fx_des=self.des_fx,
-                fy_des=self.des_fy,
-                m_des=self.des_torque, 
-                alpha_0= self.cur_angles,
-                u_0=self.cur_forces,
-            )
-
-            # toc = time() - cur_time
-            # print 'Took {} seconds'.format(toc)
-
-            d_theta, d_force, success = thrust_solution
-            if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
-                self.cur_angles = np.array([0.0, 0.0])
-                return
-
-            self.cur_angles += d_theta
-            self.cur_forces += d_force
-
-            self.set_servo_angles(self.cur_angles)
-            if success:
-                self.set_forces(self.cur_forces)
+            if self.control_kill == True:
+                angles = np.array([0, 0])
+                self.set_servo_angles(angles)
+                print self.pwm_forces
+                self.set_forces(self.pwm_forces)
             else:
-                rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
-                self.set_forces((0.0, 0.0))
+                cur_time = time()
+                rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
+                if (cur_time - self.last_msg_time) > self.control_timeout:
+                    rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
+                    self.stop()
 
-            rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+                thrust_solution = Azi_Drive.map_thruster(
+                    fx_des=self.des_fx,
+                    fy_des=self.des_fy,
+                    m_des=self.des_torque, 
+                    alpha_0= self.cur_angles,
+                    u_0=self.cur_forces,
+                )
+
+                # toc = time() - cur_time
+                # print 'Took {} seconds'.format(toc)
+
+                d_theta, d_force, success = thrust_solution
+                if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
+                    self.cur_angles = np.array([0.0, 0.0])
+                    continue
+
+                self.cur_angles += d_theta
+                self.cur_forces += d_force
+
+                if iteration_num > 4:
+                    iteration_num = 0
+
+                    self.set_servo_angles(self.cur_angles)
+                    if success:
+                        self.set_forces(self.cur_forces)
+                    else:
+                        rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                        self.set_forces((0.0, 0.0))
+
+                    rate.sleep()
+                    rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
+
 
     def control_callback(self, msg):
         
@@ -278,5 +286,5 @@ if __name__ == '__main__':
     controller = Controller()
     # Add a shutdown hook to stop motors and servos when we die
     rospy.on_shutdown(controller.shutdown)
-    rospy.Timer(rospy.Duration(1.0/50.0), controller.main_loop)
+    controller.main_loop()
     rospy.spin()
