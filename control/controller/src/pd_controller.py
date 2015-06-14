@@ -114,6 +114,15 @@ class Controller(object):
     def odom_callback(self, current_posetwist):
         self.lock.acquire()
         self.odom_active = True
+
+        # Grab position; 0 Z
+        pose = xyz_array(current_posetwist.pose.pose.position)
+        pose[2] = 0
+
+        # Grab orientation; 0 pitch and roll
+        orientation = numpy.array(transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation)))
+        orientation[0:2] = 0
+
         self.state = numpy.concatenate([xyz_array(current_posetwist.pose.pose.position), transformations.euler_from_quaternion(xyzw_array(current_posetwist.pose.pose.orientation))])
         self.state_dot = numpy.concatenate([xyz_array(current_posetwist.twist.twist.linear), xyz_array(current_posetwist.twist.twist.angular)])
         if (not self.desired_state_set):
