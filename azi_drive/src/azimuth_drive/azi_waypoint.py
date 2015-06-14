@@ -34,15 +34,15 @@ class trajectory_generator:
         # Goal tolerances before seting succeded
         self.linear_tolerance = rospy.get_param('linear_tolerance', 1.5)
         self.angular_tolerance = rospy.get_param('angular_tolerance', np.pi / 5)
-        self.orientation_radius = rospy.get_param('orientation_radius', 2)
-        self.slow_down_radius = rospy.get_param('slow_down_radius', 5)
+        self.orientation_radius = rospy.get_param('orientation_radius', 0.5)
+        self.slow_down_radius = rospy.get_param('slow_down_radius', 3.0)
 
         # Speed parameters
         self.max_tracking_distance = rospy.get_param('max_tracking_distance', 2.0)
         self.min_tracking_distance = rospy.get_param('min_tracking_distance', 0.0)
         self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 1.0)
         self.tracking_slope = (self.max_tracking_distance - self.min_tracking_distance) / (self.slow_down_radius - self.orientation_radius)
-        self.tracking_intercept = self.tracking_slope * self.orientation_radius + self.min_tracking_distance
+        self.tracking_intercept = self.min_tracking_distance - self.tracking_slope * self.orientation_radius
 
         # Publishers
         self.traj_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size = 10)
@@ -141,6 +141,8 @@ class trajectory_generator:
         self.current_orientation = tools.orientation_from_pose(msg.pose.pose)
         # Get distance to the goal
         vector_to_goal = self.desired_position - self.current_position
+        # Remove any z error
+        vector_to_goal[2] = 0
         self.distance_to_goal = np.linalg.norm(vector_to_goal)
         self.angle_to_goal_orientation = map(smallest_coterminal_angle, self.desired_orientation - self.current_orientation)
         # overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
@@ -182,8 +184,8 @@ class trajectory_generator:
         tracking_step = self.get_tracking_distance()
         c_pos = Bproj + self.overshoot * self.line.hat * tracking_step
 
-        #if parallel_distance < self.orientation_radius:
-        c_pos = self.desired_position
+        if parallel_distance < self.orientation_radius:
+            c_pos = self.desired_position
 
         header = Header(
                 stamp = rospy.get_rostime(),
@@ -201,7 +203,7 @@ class trajectory_generator:
             posetwist = PoseTwist(
                 pose = pose,
                 twist = Twist(
-                    linear = Vector3(),#Vector3(tracking_step * self.tracking_to_speed_conv * self.overshoot, 0, 0),        # Wrench Generator handles the sine of the velocity
+                    linear = Vector3(tracking_step * self.tracking_to_speed_conv * self.overshoot, 0, 0),        # Wrench Generator handles the sine of the velocity
                     angular = Vector3())
                 )
             )
