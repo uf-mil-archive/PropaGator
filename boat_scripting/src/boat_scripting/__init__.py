@@ -56,9 +56,7 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def _init(self, need_trajectory=True):
-        print 1
         self._trajectory_sub = self._node_handle.subscribe('trajectory', PoseTwistStamped)
-        print 2
         self._moveto_action_client = action.ActionClient(self._node_handle, 'moveto', MoveToAction)
         self._tf_listener = tf.TransformListener(self._node_handle)
         self._camera_2d_action_clients = dict(
@@ -86,12 +84,12 @@ class _Boat(object):
 
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
-
         if(need_trajectory == True):
+
             yield self._trajectory_sub.get_next_message()
-        
+
         defer.returnValue(self)
-    
+
     @property
     def pose(self):
         return orientation_helpers.PoseEditor.from_PoseTwistStamped(
@@ -198,13 +196,12 @@ class _Boat(object):
     @util.cancellableInlineCallbacks
     def get_objects(self):
         msg = yield self._object_sub.get_next_message()
-        defer.returnValue(msg)
-    
+        defer.returnValue(msg.buoys)
+        
     @util.cancellableInlineCallbacks
     def get_start_gate_vision(self):
         msg = yield self._start_gate_vision_sub.get_next_message()
         defer.returnValue(msg.data)
-
 
     #SPP allign the craft based on what pings the hydrophones hear for a given freq
     @util.cancellableInlineCallbacks
