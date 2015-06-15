@@ -28,20 +28,16 @@ if __name__ == '__main__':
 	except rospy.service.ServiceException, e:
 
 		rospy.logwarn(str(e))
+
+	kill_switch_pub = rospy.Publisher('kill_switch', String, queue_size = 10)	
 	
 	while not rospy.is_shutdown():
-
-		kill_switch_pub = rospy.Publisher('kill_switch', String, queue_size = 10)
-
-		rate = rospy.Rate(10)
 
 		global status
 
 		status = ReadTerminal()
 
 		status = str(status)
-
-		time.sleep(5)
 
 		if 'O' in status:
 
