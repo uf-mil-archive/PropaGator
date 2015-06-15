@@ -32,17 +32,17 @@ class trajectory_generator:
         #self.desired_twist = self.current_twist = Twist()
 
         # Goal tolerances before seting succeded
-        self.linear_tolerance = rospy.get_param('linear_tolerance', 0.5)
-        self.angular_tolerance = rospy.get_param('angular_tolerance', np.pi / 10)
-        self.orientation_radius = rospy.get_param('orientation_radius', 0.75)
-        self.slow_down_radius = rospy.get_param('slow_down_radius', 5)
+        self.linear_tolerance = rospy.get_param('linear_tolerance', 1.5)
+        self.angular_tolerance = rospy.get_param('angular_tolerance', np.pi / 5)
+        self.orientation_radius = rospy.get_param('orientation_radius', 0.5)
+        self.slow_down_radius = rospy.get_param('slow_down_radius', 3.0)
 
         # Speed parameters
-        self.max_tracking_distance = rospy.get_param('max_tracking_distance', 1.0)
-        self.min_tracking_distance = rospy.get_param('min_tracking_distance', .1)
-        self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 1)
+        self.max_tracking_distance = rospy.get_param('max_tracking_distance', 2.0)
+        self.min_tracking_distance = rospy.get_param('min_tracking_distance', 0.0)
+        self.tracking_to_speed_conv = rospy.get_param('tracking_to_speed_conv', 1.0)
         self.tracking_slope = (self.max_tracking_distance - self.min_tracking_distance) / (self.slow_down_radius - self.orientation_radius)
-        self.tracking_intercept = self.tracking_slope * self.orientation_radius + self.min_tracking_distance
+        self.tracking_intercept = self.min_tracking_distance - self.tracking_slope * self.orientation_radius
 
         # Publishers
         self.traj_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size = 10)
@@ -141,6 +141,8 @@ class trajectory_generator:
         self.current_orientation = tools.orientation_from_pose(msg.pose.pose)
         # Get distance to the goal
         vector_to_goal = self.desired_position - self.current_position
+        # Remove any z error
+        vector_to_goal[2] = 0
         self.distance_to_goal = np.linalg.norm(vector_to_goal)
         self.angle_to_goal_orientation = map(smallest_coterminal_angle, self.desired_orientation - self.current_orientation)
         # overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
@@ -216,12 +218,12 @@ class trajectory_generator:
         if not self.killed:
             self.traj_pub.publish(traj)
 
-        if self.redraw_line and self.distance_to_goal < self.orientation_radius:
+        if self.redraw_line: #and self.distance_to_goal < self.orientation_radius:
             self.redraw_line = False
             rospy.loginfo('Redrawing trajectory line')
             self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
 
-        #rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
+        rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
         # Check if goal is reached
         if self.moveto_as.is_active():
