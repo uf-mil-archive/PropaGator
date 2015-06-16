@@ -16,10 +16,10 @@ def main(nh):
         angle = angle
         if abs(angle) < (numpy.pi/10):
             print "forward"
-            yield boat.move.forward(14).go                        
+            yield boat.move.forward(14).go()                       
         elif angle < 0:
             print "turn_left: ", angle
-            yield boat.move.turn_left(abs(angle))
+            yield boat.move.turn_left(abs(angle)).go()
         elif angle > 0:
             print "turn_right: ", angle
-            yield boat.move.turn_right(angle)
+            yield boat.move.turn_right(angle).go()
