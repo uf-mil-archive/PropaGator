@@ -8,10 +8,18 @@ from std_msgs.msg import Float64
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 import numpy as np
+'''TODO 
+   -Publish image message with visual aids
+   -Make values dynamicly adaptive
+      -constants for image size 
+      -Adaptive thresholding 
+'''
 class image_converter:
 
   def __init__(self):
     self.angle_pub = rospy.Publisher("start_gate_vision", Float64, queue_size=1)
+    #self.image_pub = rospy.Publisher("image_topic_2",Image)
+
 
     cv2.namedWindow("Image window", 1)
     self.bridge = CvBridge()
@@ -69,8 +77,16 @@ class image_converter:
     #img = cv2.drawContours(img, contours, 0, (0,0,0), 3)
     #img = cv2.drawContours(img, contours, 1, (0,0,0), 3)
     collums_midpoint = (cx0+cx1)/2
-    midpoint_rela_centerline = collums_midpoint - 500
+    midpoint_rela_centerline = collums_midpoint - 480
     angle = midpoint_rela_centerline*((np.pi*5/9)/960)#960 pixels over 5pi/9 radians view
+    '''
+    cv_image = cv2.line(img,(collums_midpoint,0),(collums_midpoint,10000),(0,255,0),5)
+    try:
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+    except CvBridgeError, e:
+      print e
+    '''
+
     #cnt = contours[0]                        #selecting main contour    
     #x,y,w,h = cv2.boundingRect(cnt)
     #cv2.rectangle(img,(x,y),(x+w,y+h),(0,255,0),2)
