@@ -26,12 +26,12 @@ from kill_handling.broadcaster import KillBroadcaster
 class Controller(object):
     def __init__(self):
 
-        self.d_x = 60
-        self.d_y = 60
-        self.d_z = 10
-        self.p_x = .5
-        self.p_y = .5
-        self.p_z = .3
+        self.d_x = 40
+        self.d_y = 30
+        self.d_z = 20
+        self.p_x = 30
+        self.p_y = 30
+        self.p_z = 40
 
         self.killed = False
         self.enable = True
@@ -189,7 +189,7 @@ class Controller(object):
             print 'Desired_state tf: ', desired_state_dot
             e_dot = desired_state_dot - self.state_dot
             output = self.K_p.dot(e) + self.K_d.dot(e_dot)
-            #print 'Output: ', output
+            print 'Output: ', output
             self.lock.release()
 
             self.x_error = e[0]
