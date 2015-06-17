@@ -51,34 +51,45 @@ class Optimize(object):
                     (We should _always_ satisfy boundary conditions +/- slack)
             '''
             control_tape = self.undiscretize(u_vector, len(time_range))
-            spline = self.forward_sim(dyn_func, x0, control_tape, dt=dt, time_end=time_end)
-            visualize_spline(spline[:, :2], 'Path Visualization', animate=False, iteration_speed=5, lasts=0.05)
-            return (5 * np.linalg.norm(spline[-1] - xf))
+            spline = self.forward_sim(
+                dynamics_func=dyn_func, 
+                x0=x0, 
+                u_vec = control_tape,
+                dt=dt, 
+                time_end=time_end,
+                # target=xf, tol=3
+            )
+            # visualize_spline(spline[:, :2], 'Path Visualization', animate=False, iteration_speed=5, lasts=0.05)
+            # return 5 * np.sum((spline - xf) ** 2)
+            return (5 * np.linalg.norm(spline[-1] - xf)) + (40 * len(spline))
 
         opt = optimize.minimize(
             fun=objective,
             x0=initial_guesses,
             method='SLSQP',
             constraints=constraints,
-            tol=1e-2
+            tol=1e-1
         )
 
         u_vector = opt.x
         control_tape = self.undiscretize(u_vector, len(time_range))
-        # spline = self.forward_sim(dyn_func, x0, control_tape, dt=dt, time_end=time_end)
+        spline = self.forward_sim(dyn_func, x0, control_tape, dt=dt, time_end=time_end,
+            # target=xf, tol=3
+        )
         # visualize_spline(spline[:, :2], 'Pathviz', animate=True, iteration_speed=5, lasts=0, end_point=xf)
-        return control_tape, opt.success
+        return control_tape, spline, opt.success
 
     @classmethod
     def undiscretize(self, u_vector, desired_length):
-        '''undiscretize using 0-order hold'''
+        '''undiscretize(u_vector, desired_length)
+        Unpack the shortened list of control inputs using 0-order hold'''
         control_list = np.array(u_vector).reshape((len(u_vector) // 2, 2))
         target_length = desired_length // len(control_list)
         undiscretized = np.repeat(control_list, target_length, axis=0)
         return undiscretized
 
     @classmethod
-    def forward_sim(self, dynamics_func, x0, u_vec, dt=0.1, time_end=10):
+    def forward_sim(self, dynamics_func, x0, u_vec, dt=0.1, time_end=10, target=None, tol=1e-3):
         '''forward_sim(dynamics_func, x0, u_vec, dt=0.1, time_end=10)
         Forward simulate the dynamics of a system
         '''
@@ -92,9 +103,20 @@ class Optimize(object):
                 len(_range), len(u_vec)
             )
 
-        for n, t in enumerate(_range):
-            x = dt * dynamics_func(x, u_vec[n]) + x
-            trajectory[n] = x
+        if target is not None:
+            # Don't rely on this.
+            for n, t in enumerate(_range):
+                x = dt * dynamics_func(x, u_vec[n]) + x
+                trajectory[n] = x
+                if np.linalg.norm(x - target) < tol:
+                    print 'Returning shortened trajectory', n
+                    return trajectory[:n + 1]
+
+        # These are separate so we don't evaluate a waste "if" each iteration
+        else:
+            for n, t in enumerate(_range):
+                x = dt * dynamics_func(x, u_vec[n]) + x
+                trajectory[n] = x
         return trajectory
 
 
@@ -107,20 +129,21 @@ if __name__ == '__main__':
         ydotdot = -np.sign(ydot) * 0.1 * ydot ** 2
         return np.array([xdot, ydot, xdotdot, ydotdot]) + np.hstack([0.0, 0.0, np.dot(B, u)])
 
-    x0 = np.array([10.0, 20.0, 10.0, -20.0])
-    xf = np.array([10.0, 20.0, 0.0, 0.0])
+    x0 = np.array([0.0, 10.0, 50.0, 30.0])
+    xf = np.array([-10.0, -20.0, 0.0, -0.0])
 
-    dt = 0.05
+    dt = 0.1
     time_end = 10
 
     tic = time()
-    control_tape, success = Optimize.direct_transcription(dyn_func, x0, xf, dt=dt, time_end=time_end)
+    control_tape, spline, success = Optimize.direct_transcription(dyn_func, x0, xf, dt=dt, time_end=time_end)
+    print control_tape
     toc = time() - tic
     print 'took {} seconds'.format(toc)
 
     if success:
-        spline = Optimize.forward_sim(dyn_func, x0, control_tape, dt=dt, time_end=time_end)
-        visualize_spline(spline[:, :2], 'Pathviz', animate=True, iteration_speed=5, lasts=0, end_point=xf)
+        # spline = Optimize.forward_sim(dyn_func, x0, control_tape, dt=dt, time_end=time_end)
+        visualize_spline(spline[:, :2], 'Pathviz', animate=True, iteration_speed=1, lasts=0, end_point=xf)
     else:
-        print "Failed to find feasible solution"
-
+        print("Failed to find feasible solution; If you formatted your dynamics properly, then "
+            "this means you _cannot_ reach xf within {} seconds".format(time_end))

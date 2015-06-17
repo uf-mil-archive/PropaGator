@@ -27,7 +27,4 @@ This planner is not inherently associated with the Propagator project. It is a t
 
 ## Math
 
-- Derive A(x) for A(x)*x + B(alpha)*u
-
-- Determine an appropriate spline for policy search (Looks like cubic hermite is not really the best solution for this?
-Varun suggested configuration-space search, but this is impractical for a boat-like dynamic vehicle)
+- Add control interpolation to avoid big spikes at the end of a trajectory
