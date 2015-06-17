@@ -19,6 +19,7 @@ import numpy as np
 import tools
 from tools import line
 import math
+import threading
 
 def smallest_coterminal_angle(x):
     # Bounded between [-pi, pi]
@@ -26,15 +27,21 @@ def smallest_coterminal_angle(x):
 
 class trajectory_generator:
     def __init__(self, name):
+
+        # Thread Locking
+        self.lock = threading.Lock()
+        #self.lock.acquire()
+        #self.lock.release()
+
         # Desired pose
         self.desired_position = self.current_position = np.zeros(3)
         self.desired_orientation = self.current_orientation = np.zeros(3)
         #self.desired_twist = self.current_twist = Twist()
 
         # Goal tolerances before seting succeded
-        self.linear_tolerance = rospy.get_param('linear_tolerance', 1.5)
-        self.angular_tolerance = rospy.get_param('angular_tolerance', np.pi / 5)
-        self.orientation_radius = rospy.get_param('orientation_radius', 0.5)
+        self.linear_tolerance = rospy.get_param('linear_tolerance', 0.5)
+        self.angular_tolerance = rospy.get_param('angular_tolerance', 20 * np.pi / 180)
+        self.orientation_radius = rospy.get_param('orientation_radius', 1)
         self.slow_down_radius = rospy.get_param('slow_down_radius', 3.0)
 
         # Speed parameters
@@ -92,9 +99,13 @@ class trajectory_generator:
         self.moveto_as.start()
 
     def new_goal(self):
+        # Lock on odom cb
+        self.lock.acquire()
+
         goal = self.moveto_as.accept_new_goal()
         self.desired_position = tools.position_from_posetwist(goal.posetwist)
         self.desired_orientation = tools.orientation_from_posetwist(goal.posetwist)
+
         #self.linear_tolerance = goal.linear_tolerance
         #self.angular_tolerance = goal.angular_tolerance
 
@@ -108,14 +119,19 @@ class trajectory_generator:
         #self.desired_twist = goal.posetwist.twist
         if (xyz_array(goal.posetwist.twist.linear).any() or 
             xyz_array(goal.posetwist.twist.angular).any() ):
-            rospy.logwarn('None zero are not handled by the tank steer trajectory generator. Setting twist to 0')
-        
+            rospy.logwarn('None zero are not handled by the azi trajectory generator. Setting twist to 0')
+        #print 'Distance = ' + str(np.linalg.norm(self.current_position - self.desired_position))
         if np.linalg.norm(self.current_position - self.desired_position) > self.orientation_radius:
+            #print 'Far out dude'
             self.line = line(self.current_position, self.desired_position)
             self.redraw_line = True
         else:
+            #print 'Pretty close'
             self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
             self.redraw_line = False
+
+        # Release lock
+        self.lock.release()
 
     def goal_preempt(self):
         self.desired_position = self.current_position
@@ -137,12 +153,15 @@ class trajectory_generator:
 
     # Update pose and twist
     def odom_cb(self, msg):
+        # Lock on odom cb
+        self.lock.acquire()
+
         self.current_position = tools.position_from_pose(msg.pose.pose)
+        # Zero the Z
+        self.current_position[2] = 0
         self.current_orientation = tools.orientation_from_pose(msg.pose.pose)
         # Get distance to the goal
         vector_to_goal = self.desired_position - self.current_position
-        # Remove any z error
-        vector_to_goal[2] = 0
         self.distance_to_goal = np.linalg.norm(vector_to_goal)
         self.angle_to_goal_orientation = map(smallest_coterminal_angle, self.desired_orientation - self.current_orientation)
         # overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
@@ -159,6 +178,9 @@ class trajectory_generator:
             self.overshoot = 1
 
         #print 'Overshoot: ', self.overshoot
+
+        # Release lock
+        self.lock.release()
 
     # Get the speed setting of the trajectory
     #               Value                   :   Condition
@@ -211,27 +233,31 @@ class trajectory_generator:
 
     # Update loop
     def update(self, event):
-        
+        # Lock on odom cb
+        self.lock.acquire()
+
         # Publish trajectory
         traj = self.get_carrot()
         #rospy.loginfo('Trajectory: ' + str(traj))
         if not self.killed:
             self.traj_pub.publish(traj)
 
-        if self.redraw_line: #and self.distance_to_goal < self.orientation_radius:
+        if self.redraw_line and self.distance_to_goal < self.orientation_radius:
             self.redraw_line = False
             rospy.loginfo('Redrawing trajectory line')
             self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
 
-        rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
+        #rospy.loginfo('Angle to goal: ' + str(self.angle_to_goal_orientation[2] * 180 / np.pi) + '\t\t\tDistance to goal: ' + str(self.distance_to_goal))
 
         # Check if goal is reached
         if self.moveto_as.is_active():
             if self.distance_to_goal < self.linear_tolerance:
                 if abs(self.angle_to_goal_orientation[2]) < self.angular_tolerance:
-                    rospy.loginfo('succeded')
+                    rospy.loginfo('Reached goal')
                     self.moveto_as.set_succeeded(None)
 
+        # Release lock
+        self.lock.release()
 
 if __name__ == '__main__':
     rospy.init_node('trajectory_generator')
