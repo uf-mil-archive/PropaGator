@@ -13,13 +13,8 @@ TODO:
     - Split the mapper into a minimzation function (where we can test the minmization object)
         and a mapper, which does the actual mapping
         --> easier unit testing
-    - Add THEORY, PRINCIPLE and JUSTIFICATION sections to documentation
 
     - If we fail to find a solution, try again with an angle slightly outside of jacobian singularity
-
-ISSUES:
-    - There are still some problems commanding a force purely in the Y direction
-        - Nail these out (Have Jason double-check the B matrix)
 
 '''
 
@@ -38,7 +33,9 @@ class Azi_Drive(object):
 
     # Max/min force from each thruster
     u_max = 100
-    u_min = -100
+    u_min = -70
+    # min(abs(u)), about 10 Newtons
+    thruster_min = 10
 
     # Max/min angle of each thruster
     alpha_max = np.pi / 2
@@ -191,12 +188,15 @@ class Azi_Drive(object):
         Author: Jacob Panikulam
 
         '''
+        # Early Checks
         # Convert to numpy arrays
         alpha_0 = np.array(alpha_0)
         u_0 = np.array(u_0)
 
         # Desired
         tau = np.array([fx_des, fy_des, -1 * m_des])
+        if np.allclose([0.0, 0.0, 0.0], tau, atol=5.0):
+            return np.array([0.0, 0.0]), -u_0, True
 
         # Linearizations
         d_singularity = Tools.jacobian(self.singularity_avoidance, pt=alpha_0, order=3, dx=0.01)
@@ -254,6 +254,7 @@ class Azi_Drive(object):
         alpha_min = self.alpha_min
         delta_alpha_min = self.delta_alpha_min
         delta_alpha_max = self.delta_alpha_max
+        thruster_min = self.thruster_min
 
         # Plot the cost function (visually observe convexity)
         if test_plot:
@@ -295,6 +296,13 @@ class Azi_Drive(object):
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_2 + u_0[1]) + u_max},
                 {'type': 'ineq', 'fun': 
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_2 + u_0[1] - u_min},
+
+                # Account for minimum thruster output
+                {'type': 'ineq', 'fun': 
+                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_1 + u_0[0]) - thruster_min},
+                {'type': 'ineq', 'fun': 
+                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_2 + u_0[1]) - thruster_min},
+
                 {'type': 'ineq', 'fun': 
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 + alpha_0[1]) + alpha_max},
                 {'type': 'ineq', 'fun': 
@@ -325,7 +333,8 @@ if __name__ == '__main__':
 
     for k in range(10):
 
-        delta_alpha, delta_u =  Azi_Drive.map_thruster(
+
+        delta_alpha, delta_u, s =  Azi_Drive.map_thruster(
             100, 10, 5, 
             alpha_0=alpha_0, 
             u_0=u_0,
