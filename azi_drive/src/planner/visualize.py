@@ -14,7 +14,7 @@ from geometry_msgs.msg import Point, PointStamped, PoseStamped, Pose, Quaternion
 
 SCREEN_DIM = (750, 750)
 ORIGIN = np.array([SCREEN_DIM[0]/2.0, SCREEN_DIM[1]/2.0])
-SCALE = 10.
+SCALE = 5.
 
 def print_in(f):
     print("Defining " + f.func_name)
@@ -43,8 +43,19 @@ def vector(display, start, direction, scale=0.1, color=(0, 255, 0)):
         round_point(np.array(start) + (np.array(direction) * scale)),
     )
 
+def ray(display, start, angle, length, scale=0.1, color=(255, 0, 0), width=1):
+    unit_v = np.array([np.sin(angle), np.cos(angle)])
+    _start = round_point(start)
+    _end = round_point(start + (unit_v * length * scale))
 
-def draw_spline(display, spline, iteration=10, color=(255, 0, 0), draw_slopes=False):
+    pygame.draw.line(display, color,
+        _start,
+        _end,
+        width
+    )
+
+
+def draw_spline(display, spline, iteration=10, color=(255, 0, 0), draw_slopes=False, has_theta=False):
     speed = np.diff(spline, 1, 0) / 0.01
     acc = np.diff(spline, 2, 0) / 0.01
 
@@ -71,8 +82,12 @@ def draw_spline(display, spline, iteration=10, color=(255, 0, 0), draw_slopes=Fa
             vector(display, spline[ind], speed[ind], 0.1, color=(255, 255, 0))
             vector(display, spline[ind], acc[ind], 0.5, color=(0, 255, 255))
 
+        if has_theta:
+            ray(display, spline[ind][:2], angle=spline[ind][2], length=25, width=3)
 
-def visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0, end_point=None):
+
+def visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0, end_point=None,
+                     has_theta=False):
     '''visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0):
     Visualize a sequence of points
         title: String that will set the window title
@@ -102,7 +117,7 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
         if end_point is not None:
             pygame.draw.circle(display, (255, 0, 0,), round_point(end_point), 6)
 
-        draw_spline(display, spline, iteration, draw_slopes=(not animate))
+        draw_spline(display, spline, iteration, draw_slopes=(not animate), has_theta=has_theta)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
