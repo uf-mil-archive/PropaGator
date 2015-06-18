@@ -11,9 +11,13 @@ import cv2.cv as cv
 import colorsys
 import time
 
-from std_msgs.msg import String
+from std_msgs.msg import Bool, Int16, String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
+from camera_docking import detected
+#from sign2.msg import detected, xpos, shape, color
+#from sign3.msg import detected, xpos, shape, color
+
 #from camera_docking.msg import docking_signs
 
 font = cv2.FONT_HERSHEY_SIMPLEX
@@ -199,7 +203,7 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
                         if len(dst) == 3:
                             symbol_type = 'triangle'
                         else:
-                            symbol_type = 'circle'
+                            symbol_type = 'none'
                     else:
                         symbol_type = 'none'
                         blank_gray = cv2.cvtColor(blank_img,cv2.COLOR_BGR2GRAY)
@@ -225,13 +229,13 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
             color = 'black'
         elif (hsv[0]<11 or hsv[0]>351) and hsv[1]>.7 and hsv[2]>.1:
             color = 'red'
-            print 'red: h: %d s: %f v: %f'  % (hsv[0], hsv[1], hsv[2])
+            #print 'red: h: %d s: %f v: %f'  % (hsv[0], hsv[1], hsv[2])
         elif (hsv[0]>64 and hsv[0]<150) and hsv[1]>.15 and hsv[2]>.1:
             color = 'green'
-            print 'green: h: %d s: %f v: %f'  % (hsv[0], hsv[1], hsv[2])
+            #print 'green: h: %d s: %f v: %f'  % (hsv[0], hsv[1], hsv[2])
         elif (hsv[0]>180 and hsv[0]<255) and hsv[1]>.15 and hsv[2]>.1:
             color = 'blue'
-            print 'blue: h: %d s: %f v: %f'  % (hsv[0], hsv[1], hsv[2])
+            #print 'blue: h: %d s: %f v: %f'  % (hsv[0], hsv[1], hsv[2])
         else:
             #cv2.drawContours(orig_img,[biggest_cnt[0]], 0, (255, 0, 255), -1)        
             color = 'can\'t find'
@@ -316,7 +320,7 @@ class image_converter:
     self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
     self.image_white = rospy.Publisher("finding_white",Image, queue_size = 1)
 
-    #self.pub = rospy.Publisher('chatter', String, queue_size=10)
+    #self.sign1msg = rospy.Publisher('Sign1', )
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
@@ -326,7 +330,7 @@ class image_converter:
 
     
     try:
-      vid = self.bridge.imgmsg_to_cv2(data, "rgb8")
+      vid = self.bridge.imgmsg_to_cv2(data, "bgr8")
     except CvBridgeError, e:
       print e    
     
@@ -729,7 +733,7 @@ class image_converter:
 
     
     try:
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "rgb8"))
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "bgr8"))
       cv2.imshow('actual', frame_real)        
       #self.image_white.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
     except CvBridgeError, e:
