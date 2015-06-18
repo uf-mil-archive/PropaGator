@@ -6,12 +6,25 @@ from visualize import visualize_spline
 
 
 class Boat_Planner(object):
+    '''Boat Planner
+
+    Bibliography:
+        [1] Fossen, Thor; Handbook of Marine Craft Hydrodynamics and Motion Control:
+                Ch 7, Models for Ships, Offshore Structures and Underwater Vehicles.
+            > Used for realizing that a reasonably accurate water-resistance model was unrealistic
+
+    '''
 
     # Do some fitting to determine the actual cross-coupling
     B = np.eye(3)
 
     @classmethod
     def rotation_mat(self, theta):
+        '''rotation_mat(theta) -> rotation matrix
+        Generates a 2x2 rotation matrix for an angle, theta, in radians
+        Bibliography:
+            [1] https://en.wikipedia.org/wiki/Rotation_matrix
+        '''
         c, s = np.cos(theta), np.sin(theta)
         return np.array([
             [c, -s],
@@ -36,6 +49,7 @@ class Boat_Planner(object):
 
 
 if __name__ == '__main__':
+    print 'Boat Planner Demo; This is not intended to be run as main'
     bp = Boat_Planner()
 
     x0 = np.array([
