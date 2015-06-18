@@ -87,19 +87,19 @@ class _Boat(object):
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
         self._circle_detect = self._node_handle.subscribe("circle_detected" , Bool)
-        self._square_detect = self._node_handle.subscribe("square_detected" , Bool)
+        self._square_detect = self._node_handle.subscribe("cross_detected" , Bool)
         self._triangle_detect = self._node_handle.subscribe("triangle_detected" , Bool)
-        self._cirlce_pos = self._node_handle.subscribe("circle_x_pos" , Int16)
-        self._square_pos = self._node_handle.subscribe("square_x_pos" , Int16)
+        self._circle_pos = self._node_handle.subscribe("circle_x_pos" , Int16)
+        self._cross_pos = self._node_handle.subscribe("cross_x_pos" , Int16)
         self._triangle_pos = self._node_handle.subscribe("triangle_x_pos" , Int16)
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
-
+        '''
         if(need_trajectory == True):
 
             yield self._trajectory_sub.get_next_message()
-
+        '''
         defer.returnValue(self)
 
     @property
@@ -197,11 +197,11 @@ class _Boat(object):
         if shape == 'circle':
             msg = yield self._circle_pos.get_next_message()
             defer.returnValue(msg)
-        if shape == 'square':
-            msg = yield self._square_pos.get_next_message()
+        if shape == 'cross':
+            msg = yield self._cross_pos.get_next_message()
             defer.returnValue(msg)
         if shape == 'triangle':
-            msg = yield self._shape_pos.get_next_message()
+            msg = yield self._triangle_pos.get_next_message()
             defer.returnValue(msg)
     
     #SPP get the latest gps lat/long fix from the 
