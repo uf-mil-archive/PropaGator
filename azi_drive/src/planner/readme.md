@@ -10,7 +10,8 @@ This is an optimizational trajectory planner, in the sense that it treats trajec
 
 # Things to try
 - Parameterize a spline in point-position and velocities, then generate a cost that describes the length of the trajectory, then try to optimize
--- > Local minima are _fine_, *a solution* is what we care about. Any non-ridiculous solution that is within bounds
+
+- Local minima are _fine_, *a solution* is what we care about. Any non-ridiculous solution that is within bounds
 
 ## Things that will actually work
 - Direct collocation
@@ -58,5 +59,7 @@ This is an optimizational trajectory planner, in the sense that it treats trajec
 
 `u` - u is shorthand for "control input vector", a list of control inputs, ex: commands to thrusters 1 and 2.
 
-`Dynamics` - Here, I very frequently use "dynamics" as a short-hand for referring to "A difference equation that relates state `X<sub>t</sub>` to state `X<sub>t + 1</sub>`. This is typically of the form `X<sub>t + 1</sub> = dt * f(X<sub>t</sub>, u<sub>t</sub>) + X<sub>t</sub>`. Sorry Jason.
+`Dynamics` - Here, I very frequently use "dynamics" as a short-hand for referring to "A difference equation that relates state X<sub>t</sub> to state X<sub>t + 1</sub>. This is typically of the form:
+######           X<sub>t + 1</sub> = dt * f(X<sub>t</sub>, u<sub>t</sub>) + X<sub>t</sub>. 
+Sorry Jason.
 
