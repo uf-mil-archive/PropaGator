@@ -50,6 +50,18 @@ class Tools(object):
         else:
             return jacobian.T
 
+    @staticmethod
+    def quadratic(vector, matrix):
+        '''quadratic(vector, matrix)
+        computes (v.T * M * v)
+        '''
+        vector_t = np.transpose(vector)
+        quadratic = np.dot(
+            vector_t,
+            np.dot(matrix, vector)
+        )
+        return quadratic
+
             
 def clamp_angles(input_angle):
     angle = np.clip(input_angle, -np.pi/2, np.pi/2)
@@ -136,5 +148,7 @@ def normal_vector_from_posetwist(pt):
 
 if __name__ == '__main__':
     tests = [-np.pi/2, 0.0, np.pi/2]
-    for test in tests:
-        print clamp_angles(test)
+    # for test in tests:
+        # print clamp_angles(test)
+
+    print Tools.quadratic(np.array([2.0, 1.0]), np.eye(2))
