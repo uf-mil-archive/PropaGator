@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import roslib
-roslib.load_manifest('camera_docking')
+
+#roslib.load_manifest('camera_docking')
+
 import sys
 import rospy
 import cv2
@@ -11,14 +13,11 @@ import cv2.cv as cv
 import colorsys
 import time
 
+from std_msgs.msg import Header
 from std_msgs.msg import Bool, Int16, String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
-from camera_docking import detected
-#from sign2.msg import detected, xpos, shape, color
-#from sign3.msg import detected, xpos, shape, color
-
-#from camera_docking.msg import docking_signs
+from camera_docking.msg import DockSign
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -320,14 +319,14 @@ class image_converter:
     self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
     self.image_white = rospy.Publisher("finding_white",Image, queue_size = 1)
 
-    #self.sign1msg = rospy.Publisher('Sign1', )
+    self.signmsg = rospy.Publisher('Signs_detected', DockSign, queue_size = 1)
 
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/camera/image_raw",Image,self.callback)
 
   def callback(self,data):
 
-
+    msg = DockSign()
     
     try:
       vid = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -335,6 +334,10 @@ class image_converter:
       print e    
     
     cap = vid
+
+    cv2.imshow('actual', vid)
+    cv2.waitKey(1)
+
     
 #**************** while(cap.isOpened()): *************************************************************
     counter = 0
@@ -540,6 +543,9 @@ class image_converter:
 
         if sign1[0] != 'none' or sign1[0] != 'none_found':        
             cv2.circle(frame_real,(sign1[2]+corner[0],sign1[3]+corner[1]), 2, (255,0,0),-1) 
+            
+            msg.xpixel = sign1[2]+corner[0] - 500
+
             if sign1[4] == 'can\'t find':
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
@@ -550,6 +556,8 @@ class image_converter:
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,0),1, cv2.CV_AA)      
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
+            msg.color = sign1[4]
+            msg.shape = symbol1
 
         cv2.putText(frame_real, "Sign1" , (corner[0], corner[1] - 5), font, .75,(255,0,255),2, cv2.CV_AA)
     elif (corner[0] > corner[4] and corner[0] > corner[8] and corner[0] != width):
@@ -562,6 +570,9 @@ class image_converter:
 
         if sign3[0] != 'none' or sign3[0] != 'none_found':        
             cv2.circle(frame_real,(sign3[2]+corner[0],sign3[3]+corner[1]), 2, (255,0,0),-1)
+
+            msg.xpixel = sign3[2]+corner[0] - 500
+
             if sign3[4] == 'distance_from_center = 28.0can\'t find':
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[0], sign3[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
@@ -606,6 +617,9 @@ class image_converter:
 
         if sign1[0] != 'none' or sign1[0] != 'none_found':        
             cv2.circle(frame_real,(sign1[2]+corner[4],sign1[3]+corner[5]), 2, (255,0,0),-1) 
+
+            msg.xpixel = sign1[2]+corner[4] - 500
+
             if sign1[4] == 'can\'t find':
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[4], sign1[3]+corner[5] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
@@ -615,6 +629,9 @@ class image_converter:
             else:
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[4], sign1[3]+corner[5] - 15), font, .6,(255,0,0),1, cv2.CV_AA)
+
+            msg.color = sign1[4]
+            msg.shape = symbol1
  
         cv2.putText(frame_real, "Sign1" , (corner[4], corner[5] - 5), font, .75,(255,0,255),2, cv2.CV_AA)
     elif (corner[4] > corner[0] and corner[4] > corner[8] and corner[4] != width):
@@ -627,6 +644,9 @@ class image_converter:
      
         if sign3[0] != 'none' or sign3[0] != 'none_found':        
             cv2.circle(frame_real,(sign3[2]+corner[4],sign3[3]+corner[5]), 2, (255,0,0),-1) 
+
+            msg.xpixel = sign3[2]+corner[4] - 500
+
             if sign3[4] == 'can\'t find':
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[4], sign3[3]+corner[5] - 15), font, .6,(255,0,255),1, cv2.CV_AA) 
@@ -670,6 +690,9 @@ class image_converter:
 
         if sign1[0] != 'none' or sign1[0] != 'none_found':        
             cv2.circle(frame_real,(sign1[2]+corner[8],sign1[3]+corner[9]), 2, (255,0,0),-1) 
+
+            msg.xpixel = sign1[2]+corner[8] - 500
+
             if sign1[4] == 'can\'t find':
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
@@ -678,7 +701,10 @@ class image_converter:
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
-                cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(255,0,0),1, cv2.CV_AA)                
+                cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(255,0,0),1, cv2.CV_AA)    
+
+            msg.color = sign1[4]  
+            msg.shape = symbol1          
 
         sign1 =  find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center)  
         cv2.putText(frame_real, "Sign1" , (corner[8], corner[9] - 5), font, .75,(255,0,255),2, cv2.CV_AA)
@@ -692,6 +718,9 @@ class image_converter:
 
         if sign3[0] != 'none' or sign3[0] != 'none_found':        
             cv2.circle(frame_real,(sign3[2]+corner[8],sign3[3]+corner[9]), 2, (255,0,0),-1) 
+
+            msg.xpixel = sign3[2]+corner[8] - 500
+
             if sign3[4] == 'can\'t find':
                 cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[8], sign3[3]+corner[9] - 15), font, .6,(255,0,255),1, cv2.CV_AA)    
@@ -728,13 +757,17 @@ class image_converter:
     
     cv2.putText(frame_real, ("%d"% no_of_signs) , (1600, 50), font, .75,(255,0,255),2, cv2.CV_AA)    
     
+    msg.header = Header(
+            stamp = rospy.get_rostime(),
+            frame_id = '/camera'
+        )
     
+    self.signmsg.publish(msg)
 #*******************************************************************************************************    
 
     
     try:
-      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "bgr8"))
-      cv2.imshow('actual', frame_real)        
+      self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "bgr8"))        
       #self.image_white.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
     except CvBridgeError, e:
       print e
