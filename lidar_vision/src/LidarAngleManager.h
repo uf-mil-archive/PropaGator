@@ -2,6 +2,7 @@
 #define LIDAR_ANGLE_MANAGER_H_
 
 #include <ros/ros.h>
+#include <tf/transform_broadcaster.h>
 #include "dynamixel_servo/DynamixelFullConfig.h"
 #include "dynamixel_servo/DynamixelJointConfig.h"
 #include "dynamixel_servo/DynamixelStatus.h"
@@ -21,7 +22,7 @@ private:
 	//ros::Publisher dynamixel_config_full_pub_;
 	ros::Publisher dynamixel_config_position_pub_;
 	ros::Publisher dynamixel_control_table_pub_;
-	ros::Publisher joint_pub_;
+	//ros::Publisher joint_pub_;
 
 	//Subscribers
 	ros::Subscriber dynamixel_control_table_sub_;
@@ -35,7 +36,7 @@ private:
 	
 	//Current angle
 	//Keeps a cache of the last published servo angle
-	float current_angle_;
+	//float current_angle_; Legacy
 
 	//Sin wave stuff
 	int sin_sample_count_;
@@ -43,6 +44,10 @@ private:
 	float out_frequency_;
 	float in_frequency_;
 	float amplitude_;
+
+	//TF
+	tf::TransformBroadcaster angle_br_;
+
 	/*
 	 *  Private functions
 	 */
@@ -77,7 +82,7 @@ public:
  *  Constructor
  */
 LidarAngleManager::LidarAngleManager():
-		current_angle_(3.14159), max_angle_(3.4), min_angle_(2.7),
+		max_angle_(3.4), min_angle_(2.7),
 		sin_sample_count_(0), in_frequency_(100), out_frequency_(1)
 {
 	// offset = (max + min) / 2
@@ -108,7 +113,7 @@ void LidarAngleManager::Setup()
 	//dynamixel_config_full_pub_ = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_full_config", 10);
 	dynamixel_config_position_pub_ = n.advertise<dynamixel_servo::DynamixelJointConfig>("/dynamixel/dynamixel_joint_config", 10);
 	dynamixel_control_table_pub_ = n.advertise<dynamixel_servo::DynamixelControlTableRequest>("/dynamixel/dynamixel_control_table_request", 10);
-	joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",1);
+	//joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",1);
 
 	//Initilze the subscribers
 	dynamixel_control_table_sub_ = n.subscribe("/dynamixel/dynamixel_control_table_post", 10, &LidarAngleManager::GetLimits, this);
@@ -170,11 +175,12 @@ void LidarAngleManager::Run()
 	{
 		/*
 		 * Psedo code
+		 *  The code doesn't seem to be working so switching to a tf broadcaster instead
 		 * 	Update joint state publisher
 		 * 	Get our angle relitive to horizontal
 		 * 	if outside limits
 		 * 		reverse
-		 */
+		 *
 		//Update joint state
 		//Note names are defined in propagtor description file
 		sensor_msgs::JointState joint;
@@ -183,6 +189,7 @@ void LidarAngleManager::Run()
 		//ROS_INFO("Present position %f: ", current_angle_);
 		joint.position.push_back(current_angle_);
 		joint_pub_.publish(joint);
+		*/
 
 		// Move the Lidar in a sin wave
 		// offset = (max + min) / 2
@@ -249,7 +256,13 @@ void LidarAngleManager::GetServoData(const dynamixel_servo::DynamixelStatus stat
 {
 	if(status.id == servo_id_)
 	{
-		current_angle_ = status.present_position;
+		float current_angle = status.present_position;
+		tf::Transform trans;
+		trans.setOrigin(tf::Vector3(0,0,0));
+		tf::Quaternion q;
+		q.setRPY(0, M_PI - current_angle, 0);
+		trans.setRotation(q);
+		angle_br_.sendTransform(tf::StampedTransform(trans, ros::Time::now(), "lidar_base", "lidar"));
 	}
 }
 
