@@ -227,23 +227,27 @@ class Azi_Drive(object):
             s = get_s((delta_angle, delta_u))
 
             # Sub-costs
-            # power = np.sum(d_power * np.power(u_0 + delta_u, 2))
-            # power = np.sum(d_power * np.power(delta_u, 2))
+            # P = np.diag([1.0, 1.0])
+            # power = Tools.quadratic(delta_angle + alpha_0, P)
             power = 0
 
-            G = thrust_error_weights = np.diag([20, 20, 40])
+            G = thrust_error_weights = np.diag([20.0, 20.0, 40.0])
             thrust_error = (s * G * s.T).A1
 
-            Q = angle_change_weight = np.diag([4, 4])
+            Q = angle_change_weight = np.diag([4.0, 4.0])
             angle_change = np.dot(
                 np.dot(delta_angle, angle_change_weight),
-                np.transpose(delta_angle))
+                np.transpose(delta_angle)
+            )
+
+            A = angle_weight = np.diag([2.0, 2.0])
+            angle_cost = Tools.quadratic((delta_angle + alpha_0), A)
 
             singularity = np.dot(d_singularity, delta_angle).A1
 
             # Note, the error will increase when adding power and singularity costs
-            cost = power + thrust_error + angle_change + singularity + np.sum(np.power(delta_angle + alpha_0, 2))
-            # cost = thrust_error
+            # cost = power + thrust_error + angle_change + singularity + angle_cost
+            cost = thrust_error
             return cost
 
         # Formatted as such because I thought I would do something 
@@ -298,10 +302,10 @@ class Azi_Drive(object):
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_2 + u_0[1] - u_min},
 
                 # Account for minimum thruster output
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_1 + u_0[0]) - thruster_min},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_2 + u_0[1]) - thruster_min},
+                # {'type': 'ineq', 'fun': 
+                    # lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_1 + u_0[0]) - thruster_min},
+                # {'type': 'ineq', 'fun': 
+                    # lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_2 + u_0[1]) - thruster_min},
 
                 {'type': 'ineq', 'fun': 
                     lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 + alpha_0[1]) + alpha_max},
