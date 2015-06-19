@@ -2,8 +2,10 @@
   <include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch"/>
 
   <!-- <include file="$(find propagator_description)/launch/display.launch"/> -->
+  <node pkg="tf" type="static_transform_publisher" name="lidar_tf"
+    args="1 0 0.25  0 0 0 1  /base_link /lidar_base 100" />
   <node pkg="tf" type="static_transform_publisher" name="forward_camera_tf"
-    args="1 0 0.25  0 0 0 1  /base_link /lidar 100" />
+    args="1 0 0.345  0 0 0 1  /base_link /camera 100" />
   <!-- <include file="$(find lidar_control)/launch/lidar.launch"/> -->
 
   <node pkg="kill_handling" type="kill_master" name="kill_master" respawn="true"/>
