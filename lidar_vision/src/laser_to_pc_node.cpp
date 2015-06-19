@@ -77,12 +77,13 @@ private:
 public:
 	//TODO: Replace base_link with map for slam
 	LaserToPC2():
-		frame_("/base_link")
+		frame_("/enu")
 	{
 		ros::NodeHandle nh;
+		ros::param::param<std::string>("~pc_tf_frame", frame_, "/enu");
 		std::string topic = nh.resolveName("scan");		//Get the topic
-		laser_sub_ = nh.subscribe<sensor_msgs::LaserScan>(topic.c_str(), 100, &LaserToPC2::ConvertLaser, this);
 		pc_pub_ = nh.advertise<sensor_msgs::PointCloud2>("raw_pc", 100);
+		laser_sub_ = nh.subscribe<sensor_msgs::LaserScan>(topic.c_str(), 100, &LaserToPC2::ConvertLaser, this);
 	}
 
 };

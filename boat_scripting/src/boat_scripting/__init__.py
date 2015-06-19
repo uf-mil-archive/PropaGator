@@ -241,6 +241,9 @@ class _Boat(object):
         msg = yield self._start_gate_vision_sub.get_next_message()
         defer.returnValue(msg.data)
 
+
+    '''MAKE SEPERATE MISSION
+    '''
     #SPP allign the craft based on what pings the hydrophones hear for a given freq
     @util.cancellableInlineCallbacks
     def hydrophone_align(self, frequency):
@@ -269,6 +272,9 @@ class _Boat(object):
         msg = yield self._absodom_sub.get_next_message()
         defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
     
+
+    '''MAKE SEPERATE MISSION
+    '''    
     @util.cancellableInlineCallbacks
     def go_to_ecef_pos(self, pos, speed=0, turn=True):
         print 'go_to_ecef_pos', pos, speed, turn
@@ -305,6 +311,9 @@ class _Boat(object):
                 yield self.move.set_position(self.odom.position).go() # stop moving
                 yield self.move.backward(3).go()
     
+
+    '''MAKE SEPERATE MISSION
+    '''
     @util.cancellableInlineCallbacks
     def visual_align(self, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):
         goal_mgr = self._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
@@ -392,7 +401,9 @@ class _Boat(object):
         finally:
             goal_mgr.cancel()
             yield self.move.go() # stop moving
-    
+
+    '''MAKE SEPERATE MISSION
+    '''
     @util.cancellableInlineCallbacks
     def visual_approach(self, camera, object_name, size_estimate, desired_distance, selector=lambda items, body_tf: items[0]):
         goal_mgr = self._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
@@ -460,7 +471,11 @@ class _Boat(object):
         finally:
             goal_mgr.cancel()
             yield self.move.go() # stop moving
-    
+
+
+    '''MAKE SEPERATE MISSION
+       COULD BE FROM SUB MAYBE DELETE
+    '''    
     @util.cancellableInlineCallbacks
     def visual_approach_3d(self, camera, distance, targetdesc, loiter_time=0):
         goal_mgr = self._camera_3d_action_clients[camera].send_goal(object_finder_msg.FindGoal(
