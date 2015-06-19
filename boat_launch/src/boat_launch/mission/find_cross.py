@@ -9,8 +9,7 @@ import rospy
 
 
 @util.cancellableInlineCallbacks
-def main(nh):
-    boat = yield boat_scripting.get_boat(nh)
+def main(nh, boat):
 
     while True:
         msg =  yield boat.get_shape_location('cross')

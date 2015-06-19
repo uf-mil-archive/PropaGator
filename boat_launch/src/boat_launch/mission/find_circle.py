@@ -9,9 +9,10 @@ from std_msgs.msg import Bool
 import rospy
 
 
+
+
 @util.cancellableInlineCallbacks
-def main(nh):
-    boat = yield boat_scripting.get_boat(nh)
+def main(nh, boat):
 
     while True:
         msg =  yield boat.get_shape_location('circle')
@@ -20,6 +21,10 @@ def main(nh):
             break
 
         print "Circle at pixel location: ", abs(msg.data) 
+
+
+    yield boat.hold_at_current_pos()
+    lidar_scan = yield boat.get_scan()
 
 
 
