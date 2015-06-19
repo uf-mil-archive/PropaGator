@@ -139,6 +139,7 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
 
 def main():
     '''Core draw loop'''
+    print 'Randomized Spline Visualization Demo; Not intended to be run as main'
     from spline.spline import Hermite, Waypoint
     from policy_search import Policy_Search
 

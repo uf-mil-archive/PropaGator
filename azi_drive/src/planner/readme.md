@@ -9,20 +9,12 @@ This is an optimizational trajectory planner, in the sense that it treats trajec
 `Direct transcription`, is used to generate a trajectory that is `feasible` for the boat. This is a list of *states*, describing the trajectory of the vehicle, and the time that we should be reaching them. `TV-LQR` is used to *achieve* this trajectory in real-life. It creates the controller, and this is used to reject disturbances. Things like nonlinear water-resistance, wind, and model errors are rejected as disturbances.
 
 # Things to try
-- Parameterize a spline in point-position and velocities, then generate a cost that describes the length of the trajectory, then try to optimize
-
-- Local minima are _fine_, *a solution* is what we care about. Any non-ridiculous solution that is within bounds
 
 ## Things that will actually work
 - Direct collocation
 - Direct transcription
 - Pseudospectral methods
 - LQR for trajectory stabilization
-
-
-# Experiments
-
-- The minimum time path should be a straight line given no other constraints. Will this work? (It does!)
 
 # TODO
 
@@ -36,12 +28,10 @@ This is an optimizational trajectory planner, in the sense that it treats trajec
 - None right now!
 
 ## Math
-
 - Add control interpolation to avoid big spikes at the end of a trajectory
 - Figure out how to not require constant torques (Maybe this is necessary?)
 
 ## Fixes
-
 - Get the main-loop in visualize.py to use the new visualize_spline function
 
 

@@ -7,10 +7,20 @@ from time import time
 
 class Optimize(object):
     @classmethod
-    def direct_transcription(self, dynamics, x0, xf, dt=0.1, time_end=10):
+    def direct_transcription(self, dynamics, x0, xf, dt=0.1, time_end=10, control_dimension=2, control_fraction=10):
         '''direct_transcription()
         Compute a feasible optimal trajectory via direct transcription using sequential least-squares programming (slsqp),
             not interpolating state beyond dynamics, and interpolating control using a zero-order hold.
+
+        Arguments:
+            dynamics - x[t + 1] = dynamics(x, u) + x
+            x0 - initial state
+            xf - targeted end-state
+            dt - time step size
+            time_end - time in seconds to plan a trajectory for (horizon length)
+            control_dimension - length of the control-input vector, u
+            control_fraction - fraction of states that governs how many different control inputs will be varied
+                                in short, the vehicle will change its control input at 1/control_fraction of the states
 
         Concept:
             Dynamics: x[t + 1] = dynamics(x, u) + x
@@ -26,7 +36,7 @@ class Optimize(object):
 
         time_range = np.arange(0, time_end, dt)
 
-        initial_guesses = [0.0 for i in range(len(time_range) // 10)]
+        initial_guesses = [0.0 for i in range(len(time_range) // control_fraction)]  * control_dimension
         constraints = []
         u_max = 100
         u_min = -100
@@ -50,9 +60,9 @@ class Optimize(object):
                 Formulate the final position instruction as a constraint and not a cost 
                     (We should _always_ satisfy boundary conditions +/- slack)
             '''
-            control_tape = self.undiscretize(u_vector, len(time_range))
+            control_tape = self.undiscretize(u_vector, len(time_range), dims=control_dimension)
             spline = self.forward_sim(
-                dynamics_func=dyn_func, 
+                dynamics_func=dynamics, 
                 x0=x0, 
                 u_vec = control_tape,
                 dt=dt, 
@@ -72,18 +82,18 @@ class Optimize(object):
         )
 
         u_vector = opt.x
-        control_tape = self.undiscretize(u_vector, len(time_range))
-        spline = self.forward_sim(dyn_func, x0, control_tape, dt=dt, time_end=time_end,
+        control_tape = self.undiscretize(u_vector, len(time_range), dims=control_dimension)
+        spline = self.forward_sim(dynamics, x0, control_tape, dt=dt, time_end=time_end,
             # target=xf, tol=3
         )
         # visualize_spline(spline[:, :2], 'Pathviz', animate=True, iteration_speed=5, lasts=0, end_point=xf)
         return control_tape, spline, opt.success
 
     @classmethod
-    def undiscretize(self, u_vector, desired_length):
+    def undiscretize(self, u_vector, desired_length, dims=2):
         '''undiscretize(u_vector, desired_length)
         Unpack the shortened list of control inputs using 0-order hold'''
-        control_list = np.array(u_vector).reshape((len(u_vector) // 2, 2))
+        control_list = np.array(u_vector).reshape((len(u_vector) // dims, dims))
         target_length = desired_length // len(control_list)
         undiscretized = np.repeat(control_list, target_length, axis=0)
         return undiscretized
@@ -121,7 +131,7 @@ class Optimize(object):
 
 
 if __name__ == '__main__':
-    print "Running optimization demo"
+    print 'Optimization Demo; This is not intended to be run as main'
 
     B = np.diag([1, 1])
     def dyn_func((x, y, xdot, ydot), u):
