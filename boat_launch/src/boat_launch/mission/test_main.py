@@ -18,7 +18,7 @@ def do_dock(nh, boat, shape):
 			print "Docking --- circle"
 			yield util.wrap_timeout(find_circle.main(nh, boat), 5)
 		except Exception:
-			print "Could not find circle, moving to next shape"
+			print "Could not find circle, moving   to next shape"
 
 	if shape == 'triangle':
 		try:

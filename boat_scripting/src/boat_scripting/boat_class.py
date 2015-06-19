@@ -34,7 +34,7 @@ from geometry_msgs.msg import PointStamped, Wrench, WrenchStamped, Vector3
 #for dynamixel configs
 from dynamixel_servo.msg import DynamixelFullConfig 
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
-from sensor_msgs.msg import LaserScan
+from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
 from object_handling.msg import Buoys
 
@@ -80,7 +80,9 @@ class _Boat(object):
         
         self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
 
-        self._lidar_sub = self._node_handle.subscribe('lidar/scan', LaserScan)
+        self._lidar_sub_raw = self._node_handle.subscribe('lidar/scan', LaserScan)
+
+        self._lidar_sub_pointcloud = self._node_handle.subscribe('lidar/raw_pc', PointCloud2)
         
         self._object_sub = self._node_handle.subscribe('object', Buoys)
 
@@ -95,7 +97,7 @@ class _Boat(object):
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
-        
+
         if(need_trajectory == True):
 
             yield self._trajectory_sub.get_next_message()
@@ -226,7 +228,12 @@ class _Boat(object):
     
     @util.cancellableInlineCallbacks
     def get_scan(self):
-        msg = yield self._lidar_sub.get_next_message()
+        msg = yield self._lidar_sub_raw.get_next_message()
+        defer.returnValue(msg)
+
+    @util.cancellableInlineCallbacks
+    def get_pointcloud(self):
+        msg = yield self._lidar_sub_pointcloud.get_next_message()
         defer.returnValue(msg)
     
     @util.cancellableInlineCallbacks
