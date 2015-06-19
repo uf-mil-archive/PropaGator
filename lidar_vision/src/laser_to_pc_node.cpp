@@ -38,6 +38,13 @@ private:
 private:
 	void ConvertLaser(const sensor_msgs::LaserScan::ConstPtr& scan)
 	{
+		// Remove points that are to close
+		//	The LaserProjection class only removes points that are to far away
+		//	It does not remove points that are to close
+		//	To workaround this we iterate through the raw laser scan and change all values
+		//	that are minimum value to above maximum value
+
+
 		//Convert to point cloud
 		sensor_msgs::PointCloud2 cloud;					//Define a new pc msg
 		bool transform_ready = false;
@@ -61,14 +68,22 @@ private:
 		}
 		catch (tf::TransformException& e)
 		{
-			ROS_ERROR("Transform error from lidar to %s: %s", frame_.c_str(), e.what());
+			ROS_ERROR("Transform error from %s to %s: %s", scan->header.frame_id.c_str(), frame_.c_str(), e.what());
 		}
 
 		//If we can transform then do it!
 		if(transform_ready)
 		{
 			//Project laser scan into a point cloud in frame_
-			projector_.transformLaserScanToPointCloud(frame_.c_str(), *scan, cloud, transform_);
+			try		// It is possible that some of the transforms are to far into the past
+			{
+				projector_.transformLaserScanToPointCloud(frame_.c_str(), *scan, cloud, transform_);
+			}
+			catch(tf::TransformException& e)
+			{
+				ROS_ERROR("Transform error from %s to %s: %s", scan->header.frame_id.c_str(), frame_.c_str(), e.what());
+			}
+
 			//Publish the cloud
 			pc_pub_.publish(cloud);
 		}
