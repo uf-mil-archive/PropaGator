@@ -87,19 +87,19 @@ class _Boat(object):
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
         self._circle_detect = self._node_handle.subscribe("circle_detected" , Bool)
-        self._square_detect = self._node_handle.subscribe("square_detected" , Bool)
+        self._square_detect = self._node_handle.subscribe("cross_detected" , Bool)
         self._triangle_detect = self._node_handle.subscribe("triangle_detected" , Bool)
-        self._cirlce_pos = self._node_handle.subscribe("circle_x_pos" , Int16)
-        self._square_pos = self._node_handle.subscribe("square_x_pos" , Int16)
+        self._circle_pos = self._node_handle.subscribe("circle_x_pos" , Int16)
+        self._cross_pos = self._node_handle.subscribe("cross_x_pos" , Int16)
         self._triangle_pos = self._node_handle.subscribe("triangle_x_pos" , Int16)
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
-
+        '''
         if(need_trajectory == True):
 
             yield self._trajectory_sub.get_next_message()
-
+        '''
         defer.returnValue(self)
 
     @property
@@ -197,11 +197,11 @@ class _Boat(object):
         if shape == 'circle':
             msg = yield self._circle_pos.get_next_message()
             defer.returnValue(msg)
-        if shape == 'square':
-            msg = yield self._square_pos.get_next_message()
+        if shape == 'cross':
+            msg = yield self._cross_pos.get_next_message()
             defer.returnValue(msg)
         if shape == 'triangle':
-            msg = yield self._shape_pos.get_next_message()
+            msg = yield self._triangle_pos.get_next_message()
             defer.returnValue(msg)
     
     #SPP get the latest gps lat/long fix from the 
@@ -241,6 +241,9 @@ class _Boat(object):
         msg = yield self._start_gate_vision_sub.get_next_message()
         defer.returnValue(msg.data)
 
+
+    '''MAKE SEPERATE MISSION
+    '''
     #SPP allign the craft based on what pings the hydrophones hear for a given freq
     @util.cancellableInlineCallbacks
     def hydrophone_align(self, frequency):
@@ -269,6 +272,9 @@ class _Boat(object):
         msg = yield self._absodom_sub.get_next_message()
         defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
     
+
+    '''MAKE SEPERATE MISSION
+    '''    
     @util.cancellableInlineCallbacks
     def go_to_ecef_pos(self, pos, speed=0, turn=True):
         print 'go_to_ecef_pos', pos, speed, turn
@@ -305,6 +311,9 @@ class _Boat(object):
                 yield self.move.set_position(self.odom.position).go() # stop moving
                 yield self.move.backward(3).go()
     
+
+    '''MAKE SEPERATE MISSION
+    '''
     @util.cancellableInlineCallbacks
     def visual_align(self, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):
         goal_mgr = self._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
@@ -392,7 +401,9 @@ class _Boat(object):
         finally:
             goal_mgr.cancel()
             yield self.move.go() # stop moving
-    
+
+    '''MAKE SEPERATE MISSION
+    '''
     @util.cancellableInlineCallbacks
     def visual_approach(self, camera, object_name, size_estimate, desired_distance, selector=lambda items, body_tf: items[0]):
         goal_mgr = self._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
@@ -460,7 +471,11 @@ class _Boat(object):
         finally:
             goal_mgr.cancel()
             yield self.move.go() # stop moving
-    
+
+
+    '''MAKE SEPERATE MISSION
+       COULD BE FROM SUB MAYBE DELETE
+    '''    
     @util.cancellableInlineCallbacks
     def visual_approach_3d(self, camera, distance, targetdesc, loiter_time=0):
         goal_mgr = self._camera_3d_action_clients[camera].send_goal(object_finder_msg.FindGoal(

@@ -10,7 +10,7 @@ import cv2.cv as cv
 import colorsys
 import time
 
-from std_msgs.msg import Bool, Int16
+from std_msgs.msg import Bool, Int16, String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
 
