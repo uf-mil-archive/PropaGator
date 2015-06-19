@@ -19,8 +19,8 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 #Hough_circle values
 p1 = 100 #100
 p2 = 13 #13
-nr = 5 #20
-mr = 5000 #30
+nr = 20 #20
+mr = 30 #30
 #*******************
 
 class image_converter:
