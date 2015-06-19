@@ -122,14 +122,14 @@ class Controller(object):
         rate = rospy.Rate(self.rate)
         iteration_num = 0
         while not rospy.is_shutdown():
-            iteration_num += 1
-
             if self.control_kill == True:
                 angles = np.array([0, 0])
                 self.set_servo_angles(angles)
                 print self.pwm_forces
                 self.set_forces(self.pwm_forces)
             else:
+                iteration_num += 1
+
                 cur_time = time()
                 rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
                 if (cur_time - self.last_msg_time) > self.control_timeout:
@@ -148,21 +148,23 @@ class Controller(object):
                 # print 'Took {} seconds'.format(toc)
 
                 d_theta, d_force, success = thrust_solution
-                if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
+                if any(np.fabs(self.cur_angles + d_theta) > np.pi / 2):
+                    rospy.logwarn('|cur_angles + d_theata| > pi/2, setting angles to 0')
                     self.cur_angles = np.array([0.0, 0.0])
                     continue
 
                 self.cur_angles += d_theta
                 self.cur_forces += d_force
 
-                if iteration_num > 4:
+                if iteration_num > 8:
                     iteration_num = 0
 
                     self.set_servo_angles(self.cur_angles)
                     if success:
                         self.set_forces(self.cur_forces)
                     else:
-                        rospy.logwarn("AZI_DRIVE: Failed to attain valid solution")
+                        rospy.logwarn("AZI_DRIVE: Failed to attain valid solution setting forces to 0")
+                        rospy.logwarn("Offending wrench:\n" + str(self.last_wrench))
                         self.set_forces((0.0, 0.0))
 
                     rate.sleep()
@@ -196,7 +198,9 @@ class Controller(object):
           for what is a feasible wrench in the neighborhood of linearity
 
         The 0.9 is just a fudge factor for extra certainty
-        '''
+        '''                                                                                                              
+        self.last_wrench = msg
+
         force = msg.wrench.force
         torque = msg.wrench.torque
 
@@ -212,7 +216,10 @@ class Controller(object):
         fx_range = (min_fx, max_fx)
         fy_range = (min_fy, max_fy)
         tz_range = (min_torque, max_torque)
-        #print tz_range
+        #print '----Ranges-----'
+        #print 'fx\t', fx_range
+        #print 'fy\t', fy_range
+        #print 'z\t', tz_range
 
         self.des_fx = np.clip(force.x, min(fx_range), max(fx_range)) * 0.9 
         # I put a negative sign here to work with Forrest's pd_controller

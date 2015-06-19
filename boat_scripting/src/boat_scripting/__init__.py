@@ -10,13 +10,15 @@ import scipy
 import numpy
 from twisted.internet import defer
 
+
 from txros import action, util, tf
 
 #SPP having access to the gps methods will allow us to easily switch from ECEF to lat/long
 import rawgps_common
 
+
 import genpy
-from std_msgs.msg import Header, Float64
+from std_msgs.msg import Header, Float64, Int16, Bool
 from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
 from legacy_vision.msg import FindAction, FindGoal
 from uf_common import orientation_helpers
@@ -84,10 +86,20 @@ class _Boat(object):
 
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
+        self._circle_detect = self._node_handle.subscribe("circle_detected" , Bool)
+        self._square_detect = self._node_handle.subscribe("cross_detected" , Bool)
+        self._triangle_detect = self._node_handle.subscribe("triangle_detected" , Bool)
+        self._circle_pos = self._node_handle.subscribe("circle_x_pos" , Int16)
+        self._cross_pos = self._node_handle.subscribe("cross_x_pos" , Int16)
+        self._triangle_pos = self._node_handle.subscribe("triangle_x_pos" , Int16)
+
+        self._odom_pub = self._node_handle.advertise('odom', Odometry)
+
+        '''
         if(need_trajectory == True):
 
             yield self._trajectory_sub.get_next_message()
-
+        '''
         defer.returnValue(self)
 
     @property
@@ -169,7 +181,28 @@ class _Boat(object):
             msg = yield self._hydrophone_ping_sub.get_next_message()
             if abs(msg.freq-frequency) < 1.5e3:
                 # only if you receive one should you return. NOTE: mission_core run_missions will timeout and kill this task so it wont run forever()
-                defer.returnValue(msg)        
+                defer.returnValue(msg)     
+
+    @util.cancellableInlineCallbacks
+    def hold_at_current_pos(self):
+
+        odom = yield self.get_gps_odom_rel()
+        print odom
+        odom_to_send = yield orientation_helpers.PoseEditor.from_Pose(odom.header.frame_id, odom.pose.pose)
+        goal = yield odom_to_send.as_MoveToGoal()
+        self._moveto_action_client.send_goal(goal)
+              
+    @util.cancellableInlineCallbacks
+    def get_shape_location(self, shape):
+        if shape == 'circle':
+            msg = yield self._circle_pos.get_next_message()
+            defer.returnValue(msg)
+        if shape == 'cross':
+            msg = yield self._cross_pos.get_next_message()
+            defer.returnValue(msg)
+        if shape == 'triangle':
+            msg = yield self._triangle_pos.get_next_message()
+            defer.returnValue(msg)
     
     #SPP get the latest gps lat/long fix from the 
     @util.cancellableInlineCallbacks
@@ -185,6 +218,11 @@ class _Boat(object):
     @util.cancellableInlineCallbacks
     def get_gps_odom(self):
         msg = yield self._absodom_sub.get_next_message()
+        defer.returnValue(msg)
+
+    @util.cancellableInlineCallbacks
+    def get_gps_odom_rel(self):
+        msg = yield self._odom_sub.get_next_message()
         defer.returnValue(msg)
     
     @util.cancellableInlineCallbacks
