@@ -5,10 +5,14 @@
 
 <launch>
     <!-- args-->
-    
-    <!-- Euclidean clustering node -->
     <!-- simulate turns the lidar driver off if true -->
     <arg name="simulate" default="false"/> 
+
+    <!-- laser to pc node -->
+    <!-- pc_tf_frame is the frame to transform lidar data into -->
+    <arg name="pc_tf_frame" default="/enu"/>
+    
+    <!-- Euclidean clustering node -->
     <!-- cluster_tolerance is the max allowable distance in meters between points -->
     <arg name="cluster_tolerance" default="0.75"/>
     <!-- min_cluster_size is the smallest number of points alowed in a cluster -->
@@ -28,36 +32,38 @@
 
     <!-- group to put every thing related to lidar in-->
     <group ns="lidar">
-	<!-- Lidar driver -->
+        <!-- Lidar driver -->
         <node unless="$(arg simulate)" pkg="lms1xx" type="LMS1xx_node" name="lms1xx">
             <!--Lidars IP address-->
             <param name="host" value="192.168.2.4"/>
             <!--The frame for tf transforms -->
             <param name="frame_id" value="lidar"/>
         </node>
-        
+
         <!-- Controls the angle of the dynamixel servo that moves the lidar -->
         <node pkg="lidar_vision" type="lidar_control_node" name="lidar_angle_control"/>
-	
+
         <!-- Converts a sensor_msgs::laser_scan to sensor_msgs::point_cloud2 -->
-	<node pkg="lidar_vision" type="laser_to_pc_node" name="laser_to_pc_node"/>
-        
+        <node pkg="lidar_vision" type="laser_to_pc_node" name="laser_to_pc_node">
+            <param name="pc_tf_frame" value="$(arg pc_tf_frame)"/>
+        </node>
+
         <!-- Performs a segmentation based on euclidean spatial distances -->
-	<node pkg="lidar_vision" type="euclidean_pc_segmentation_node" name="euclidean_pc_segmentation_node">
+        <node pkg="lidar_vision" type="euclidean_pc_segmentation_node" name="euclidean_pc_segmentation_node">
             <rosparam subst_value="true">
                 euclidean_cluster_tolerance: $(arg cluster_tolerance)
                 euclidean_min_cluster_size: $(arg min_cluster_size)
                 euclidean_max_cluster_size: $(arg max_cluster_size)
             </rosparam>
-         </node>
+        </node>
 
-         <node pkg="lidar_vision" type="feature_extractor_node" name="feature_extractor_node">
+        <node pkg="lidar_vision" type="feature_extractor_node" name="feature_extractor_node">
             <rosparam subst_value="true">
                 distance_threshold: $(arg distance_threshold)
                 max_iterations: $(arg max_iterations)
                 probability: $(arg probability)
                 max_buoy_radius: $(arg max_buoy_radius)
             </rosparam>
-	 </node>
+        </node>
     </group>
 </launch>
