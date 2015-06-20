@@ -20,6 +20,8 @@ import tools
 from tools import line
 import math
 import threading
+from obstacle_avoidance import hub
+from obstacle_avoidance import main
 
 def smallest_coterminal_angle(x):
     # Bounded between [-pi, pi]
