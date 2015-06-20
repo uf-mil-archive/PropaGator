@@ -8,7 +8,8 @@ import sys
 import time
 from std_msgs.msg import String
 from server_interaction.msg import docking_bay_sequence
-
+# import ssl
+# from functools import wraps
 ## This node publishes the docking bay sequence received frmom the server
 ## It publishes a message containing:
 #(string) first_dock_symbol
@@ -34,6 +35,16 @@ def postDockingSequence():
 	try:
 		sublinkMain = '/automatedDocking/%s/UF' %course
 		url = mainUrl +  sublinkMain
+		#solution found online to bypass SSL verification
+		# def sslwrap(func):
+		# 	@wraps(func)
+		# 	def bar(*args, **kw):
+		# 		kw['ssl_version'] = ssl.PROTOCOL_TLSv1
+		# 		return func(*args, **kw)
+		# 	return bar
+
+		# ssl.wrap_socket = sslwrap(ssl.wrap_socket)
+
 		r = requests.get(url, verify = False) #creating request object
 		#evaluating response status code
 		try:

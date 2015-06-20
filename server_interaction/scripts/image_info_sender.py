@@ -10,6 +10,7 @@ import time
 from std_msgs.msg import String
 from std_msgs.msg import Int8
 from server_interaction.srv import image_info
+import unicodedata
 
 ### Sends information pertaining the identified image that was received from the server ####
 ### This is a service. It receives strings file_name (name of the picture), and image_shape(identified shape from image)
@@ -48,20 +49,25 @@ def SendImageInfo(msg):
 	request1 = requests.post(putImageOnServerUrl, files=files, verify=False)
 	print request1.text
 	#getting image ID from server. Will be a json structure like:
-	#{"id":"a4aa8224-07f2-4b57-a03a-c8887c2505c7"}
+	#{"imaeId":"a4aa8224-07f2-4b57-a03a-c8887c2505c7"}
 	# wait two seconds... just for the heck of it
 	time.sleep(2)
-	imageID = request1.json()['id']
+	imageID = request1.json()['imageId']
 	######################################## send image information #########################################				
 	#ready payload to send to server..
 	payload = {'course':'temp','team':'UF','shape':'temp','imageID':'temp'} 
 	payload['course'] = course
 	payload['shape'] = shape
+	imageID = unicodedata.normalize('NFKD', imageID).encode('ascii','ignore')
 	payload['imageID'] = imageID
 	headers = {'content-type':'application/json'}
+	print json.dumps(payload, sort_keys = True)
 	#create request #2, post image info json structure
+	time.sleep(5)
 	try:
-		request2 = requests.post(sendImageInfoUrl, headers = headers, data = json.dumps(payload), verify = False)
+		request2 = requests.post(sendImageInfoUrl, headers = headers, data = json.dumps(payload, sort_keys = True), verify = False)
+		time.sleep(5)
+		print request2.status_code
 		if request2.status_code == 200:
 			#decode json response from server
 			status = request2.json()['success']

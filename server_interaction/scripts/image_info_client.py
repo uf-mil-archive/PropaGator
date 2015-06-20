@@ -16,9 +16,9 @@ def image_info_client():
 		sendInfo = rospy.ServiceProxy('send_image_info', image_info)
 		#once the right image is identified
 		#return send the image name
-		file_name = '1.jpg'
+		file_name = '3.jpg'
 		#and the shape that was indentified
-		image_shape = 'eight'
+		image_shape = '3'
 		#the response objects returns the status that the server
 		#returned either true or false depending on whether
 		#the image wasidentified correctly

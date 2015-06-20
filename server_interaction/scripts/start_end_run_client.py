@@ -19,15 +19,10 @@ def start_end_run_client():
 		#passing an argument to the service
 		#The argument would be 'start' if starting a run
 		#or 'end' if ending a run
-		response = sendStatus('start')
+		response = sendStatus('end')
 		#print the response from the service. This is a boolean
-<<<<<<< HEAD
 		#based on what the server returned: either true or false.
 		#As per the rules, return from server is false if run is void
-=======
-		#based on what the server returned: either true or false
-		#as per the rules, return from server is false if run is void
->>>>>>> fb328e37ff24a1be06298a7373749107aa51701c
 		print response.success
 		return response.success
 
