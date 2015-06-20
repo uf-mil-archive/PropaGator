@@ -204,6 +204,9 @@ class _Boat(object):
         if shape == 'triangle':
             msg = yield self._triangle_pos.get_next_message()
             defer.returnValue(msg)
+
+        print 'Invalid shape ', shape
+        assert False
     
     #SPP get the latest gps lat/long fix from the 
     @util.cancellableInlineCallbacks

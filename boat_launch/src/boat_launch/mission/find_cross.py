@@ -9,10 +9,9 @@ import rospy
 import sensor_msgs.point_cloud2 as pc2
 
 @util.cancellableInlineCallbacks
-def main(nh, boat):
+def main(nh):
 
-    if boat == None:
-        boat = yield boat_scripting.get_boat(nh, False)
+    boat = yield boat_scripting.get_boat(nh, False)
 
     temp_distance = 0
     final_dstance = 0

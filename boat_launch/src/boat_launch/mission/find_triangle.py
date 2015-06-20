@@ -9,10 +9,9 @@ import rospy
 import sensor_msgs.point_cloud2 as pc2
 
 @util.cancellableInlineCallbacks
-def main(nh, boat):
+def main(nh):
 
-    if boat == None:
-        boat = yield boat_scripting.get_boat(nh, False)
+    boat = yield boat_scripting.get_boat(nh, False)
 
     temp_distance = 0
     final_dstance = 0
@@ -20,7 +19,7 @@ def main(nh, boat):
     while True:
         
         while True:
-            msg =  yield boat.get_shape_location('Triangle')
+            msg =  yield boat.get_shape_location('triangle')
 
             if abs(msg.data) < 10:
                 print "Triangle in Center at location: " + str(msg.data) + " --- Locking Target"
