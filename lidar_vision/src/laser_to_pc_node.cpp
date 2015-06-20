@@ -36,14 +36,24 @@ private:
 	ros::Publisher pc_pub_;						//point cloud publisher
 
 private:
-	void ConvertLaser(const sensor_msgs::LaserScan::ConstPtr& scan)
+	void ConvertLaser(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 	{
+		sensor_msgs::LaserScan temp = *scan_in;
+		sensor_msgs::LaserScan* scan = &temp;
+
 		// Remove points that are to close
 		//	The LaserProjection class only removes points that are to far away
 		//	It does not remove points that are to close
 		//	To workaround this we iterate through the raw laser scan and change all values
 		//	that are minimum value to above maximum value
-
+		for(std::vector<float>::iterator it = scan->ranges.begin(); it != scan->ranges.end(); ++it)
+		{
+			// 1 cm epsilon
+			if (*it <= scan->range_min + 0.01)
+			{
+				*it = scan->range_max + 0.01;
+			}
+		}
 
 		//Convert to point cloud
 		sensor_msgs::PointCloud2 cloud;					//Define a new pc msg
@@ -98,7 +108,7 @@ public:
 		ros::param::param<std::string>("~pc_tf_frame", frame_, "/enu");
 		std::string topic = nh.resolveName("scan");		//Get the topic
 		pc_pub_ = nh.advertise<sensor_msgs::PointCloud2>("raw_pc", 100);
-		laser_sub_ = nh.subscribe<sensor_msgs::LaserScan>(topic.c_str(), 100, &LaserToPC2::ConvertLaser, this);
+		laser_sub_ = nh.subscribe<sensor_msgs::LaserScan>(topic.c_str(), 10, &LaserToPC2::ConvertLaser, this);
 	}
 
 };
