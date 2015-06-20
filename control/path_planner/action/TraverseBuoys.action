@@ -1,8 +1,0 @@
-# goal
-uint32 nothing
----
-# result
-uint32 nothing1
----
-# feedback
-uint32 nothing2

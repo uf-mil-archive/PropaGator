@@ -1,3 +1,0 @@
-#!/bin/sh
-rosparam set /use_sim_time false
-echo "Clock param '/use_sim_time' has been turned off"
