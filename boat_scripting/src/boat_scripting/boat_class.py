@@ -22,6 +22,7 @@ from std_msgs.msg import Header, Float64, Int16, Bool
 from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
 from legacy_vision.msg import FindAction, FindGoal
 from uf_common import orientation_helpers
+from uf_common.orientation_helpers import quat_to_rotvec, xyzw_array
 from tf import transformations
 from legacy_vision import msg as legacy_vision_msg
 from object_finder import msg as object_finder_msg
@@ -135,6 +136,15 @@ class _Boat(object):
             wrench = yield self._wrench_sub.get_next_message()
             if wrench.wrench.force.x > 60:
                 break
+
+    @util.cancellableInlineCallbacks
+    def to_base_link(self, data):
+        try:
+            msg = yield self._tf_listener.transformVector3('/base_link', data)
+            defer.returnValue(msg)
+        except:
+            return
+
     
     @util.cancellableInlineCallbacks
     def deploy_hydrophone(self):
@@ -188,9 +198,14 @@ class _Boat(object):
     def hold_at_current_pos(self):
 
         odom = yield self.get_gps_odom_rel()
-        print odom
+        print "ODOM"
+        print " "
+        print quat_to_rotvec(xyzw_array(odom.pose.pose.orientation)) * 180 / numpy.pi
         odom_to_send = yield orientation_helpers.PoseEditor.from_Pose(odom.header.frame_id, odom.pose.pose)
         goal = yield odom_to_send.as_MoveToGoal()
+        print "GOAL"
+        print " "
+        print quat_to_rotvec(xyzw_array(goal.posetwist.pose.orientation)) * 180 / numpy.pi
         self._moveto_action_client.send_goal(goal)
               
     @util.cancellableInlineCallbacks
