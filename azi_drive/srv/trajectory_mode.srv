@@ -1,11 +1,11 @@
 # This srv is used to select the operation mode of the azi_waypoint node
 
 # Below are constants for all possible modes
-int8 POINT_SHOOT_PP=1
-int8 POINT_SHOOT_2_PP=2
+string POINT_SHOOT_PP=point_shoot_pp
+string POINT_SHOOT_2_PP=point_shoot_2_pp
 
 # Mode holds the desired mode of opperation
-int8 mode
+string mode
 ---
 # True if 
 bool success

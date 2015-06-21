@@ -95,6 +95,9 @@ class azi_waypoint:
 
     def switch_mode(self, mode):
         if self.mode is not mode.mode:
+            if mode.mode not in self.modes.keys():
+                rospy.logerr('Attempt to put Azi waypoint into an undefined mode: ' + str(mode.mode))
+                return False
             # Stop the current mode
             self.traj_gen.stop()
 
