@@ -49,12 +49,13 @@ def StoreCourseInfo(courseInfo):
 	sublinkMain = '/interop/images/%s/UF' %course
 	#creating url
 	url = mainUrl +  sublinkMain
-	headers = {'content-type':'text/html'}
+	headers = {'Content-Type':'text/html'}
 	
 	try:
 		try:
 			#creating request object
-			r = requests.post(url, headers = headers, verify = False)
+			r = requests.get(url, headers = headers, verify = False)
+			print r.status_code
 		except ConnectionError:
 			pass
 	except NameError:	
@@ -62,7 +63,7 @@ def StoreCourseInfo(courseInfo):
 	time.sleep(2)
 	try:
 		if r.status_code == 200:
-			#print (r.text)
+			print (r.text)
 			string = r.text
 			links = string.split('"')
 			links2 = []
@@ -72,16 +73,18 @@ def StoreCourseInfo(courseInfo):
 			    if index % 2 != 0:
 			    	links2.append(links[index])
 			for sublink in links2:
-				imageNames.append(sublink.split("/")[3])
+				imageNames.append(sublink.split("/")[5])
 			global imgCount
 			global path
 			imgCount = 0					
 			for sublink in links2:				
 				requestLink = mainUrl + sublink
+				print requestLink
 				counter = counter + 1
 				imageName = imageNames[counter]
+				print imageName
 				#after having parsed the html that the server returned
-				# this generates as many requests as links the server provides
+				#this generates as many requests as links the server provides
 				#and saves the images to ~/output/ServerImages/					
 				time.sleep(3)
 				r = requests.get(requestLink, stream = True)
@@ -102,7 +105,11 @@ def StoreCourseInfo(courseInfo):
 
 	msg = images_info()
 	msg.file_path = str(path)
-	msg.image_count = int(imgCount)		
+	#the test server returned images accompanied by a 
+	#metadata files. one per image. Said files are not accessible
+	#however they affect the image count. I am doing image count
+	#divided by 2 to account for this. Actual server might be different.
+	msg.image_count = int(imgCount/2)		
 
 	status_pub = rospy.Publisher('server_images_info', images_info, queue_size=10)
 	rate = rospy.Rate(1)	
