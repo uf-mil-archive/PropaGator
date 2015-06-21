@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+'''THIS IS LUCAS'S FILE GO TO HIM WITH QUESTIONS lbassettaudain AT ufl DOT edu
+'''
 import roslib
 roslib.load_manifest('start_gate_vision')
 import sys
