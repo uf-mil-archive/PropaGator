@@ -8,7 +8,7 @@
     <!--node pkg="joy" type="joy_node" name=""/-->
     <!-- Now launch the Dynemexel server's launch file-->
 	
-    <!--	<node pkg="boatsim" type="sim" name=""/>	-->
+    <!--	<node pkg="boat_sim" type="sim" name=""/>	-->
     <!--include file="$(find dynamixel_servo)/launch/dynamixel_servo_server.launch" /-->
 	<!--node pkg="motor_control" type="thruster_control.py" name=""/-->
     <node pkg="z_drive" type="z_drive" name="z_drive" respawn="true" output="screen" />

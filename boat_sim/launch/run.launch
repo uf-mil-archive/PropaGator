@@ -27,10 +27,10 @@
     <arg name="port_prefix" value="/tmp/thruster_"/>
   </include>
   
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_FR" args="/tmp/thruster_FR 10030" respawn="true"/>
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_FL" args="/tmp/thruster_FL 10031" respawn="true"/>
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_BR" args="/tmp/thruster_BR 10032" respawn="true"/>
-  <node pkg="boatsim" type="thruster_conn" name="thruster_conn_BL" args="/tmp/thruster_BL 10033" respawn="true"/>
+  <node pkg="boat_sim" type="thruster_conn" name="thruster_conn_FR" args="/tmp/thruster_FR 10030" respawn="true"/>
+  <node pkg="boat_sim" type="thruster_conn" name="thruster_conn_FL" args="/tmp/thruster_FL 10031" respawn="true"/>
+  <node pkg="boat_sim" type="thruster_conn" name="thruster_conn_BR" args="/tmp/thruster_BR 10032" respawn="true"/>
+  <node pkg="boat_sim" type="thruster_conn" name="thruster_conn_BL" args="/tmp/thruster_BL 10033" respawn="true"/>
 
   <include file="$(find legacy_vision)/launch/legacy_vision.launch">
     <arg name="camera" value="mv_bluefox_camera_node"/>

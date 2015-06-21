@@ -18,7 +18,7 @@ Forward is x-positive, right is y-positive, down is z-positive. According to nau
 
 # Usage
 
-    rosrun boatsim sim
+    rosrun boat_sim sim
     rosrun azi_drive azi_drive_node.py
     rosrun azi_drive control_manager.py  # Run this in a seperate window, this will stop the thrusters if you manually interrupt Azi_Drive (CTRL+C)
 

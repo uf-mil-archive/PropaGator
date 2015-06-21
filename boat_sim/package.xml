@@ -1,7 +1,7 @@
 <package>
-  <name>boatsim</name>
+  <name>boat_sim</name>
   <version>1.0.0</version>
-  <description>boatsim</description>
+  <description>boat_sim</description>
   <maintainer email="forrest@forre.st">Forrest Voight</maintainer>
 
   <license>BSD</license>

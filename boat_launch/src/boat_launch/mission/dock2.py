@@ -69,7 +69,7 @@ def main(nh, x):
     
     start_pose = boat.move
 
-    targetdesc.mesh = from_obj(roslib.packages.resource_file('boatsim', 'models', x + '.obj'))
+    targetdesc.mesh = from_obj(roslib.packages.resource_file('boat_sim', 'models', x + '.obj'))
     targetdesc.prior_distribution.pose.orientation = Quaternion(*boat.pose.orientation)
     
     print 'a'

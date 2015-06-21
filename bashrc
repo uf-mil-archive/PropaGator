@@ -23,8 +23,8 @@ function h(){
     python -c 'import station_hold; station_hold.hold_at_current_pos()' 
 }
 
-alias sim="rosrun boatsim sim"
-alias vis="rosrun boatsim path_visualizer.py"
+alias sim="rosrun boat_sim sim"
+alias vis="rosrun boat_sim path_visualizer.py"
 
 alias azi="roslaunch azi_drive run_azi.launch"
 alias run="roslaunch boat_launch run.launch"
