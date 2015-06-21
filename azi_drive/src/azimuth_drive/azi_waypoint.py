@@ -21,6 +21,7 @@ from tools import line
 import math
 import threading
 from point_shoot_pp import point_shoot_pp
+from point_shoot_2_pp import point_shoot_2_pp
 #from obstacle_avoidance import hub
 #from obstacle_avoidance import main
 
@@ -69,7 +70,7 @@ class azi_waypoint:
         rospy.on_shutdown(self.on_shutdown)
 
         # Initlize Trajectory generator with current position as goal
-        self.traj_gen = point_shoot_pp()
+        self.traj_gen = point_shoot_2_pp()
         self.traj_gen.start(self.get_current_posetwist())
 
         # Start the main update loop

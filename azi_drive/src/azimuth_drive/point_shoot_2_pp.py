@@ -21,7 +21,7 @@ from uf_common.orientation_helpers import xyz_array
                 matches the final desired orientation
 """
 
-class point_shoot_pp:
+class point_shoot_2_pp:
     # Initilization function
     def __init__(self):
         # Desired pose
@@ -43,7 +43,6 @@ class point_shoot_pp:
         self.distance_to_goal = 0.0
 
         # Initilize a line
-        self.redraw_line = True
         self.line = line(np.zeros(3), np.ones(3))
 
     # Accept a new goal in the form of a posetwist
@@ -59,11 +58,9 @@ class point_shoot_pp:
         if np.linalg.norm(self.current_position - self.desired_position) > self.orientation_radius:
             #print 'Far out dude'
             self.line = line(self.current_position, self.desired_position)
-            self.redraw_line = True
         else:
             #print 'Pretty close'
             self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
-            self.redraw_line = False
 
     # Preempt a goal
     def preempt_goal(self):
@@ -79,50 +76,44 @@ class point_shoot_pp:
         self.current_orientation = tools.orientation_from_posetwist(pt)
 
         # Get distance to the goal
-        vector_to_goal = self.desired_position - self.current_position
-        self.distance_to_goal = np.linalg.norm(vector_to_goal)
+        if np.array_equal(self.current_position, self.desired_position):
+            self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
+        else:
+            self.line = line(self.current_position, self.desired_position)
 
-        # overshoot is 1 if behind line drawn perpendicular to the goal line and through the desired position, -1 if on the other
-        #       Side of said line
-        overshoot = np.dot(vector_to_goal / self.distance_to_goal, self.line.hat)
-        self.overshoot = overshoot / abs(overshoot) 
-
-        # In the case that overshoot is 0 or otherwise fails default to not overshoot
-        if math.isnan(self.overshoot):
-            self.overshoot = 1
+        self.distance_to_goal = np.linalg.norm(self.line.s)
 
     # Update the trajactory and return a posetwist
     def update(self):
-        # Check if in the orientation radius for the first time
-        if self.redraw_line and self.distance_to_goal < self.orientation_radius:
-            self.redraw_line = False
-            rospy.loginfo('Redrawing trajectory line')
-            self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
+        if self.distance_to_goal > self.orientation_radius:
+            # Move carrot along line
+            tracking_step = self.get_tracking_distance()
+            c_pos = self.line.hat * tracking_step + self.current_position
+            orientation = self.line.angle
 
-        # Output a posetwist (carrot)
-        # Project current position onto trajectory line
-        Bproj = self.line.proj_pt(self.current_position)
-        parallel_distance = np.linalg.norm(self.desired_position - Bproj)
+            # Fill up PoseTwist
+            carrot = PoseTwist(
+                    pose = Pose(
+                        position = tools.vector3_from_xyz_array(c_pos),
+                        orientation = tools.quaternion_from_rotvec([0, 0, orientation])),
 
-        # Move carrot along line
-        tracking_step = self.get_tracking_distance()
-        c_pos = Bproj + self.overshoot * self.line.hat * tracking_step
+                    twist = Twist(
+                        linear = Vector3(tracking_step * self.tracking_to_speed_conv, 0, 0),
+                        angular = Vector3())
+                    )
+            return carrot
+        else:
+            # Fill up PoseTwist
+            carrot = PoseTwist(
+                    pose = Pose(
+                        position = tools.vector3_from_xyz_array(self.desired_position),
+                        orientation = tools.quaternion_from_rotvec(self.desired_orientation)),
 
-        # If bproj is in threashold just set the carrot to the final position
-        if parallel_distance < self.orientation_radius:
-            c_pos = self.desired_position      
-
-        # Fill up PoseTwist
-        carrot = PoseTwist(
-                pose = Pose(
-                    position = tools.vector3_from_xyz_array(c_pos),
-                    orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
-
-                twist = Twist(
-                    linear = Vector3(tracking_step * self.tracking_to_speed_conv * self.overshoot, 0, 0),        # Wrench Generator handles the sine of the velocity
-                    angular = Vector3())
-                )
-        return carrot
+                    twist = Twist(
+                        linear = Vector3(),
+                        angular = Vector3())
+                    )
+            return carrot
 
     # Stop this path planner
     # Nothing required on stop
@@ -143,7 +134,6 @@ class point_shoot_pp:
         self.desired_orientation = self.current_orientation
         #   Make a line along the orientation
         self.line = line(self.current_position, tools.normal_vector_from_rotvec(self.current_orientation) + self.current_position)
-        self.redraw_line = False
 
     # Get the speed setting of the trajectory
     #               Value                   :   Condition

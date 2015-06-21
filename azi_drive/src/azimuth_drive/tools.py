@@ -4,6 +4,7 @@ from uf_common.orientation_helpers import rotvec_to_quat
 from geometry_msgs.msg import Quaternion, Vector3
 import numpy as np
 import math
+import rospy
 
 class Tools(object):
     @staticmethod
@@ -91,7 +92,7 @@ class line:
             #                           Y           X
             self.angle = np.arctan2(self.hat[1], self.hat[0])
         else:
-            rospy.logerr('0 length line in tank steer trajectory generator')
+            rospy.logerr('0 length line')
             self.s = np.array([1, 0, 0])
             self.norm = np.array([1, 0, 0])
             self.angle = 0
