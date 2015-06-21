@@ -22,6 +22,7 @@ import math
 import threading
 from point_shoot_pp import point_shoot_pp
 from point_shoot_2_pp import point_shoot_2_pp
+from azi_drive.srv import *
 #from obstacle_avoidance import hub
 #from obstacle_avoidance import main
 
@@ -69,9 +70,19 @@ class azi_waypoint:
             rospy.logwarn(str(e))
         rospy.on_shutdown(self.on_shutdown)
 
-        # Initlize Trajectory generator with current position as goal
+        # Trajectory mode dictionary
+        self.modes ={
+            trajectory_modeRequest.POINT_SHOOT_PP:         point_shoot_pp,
+            trajectory_modeRequest.POINT_SHOOT_2_PP:       point_shoot_2_pp
+        }
+
+        # Initilize Trajectory generator with current position as goal
+        self.mode = trajectory_modeRequest.POINT_SHOOT_2_PP
         self.traj_gen = point_shoot_2_pp()
         self.traj_gen.start(self.get_current_posetwist())
+
+        # Initilize the switch modes service
+        mode_srv = rospy.Service('azi_waypoint_mode', trajectory_mode, self.switch_mode)
 
         # Start the main update loop
         rospy.Timer(rospy.Duration(0.1), self.update)
@@ -81,6 +92,24 @@ class azi_waypoint:
         self.moveto_as.register_goal_callback(self.new_goal)
         self.moveto_as.register_preempt_callback(self.goal_preempt)
         self.moveto_as.start()
+
+    def switch_mode(self, mode):
+        if self.mode is not mode.mode:
+            # Stop the current mode
+            self.traj_gen.stop()
+
+            # Start new mode
+            self.mode = mode.mode
+            self.traj_gen = self.modes[self.mode]()
+            self.traj_gen.start(self.get_current_posetwist())
+
+            rospy.loginfo('Azi waypoint mode switched to ' + str(self.mode) + ' mode')
+
+            return True
+
+        else:
+            rospy.loginfo('Azi waypoint already in requested mode')
+            return True
 
     def new_goal(self):
         # Lock on odom cb
