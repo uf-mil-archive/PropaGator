@@ -3,6 +3,7 @@ from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.orientation_helpers import rotvec_to_quat
 from geometry_msgs.msg import Quaternion, Vector3
 import numpy as np
+import math
 
 class Tools(object):
     @staticmethod
@@ -89,7 +90,6 @@ class line:
             self.hat = self.s / np.linalg.norm(self.s)
             #                           Y           X
             self.angle = np.arctan2(self.hat[1], self.hat[0])
-            print self.angle
         else:
             rospy.logerr('0 length line in tank steer trajectory generator')
             self.s = np.array([1, 0, 0])
@@ -145,6 +145,10 @@ def normal_vector_from_rotvec(rot):
 
 def normal_vector_from_posetwist(pt):
     return normal_vector_from_rotvec(orientation_from_posetwist(pt))
+
+def smallest_coterminal_angle(x):
+    # Bounded between [-pi, pi]
+    return (x + math.pi) % (2*math.pi) - math.pi
 
 if __name__ == '__main__':
     tests = [-np.pi/2, 0.0, np.pi/2]
