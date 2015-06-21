@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-
-
+'''THIS IS ZACH GOINS'S FILE GO TO HIM WITH QUESTIONS
+'''
 import numpy 
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
