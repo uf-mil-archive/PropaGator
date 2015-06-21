@@ -14,7 +14,7 @@ from geometry_msgs.msg import Point, PointStamped, PoseStamped, Pose, Quaternion
 
 SCREEN_DIM = (750, 750)
 ORIGIN = np.array([SCREEN_DIM[0]/2.0, SCREEN_DIM[1]/2.0])
-SCALE = 5.
+SCALE = 1.
 
 def print_in(f):
     print("Defining " + f.func_name)
@@ -87,7 +87,7 @@ def draw_spline(display, spline, iteration=10, color=(255, 0, 0), draw_slopes=Fa
 
 
 def visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0, end_point=None,
-                     has_theta=False):
+                     has_theta=False, vel_markers=False):
     '''visualize_spline(spline, title="Spline pathing visualization", animate=True, iteration_speed=1, lasts=0):
     Visualize a sequence of points
         title: String that will set the window title
@@ -115,9 +115,9 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
             iteration = len(spline) - 1
 
         if end_point is not None:
-            pygame.draw.circle(display, (255, 0, 0,), round_point(end_point), 6)
+            pygame.draw.circle(display, (255, 0, 0,), round_point(end_point), 3)
 
-        draw_spline(display, spline, iteration, draw_slopes=(not animate), has_theta=has_theta)
+        draw_spline(display, spline, iteration, has_theta=has_theta, draw_slopes=vel_markers)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -137,11 +137,52 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
         display.fill((0, 0, 0))
 
 
+def visualize_tree(tree, end_point=None, animate=False, title='RRT Visualization'):
+    display = pygame.display.set_mode(SCREEN_DIM)
+    pygame.display.set_caption(title)
+
+    clock = pygame.time.Clock()
+    iteration = 0.0
+
+    start_time = time.time()
+    num_edges = len(tree.edges)
+
+    if animate: 
+        k = 0
+    else:
+        k = num_edges
+
+    while not rospy.is_shutdown():
+
+        if end_point is not None:
+            pygame.draw.circle(display, (0, 255, 0,), round_point(end_point), 6)
+
+        for edge_num in xrange(k):
+            edge = tree.edges[edge_num]
+            pygame.draw.line(display, (255, 0, 0), round_point(edge[0]), round_point(edge[1]))
+
+        if animate:
+            k += 1
+            if k >= num_edges:
+                k = 0
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return
+
+            if event.type == pygame.KEYDOWN:
+                if (event.key == pygame.K_ESCAPE) or (event.key == pygame.K_q):
+                    return
+
+        pygame.display.update()
+        clock.tick(20)
+        display.fill((0, 0, 0))
+
+
 def main():
     '''Core draw loop'''
     print 'Randomized Spline Visualization Demo; Not intended to be run as main'
     from spline.spline import Hermite, Waypoint
-    from policy_search import Policy_Search
 
     display = pygame.display.set_mode(SCREEN_DIM)
     pygame.display.set_caption("Spline pathing visualization")
@@ -155,7 +196,6 @@ def main():
     end_m = np.array([-10.0, -10.0])
 
     spline = Hermite.spline(Waypoint(start_pt, start_m), Waypoint(end_pt, end_m))
-    # opt_spline = Policy_Search.compute_policy(start_pt, end_pt, end_m)
 
     while not rospy.is_shutdown():
 
@@ -167,7 +207,6 @@ def main():
             end_m = np.random.uniform(-1, 1, 2) * 100
             spline = Hermite.spline(Waypoint(start_pt, start_m), Waypoint(end_pt, end_m))
             print "Raw path computed (red)"
-            # opt_spline = Policy_Search.compute_policy(start_pt, end_pt, end_m)
             print "Optimal path computed (blue)"
             iteration = 0
 
