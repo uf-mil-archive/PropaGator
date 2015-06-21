@@ -9,6 +9,7 @@ import scipy
 
 import numpy
 from twisted.internet import defer
+import sensor_msgs.point_cloud2 as pc2
 
 
 from txros import action, util, tf
@@ -218,6 +219,14 @@ class _Boat(object):
         temp=latlongheight_from_ecef(msg.pose.pose.position.x,msg.pose.pose.position.y,msg.pose.pose.position.z)
         ret_dict={'latitude' : temp[0],'longitude':temp[1]}
         defer.returnValue(ret_dict)
+
+    @util.cancellableInlineCallbacks
+    def to_baselink(self, msg):
+        transform = yield self._tf_listener.get_transform('/base_link', msg.header.frame_id, msg.header.stamp)
+        res = []
+        for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
+            res.append(transform.transform_point((p[0], p[1], p[])))
+        defer.returnValue(res)
     
     @util.cancellableInlineCallbacks
     def get_gps_odom(self):
