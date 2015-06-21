@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(boat_launch)
 # Load catkin and all dependencies required for this package
 # TODO: remove all from COMPONENTS that are not catkin packages.
-find_package(catkin REQUIRED COMPONENTS thruster_mapper propagator_motor_driver odometry_utils controller c3_trajectory_generator depth_driver sim)
+find_package(catkin REQUIRED COMPONENTS thruster_mapper odometry_utils controller c3_trajectory_generator depth_driver sim)
 # CATKIN_MIGRATION: removed during catkin migration
 # cmake_minimum_required(VERSION 2.4.6)
 
@@ -42,7 +42,7 @@ catkin_python_setup()
 # TODO: fill in what other packages will need to use this package
 catkin_package(
     DEPENDS  # TODO
-    CATKIN_DEPENDS thruster_mapper propagator_motor_driver odometry_utils controller c3_trajectory_generator depth_driver sim
+    CATKIN_DEPENDS thruster_mapper odometry_utils controller c3_trajectory_generator depth_driver sim
     INCLUDE_DIRS # TODO include
     LIBRARIES # TODO
 )

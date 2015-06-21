@@ -19,7 +19,6 @@
   <build_depend>depth_driver</build_depend>
   <build_depend>c3_trajectory_generator</build_depend>
   <build_depend>controller</build_depend>
-  <build_depend>propagator_motor_driver</build_depend>
   <build_depend>sim</build_depend>
   <build_depend>odometry_utils</build_depend>
 
@@ -28,7 +27,6 @@
   <run_depend>depth_driver</run_depend>
   <run_depend>c3_trajectory_generator</run_depend>
   <run_depend>controller</run_depend>
-  <run_depend>propagator_motor_driver</run_depend>
   <run_depend>sim</run_depend>
   <run_depend>odometry_utils</run_depend>
 
