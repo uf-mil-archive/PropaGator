@@ -18,20 +18,20 @@ def main(nh, boat=None):
         print "raw angle", angle
         
 
-        yield boat.move.as_MoveToGoal([3,0,0],angle).go()
+        #yield boat.move.as_MoveToGoal([3,0,0],angle).go()
 
-        '''
-        if abs(angle) < (numpy.pi/12):
+        
+        if abs(angle) < (numpy.pi/8):
             print "forward"
             yield boat.move.forward(2).go()                       
             print "forward command sent"
         elif angle < 0:
-            print "turn_left: ", angle/2
-            yield boat.move.turn_left(abs(angle/2)).go()
+            print "turn_left: ", angle/5
+            yield boat.move.turn_left(abs(angle/5)).go()
         elif angle > 0:
-            print "turn_right: ", angle/2
-            yield boat.move.turn_right(angle/2).go()
-        
+            print "turn_right: ", angle/5
+            yield boat.move.turn_right(angle/5).go()
+        '''
         print 'left'
         yield boat.move.turn_left(abs(numpy.pi/3)).go()
 
