@@ -26,8 +26,8 @@ probability_array_depth = 60  #frames for array, 30 frames = 1 second of probabi
 #Hough_circle values
 p1 = 100
 p2 = 13
-nr = 20
-mr = 30
+nr = 15
+mr = 100
 #*******************
 
 #blur Blank_gray images
@@ -40,6 +40,184 @@ corner = []
 distance_from_center = 28.0
 
 def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
+    symbol_type = 'none'
+    imgray = cv2.cvtColor(orig_img,cv2.COLOR_BGR2GRAY)
+
+    #clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    #imgray = clahe.apply(imgray)
+
+    kernel = np.ones((3,3),np.float32)
+
+    height = imgray.shape[0]
+
+    width  = imgray.shape[1]
+    
+    width_cent = width/2
+    height_cent = height/2
+
+    thresh = cv2.GaussianBlur(imgray,(1,1),1)
+
+    #thresh = cv2.erode(thresh,kernel,iterations = 5)
+
+    thresh = cv2.adaptiveThreshold(imgray,255,1,1,5,2)
+
+    #thresh = cv2.erode(thresh,kernel,iterations = 1)
+
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+    
+    thresh2 = thresh
+
+    mask = np.zeros(thresh.shape,np.uint8)
+    mask2 = np.zeros(thresh.shape,np.uint8)
+
+    contours, hier = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        x,y,w,h = cv2.boundingRect(cnt)
+        aspect_ratio = float(w)/h
+
+        if 200<cv2.contourArea(cnt)<50000 and aspect_ratio > .6 and aspect_ratio < 1.4:
+
+            area = cv2.contourArea(cnt)
+            x,y,w,h = cv2.boundingRect(cnt)            
+
+            rect_area = w*h
+            extent = float(area)/rect_area
+
+            if extent >= .3:
+                cv2.drawContours(mask,[cnt],0,255,-1)
+                cv2.drawContours(mask2,[cnt],0,255,-1)   
+
+    kernel = np.ones((7,7),np.uint8)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    mask2 = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+
+    contours, hier = cv2.findContours(mask2,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+
+    biggest_area = 0
+    biggest_cnt = [0]
+    biggest_M = [0]
+    biggest_approx = [0]
+    cxmax = 0
+    cymax = 0
+
+    for cnt in contours:
+        approx = cv2.approxPolyDP(cnt,0.1*cv2.arcLength(cnt,True),True)
+
+        M = cv2.moments(approx)
+
+        if M['m00'] != 0.0:
+            area = cv2.contourArea(approx)	
+		
+            cx = int(M['m10']/M['m00'])
+            cy = int(M['m01']/M['m00'])
+
+            d = math.sqrt((width_cent-cx)*(width_cent-cx) + (height_cent-cy)*(height_cent-cy))
+            
+            #if area >= 1000:
+
+                #print d 
+
+            if area >= biggest_area and d < distance_from_center:
+                biggest_area = area
+                biggest_cnt[0] = cnt
+                cxmax = cx
+                cymax = cy
+                #print biggest_area
+    if biggest_area != 0:
+        blank_gray = cv2.cvtColor(blank_img,cv2.COLOR_BGR2GRAY)
+
+        for cnt in contours:
+
+            if cnt != None: 
+                x,y,w,h = cv2.boundingRect(cnt) 
+                crop = mask2[y:y+h, x:x+w]
+
+                contours, hier = cv2.findContours(crop,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+                for cnt in contours:
+
+                    area = cv2.contourArea(cnt)
+                    hull = cv2.convexHull(cnt)
+                    hull_area = cv2.contourArea(hull)
+
+                    if hull_area > 0:
+                        solidity = float(area)/hull_area
+
+                        if solidity < .67 and solidity > .5:
+                            symbol_type = 'cruciform'
+
+                    leftmost = tuple(cnt[cnt[:,:,0].argmin()][0])
+                    rightmost = tuple(cnt[cnt[:,:,0].argmax()][0])
+                    topmost = tuple(cnt[cnt[:,:,1].argmin()][0])
+                    bottommost = tuple(cnt[cnt[:,:,1].argmax()][0])
+
+                    if abs(leftmost[1]-bottommost[1]) <= 25 and abs(rightmost[1]-bottommost[1]) <= 25:
+                        area_of_triangle = abs((leftmost[0]*(topmost[1]-rightmost[1]) + topmost[0]*(rightmost[1] - leftmost[1]) + rightmost[0]*(leftmost[0]-topmost[0]))/2)
+
+                        #print area_of_triangle
+                        if area_of_triangle >= 50:
+                            symbol_type = 'triangle'
+
+
+        circles = cv2.HoughCircles(mask,cv.CV_HOUGH_GRADIENT,1, width, param1=p1,param2=p2,minRadius=nr,maxRadius=mr)            
+        if circles != None:
+            a, b, c = circles.shape
+            for i in range(b):
+                symbol_type = 'circle'
+    else:
+        symbol_type = 'none'
+        
+
+    if symbol_type != 'none':
+
+        for h,cnt in enumerate(biggest_cnt[0]):
+            mask = np.zeros(imgray.shape,np.uint8)
+            cv2.drawContours(mask,[biggest_cnt[0]],0,255,-1)
+            mean = cv2.mean(orig_img,mask = mask)
+
+        mean = colorsys.rgb_to_hsv(mean[2]/255.0, mean[1]/255.0, mean[0]/255.0)
+        hsv = list(mean)
+        hsv[0] = hsv[0]*360
+
+        if hsv[2] < 0.1 or (hsv[1] < .37 and hsv[2] > .1 and hsv[2] < .65):
+            color = 'black' 
+        elif (hsv[0]<11 or hsv[0]>332) and hsv[1]>.48 and hsv[2]>.1:
+            color = 'red'
+        elif (hsv[0]>64 and hsv[0]<164) and hsv[1]>.12 and hsv[2]>.1:
+            color = 'green'
+        elif (hsv[0]>180 and hsv[0]<255) and hsv[1]>.15 and hsv[2]>.1:
+            color = 'blue'
+            #print "%d, %1.2f, %1.2f" % (hsv[0], hsv[1], hsv[2])
+        else:     
+            color = 'can\'t find'
+
+    if symbol_type == 'none':
+        blank_gray = cv2.cvtColor(blank_img,cv2.COLOR_BGR2GRAY)
+        cxmax = width_cent
+        cymax = height_cent
+
+        mask = np.zeros(imgray.shape, np.uint8)
+        cv2.circle(mask,(cxmax,cymax), 5, 255,-1)
+        mean = cv2.mean(orig_img,mask = mask)
+
+        mean = colorsys.rgb_to_hsv(mean[2]/255, mean[1]/255, mean[0]/255)
+        hsv = list(mean)
+        hsv[0] = hsv[0]*3603
+
+
+        if hsv[2] < 0.1 or (hsv[1] < .15 and hsv[2] > .1 and hsv[2] < .65):
+            color = 'black'
+        elif (hsv[0]<11 or hsv[0]>351) and hsv[1]>.7 and hsv[2]>.1:
+            color = 'red'
+        elif (hsv[0]>64 and hsv[0]<180) and hsv[1]>.15 and hsv[2]>.1:
+            color = 'green'
+        elif (hsv[0]>150 and hsv[0]<255) and hsv[1]>.15 and hsv[2]>.1:
+            color = 'blue'
+        else:        
+            color = 'can\'t find'
+   
+    return (symbol_type, blank_gray, cxmax, cymax, color, hsv[0], hsv[1], hsv[2])
+
+'''def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
     symbol_type = 'none'
     imgray = cv2.cvtColor(orig_img,cv2.COLOR_BGR2GRAY)
 
@@ -136,9 +314,9 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
         if dst != None:
             dst = np.int0(dst)
 
-            '''for i in dst:
+            #for i in dst:
                 x,y = i.ravel()
-                cv2.circle(blank_gray,(x,y),4,0,-1)'''
+                #cv2.circle(blank_gray,(x,y),4,0,-1)
             
             if circles != None:
                 symbol_type = 'none'
@@ -273,54 +451,15 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
     #print color
     #time.sleep(.5)
     #print symbol_type
-    return (symbol_type, blank_gray, cxmax, cymax, color)
+    return (symbol_type, blank_gray, cxmax, cymax, color)'''
 
-#*****************************************************  Probability portion  *******************************************
-def find_prob(result):
-
-    probability_sum = result['circle']+result['triangle']+result['cruciform']
-
-    if probability_sum > 0.0:
-        sign_probability = {'circle': result['circle']/probability_sum, 'triangle':result['triangle']/probability_sum, 'cruciform':result['cruciform']/probability_sum}
-    else:
-        sign_probability = {'circle': 0.0, 'triangle': 0.0, 'cruciform': 0.0}
-    return sign_probability
-
-def find_highest_percentage(percentages):
-    most_likely = max(percentages, key=percentages.get)
-    prcnt = percentages[most_likely]
-    
-    return most_likely, prcnt
-
-def add_sign(sign, sign_sum):
-    global probability_array_depth
-
-    for number in reversed(xrange(probability_array_depth-1)):      #shift everything left by one
-        #print sign_sum
-        sign_sum[number + 1] = sign_sum[number]
-
-    sign_sum[0] = {'circle': 0.0, 'triangle': 0.0, 'cruciform': 0.0}     #set first dictionary to zero
-
-    if sign != 'none':
-        sign_sum[0][sign] = sign_sum[0][sign] + 1.0
-
-    result = {}
-    for myDict in sign_sum:
-        for key, value in myDict.items():
-            result.setdefault(key, 0)
-            result[key] += value
-
-    percentage = find_prob(result)
-    sign,prcnt = find_highest_percentage(percentage)
-
-    if prcnt <= 0.0:
-        sign = 'none'
-        print 'none'
-
-    return sign, prcnt, sign_sum
-
-#************************************************************************************************************************
-
+def adaptive_histogram_eq(img):
+    b,g,r = cv2.split(img)
+    clahe = cv2.createCLAHE(clipLimit=.1, tileGridSize=(8,8))
+    b = clahe.apply(b)
+    g = clahe.apply(g)
+    r = clahe.apply(r)
+    return cv2.merge([b,g,r])
 
 class image_converter:
 
@@ -340,16 +479,12 @@ class image_converter:
    
     try:
       vid = self.bridge.imgmsg_to_cv2(data, "bgr8")
-    ex
-cept CvBridgeError, e:
+    except CvBridgeError, e:
       print e    
-    
-    cap = vid
 
     crcl = Circle()
     trgl = Triangle()
     crss = Cross()
-
     
 #**************** while(cap.isOpened()): *************************************************************
     counter = 0
@@ -362,10 +497,12 @@ cept CvBridgeError, e:
         sign2_sum.append({'circle': 0.0, 'triangle': 0.0, 'cruciform': 0.0})
         sign3_sum.append({'circle': 0.0, 'triangle': 0.0, 'cruciform': 0.0})
 
-    frame = cap
-    frame_real = cap
 
 
+    #frame = vid
+
+    frame_real = vid
+    frame = vid
     
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
@@ -373,18 +510,26 @@ cept CvBridgeError, e:
     #cv2.rectangle(frame,(0,0),(1240,280),(0,0,0),-1)
     #cv2.rectangle(frame,(0,600),(1240,1080),(0,0,0),-1)
 
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    imgray = cv2.medianBlur(gray,3)   
+    imgray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    #imgray = cv2.medianBlur(gray,7)   
     
 #    ret,thresh = cv2.threshold(imgray,230,255,cv2.THRESH_TOZERO)
-    imgray = cv2.GaussianBlur(imgray,(1,1),1)
-    ret,thresh = cv2.threshold(imgray,200,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+    imgray = cv2.GaussianBlur(imgray,(3,3),1)
+    ret,thresh = cv2.threshold(imgray,150,255,cv2.THRESH_TOZERO) #Adjust the first digit after imgray to increase sensitivity to white boards.  Default 230.
+
+
+
+    #kernel = np.ones((5,5),np.uint8)
+    #thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+
+    cv2.imshow('thresh', thresh)
+    cv2.waitKey(1)
+
     thresh = cv2.adaptiveThreshold(thresh,255,1,1,5,2)
 
 
     cv2.rectangle(thresh,(0,300),(1240,1080),(0,0,0),-1)
-    cv2.imshow('thresh', thresh)
-    cv2.waitKey(1)
 
     #thresh = cv2.adaptiveThreshold(thresh,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,55,2)
 
@@ -505,16 +650,16 @@ cept CvBridgeError, e:
             #cv2.line(frame_real, (0,(height/2 + 150)), (1240,(height/2 + 150)), (255,0,0), 10) 
             #cv2.line(frame_real, (0,(height/2 - 225)), (1240,(height/2 - 225)), (255,0,0), 10)
         
-            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 2500.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
+            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 1750.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
             #if same_moment == 0 and area >= 3000.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
                 coordsx.append(cx) #append for centroid distance checking
                 coordsy.append(cy) #append for centroid distance checking       
                 corner.append(x)
                 corner.append(y)
-                corner.append(w)
-                corner.append(h)
+                corner.append(w+8)
+                corner.append(h+8)
 
-                cv2.rectangle(frame_real,(x,y),(x+w,y+h),(0,255,0),2)
+                cv2.rectangle(frame_real,(x,y),(x+w+8,y+h+8),(0,255,0),2)
                 cv2.circle(frame_real,(x,y), 2, (128,0,0),-1)
                 no_of_signs += 1
     
@@ -523,35 +668,35 @@ cept CvBridgeError, e:
             x,y,w,h = width,height,0,0
             corner.append(x)
             corner.append(y)
-            corner.append(w)
-            corner.append(h)
+            corner.append(w+8)
+            corner.append(h+8)
     elif no_of_signs == 1:
             x,y,w,h = width,height,0,0
             corner.append(x)
             corner.append(y)
-            corner.append(w)
-            corner.append(h)
+            corner.append(w+8)
+            corner.append(h+8)
             x,y,w,h = width,height,0,0
             corner.append(x)
             corner.append(y)
-            corner.append(w)
+            corner.append(w+8)
             corner.append(h)
     elif no_of_signs == 0:
             x,y,w,h = width,height,0,0
             corner.append(x)
             corner.append(y)
-            corner.append(w)
+            corner.append(w+8)
+            corner.append(h+8)
+            x,y,w,h = width,height,0,0
+            corner.append(x)
+            corner.append(y)
+            corner.append(w+8)
             corner.append(h)
             x,y,w,h = width,height,0,0
             corner.append(x)
             corner.append(y)
-            corner.append(w)
-            corner.append(h)
-            x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w)
-            corner.append(h)
+            corner.append(w+8)
+            corner.append(h+8)
     
     if (corner[0] < corner[4] and corner[0] < corner[8] and corner[0] != width):
         one_a = frame[corner[1]:corner[1]+corner[3], corner[0]:corner[0]+corner[2]]
@@ -560,28 +705,31 @@ cept CvBridgeError, e:
         sign1 = find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center)  
 
         
-        symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
+        #symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
 
-        if sign1[0] != 'none' or sign1[0] != 'none_found':        
+        if sign1[0] != 'none':        
             cv2.circle(frame_real,(sign1[2]+corner[0],sign1[3]+corner[1]), 2, (255,0,0),-1) 
 
             if sign1[4] == 'can\'t find':
-                cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign1[4], sign1[5], sign1[6], sign1[7]) , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign1[0], (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
+                #cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign1[4] != 'red':            
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign1[0], (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
+                #cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,0),1, cv2.CV_AA)      
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign1[0], (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
+                #cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
-            if symbol1 == 'circle':
+            if sign1[0] == 'circle':
                 crcl.xpixel = sign1[2]+corner[0] - 500
                 crcl.color = sign1[4]
-            elif symbol1 == 'triangle':
+            elif sign1[0] == 'triangle':
                 trgl.xpixel = sign1[2]+corner[0] - 500
                 trgl.color = sign1[4]
-            elif symbol1 == 'cruciform':
+            elif sign1[0] == 'cruciform':
                 crss.xpixel = sign1[2]+corner[0] - 500
                 crss.color = sign1[4]
 
@@ -592,28 +740,28 @@ cept CvBridgeError, e:
         blank_three[:,0:corner[2]] = (255,255,255)
         sign3 = find_shape(three_a, blank_three, p1, p2, nr, mr, distance_from_center)  
 
-        symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
+        #symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
 
-        if sign3[0] != 'none' or sign3[0] != 'none_found':        
+        if sign3[0] != 'none':        
             cv2.circle(frame_real,(sign3[2]+corner[0],sign3[3]+corner[1]), 2, (255,0,0),-1)
 
-            if sign3[4] == 'distance_from_center = 28.0can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
+            if sign3[4] == 'can\'t find':
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign3[0], sign3[5], sign3[6], sign3[7]), (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[0], sign3[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign3[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign3[0], (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[0], sign3[3]+corner[1] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign3[0], (sign3[2]+corner[0], sign3[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[0], sign3[3]+corner[1] - 15), font, .6,(255,0,0),1, cv2.CV_AA)                
           
-            if symbol3 == 'circle':
+            if sign3[0] == 'circle':
                 crcl.xpixel = sign3[2]+corner[0] - 500
                 crcl.color = sign3[4]
-            elif symbol3 == 'triangle':
+            elif sign3[0] == 'triangle':
                 trgl.xpixel = sign3[2]+corner[0] - 500
                 trgl.color = sign3[4]
-            elif symbol3 == 'cruciform':
+            elif sign3[0] == 'cruciform':
                 crss.xpixel = sign3[2]+corner[0] - 500
                 crss.color = sign3[4]
 
@@ -624,27 +772,27 @@ cept CvBridgeError, e:
         blank_two[:,0:corner[2]] = (255,255,255) 
         sign2 =  find_shape(two_a, blank_two, p1, p2, nr, mr, distance_from_center)
 
-        symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
+        #symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
 
-        if sign2[0] != 'none' or sign2[0] != 'none_found':        
+        if sign2[0] != 'none':        
             cv2.circle(frame_real,(sign2[2]+corner[0],sign2[3]+corner[1]), 2, (255,0,0),-1) 
             if sign2[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[0], sign2[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign2[0], sign2[5], sign2[6], sign2[7]), (sign2[2]+corner[0], sign2[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[0], sign2[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign2[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[0], sign2[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign2[0] , (sign2[2]+corner[0], sign2[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[0], sign2[3]+corner[1] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[0], sign2[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
+                cv2.putText(frame_real, "%s" % sign2[0] , (sign2[2]+corner[0], sign2[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[0], sign2[3]+corner[1] - 15), font, .6,(255,0,0),1, cv2.CV_AA)            
 
-            if symbol2 == 'circle':
+            if sign2[0] == 'circle':
                 crcl.xpixel = sign2[2]+corner[0] - 500
                 crcl.color = sign2[4]
-            elif symbol2 == 'triangle':
+            elif sign2[0] == 'triangle':
                 trgl.xpixel = sign2[2]+corner[0] - 500
                 trgl.color = sign2[4]
-            elif symbol2 == 'cruciform':
+            elif sign2[0] == 'cruciform':
                 crss.xpixel = sign2[2]+corner[0] - 500
                 crss.color = sign2[4]
 
@@ -655,28 +803,28 @@ cept CvBridgeError, e:
         blank_one[:,0:corner[6]] = (255,255,255)
         sign1 =  find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center) 
 
-        symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
+        #symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
 
-        if sign1[0] != 'none' or sign1[0] != 'none_found':        
+        if sign1[0] != 'none':        
             cv2.circle(frame_real,(sign1[2]+corner[4],sign1[3]+corner[5]), 2, (255,0,0),-1) 
 
             if sign1[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign1[4], sign1[5], sign1[6], sign1[7]) , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[4], sign1[3]+corner[5] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign1[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign1[0] , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[4], sign1[3]+corner[5] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign1[0] , (sign1[2]+corner[4], sign1[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[4], sign1[3]+corner[5] - 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
-            if symbol1 == 'circle':
+            if sign1[0] == 'circle':
                 crcl.xpixel = sign1[2]+corner[4] - 500
                 crcl.color = sign1[4]
-            elif symbol1 == 'triangle':
+            elif sign1[0] == 'triangle':
                 trgl.xpixel = sign1[2]+corner[4] - 500
                 trgl.color = sign1[4]
-            elif symbol1 == 'cruciform':
+            elif sign1[0] == 'cruciform':
                 crss.xpixel = sign1[2]+corner[4] - 500
                 crss.color = sign1[4]
 
@@ -687,28 +835,28 @@ cept CvBridgeError, e:
         blank_three[:,0:corner[6]] = (255,255,255)
         sign3 =  find_shape(three_a, blank_three, p1, p2, nr, mr, distance_from_center) 
 
-        symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
+        #symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
      
-        if sign3[0] != 'none' or sign3[0] != 'none_found':        
+        if sign3[0] != 'none':        
             cv2.circle(frame_real,(sign3[2]+corner[4],sign3[3]+corner[5]), 2, (255,0,0),-1) 
 
             if sign3[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign3[0], sign3[5], sign3[6], sign3[7]) , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[4], sign3[3]+corner[5] - 15), font, .6,(255,0,255),1, cv2.CV_AA) 
             elif sign3[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign3[0] , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[4], sign3[3]+corner[5] - 15), font, .6,(0,0,255),1, cv2.CV_AA)     
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign3[0] , (sign3[2]+corner[4], sign3[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[4], sign3[3]+corner[5] - 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
-            if symbol3 == 'circle':
+            if sign3[0] == 'circle':
                 crcl.xpixel = sign3[2]+corner[4] - 500
                 crcl.color = sign3[4]
-            elif symbol3 == 'triangle':
+            elif sign3[0] == 'triangle':
                 trgl.xpixel = sign3[2]+corner[4] - 500
                 trgl.color = sign3[4]
-            elif symbol3 == 'cruciform':
+            elif sign3[0] == 'cruciform':
                 crss.xpixel = sign3[2]+corner[4] - 500
                 crss.color = sign3[4]
 
@@ -719,27 +867,27 @@ cept CvBridgeError, e:
         blank_two[:,0:corner[6]] = (255,255,255)    
         sign2 =  find_shape(two_a, blank_two, p1, p2, nr, mr, distance_from_center)    
 
-        symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
+        #symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
 
-        if sign2[0] != 'none' or sign2[0] != 'none_found':        
+        if sign2[0] != 'none':        
             cv2.circle(frame_real,(sign2[2]+corner[4],sign2[3]+corner[5]), 2, (255,0,0),-1) 
             if sign2[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[4], sign2[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign2[0], sign2[5], sign2[6], sign2[7]), (sign2[2]+corner[4], sign2[3]+corner[5] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[4], sign2[3]+corner[5] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign2[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[4], sign2[3]+corner[5] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign2[0] , (sign2[2]+corner[4], sign2[3]+corner[5] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[4], sign2[3]+corner[5] - 15), font, .6,(0,0,255),1, cv2.CV_AA) 
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[4], sign2[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign2[0] , (sign2[2]+corner[4], sign2[3]+corner[5] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[4], sign2[3]+corner[5] - 15), font, .6,(255,0,0),1, cv2.CV_AA) 
 
-            if symbol2 == 'circle':
+            if sign2[0] == 'circle':
                 crcl.xpixel = sign2[2]+corner[4] - 500
                 crcl.color = sign2[4]
-            elif symbol2 == 'triangle':
+            elif sign2[0] == 'triangle':
                 trgl.xpixel = sign2[2]+corner[4] - 500
                 trgl.color = sign2[4]
-            elif symbol2 == 'cruciform':
+            elif sign2[0] == 'cruciform':
                 crss.xpixel = sign2[2]+corner[4] - 500
                 crss.color = sign2[4]
 
@@ -751,28 +899,28 @@ cept CvBridgeError, e:
         blank_one[:,0:corner[10]] = (255,255,255)
         sign1 =  find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center) 
 
-        symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
+        #symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
 
-        if sign1[0] != 'none' or sign1[0] != 'none_found':        
+        if sign1[0] != 'none':        
             cv2.circle(frame_real,(sign1[2]+corner[8],sign1[3]+corner[9]), 2, (255,0,0),-1) 
 
             if sign1[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign1[4], sign1[5], sign1[6], sign1[7]) , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign1[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign1[0] , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign1[0] , (sign1[2]+corner[8], sign1[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[8], sign1[3]+corner[9] - 15), font, .6,(255,0,0),1, cv2.CV_AA)    
 
-            if symbol1 == 'circle':
+            if sign1[0] == 'circle':
                 crcl.xpixel = sign1[2]+corner[8] - 500
                 crcl.color = sign1[4]
-            elif symbol1 == 'triangle':
+            elif sign1[0] == 'triangle':
                 trgl.xpixel = sign1[2]+corner[8] - 500
                 trgl.color = sign1[4]
-            elif symbol1 == 'cruciform':
+            elif sign1[0] == 'cruciform':
                 crss.xpixel = sign1[2]+corner[8] - 500
                 crss.color = sign1[4]
 
@@ -783,28 +931,28 @@ cept CvBridgeError, e:
         blank_three[:,0:corner[10]] = (255,255,255)
         sign3 =  find_shape(three_a, blank_three, p1, p2, nr, mr, distance_from_center)
 
-        symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
+        #symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
 
-        if sign3[0] != 'none' or sign3[0] != 'none_found':        
+        if sign3[0] != 'none':        
             cv2.circle(frame_real,(sign3[2]+corner[8],sign3[3]+corner[9]), 2, (255,0,0),-1) 
 
             if sign3[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign3[0], sign3[5], sign3[6], sign3[7]) , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[8], sign3[3]+corner[9] - 15), font, .6,(255,0,255),1, cv2.CV_AA)    
             elif sign3[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign3[0] , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[8], sign3[3]+corner[9] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol3,percentage3) , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign3[0] , (sign3[2]+corner[8], sign3[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign3[4] , (sign3[2]+corner[8], sign3[3]+corner[9] - 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
-            if symbol3 == 'circle':
+            if sign3[0] == 'circle':
                 crcl.xpixel = sign3[2]+corner[8] - 500
                 crcl.color = sign3[4]
-            elif symbol3 == 'triangle':
+            elif sign3[0] == 'triangle':
                 trgl.xpixel = sign3[2]+corner[8] - 500
                 trgl.color = sign3[4]
-            elif symbol3 == 'cruciform':
+            elif sign3[0] == 'cruciform':
                 crss.xpixel = sign3[2]+corner[8] - 500
                 crss.color = sign3[4]
 
@@ -815,27 +963,27 @@ cept CvBridgeError, e:
         blank_two[:,0:corner[10]] = (255,255,255)
         sign2 =  find_shape(two_a, blank_two, p1, p2, nr, mr, distance_from_center)
 
-        symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
+        #symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
 
-        if sign2[0] != 'none' or sign2[0] != 'none_found':        
+        if sign2[0] != 'none':        
             cv2.circle(frame_real,(sign2[2]+corner[8],sign2[3]+corner[9]), 2, (255,0,0),-1) 
             if sign2[4] == 'can\'t find':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[8], sign2[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign2[0], sign2[5], sign2[6], sign2[7]), (sign2[2]+corner[8], sign2[3]+corner[9] + 15), font, .6,(255,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[8], sign2[3]+corner[9] - 15), font, .6,(255,0,255),1, cv2.CV_AA)            
             elif sign2[4] != 'red':
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[8], sign2[3]+corner[9] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign2[0], (sign2[2]+corner[8], sign2[3]+corner[9] + 15), font, .6,(0,0,255),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[8], sign2[3]+corner[9] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
-                cv2.putText(frame_real, "%s (%1.2f)" % (symbol2,percentage2) , (sign2[2]+corner[8], sign2[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
+                cv2.putText(frame_real, "%s" % sign2[0], (sign2[2]+corner[8], sign2[3]+corner[9] + 15), font, .6,(255,0,0),1, cv2.CV_AA) 
                 cv2.putText(frame_real, sign2[4] , (sign2[2]+corner[8], sign2[3]+corner[9] - 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
-            if symbol2 == 'circle':
+            if sign2[0] == 'circle':
                 crcl.xpixel = sign2[2]+corner[8] - 500
                 crcl.color = sign2[4]
-            elif symbol2 == 'triangle':
+            elif sign2[0] == 'triangle':
                 trgl.xpixel = sign2[2]+corner[8] - 500
                 trgl.color = sign2[4]
-            elif symbol2 == 'cruciform':
+            elif sign2[0] == 'cruciform':
                 crss.xpixel = sign2[2]+corner[8] - 500
                 crss.color = sign2[4]
 
@@ -869,7 +1017,7 @@ cept CvBridgeError, e:
       cv2.waitKey(1)
 
       cv2.moveWindow('frame_real', 20, 20)
-      cv2.moveWindow('thresh', 20, 500)
+      cv2.moveWindow('thresh', 20, 550)
       cv2.moveWindow('window', 1200, 500)
 
       #self.image_white.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))

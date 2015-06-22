@@ -10,7 +10,7 @@ import sensor_msgs.point_cloud2 as pc2
 import rospy
 from roslib import message
 
-DISPLAY_SIZE = (960, 480)
+DISPLAY_SIZE = (960, 480) # Display to be printed out to 
 
 white = (255,255,255)
 black = (0,0,0)
@@ -55,12 +55,13 @@ class lidar_theta(object):
 		# FOR TESTING ONLY RIGHT NOW
 		# height of display to be printed to 
 		# height and width will contain ueye camera dimensions eventually
+
 		self.height  = 480
 		self.width  = 640
 		self.lidar_height = 0
 		self.lidar_width = 0
-		self.image = numpy.zeros((2000,2000))
-		self.blank_image = numpy.zeros((2000,2000))
+		self.image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
+		self.blank_image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
 
 		self.x_co_final = 0
 		self.y_co_final = 0
@@ -74,7 +75,6 @@ class lidar_theta(object):
 		self.y_theta = 0
 		self.z_theta = 0
 
-		self.image_to_send = numpy.array([DISPLAY_SIZE])
 		self.bridge = CvBridge()
 
 		self.quadrant = 0
@@ -83,9 +83,10 @@ class lidar_theta(object):
 
 		# starts main loop that constantly feeds from lidar
 		rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
-		rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
+		#rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
 		self.vison_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
 
+		'''
 	def image_cb(self, data):
 		try:
 			self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -97,11 +98,13 @@ class lidar_theta(object):
 		self.image = numpy.zeros((rows,cols))
 		self.blank_image = numpy.zeros((rows,cols))
 		self.image = self.cv_image		
+		'''
 
 	def pointcloud_callback(self, data):
 
 		# Read from pointcloud
 		pointcloud = pc2.read_points(data, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
+		self.blank_image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
 		self.lidar_height = data.height
 		self.lidar_width = data.width
 
@@ -110,10 +113,6 @@ class lidar_theta(object):
 			try:
 				# new point
 				xyz_point = next(pointcloud) 
-				# RIGHT NOW EVERYTHING IS IN RIGHT QUADRANT
-				# Y = YAW
-				# X = 0/1
-				# Z = 0/1	
 				x, y, z = xyz_point[0], xyz_point[1], xyz_point[2]
 				self.quad_assign = numpy.array([x, y, z]) 
 				x, y, z = abs(xyz_point[0]), abs(xyz_point[1]), abs(xyz_point[2])
@@ -127,6 +126,7 @@ class lidar_theta(object):
 				self.create_triangle() 
 			# When the last point has been processed
 			except StopIteration:
+				# Publish Data in 2D
 				self.vison_fusion.publish(self.blank_image)
 				self.rate.sleep()
 				break
@@ -139,7 +139,7 @@ class lidar_theta(object):
 		rospy.logdebug("Quadrant: {}".format(self.quadrant))
 
 	def solve_angles(self, obj_vect):
-		# buffer non-generic funtion used to decide whih angle to solve for
+		# buffer non-generic funtion used to decide which angle to solve for
 		if obj_vect == 1: self.x_theta = self.find_angle(self.x_unit_vect); #print self.x_theta 
 		if obj_vect == 2: self.y_theta = self.find_angle(self.y_unit_vect); #print self.y_theta 
 		if obj_vect == 3: self.z_theta = self.find_angle(self.x_unit_vect); #print self.z_theta 
