@@ -43,12 +43,12 @@ private:
 	//	only the Y direction of angles with absolute value greater than 90 deg matter
 	bool isSelf(float mag, float angle)
 	{
-		angle = abs(angle);
-		if(angle > M_PI /2)
+		angle = fabs(angle);
+		if(angle > (M_PI / 2.0))
 		{
 			// Check Y values
 			float y = sin(angle) * mag;
-			if (y < 0.5)	// Boat is about 1 m wide
+			if (y < 0.65)	// Boat is about 1 m wide
 			{
 				return true;
 			}
