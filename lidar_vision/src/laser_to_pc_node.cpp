@@ -14,6 +14,7 @@
 #include <tf/transform_listener.h>
 #include <ros/time.h>
 #include <ros/duration.h>
+#include <cmath>
 
 /****************************************
  * 				LaserToPC2				*
@@ -36,23 +37,50 @@ private:
 	ros::Publisher pc_pub_;						//point cloud publisher
 
 private:
+	// Check to make sure the point is not on the boat
+	//	Since this check is done in the frame of reference of the lidar,
+	//	the lidar scans are 2d, and the lidar's field of view is limited to 270 deg
+	//	only the Y direction of angles with absolute value greater than 90 deg matter
+	bool isSelf(float mag, float angle)
+	{
+		angle = abs(angle);
+		if(angle > M_PI /2)
+		{
+			// Check Y values
+			float y = sin(angle) * mag;
+			if (y < 0.5)	// Boat is about 1 m wide
+			{
+				return true;
+			}
+			return false;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
 	void ConvertLaser(const sensor_msgs::LaserScan::ConstPtr& scan_in)
 	{
 		sensor_msgs::LaserScan temp = *scan_in;
 		sensor_msgs::LaserScan* scan = &temp;
 
-		// Remove points that are to close
+		// Remove points that are to close and or the boat itself
 		//	The LaserProjection class only removes points that are to far away
 		//	It does not remove points that are to close
 		//	To workaround this we iterate through the raw laser scan and change all values
 		//	that are minimum value to above maximum value
+		float angle = scan->angle_min;
 		for(std::vector<float>::iterator it = scan->ranges.begin(); it != scan->ranges.end(); ++it)
 		{
 			// 1 cm epsilon
-			if (*it <= scan->range_min + 0.01)
+			if (*it <= scan->range_min + 0.01 || isSelf(*it, angle))
 			{
 				*it = scan->range_max + 0.01;
 			}
+
+			// Increment
+			angle += scan->angle_increment;
 		}
 
 		//Convert to point cloud
