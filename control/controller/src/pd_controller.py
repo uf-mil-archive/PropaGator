@@ -37,8 +37,21 @@ class Controller(object):
         self.enable = True
         self.odom_active = False
 
-        self.K_p = numpy.ones((6,6))
-        self.K_d = numpy.ones((6,6))
+        self.K_d = numpy.array([
+        [self.d_x,0,0,0,0,0],
+        [0,self.d_y,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,self.d_z]])
+
+        self.K_p = numpy.array([
+        [self.p_x,0,0,0,0,0],
+        [0,self.p_y,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,0],
+        [0,0,0,0,0,self.p_z]])
         
         self.desired_state_set = False
         self.desired_state = numpy.ones(6)
