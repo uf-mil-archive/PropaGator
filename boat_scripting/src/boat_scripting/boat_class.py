@@ -225,7 +225,7 @@ class _Boat(object):
         transform = yield self._tf_listener.get_transform('/base_link', msg.header.frame_id, msg.header.stamp)
         res = []
         for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
-            res.append(transform.transform_point((p[0], p[1], p[])))
+            res.append(transform.transform_point((p[0], p[1], p[2])))
         defer.returnValue(res)
     
     @util.cancellableInlineCallbacks
