@@ -9,7 +9,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_service_files(
    FILES
-   AziStop.srv
    trajectory_mode.srv
 )
 

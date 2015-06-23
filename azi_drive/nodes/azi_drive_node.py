@@ -5,11 +5,12 @@ from azimuth_drive import Azi_Drive
 from azimuth_drive import clamp_angles
 import numpy as np
 import rospy
+from kill_handling.listener import KillListener
+from kill_handling.broadcaster import KillBroadcaster
 
 from geometry_msgs.msg import WrenchStamped
 from motor_control.msg import thrusterNewtons
 from dynamixel_servo.msg import DynamixelFullConfig
-from azi_drive.srv import *
 from time import time
 from std_msgs.msg import Bool, Float64
 
@@ -36,6 +37,17 @@ class Controller(object):
         
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
+        # Set up kill handling
+        self.kill_listener = KillListener(self.on_kill, self.on_unkill)
+        self.kill_broadcaster = KillBroadcaster(id='Azi_drive', description='Azi drive node shutdown')
+        # Clear the kill 
+        try:
+            self.kill_broadcaster.clear()
+        except rospy.service.ServiceException, e:
+            rospy.logwarn(str(e))
+        self.killed = False
+        self.rc_takeover = False
+
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
         
@@ -50,8 +62,6 @@ class Controller(object):
         self.left_id = 3
         self.right_id = 2
 
-        self.control_kill = False
-
         # Time between messages before azi_drive shuts off
         # self.control_timeout = 2  # secs
         self.control_timeout = np.inf
@@ -60,8 +70,6 @@ class Controller(object):
         self.default_forces = np.array([0.0, 0.0], dtype=np.float32)
 
         self.pwm_forces = np.array([0.0, 0.0], dtype=np.float64)
-        self.pwm_forces2 = np.array([0.0, 0.0], dtype=np.float64)
-
 
         # Left, Right
         self.cur_angles = self.default_angles[:]
@@ -75,11 +83,6 @@ class Controller(object):
         self.last_msg_time = time()
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
 
-        # Prepare a shutdown service
-        rospy.loginfo("----------Waiting for control_manager service-------------")
-        rospy.wait_for_service('azi_drive/stop')
-        self.stop_boat_proxy = rospy.ServiceProxy('azi_drive/stop', AziStop)
-
         self.MAX_NEWTONS =  100.0         #Full forward Jacksons motors
         self.MIN_NEWTONS =  -100.0        #Full reverse Jacksons
         self.ABS_MAX_PW = .002
@@ -87,6 +90,14 @@ class Controller(object):
         self.ZERO_NEWTONS = 0
         self.REV_CONV = (self.ZERO_NEWTONS - self.MIN_NEWTONS) / (0 - self.ABS_MIN_PW)
         self.FWD_CONV = (self.MAX_NEWTONS - self.ZERO_NEWTONS) / self.ABS_MAX_PW
+
+    def on_kill(self):
+        self.killed = True
+        rospy.logwarn('Azi drive killed because: ' + str(self.kill_listener.get_kills()))
+
+    def on_unkill(self):
+        self.killed = False
+        rospy.loginfo('Azi drive unkilled')
 
     def convertNewtonsToPW(self, newtons):
         out = newtons
@@ -122,11 +133,18 @@ class Controller(object):
         rate = rospy.Rate(self.rate)
         iteration_num = 0
         while not rospy.is_shutdown():
-            if self.control_kill == True:
+            # If killed zero everything
+            if self.killed == True:
+                angles = np.array([0, 0])
+                self.set_servo_angles(angles)
+                self.set_forces((0.0, 0.0))
+            # If rc takeover set thruster angles to 0 and give thrust control to RC
+            elif self.rc_takeover == True:
                 angles = np.array([0, 0])
                 self.set_servo_angles(angles)
                 print self.pwm_forces
                 self.set_forces(self.pwm_forces)
+            # Otherwise normal operation
             else:
                 iteration_num += 1
 
@@ -174,13 +192,13 @@ class Controller(object):
     def control_callback(self, msg):
         
         if msg.data == True:
-            self.control_kill = True
+            self.rc_takeover = True
         if msg.data == False:
-            self.control_kill = False
+            self.rc_takeover = False
 
     def shutdown(self):
         rospy.logwarn("AZI_DRIVE: Shutting down Azi Drive")
-        self.stop_boat_proxy()
+        self.kill_broadcaster.send(True)
 
     def stop(self):
         self.des_fx, self.des_fy, self.des_torque = 0.0, 0.0, 0.0
