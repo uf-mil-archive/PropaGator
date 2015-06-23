@@ -137,6 +137,23 @@ def visualize_spline(spline, title="Spline pathing visualization", animate=True,
         display.fill((0, 0, 0))
 
 
+def draw_rect(display, corner, size):
+    _size = size * SCALE
+    # pygame.draw.rect(display, (255, 255, 0), (point[0], point[1], size[0] * SCALE, size[1] * SCALE))
+    pts = [
+        round_point(corner),
+        round_point(corner + [_size[0], 0.0]),
+        round_point(corner + _size),
+        round_point(corner + [0.0, _size[1]]),
+    ]
+
+    pygame.draw.polygon(
+        display, 
+        (255, 255, 0), 
+        pts,
+        0
+    )
+
 def visualize_tree(tree, end_point=None, animate=False, title='RRT Visualization'):
     display = pygame.display.set_mode(SCREEN_DIM)
     pygame.display.set_caption(title)
@@ -153,6 +170,9 @@ def visualize_tree(tree, end_point=None, animate=False, title='RRT Visualization
         k = num_edges
 
     while not rospy.is_shutdown():
+
+        for obstacle in tree.obstacles:
+            draw_rect(display, obstacle[:2], obstacle[2:])
 
         if end_point is not None:
             pygame.draw.circle(display, (0, 255, 0,), round_point(end_point), 6)
