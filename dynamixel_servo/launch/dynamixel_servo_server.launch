@@ -87,4 +87,5 @@
 			<param name="poll_rate" value="$(arg poll_rate)" type="double"/>
 		</node>
 	</group>
+	<node pkg="dynamixel_servo" type="reset_dynamixel.py" name="reset_dynamixel"/>
 </launch>
