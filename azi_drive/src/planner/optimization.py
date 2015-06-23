@@ -7,7 +7,8 @@ from time import time
 
 class Optimize(object):
     @classmethod
-    def direct_transcription(self, dynamics, x0, xf, dt=0.1, time_end=10, control_dimension=2, control_fraction=10):
+    def direct_transcription(self, dynamics, x0, xf, dt=0.1, time_end=10, control_dimension=2, control_fraction=10,
+        control_bounds=[(-100, 100), (-100, 100)]):
         '''direct_transcription()
         Compute a feasible optimal trajectory via direct transcription using sequential least-squares programming (slsqp),
             not interpolating state beyond dynamics, and interpolating control using a zero-order hold.
@@ -21,6 +22,7 @@ class Optimize(object):
             control_dimension - length of the control-input vector, u
             control_fraction - fraction of states that governs how many different control inputs will be varied
                                 in short, the vehicle will change its control input at 1/control_fraction of the states
+            control_bounds - constant bounds on the control inputs, described as 
 
         Concept:
             Dynamics: x[t + 1] = dynamics(x, u) + x
@@ -33,6 +35,7 @@ class Optimize(object):
                 Available: https://courses.edx.org/courses/MITx/6.832x/3T2014/courseware/week5/week5_overview/
 
         '''
+        assert control_dimension == len(control_bounds), "You must have as many bounds as control inputs"
 
         time_range = np.arange(0, time_end, dt)
 
@@ -40,19 +43,26 @@ class Optimize(object):
         constraints = []
         u_max = 100
         u_min = -100
+        _bounds = []
         for k in range(len(initial_guesses)):
+            bounds = control_bounds[k % control_dimension]
+            _bounds.append(bounds)
+            '''
+            print k, max(bounds), min(bounds)
             constraints.append(
                 {
                     'type': 'ineq',
-                    'fun': lambda u: u_max - u[k]
+                    # 'fun': lambda u: u_max - u[k]
+                    'fun': lambda u: max(bounds) - u[k]
                 }
             )
             constraints.append(
                 {
                     'type': 'ineq',
-                    'fun': lambda u: u[k] - u_min
+                    'fun': lambda u: u[k] - min(bounds)
                 }
             )
+            '''
 
         def objective(u_vector):
             '''Evaluate the objective given a control tape by forward-simulating the vehicle dynamics
@@ -62,14 +72,14 @@ class Optimize(object):
             '''
             control_tape = self.undiscretize(u_vector, len(time_range), dims=control_dimension)
             spline = self.forward_sim(
-                dynamics_func=dynamics, 
-                x0=x0, 
+                dynamics_func=dynamics,
+                x0=x0,
                 u_vec = control_tape,
-                dt=dt, 
+                dt=dt,
                 time_end=time_end,
                 # target=xf, tol=3
             )
-            # visualize_spline(spline[:, :2], 'Path Visualization', animate=False, iteration_speed=5, lasts=0.05)
+            # visualize_spline(spline[:, :3], 'Path Visualization', animate=False, iteration_speed=5, lasts=0.05, has_theta=True)
             # return 5 * np.sum((spline - xf) ** 2)
             return (5 * np.linalg.norm(spline[-1] - xf)) + (40 * len(spline))
 
@@ -77,11 +87,13 @@ class Optimize(object):
             fun=objective,
             x0=initial_guesses,
             method='SLSQP',
-            constraints=constraints,
-            tol=1e-1
+            constraints=tuple(constraints),
+            tol=1e-1,
+            bounds=_bounds
         )
 
         u_vector = opt.x
+        print opt
         control_tape = self.undiscretize(u_vector, len(time_range), dims=control_dimension)
         spline = self.forward_sim(dynamics, x0, control_tape, dt=dt, time_end=time_end,
             # target=xf, tol=3

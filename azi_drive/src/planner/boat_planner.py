@@ -3,6 +3,7 @@ from scipy import optimize, misc
 from azimuth_drive import Tools
 from optimization import Optimize
 from visualize import visualize_spline
+from time import time
 
 
 class Boat_Planner(object):
@@ -38,6 +39,12 @@ class Boat_Planner(object):
         xdot, ydot, u_x, u_y are all in the boat frame, x-forward, y-left
 
         returns the derivative of the state in the world frame
+
+
+        TODO:
+            - Do everything in the world frame
+            - Rotate the control-input, and apply everything in the world frame
+            - Apply resistance as a function of the sideslip angle
         '''
         rotation = self.rotation_mat((np.pi / 2) - theta)
         xdot_world, ydot_world = np.dot(rotation, [xdot, ydot])
@@ -45,8 +52,8 @@ class Boat_Planner(object):
 
         # Water resistance terms
         # -np.sign(xdot) * 0.1 * xdot ** 2
-        ydotdot = -np.sign(ydot) * 0.5 * ydot ** 2
-
+        # ydotdot = -np.sign(ydot) * 0.2 * ydot ** 2
+        ydotdot = 0.0
         Xdot = np.array(
             [xdot_world, ydot_world, thetadot, 0.0, ydotdot, 0.0]
         ) + np.hstack([
@@ -56,30 +63,44 @@ class Boat_Planner(object):
         return Xdot
 
 
-
 if __name__ == '__main__':
     print 'Boat Planner Demo; This is not intended to be run as main'
     bp = Boat_Planner()
 
     x0 = np.array([
         0.0, 0.0, 0.0,  # Positional
-        50.0, 50.0, 0.5,  # dots
+        10.0, 10.0, 0.0,  # dots
     ])
 
     xf = np.array([
-        20.0, 20.0, 0.0,
+        100.0, 100.0, np.pi/2,
         0.0, 0.0, 0.0,
     ])
 
-    time_end = 5
-    dt = 0.05
+    time_end = 15
+    dt = 0.1
     time_range = np.arange(0, time_end, dt)
 
-    control_tape, spline, success = Optimize.direct_transcription(bp.boat_dynamics, x0, xf, dt=dt, time_end=time_end, control_dimension=3)
+    tic = time()
+    control_tape, spline, success = Optimize.direct_transcription(
+        bp.boat_dynamics, 
+        x0, xf, 
+        dt=dt, time_end=time_end, 
+        control_dimension=3, 
+        control_bounds=[
+            (-70, 100),
+            (-30, 30),
+            (-10, 10)
+        ]
+    )
+    toc = time() - tic
+    print success, 'took {} seconds'.format(toc)
+
+    # print control_tape
 
     # control_tape = np.zeros((len(time_range), 3)) + -0.03 * np.hstack([np.zeros((len(time_range), 2)), np.ones((len(time_range), 1))])
     # spline = Optimize.forward_sim(bp.boat_dynamics, x0, control_tape, dt=dt, time_end=time_end)
-    visualize_spline(spline[:, :3], 'Pathviz', animate=True, iteration_speed=1, lasts=0, has_theta=True)
+    visualize_spline(spline[:, :3], 'Pathviz', animate=True, iteration_speed=1, lasts=0, has_theta=True, end_point=xf[:2], vel_markers=True)
 
 
 
