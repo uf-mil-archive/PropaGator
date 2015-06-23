@@ -29,7 +29,7 @@ private:
 	ros::Subscriber dynamixel_status_sub_;
 	
 	//min and max angle
-	float max_angle_, min_angle_;
+	float abs_max_angle_, abs_min_angle_;
 	
 	//Servo id
 	int servo_id_;
@@ -82,14 +82,14 @@ public:
  *  Constructor
  */
 LidarAngleManager::LidarAngleManager():
-		max_angle_(3.4), min_angle_(2.7),
+		abs_max_angle_(3.4), abs_min_angle_(2.7),
 		sin_sample_count_(0), in_frequency_(100), out_frequency_(1)
 {
 	// offset = (max + min) / 2
-	offset_ = (max_angle_ + min_angle_) / 2;
+	offset_ = (abs_max_angle_ + abs_min_angle_) / 2;
 	
 	// Amplitude = (max - min) / 2
-	amplitude_ = (max_angle_ - min_angle_) / 2;
+	amplitude_ = (abs_max_angle_ - abs_min_angle_) / 2;
 
 	// in_frequency_ = 100 Hz		TODO: un-hardcode this value
 
@@ -127,9 +127,9 @@ void LidarAngleManager::Setup()
 	n.param<int>("servo/lidar/bow/id", servo_id_, 1);
 	
 	//Holds the maximum angle (rad) to set the lidar to
-	//n.param<float>("lidar/max_angle", max_angle_, 3.14159);
+	//n.param<float>("lidar/max_angle", abs_max_angle_, 3.14159);
 	//Holds the minimum angle (rad) to set the lidar to
-	//n.param<float>("lidar/min_angle", min_angle_, 2.7);
+	//n.param<float>("lidar/min_angle", abs_min_angle_, 2.7);
 	//Holds the angular speed (rad/s)
 	//n.param<float>
 
@@ -180,16 +180,7 @@ void LidarAngleManager::Run()
 		 * 	Get our angle relitive to horizontal
 		 * 	if outside limits
 		 * 		reverse
-		 *
-		//Update joint state
-		//Note names are defined in propagtor description file
-		sensor_msgs::JointState joint;
-		joint.header.stamp = ros::Time::now();
-		joint.name.push_back("lidar_servo");
-		//ROS_INFO("Present position %f: ", current_angle_);
-		joint.position.push_back(current_angle_);
-		joint_pub_.publish(joint);
-		*/
+		 */
 
 		// Move the Lidar in a sin wave
 		// offset = (max + min) / 2
@@ -237,8 +228,17 @@ void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTablePo
 	//Check to make sure we got the correct servo
 	if(config.id == servo_id_)
 	{
-		max_angle_ = DynamixelToRads(config.ccw_angle_limit);
-		min_angle_ = DynamixelToRads(config.cw_angle_limit);
+		abs_max_angle_ = DynamixelToRads(config.ccw_angle_limit);
+		abs_min_angle_ = DynamixelToRads(config.cw_angle_limit);
+
+		// offset = (max + min) / 2
+		offset_ = (abs_max_angle_ + abs_min_angle_) / 2;
+
+		// Amplitude = (max - min) / 2
+		amplitude_ = (abs_max_angle_ - abs_min_angle_) / 2;
+
+		// Stop the subscriber
+		dynamixel_control_table_sub_.shutdown();
 	}
 	else	//Otherwise request servo id again
 	{
