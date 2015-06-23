@@ -22,10 +22,10 @@ from camera_docking.msg import Circle, Triangle, Cross
 font = cv2.FONT_HERSHEY_SIMPLEX
 
 #Hough_circle values
-p1 = 100  #First method-specific parameter. In case of CV_HOUGH_GRADIENT , it is the higher threshold of the two passed to the Canny() edge detector (the lower one is twice smaller).
-p2 = 13   #Second method-specific parameter. In case of CV_HOUGH_GRADIENT , it is the accumulator threshold for the circle centers at the detection stage. The smaller it is, the more false circles may be detected. Circles, corresponding to the larger accumulator values, will be returned first.
-nr = 15   #Minimum circle radius.
-mr = 100  #Maximum circle radius.
+p1 = 100 #100 #First method-specific parameter. In case of CV_HOUGH_GRADIENT , it is the higher threshold of the two passed to the Canny() edge detector (the lower one is twice smaller). default 100
+p2 = 13   #Second method-specific parameter. In case of CV_HOUGH_GRADIENT , it is the accumulator threshold for the circle centers at the detection stage. The smaller it is, the more false circles may be detected. Circles, corresponding to the larger accumulator values, will be returned first. default 15
+nr = 20   #Minimum circle radius. default 20
+mr = 150  #Maximum circle radius. default 150
 #*******************
 
 #blur Blank_gray images
@@ -130,33 +130,38 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
                     area = cv2.contourArea(cnt)
                     hull = cv2.convexHull(cnt)
                     hull_area = cv2.contourArea(hull)
+
+                    circles = cv2.HoughCircles(mask,cv.CV_HOUGH_GRADIENT,1, width, param1=p1,param2=p2,minRadius=nr,maxRadius=mr)   #p1,p2,nr,mr defined at top of program 
                     
                     if hull_area > 0:                    
                         solidity = float(area)/hull_area
 
-                    if hull_area > 0 and solidity < .75 and solidity > .5:
-                        symbol_type = 'cruciform'
-                    else:
+                        if hull_area > 0 and solidity < .75 and solidity > .5:
+                            symbol_type = 'cruciform'  ##################################  cruciform definition  #######################################
 
-                        leftmost = tuple(cnt[cnt[:,:,0].argmin()][0])
-                        rightmost = tuple(cnt[cnt[:,:,0].argmax()][0])
-                        topmost = tuple(cnt[cnt[:,:,1].argmin()][0])
-                        bottommost = tuple(cnt[cnt[:,:,1].argmax()][0])
-
-                        if abs(leftmost[1]-bottommost[1]) <= 15 and abs(rightmost[1]-bottommost[1]) <= 15:
-                            area_of_triangle = abs((leftmost[0]*(topmost[1]-rightmost[1]) + topmost[0]*(rightmost[1] - leftmost[1]) + rightmost[0]*(leftmost[0]-topmost[0]))/2)
-
-                            #print area_of_triangle
-                            if area_of_triangle >= 40:
-                                symbol_type = 'triangle'
-                                #print solidity
+                        elif circles != None: # or solidity > .9999:
+                            symbol_type = 'circle' ##################################  circle definition  #######################################
 
 
-        circles = cv2.HoughCircles(mask,cv.CV_HOUGH_GRADIENT,1, width, param1=p1,param2=p2,minRadius=nr,maxRadius=mr)            
-        if circles != None:
-            a, b, c = circles.shape
-            for i in range(b):
-                symbol_type = 'circle'
+                        else:
+                            leftmost = tuple(cnt[cnt[:,:,0].argmin()][0])
+                            rightmost = tuple(cnt[cnt[:,:,0].argmax()][0])
+                            topmost = tuple(cnt[cnt[:,:,1].argmin()][0])
+                            bottommost = tuple(cnt[cnt[:,:,1].argmax()][0])
+                            '''print "left to bottom"
+                            print abs(leftmost[1]-bottommost[1]) 
+                            print abs(rightmost[1]-bottommost[1])
+                            print "right to bottom"
+                            print "***************************"'''
+
+                            if abs(leftmost[1]-bottommost[1]) <= 23 and abs(rightmost[1]-bottommost[1]) <= 23:
+                                area_of_triangle = abs((leftmost[0]*(topmost[1]-rightmost[1]) + topmost[0]*(rightmost[1] - leftmost[1]) + rightmost[0]*(leftmost[0]-topmost[0]))/2)
+
+                                #print area_of_triangle
+                                if area_of_triangle >= 80:# and solidity < .99:
+                                    symbol_type = 'triangle'  ##################################  triangle definition  #######################################
+                                    #print solidity
+
     else:
         symbol_type = 'none'
         
@@ -168,19 +173,18 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
             cv2.drawContours(mask,[biggest_cnt[0]],0,255,-1)
             mean = cv2.mean(orig_img,mask = mask)
 
-        mean = colorsys.rgb_to_hsv(mean[2]/255.0, mean[1]/255.0, mean[0]/255.0)
+        mean = colorsys.rgb_to_hsv(mean[2]/255.0, mean[1]/255.0, mean[0]/255.0) #color finding portion, converts HSV to 0.0-1.0 scale
         hsv = list(mean)
-        hsv[0] = hsv[0]*360
+        hsv[0] = hsv[0]*360 #Hue to 360 values
 
-        if hsv[2] < 0.1 or (hsv[1] < .37 and hsv[2] > .1 and hsv[2] < .65):
+        if hsv[2] < 0.1 or (hsv[1] < .20 and hsv[2] > .1 and hsv[2] < .65):
             color = 'black' 
-        elif (hsv[0]<11 or hsv[0]>324) and hsv[1]>.48 and hsv[2]>.1:
+        elif (hsv[0]<11 or hsv[0]>324) and hsv[1]>.43 and hsv[2]>.1:
             color = 'red'
-        elif (hsv[0]>64 and hsv[0]<164) and hsv[1]>.12 and hsv[2]>.1:
+        elif (hsv[0]>64 and hsv[0]<172) and hsv[1]>.10 and hsv[2]>.1:
             color = 'green'
         elif (hsv[0]>180 and hsv[0]<255) and hsv[1]>.15 and hsv[2]>.1:
             color = 'blue'
-            #print "%d, %1.2f, %1.2f" % (hsv[0], hsv[1], hsv[2])
         else:     
             color = 'can\'t find'
 
@@ -199,18 +203,24 @@ def find_shape(orig_img, blank_img, p1, p2, nr, mr, dst_frm_cnt):
 
         if hsv[2] < 0.1 or (hsv[1] < .37 and hsv[2] > .1 and hsv[2] < .65):
             color = 'black' 
-        elif (hsv[0]<11 or hsv[0]>324) and hsv[1]>.48 and hsv[2]>.1:
+        elif (hsv[0]<11 or hsv[0]>324) and hsv[1]>.43 and hsv[2]>.1:
             color = 'red'
-        elif (hsv[0]>64 and hsv[0]<164) and hsv[1]>.12 and hsv[2]>.1:
+        elif (hsv[0]>64 and hsv[0]<164) and hsv[1]>.10 and hsv[2]>.1:
             color = 'green'
         elif (hsv[0]>180 and hsv[0]<255) and hsv[1]>.15 and hsv[2]>.1:
             color = 'blue'
-            #print "%d, %1.2f, %1.2f" % (hsv[0], hsv[1], hsv[2])
         else:     
             color = 'can\'t find'
    
     return (symbol_type, blank_gray, cxmax, cymax, color, hsv[0], hsv[1], hsv[2])
+    
+    #symbol_type: 'circle' 'cruciform' 'triangle' 'none'
+    #blank_gray: Cropped image used to transfer color image to find_shape function. Doesn't look like it's used 
+    #cxmax, cymax: Center of mass, in x and y, for the detected shape
+    #color: 'black' 'red' 'green' 'blue'
+    #hsv[0,1,2]: HSV values for determining unknown colors
 
+#Adaptive histogram for colored images.  Not currently used.  Was hoping it could even out colors during bad image bags.  Made image worse.
 def adaptive_histogram_eq(img):
     b,g,r = cv2.split(img)
     clahe = cv2.createCLAHE(clipLimit=.1, tileGridSize=(8,8))
@@ -225,6 +235,7 @@ class image_converter:
     self.image_pub = rospy.Publisher("docking_camera_out",Image, queue_size = 1)
     self.image_white = rospy.Publisher("finding_white",Image, queue_size = 1)
 
+    #Messages below publish x-pos and color for each recognized shape
     self.circle = rospy.Publisher('Circle_Sign', Circle, queue_size = 1)
     self.triangle = rospy.Publisher('Triangle_Sign', Triangle, queue_size = 1)
     self.cross = rospy.Publisher('Cross_Sign', Cross, queue_size = 1)
@@ -254,10 +265,7 @@ class image_converter:
 
     frame_real = vid
     frame = vid
-
-    cv2.imshow('thresh', vid)
-    cv2.waitKey(1)
-    
+   
     height = frame_real.shape[0]
     width  = frame_real.shape[1]
 
@@ -268,7 +276,10 @@ class image_converter:
 
     thresh = cv2.adaptiveThreshold(thresh,255,1,1,5,2)
 
-    cv2.rectangle(thresh,(0,300),(1240,1080),(0,0,0),-1)  #blinding rectangle.  Ensures that no false positives will come from the water.
+    cv2.imshow('thresh', thresh)
+    cv2.waitKey(1)
+
+    cv2.rectangle(thresh,(0,300),(1240,1080),(0,0,0),-1)  #Empty blinding rectangle.  Ensures that no false positives will come from the water.
 
     protect = thresh
 
@@ -380,62 +391,74 @@ class image_converter:
             #print area
             x,y,w,h = cv2.boundingRect(approx)
             
-            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 1400.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
+            if y < (height/2 + 150) and y > (height/2 - 225) and same_moment == 0 and area >= 1000.0 and area <= 70000.0:  #1400 #y values viewing area, greater values = more search area
             #if same_moment == 0 and area >= 3000.0 and area <= 70000.0:  #y values viewing area, greater values = more search area
                 coordsx.append(cx) #append for centroid distance checking
                 coordsy.append(cy) #append for centroid distance checking       
+                x = x - 5
+                y = y - 5
+                
+                if x < 0:
+                    x = 0
+                if y < 0:
+                    y = 0
+    
+                w = w + 10
+                h = h + 10
                 corner.append(x)
                 corner.append(y)
-                corner.append(w+8)
-                corner.append(h+8)
+                corner.append(w)
+                corner.append(h)
 
-                cv2.rectangle(frame_real,(x,y),(x+w+8,y+h+8),(0,255,0),2)
+                cv2.rectangle(frame_real,(x,y),(x+w,y+h),(0,255,0),2)
                 cv2.circle(frame_real,(x,y), 2, (128,0,0),-1)
                 no_of_signs += 1
     
     #if there are no signs or less than three signs visible
     if no_of_signs == 2:
             x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w+8)
-            corner.append(h+8)
+            corner.append(x-4)
+            corner.append(y-4)
+            corner.append(w+4)
+            corner.append(h+4)
     elif no_of_signs == 1:
             x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w+8)
-            corner.append(h+8)
+            corner.append(x-4)
+            corner.append(y-4)
+            corner.append(w+4)
+            corner.append(h+4)
             x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w+8)
-            corner.append(h)
+            corner.append(x-4)
+            corner.append(y-4)
+            corner.append(w+4)
+            corner.append(h+4)
     elif no_of_signs == 0:
             x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w+8)
-            corner.append(h+8)
+            corner.append(x-4)
+            corner.append(y-4)
+            corner.append(w+4)
+            corner.append(h+4)
             x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w+8)
-            corner.append(h)
+            corner.append(x-4)
+            corner.append(y-4)
+            corner.append(w+4)
+            corner.append(h+4)
             x,y,w,h = width,height,0,0
-            corner.append(x)
-            corner.append(y)
-            corner.append(w+8)
-            corner.append(h+8)
-    
+            corner.append(x-4)
+            corner.append(y-4)
+            corner.append(w+4)
+            corner.append(h+4)
+
+
+#########################################################  Begin Display and Message update  ####################################################################    
+#################  The nine sections below apply text to the opencv image displays and update the x-pos and color messages for each shape  ######################
+#################################################################################################################################################################
+
     if (corner[0] < corner[4] and corner[0] < corner[8] and corner[0] != width):
         one_a = frame[corner[1]:corner[1]+corner[3], corner[0]:corner[0]+corner[2]]
         blank_one = np.zeros((corner[3],corner[2],3), np.uint8)
         blank_one[:,0:corner[2]] = (255,255,255)  
         sign1 = find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center)  
-
-        
-        #symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
 
         if sign1[0] != 'none':        
             cv2.circle(frame_real,(sign1[2]+corner[0],sign1[3]+corner[1]), 2, (255,0,0),-1) 
@@ -443,15 +466,12 @@ class image_converter:
             if sign1[4] == 'can\'t find':
                 cv2.putText(frame_real, "%s (%d, %1.2f, %1.2f)" % (sign1[4], sign1[5], sign1[6], sign1[7]) , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, "%s" % sign1[0], (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
-                #cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,255),1, cv2.CV_AA)
             elif sign1[4] != 'red':            
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(0,0,255),1, cv2.CV_AA)
                 cv2.putText(frame_real, "%s" % sign1[0], (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
-                #cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(0,0,255),1, cv2.CV_AA)
             else:
                 cv2.putText(frame_real, sign1[4] , (sign1[2]+corner[0], sign1[3]+corner[1] - 15), font, .6,(255,0,0),1, cv2.CV_AA)      
                 cv2.putText(frame_real, "%s" % sign1[0], (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
-                #cv2.putText(frame_real, "%s (%1.2f)" % (symbol1,percentage1) , (sign1[2]+corner[0], sign1[3]+corner[1] + 15), font, .6,(255,0,0),1, cv2.CV_AA)
 
             if sign1[0] == 'circle':
                 crcl.xpixel = sign1[2]+corner[0] - 500
@@ -469,8 +489,6 @@ class image_converter:
         blank_three = np.zeros((corner[3],corner[2],3), np.uint8)
         blank_three[:,0:corner[2]] = (255,255,255)
         sign3 = find_shape(three_a, blank_three, p1, p2, nr, mr, distance_from_center)  
-
-        #symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
 
         if sign3[0] != 'none':        
             cv2.circle(frame_real,(sign3[2]+corner[0],sign3[3]+corner[1]), 2, (255,0,0),-1)
@@ -502,8 +520,6 @@ class image_converter:
         blank_two[:,0:corner[2]] = (255,255,255) 
         sign2 =  find_shape(two_a, blank_two, p1, p2, nr, mr, distance_from_center)
 
-        #symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
-
         if sign2[0] != 'none':        
             cv2.circle(frame_real,(sign2[2]+corner[0],sign2[3]+corner[1]), 2, (255,0,0),-1) 
             if sign2[4] == 'can\'t find':
@@ -532,8 +548,6 @@ class image_converter:
         blank_one = np.zeros((corner[7],corner[6],3), np.uint8)
         blank_one[:,0:corner[6]] = (255,255,255)
         sign1 =  find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center) 
-
-        #symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
 
         if sign1[0] != 'none':        
             cv2.circle(frame_real,(sign1[2]+corner[4],sign1[3]+corner[5]), 2, (255,0,0),-1) 
@@ -565,8 +579,6 @@ class image_converter:
         blank_three[:,0:corner[6]] = (255,255,255)
         sign3 =  find_shape(three_a, blank_three, p1, p2, nr, mr, distance_from_center) 
 
-        #symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
-     
         if sign3[0] != 'none':        
             cv2.circle(frame_real,(sign3[2]+corner[4],sign3[3]+corner[5]), 2, (255,0,0),-1) 
 
@@ -596,8 +608,6 @@ class image_converter:
         blank_two = np.zeros((corner[7],corner[6],3), np.uint8)
         blank_two[:,0:corner[6]] = (255,255,255)    
         sign2 =  find_shape(two_a, blank_two, p1, p2, nr, mr, distance_from_center)    
-
-        #symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
 
         if sign2[0] != 'none':        
             cv2.circle(frame_real,(sign2[2]+corner[4],sign2[3]+corner[5]), 2, (255,0,0),-1) 
@@ -629,8 +639,6 @@ class image_converter:
         blank_one[:,0:corner[10]] = (255,255,255)
         sign1 =  find_shape(one_a, blank_one, p1, p2, nr, mr, distance_from_center) 
 
-        #symbol1,percentage1,sign1_sum = add_sign(sign1[0], sign1_sum)
-
         if sign1[0] != 'none':        
             cv2.circle(frame_real,(sign1[2]+corner[8],sign1[3]+corner[9]), 2, (255,0,0),-1) 
 
@@ -660,8 +668,6 @@ class image_converter:
         blank_three = np.zeros((corner[11],corner[10],3), np.uint8)
         blank_three[:,0:corner[10]] = (255,255,255)
         sign3 =  find_shape(three_a, blank_three, p1, p2, nr, mr, distance_from_center)
-
-        #symbol3,percentage3,sign3_sum = add_sign(sign3[0], sign3_sum)
 
         if sign3[0] != 'none':        
             cv2.circle(frame_real,(sign3[2]+corner[8],sign3[3]+corner[9]), 2, (255,0,0),-1) 
@@ -693,8 +699,6 @@ class image_converter:
         blank_two[:,0:corner[10]] = (255,255,255)
         sign2 =  find_shape(two_a, blank_two, p1, p2, nr, mr, distance_from_center)
 
-        #symbol2,percentage2,sign2_sum = add_sign(sign2[0], sign2_sum)
-
         if sign2[0] != 'none':        
             cv2.circle(frame_real,(sign2[2]+corner[8],sign2[3]+corner[9]), 2, (255,0,0),-1) 
             if sign2[4] == 'can\'t find':
@@ -718,9 +722,10 @@ class image_converter:
                 crss.color = sign2[4]
 
         cv2.putText(frame_real, "Sign2" , (corner[8], corner[9] - 5), font, .75,(255,0,255),2, cv2.CV_AA)    
-    
-    #cv2.putText(frame_real, ("%d"% no_of_signs) , (1600, 50), font, .75,(255,0,255),2, cv2.CV_AA)    
-    
+
+#########################################################  End Display and Message update  ####################################################################
+
+# for message headers     
     crcl.header = Header(
             stamp = rospy.get_rostime(),
             frame_id = '/camera'
@@ -748,6 +753,7 @@ class image_converter:
 
       cv2.moveWindow('frame_real', 20, 20)
       cv2.moveWindow('thresh', 20, 550)
+
       cv2.moveWindow('window', 1200, 500)
 
       #self.image_white.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
