@@ -105,6 +105,8 @@ class _Boat(object):
         
         defer.returnValue(self)
 
+    # Do not use Pose unless you are sure that trajectory is being published (i.e. 
+    #    when you got a boat need_trajectory was set to true)
     @property
     def pose(self):
         return orientation_helpers.PoseEditor.from_PoseTwistStamped(
