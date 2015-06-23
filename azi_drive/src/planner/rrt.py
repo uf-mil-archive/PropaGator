@@ -14,18 +14,33 @@ class RRT(object):
     3. Find the closest point, pt_close to that random point
     4. Attempt to reach toward pt_rand from pt_close
     '''
-    def __init__(self, start_pt, end_pt, max_dist=10, max_iterations=1000):
+    def __init__(self, start_pt, end_pt, max_dist=5, max_iterations=1000):
         self.end_pt = end_pt
         self.tree = KDTree(np.array([start_pt]))
         self.points = np.array([start_pt])
         self.edges = []
         self.max_dist = max_dist
+        self.max_iterations = max_iterations
+        self.obstacles = []
 
-        for k in xrange(max_iterations):
+
+    def compute(self):
+        for k in xrange(self.max_iterations):
             done = self.explore()
             if done is True:
                 print '--Converged--'
                 break
+        # --> Return just the path to the target
+        # return self.tree
+
+
+    def check_valid(self, point):
+        for x, y, xlen, ylen in self.obstacles:
+            if x < point[0] < x + xlen:
+                if y < point[1] < y + ylen:
+                    return False
+        return True
+
 
     def extend(self, start_point, end_point):
         self.edges.append((start_point, end_point))
@@ -48,7 +63,11 @@ class RRT(object):
         growth_distance = min(distance, self.max_dist)
         new_pt = (growth_distance * self.unit_vector(difference)) + closest_pt
 
-        self.extend(closest_pt, new_pt)
+        if self.check_valid(new_pt):
+            self.extend(closest_pt, new_pt)
+        else:
+            return False
+
         if np.linalg.norm(new_pt - self.end_pt) < (0.1 * self.max_dist):
             return True
 
@@ -59,10 +78,14 @@ class RRT(object):
 
 
 if __name__ == '__main__':
-    start = np.array([0.0, 0.0])
-    end = np.array([100.0, -300.0])
+    start = np.array([-80.0, 100.0])
+    end = np.array([220.0, 300.0])
     tic = time()
-    rrt = RRT(start, end)
+    rrt = RRT(start, end, max_dist=15)
+    rrt.obstacles.append(np.array((50., 50., 100., 100.)))
+    rrt.obstacles.append(np.array((50., 200., 100., 300.)))
+
+    rrt.compute()
     toc = time() - tic
     print 'RRT Generated, took {} seconds'.format(toc)
-    visualize_tree(rrt, end_point=end, animate=True)
+    visualize_tree(rrt, end_point=end, animate=False)
