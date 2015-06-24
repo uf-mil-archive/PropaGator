@@ -22,9 +22,8 @@ import math
 import threading
 from point_shoot_pp import point_shoot_pp
 from point_shoot_2_pp import point_shoot_2_pp
+from a_star_rpp import a_star_rpp
 from azi_drive.srv import *
-#from obstacle_avoidance import hub
-#from obstacle_avoidance import main
 
 class azi_waypoint:
     def __init__(self, name):
@@ -73,7 +72,8 @@ class azi_waypoint:
         # Trajectory mode dictionary
         self.modes ={
             trajectory_modeRequest.POINT_SHOOT_PP:         point_shoot_pp,
-            trajectory_modeRequest.POINT_SHOOT_2_PP:       point_shoot_2_pp
+            trajectory_modeRequest.POINT_SHOOT_2_PP:       point_shoot_2_pp,
+            trajectory_modeRequest.A_STAR_RPP:             a_star_rpp
         }
 
         # Initilize Trajectory generator with current position as goal
