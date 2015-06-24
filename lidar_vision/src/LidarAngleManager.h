@@ -197,13 +197,14 @@ void LidarAngleManager::Run()
 	 */
 	ros::Rate sleep_time(in_frequency_);		// Sampeling rate = 50 Hz
 
+	int step = 0;
+
 	/*
 	 * 			Main loop
 	 */
 	while(ros::ok())
 	{
 		float out_angle = M_PI;
-		int step = 0;
 
 		if(mode_ == PAN)
 		{
@@ -329,14 +330,16 @@ bool LidarAngleManager::SetServoMode(lidar_vision::lidar_servo_mode::Request& re
 		float angle = req.nominal_angle;
 		if (angle > abs_max_angle_)
 		{
+			ROS_WARN("Lidar angle max set above absolute maximum: %f", abs_max_angle_);
 			angle = abs_max_angle_;
 		}
 		else if (angle < abs_min_angle_)
 		{
+			ROS_WARN("Lidar angle min set below absolute minimum: %f", abs_min_angle_);
 			angle = abs_min_angle_;
 		}
 
-		nominal_angle_ = req.nominal_angle;
+		nominal_angle_ = angle;
 		mode_ = STATIC;
 
 	}
