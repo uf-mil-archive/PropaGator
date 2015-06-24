@@ -5,7 +5,7 @@ import boat_scripting
 def main(nh):
 	boat = yield boat_scripting.get_boat(nh)
 
-	boat.pan_lidar()
+	boat.pan_lidar(freq = 2, min_angle = 2.9, max_angle=3.14)
 
 	print "yield boat.move.forward(2).go()"
 	yield boat.move.forward(2).go()
@@ -31,4 +31,4 @@ def main(nh):
 	print "yield boat.move.turn_left_deg(-100).go()"
 	yield boat.move.turn_left_deg(-100).go()
 
-	boat.still_lidar()
+	boat.still_lidar(nominal_angle=2.8)
