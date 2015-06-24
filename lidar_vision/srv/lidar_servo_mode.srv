@@ -1,0 +1,27 @@
+# This service is used to control the mode of the servo which pans the lidar
+#	There are two modes of opperation 
+#		* Paning - the servo will move in a sine wave between min and max angle (default)
+#		* Static - the servo will stay at a nominal position
+
+# Mode constants
+int8 PAN=0
+int8 STATIC=1
+
+# This sets the mode of the servo
+int8 mode
+
+# Pan settings
+float32 min_angle
+float32 max_angle
+float32 freq
+
+# Static settings
+float32 nominal_angle
+
+---
+
+# Returns false if the angles set were out of range
+#	Even if valid angles is false the angles will have been set
+#	to the extream value closses to the passed angle(s) unless
+#	min > max
+bool valid_angles

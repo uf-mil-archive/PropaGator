@@ -9,11 +9,21 @@
 #include "dynamixel_servo/DynamixelControlTableRequest.h"
 #include "dynamixel_servo/DynamixelControlTablePost.h"
 #include "dynamixel_servo/DynamixelStatus.h"
-#include <sensor_msgs/JointState.h>
+#include "lidar_vision/lidar_servo_mode.h"
 #include <cmath>
 
 class LidarAngleManager
 {
+	/*
+	 * Enumerators
+	 */
+private:
+	enum Mode
+	{
+		PAN,
+		STATIC
+	};
+
 	/*
 	 *  Private vars
 	 */
@@ -28,6 +38,9 @@ private:
 	ros::Subscriber dynamixel_control_table_sub_;
 	ros::Subscriber dynamixel_status_sub_;
 	
+	//Services
+	ros::ServiceServer lidar_mode_srv_;
+
 	//min and max angle
 	float abs_max_angle_, abs_min_angle_;
 	
@@ -38,12 +51,18 @@ private:
 	//Keeps a cache of the last published servo angle
 	//float current_angle_; Legacy
 
-	//Sin wave stuff
+	// Track mode
+	Mode mode_;
+
+	//Sin wave(pan mode) parameters
 	int sin_sample_count_;
 	float offset_;
 	float out_frequency_;
 	float in_frequency_;
 	float amplitude_;
+
+	//Static mode parameters
+	float nominal_angle_;
 
 	//TF
 	tf::TransformBroadcaster angle_br_;
@@ -60,6 +79,12 @@ private:
 	
 	//Get the current servo data
 	void GetServoData(const dynamixel_servo::DynamixelStatus status);
+
+	//Respond to lidar_servo_mode request
+	bool SetServoMode(lidar_vision::lidar_servo_mode::Request& req, lidar_vision::lidar_servo_mode::Response& res);
+
+	//Reset the sine wave
+	void SetSineWave(float max, float min, float out_frequency);
 
 	/*
 	 * 	Public functions
@@ -83,15 +108,12 @@ public:
  */
 LidarAngleManager::LidarAngleManager():
 		abs_max_angle_(3.4), abs_min_angle_(2.7),
-		sin_sample_count_(0), in_frequency_(100), out_frequency_(1)
+		sin_sample_count_(0), in_frequency_(50), out_frequency_(1),
+		mode_(PAN), nominal_angle_(M_PI)
 {
-	// offset = (max + min) / 2
-	offset_ = (abs_max_angle_ + abs_min_angle_) / 2;
-	
-	// Amplitude = (max - min) / 2
-	amplitude_ = (abs_max_angle_ - abs_min_angle_) / 2;
+	SetSineWave(abs_max_angle_, abs_min_angle_, out_frequency_);
 
-	// in_frequency_ = 100 Hz		TODO: un-hardcode this value
+	// in_frequency_ = 50 Hz		TODO: un-hardcode this value
 
 	// fs = output frequency
 	//out_frequency_ = 1;				//TODO: un-hardcode this value
@@ -113,11 +135,11 @@ void LidarAngleManager::Setup()
 	//dynamixel_config_full_pub_ = n.advertise<dynamixel_servo::DynamixelFullConfig>("/dynamixel/dynamixel_full_config", 10);
 	dynamixel_config_position_pub_ = n.advertise<dynamixel_servo::DynamixelJointConfig>("/dynamixel/dynamixel_joint_config", 10);
 	dynamixel_control_table_pub_ = n.advertise<dynamixel_servo::DynamixelControlTableRequest>("/dynamixel/dynamixel_control_table_request", 10);
-	//joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",1);
 
-	//Initilze the subscribers
-	dynamixel_control_table_sub_ = n.subscribe("/dynamixel/dynamixel_control_table_post", 10, &LidarAngleManager::GetLimits, this);
-	dynamixel_status_sub_ = n.subscribe("/dynamixel/dynamixel_status_post", 10, &LidarAngleManager::GetServoData, this);
+	//Initilze services
+	lidar_mode_srv_ = n.advertiseService("lidar_servo_mode", &LidarAngleManager::SetServoMode, this);
+
+	//joint_pub_ = n.advertise<sensor_msgs::JointState>("joint_states",1);
 	
 	/*
 	 * 		Initilize the parameters
@@ -152,6 +174,10 @@ void LidarAngleManager::Setup()
 		ROS_WARN("Failed to talk to dynamixel server. No subscribers to /dynamixel/dynamixel_control_table_request");
 	}
 	
+	//Initilze the subscribers
+	dynamixel_control_table_sub_ = n.subscribe("/dynamixel/dynamixel_control_table_post", 10, &LidarAngleManager::GetLimits, this);
+	dynamixel_status_sub_ = n.subscribe("/dynamixel/dynamixel_status_post", 10, &LidarAngleManager::GetServoData, this);
+
 	//Configure lidar servo settings
 	//TODO
 	
@@ -165,38 +191,39 @@ void LidarAngleManager::Run()
 	/*
 	 *  Other
 	 */
-	int dir = 1;
-	ros::Rate sleep_time(in_frequency_);		// Sampeling rate = 100 Hz
+	ros::Rate sleep_time(in_frequency_);		// Sampeling rate = 50 Hz
 
 	/*
 	 * 			Main loop
 	 */
 	while(ros::ok())
 	{
-		/*
-		 * Psedo code
-		 *  The code doesn't seem to be working so switching to a tf broadcaster instead
-		 * 	Update joint state publisher
-		 * 	Get our angle relitive to horizontal
-		 * 	if outside limits
-		 * 		reverse
-		 */
+		float out_angle = M_PI;
 
-		// Move the Lidar in a sin wave
-		// offset = (max + min) / 2
-		// Amplitued = (max - min) / 2
-		// Sampeling rate = 100 Hz		TODO: un-hardcode this value
-		// fs = output frequency
-		// sin wave = offset + amplitude * sin((2*pi*fs) * sin_sample_count_ / (sampeling rate)
-
-		++sin_sample_count_;
-
-		//wrap sin_sample_count_ between 0 and sampeling rate
-		if(sin_sample_count_ > in_frequency_ * 2)
+		if(mode_ == PAN)
 		{
-			sin_sample_count_ = 0;
+			// Move the Lidar in a sin wave
+			// offset = (max + min) / 2
+			// Amplitued = (max - min) / 2
+			// Sampeling rate = 100 Hz		TODO: un-hardcode this value
+			// fs = output frequency
+			// sin wave = offset + amplitude * sin((2*pi*fs) * sin_sample_count_ / (sampeling rate)
+
+			++sin_sample_count_;
+
+			//wrap sin_sample_count_ between 0 and sampeling rate
+			if(sin_sample_count_ > in_frequency_ * 2)
+			{
+				sin_sample_count_ = 0;
+			}
+
+			out_angle = offset_ + amplitude_ * sin(2 * M_PI * out_frequency_ * sin_sample_count_ / in_frequency_);
 		}
-		float out_angle = offset_ + amplitude_ * sin(2 * M_PI * out_frequency_ * sin_sample_count_ / in_frequency_);
+		else
+		{
+			// Static mode
+			out_angle = nominal_angle_;
+		}
 		
 
 		dynamixel_servo::DynamixelJointConfig msg;
@@ -231,11 +258,7 @@ void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTablePo
 		abs_max_angle_ = DynamixelToRads(config.ccw_angle_limit);
 		abs_min_angle_ = DynamixelToRads(config.cw_angle_limit);
 
-		// offset = (max + min) / 2
-		offset_ = (abs_max_angle_ + abs_min_angle_) / 2;
-
-		// Amplitude = (max - min) / 2
-		amplitude_ = (abs_max_angle_ - abs_min_angle_) / 2;
+		SetSineWave(abs_max_angle_, abs_min_angle_, out_frequency_);
 
 		// Stop the subscriber
 		dynamixel_control_table_sub_.shutdown();
@@ -264,6 +287,66 @@ void LidarAngleManager::GetServoData(const dynamixel_servo::DynamixelStatus stat
 		trans.setRotation(q);
 		angle_br_.sendTransform(tf::StampedTransform(trans, ros::Time::now(), "lidar_base", "lidar"));
 	}
+}
+
+/*
+ * Respond to the lidar_servo_mode service
+ */
+bool LidarAngleManager::SetServoMode(lidar_vision::lidar_servo_mode::Request& req, lidar_vision::lidar_servo_mode::Response& res)
+{
+
+	if (req.mode == lidar_vision::lidar_servo_mode::Request::PAN)
+	{
+		// Pan mode
+		float max = req.max_angle;
+		float min = req.min_angle;
+		// Check ranges
+		if (min >= max)
+		{
+			return false;
+		}
+
+		SetSineWave(max, min, req.freq);
+
+		mode_ = PAN;
+
+	}
+	else
+	{
+		// Static mode
+		float angle = req.nominal_angle;
+		if (angle > abs_max_angle_)
+		{
+			angle = abs_max_angle_;
+		}
+		else if (angle < abs_min_angle_)
+		{
+			angle = abs_min_angle_;
+		}
+
+		nominal_angle_ = req.nominal_angle;
+		mode_ = STATIC;
+
+	}
+	res.valid_angles = true;
+	return true;
+}
+
+
+void LidarAngleManager::SetSineWave(float max, float min, float out_frequency)
+{
+	// Clip to abs_max and abs_min
+	max = max > abs_max_angle_ ? abs_max_angle_ : max;
+	min = min < abs_min_angle_ ? abs_min_angle_ : min;
+
+	//TODO: add limits to frequency
+	out_frequency_ = out_frequency;
+
+	// offset = (max + min) / 2
+	offset_ = (max + min) / 2;
+
+	// Amplitude = (max - min) / 2
+	amplitude_ = (max - min) / 2;
 }
 
 #endif
