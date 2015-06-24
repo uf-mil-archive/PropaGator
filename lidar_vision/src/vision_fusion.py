@@ -3,12 +3,18 @@
 '''
 import numpy 
 import cv2
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import *
 import math
 from sensor_msgs.msg import PointCloud2, PointField, CompressedImage, Image
+from std_msgs.msg import Header, Float64
+from geometry_msgs.msg import PointStamped, Point
 import sensor_msgs.point_cloud2 as pc2
 import rospy
 from roslib import message
+import tf
+from txros import util
+import time
+import threading
 
 DISPLAY_SIZE = (960, 480) # Display to be printed out to 
 
@@ -56,8 +62,8 @@ class lidar_theta(object):
 		# height of display to be printed to 
 		# height and width will contain ueye camera dimensions eventually
 
-		self.height  = 480
-		self.width  = 640
+		self.height  = 0
+		self.width  = 0
 		self.lidar_height = 0
 		self.lidar_width = 0
 		self.image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
@@ -67,8 +73,8 @@ class lidar_theta(object):
 		self.y_co_final = 0
 
 		# find center of camera image
-		self.width_center = self.width / 2
-		self.height_center = self.height / 2
+		self.width_center = 0
+		self.height_center = 0
 
 		# Angles between vector and x,y,z axis
 		self.x_theta = 0
@@ -80,13 +86,15 @@ class lidar_theta(object):
 		self.quadrant = 0
 
 		self.rate = rospy.Rate(1)
+		self.tf_listener = tf.TransformListener()
+		self.lock = threading.Lock()
 
 		# starts main loop that constantly feeds from lidar
 		rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
-		#rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
+		rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
 		self.vison_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
 
-		'''
+		
 	def image_cb(self, data):
 		try:
 			self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -95,28 +103,54 @@ class lidar_theta(object):
 
 		(rows,cols,channels) = self.cv_image.shape
 
+		self.width = cols
+		self.height = rows
+		self.width_center = self.width/2
+		self.height_center = self.height/2
+
 		self.image = numpy.zeros((rows,cols))
 		self.blank_image = numpy.zeros((rows,cols))
 		self.image = self.cv_image		
-		'''
+		
 
-	def pointcloud_callback(self, data):
+	def pointcloud_callback(self, msg):
 
-		# Read from pointcloud
-		pointcloud = pc2.read_points(data, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
-		self.blank_image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
-		self.lidar_height = data.height
-		self.lidar_width = data.width
+		self.lock.acquire()
+
+
+		res = []
+		try:
+			for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
+				to_send = PointStamped(
+					header = Header(
+						seq=0,
+	                	stamp= rospy.Duration(),
+	                	frame_id="/enu",
+	            	),
+	            	point = Point(
+	            		x=p[0],
+	            		y=p[1],
+	            		z=p[2],
+	            	)
+				)
+
+				res.append(self.tf_listener.transformPoint("/base_link", to_send))
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as err:
+			print err
+
+		pointcloud = iter(res)
 
 		# While there are points in the cloud to read...
 		while True:
 			try:
 				# new point
 				xyz_point = next(pointcloud) 
-				x, y, z = xyz_point[0], xyz_point[1], xyz_point[2]
+				x, y, z = xyz_point.point.x, xyz_point.point.y, xyz_point.point.z
+				print x,y,z
 				self.quad_assign = numpy.array([x, y, z]) 
-				x, y, z = abs(xyz_point[0]), abs(xyz_point[1]), abs(xyz_point[2])
+				x, y, z = abs(xyz_point.point.x), abs(xyz_point.point.y), abs(xyz_point.point.z)
 				self.focus_vector = numpy.array([x, y, z]) 
+
 				# solve for all angles in vector
 				self.solve_angles(1)
 				self.solve_angles(2)
@@ -126,10 +160,14 @@ class lidar_theta(object):
 				self.create_triangle() 
 			# When the last point has been processed
 			except StopIteration:
+
 				# Publish Data in 2D
-				self.vison_fusion.publish(self.blank_image)
+				image_message = self.bridge.cv2_to_imgmsg(self.image, encoding="bgr8")
+				self.vison_fusion.publish(image_message)
 				self.rate.sleep()
+				self.lock.release()
 				break
+
 
 	def quadrant_assign(self):
 		if (self.quad_assign[0] > 0) & (self.quad_assign[1] > 0): self.quadrant = 1
@@ -161,27 +199,35 @@ class lidar_theta(object):
 	def create_triangle(self):
 		# generic function to create a triangle from each axis to map 3D -> 2D
 		if self.quadrant == 1:
-			self.x_theta = int(math.tan(self.x_theta) * self.height_center) #- self.height_center  # x axis location
-			self.y_theta = int(math.sin(self.y_theta) * self.width_center) #- self.width_center# y axis location
+			x = int(math.tan(self.x_theta) * 1)
+			y = int(math.sin(self.y_theta) * 1)
 		if self.quadrant == 2:
-			self.x_theta = int(math.tan(self.x_theta) * -self.height_center)# + self.height_center # x axis location
-			self.y_theta = int(math.sin(self.y_theta) * self.width_center) #- self.width_center# y axis location
+			x = int(math.tan(self.x_theta) * -1)
+			y = int(math.sin(self.y_theta) * 1)
 		if self.quadrant == 3:
-			self.x_theta = int(math.tan(self.x_theta) * -self.height_center)# + self.height_center # x axis location
-			self.y_theta = int(math.sin(self.y_theta) * -self.width_center) #+ self.width_center
+			x = int(math.tan(self.x_theta) * -1)
+			y = int(math.sin(self.y_theta) * -1)
 		if self.quadrant == 4:
-			self.x_theta = int(math.tan(self.x_theta) * self.height_center) #- self.height_center  # x axis location
-			self.y_theta = int(math.sin(self.y_theta) * -self.width_center) #+ self.width_center
+			x = int(math.tan(self.x_theta) * 1)
+			y = int(math.sin(self.y_theta) * -1)
 
-		x_final = self.x_theta - X_OFFSET
-		y_final = self.y_theta + Y_OFFSET
+
+		x_final = x + self.height/2 
+		y_final = y + self.width/2
+
+
+
+		if x_final >= 640 or x_final < 0 : x_final = 639
+		if y_final >= 480 or y_final < 0 : y_final = 479
 
 
 		rospy.logdebug("Coordinates: ({}, {})".format(round(x_final, 2), round(y_final, 2)))
+
 		# plot those points to the screen
 
 		self.image[y_final][x_final] = 255
 		self.blank_image[y_final][x_final] = 255
+
 
 	def find_magnitude(self, vector):
 		magnitude = math.sqrt(vector[0]*vector[0] +  vector[1]*vector[1] + vector[2]*vector[2])
