@@ -255,8 +255,12 @@ void LidarAngleManager::GetLimits(const dynamixel_servo::DynamixelControlTablePo
 	//Check to make sure we got the correct servo
 	if(config.id == servo_id_)
 	{
-		abs_max_angle_ = DynamixelToRads(config.ccw_angle_limit);
-		abs_min_angle_ = DynamixelToRads(config.cw_angle_limit);
+		// As of 06/23/15 the lidar servo angle limits are not correctly set
+		//		in the dynimixel_servo_server. To prevent damage to the servo
+		//		the proper functionality of this callback is disabled and software
+		//		limits are used instead
+		abs_max_angle_ = abs_max_angle_;//DynamixelToRads(config.ccw_angle_limit);
+		abs_min_angle_ = abs_min_angle_;//DynamixelToRads(config.cw_angle_limit);
 
 		SetSineWave(abs_max_angle_, abs_min_angle_, out_frequency_);
 
