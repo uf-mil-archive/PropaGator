@@ -38,6 +38,7 @@ from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
 from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
 from object_handling.msg import Buoys
+from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
@@ -81,6 +82,8 @@ class _Boat(object):
         
         self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
 
+        self._set_lidar_mode = self._node_handle.get_service_client('lidar/lidar_servo_mode', lidar_servo_mode)
+
         self._lidar_sub_raw = self._node_handle.subscribe('lidar/scan', LaserScan)
 
         self._lidar_sub_pointcloud = self._node_handle.subscribe('lidar/raw_pc', PointCloud2)
@@ -119,6 +122,18 @@ class _Boat(object):
     @property
     def move(self):
         return _PoseProxy(self, self.pose)
+
+    def pan_lidar(self, freq = 1.0, min_angle = 2.7, max_angle = 3.4):
+        self._set_lidar_mode(lidar_servo_modeRequest(
+                    mode = lidar_servo_modeRequest.PAN,
+                    freq = freq,
+                    min_angle = min_angle,
+                    max_angle = max_angle))
+
+    def still_lidar(self, nominal_angle = numpy.pi):
+        self._set_lidar_mode(lidar_servo_modeRequest(
+                    mode = lidar_servo_modeRequest.STATIC,
+                    nominal_angle = nominal_angle))
     
     @util.cancellableInlineCallbacks
     def float(self):
