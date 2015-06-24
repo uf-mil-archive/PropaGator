@@ -43,6 +43,10 @@ private:
 
 	//min and max angle
 	float abs_max_angle_, abs_min_angle_;
+
+	//Min and max freq
+	float min_freq_;
+	float max_freq_;
 	
 	//Servo id
 	int servo_id_;
@@ -55,7 +59,6 @@ private:
 	Mode mode_;
 
 	//Sin wave(pan mode) parameters
-	int sin_sample_count_;
 	float offset_;
 	float out_frequency_;
 	float in_frequency_;
@@ -108,8 +111,9 @@ public:
  */
 LidarAngleManager::LidarAngleManager():
 		abs_max_angle_(3.4), abs_min_angle_(2.7),
-		sin_sample_count_(0), in_frequency_(50), out_frequency_(1),
-		mode_(PAN), nominal_angle_(M_PI)
+		in_frequency_(50), out_frequency_(1),
+		mode_(PAN), nominal_angle_(M_PI),
+		min_freq_(0.05), max_freq_(4.5)
 {
 	SetSineWave(abs_max_angle_, abs_min_angle_, out_frequency_);
 
@@ -199,6 +203,7 @@ void LidarAngleManager::Run()
 	while(ros::ok())
 	{
 		float out_angle = M_PI;
+		int step = 0;
 
 		if(mode_ == PAN)
 		{
@@ -207,17 +212,19 @@ void LidarAngleManager::Run()
 			// Amplitued = (max - min) / 2
 			// Sampeling rate = 100 Hz		TODO: un-hardcode this value
 			// fs = output frequency
-			// sin wave = offset + amplitude * sin((2*pi*fs) * sin_sample_count_ / (sampeling rate)
+			// sin wave = offset + amplitude * sin((2*pi*fs) * step / (sampeling rate)
 
-			++sin_sample_count_;
+			++step;
 
-			//wrap sin_sample_count_ between 0 and sampeling rate
-			if(sin_sample_count_ > in_frequency_ * 2)
+			//wrap step between 0 and 2pi
+			float theta = 2 * M_PI * out_frequency_ * step / in_frequency_;
+			if(theta >= 2 * M_PI)
 			{
-				sin_sample_count_ = 0;
+				step = 0;
+				theta = 0;
 			}
 
-			out_angle = offset_ + amplitude_ * sin(2 * M_PI * out_frequency_ * sin_sample_count_ / in_frequency_);
+			out_angle = offset_ + amplitude_ * sin(theta);
 		}
 		else
 		{
@@ -307,6 +314,7 @@ bool LidarAngleManager::SetServoMode(lidar_vision::lidar_servo_mode::Request& re
 		// Check ranges
 		if (min >= max)
 		{
+			ROS_ERROR("Lidar angle min is greater than lidar angle max");
 			return false;
 		}
 
@@ -337,14 +345,33 @@ bool LidarAngleManager::SetServoMode(lidar_vision::lidar_servo_mode::Request& re
 }
 
 
-void LidarAngleManager::SetSineWave(float max, float min, float out_frequency)
+void LidarAngleManager::SetSineWave(float max, float min, float freq)
 {
 	// Clip to abs_max and abs_min
-	max = max > abs_max_angle_ ? abs_max_angle_ : max;
-	min = min < abs_min_angle_ ? abs_min_angle_ : min;
+	if (max > abs_max_angle_)
+	{
+		ROS_WARN("Lidar angle max set above absolute maximum: %f", abs_max_angle_);
+		max = abs_max_angle_;
+	}
+	if (min < abs_min_angle_)
+	{
+		ROS_WARN("Lidar angle min set below absolute minimum: %f", abs_min_angle_);
+		min = abs_min_angle_;
+	}
 
-	//TODO: add limits to frequency
-	out_frequency_ = out_frequency;
+	// Clip frequnices
+	if(freq > max_freq_)
+	{
+		ROS_WARN("Lidar angle freq set above maximum: %f", max_freq_);
+		freq = max_freq_;
+	}
+	else if (freq < min_freq_)
+	{
+		ROS_WARN("Lidar angle freq set below minimum: %f", min_freq_);
+		freq = min_freq_;
+	}
+
+	out_frequency_ = freq;
 
 	// offset = (max + min) / 2
 	offset_ = (max + min) / 2;
