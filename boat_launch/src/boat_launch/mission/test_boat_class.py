@@ -5,30 +5,18 @@ import boat_scripting
 def main(nh):
 	boat = yield boat_scripting.get_boat(nh)
 
-	boat.pan_lidar(freq = 2, min_angle = 2.9, max_angle=3.14)
+	#boat.pan_lidar(freq = 2, min_angle = 2.9, max_angle=3.14)
 
-	print "yield boat.move.forward(2).go()"
-	yield boat.move.forward(2).go()
+	while True:
+		for i in xrange(0,3):
+			print "yield boat.move.forward(2).go()"
+			yield boat.move.forward(2).go()
 
-	print "yield boat.move.turn_left_deg(90).go()"
-	yield boat.move.turn_left_deg(90).go()
+		print "Rotate 180"
+		yield boat.move.yaw_right_deg(180).go()
 
-	print "yield boat.move.forward(1).go()"
-	yield boat.move.forward(1).go()
+		for i in xrange(0,3):
+			print "yield boat.move.forward(2).go()"
+			yield boat.move.forward(2).go()
 
-	print "yield boat.move.turn_left_deg(150).go()"
-	yield boat.move.turn_left_deg(150).go()
-
-	print "yield boat.move.forward(0).go()"
-	yield boat.move.forward(0).go()
-
-	print "yield boat.move.turn_left_deg(0).go()"
-	yield boat.move.turn_left_deg(0).go()
-
-	print "yield boat.move.forward(0.001).go()"
-	yield boat.move.forward(.001).go()
-
-	print "yield boat.move.turn_left_deg(-100).go()"
-	yield boat.move.turn_left_deg(-100).go()
-
-	boat.still_lidar(nominal_angle=2.8)
+	#boat.still_lidar(nominal_angle=2.8)
