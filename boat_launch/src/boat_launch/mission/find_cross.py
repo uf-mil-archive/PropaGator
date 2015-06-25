@@ -28,7 +28,7 @@ def calc_angle(opp_input):
 @util.cancellableInlineCallbacks
 def main(nh):
 
-    boat = yield boat_scripting.get_boat(nh, False)
+    boat = yield boat_scripting.get_boat(nh, False, False)
 
     # While the boat is still distant from the target
     while True and not rospy.is_shutdown():

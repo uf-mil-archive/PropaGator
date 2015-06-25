@@ -9,6 +9,6 @@ import boat_scripting
 
 @util.cancellableInlineCallbacks
 def main(nh):
-    boat = yield boat_scripting.get_boat(nh, False)
+    boat = yield boat_scripting.get_boat(nh, False, False)
     
     yield boat.retract_hydrophone()

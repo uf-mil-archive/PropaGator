@@ -60,7 +60,7 @@ class _Boat(object):
         self._node_handle = node_handle
     
     @util.cancellableInlineCallbacks
-    def _init(self, need_trajectory=True):
+    def _init(self, need_trajectory=True, need_odom=True):
         self._trajectory_sub = self._node_handle.subscribe('trajectory', PoseTwistStamped)
         self._moveto_action_client = action.ActionClient(self._node_handle, 'moveto', MoveToAction)
         self._tf_listener = tf.TransformListener(self._node_handle)
@@ -99,10 +99,17 @@ class _Boat(object):
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
-
+        # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
-
+            print 'Boat class __init__: Waiting on trajectory..'
             yield self._trajectory_sub.get_next_message()
+            print 'Boat class __init__: Got trajectory'
+
+        # Make sure odom is publishing
+        if(need_odom == True):
+            print 'Boat class __init__: Waiting on odom...'
+            yield self._odom_sub.get_next_message()
+            print 'Boat class __init__: Got odom'
         
         defer.returnValue(self)
 
