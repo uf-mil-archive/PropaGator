@@ -117,12 +117,19 @@ class _Boat(object):
     #    when you got a boat need_trajectory was set to true)
     @property
     def pose(self):
-        return orientation_helpers.PoseEditor.from_PoseTwistStamped(
-            self._trajectory_sub.get_last_message())
+        traj = self._trajectory_sub.get_last_message()
+        pose = orientation_helpers.PoseEditor.from_PoseTwistStamped(traj)
+        print 'Boat class pose: Raw trajectory:\n', traj
+        print 'Boat class pose: PoseEditor:\n', pose.as_PoseTwistStamped()
+        return pose
+
     @property
     def odom(self):
-        return orientation_helpers.PoseEditor.from_Odometry(
-            self._odom_sub.get_last_message())
+        odom = self._odom_sub.get_last_message()
+        pose = orientation_helpers.PoseEditor.from_Odometry(odom)
+        print 'Boat class odom: Raw odom:\n', odom
+        print 'Boat class odom: PoseEditor:\n', pose.as_PoseTwistStamped()
+        return pose
     
     @property
     def move(self):
