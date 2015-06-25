@@ -121,7 +121,7 @@ class a_star_rpp:
         self.redraw_line = False
 
     def pointcloud_callback(self, msg):
-        pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):)
+        pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
         # While there are points in the cloud to read...
         while True:
             try:
