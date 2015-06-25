@@ -131,6 +131,7 @@ def main(nh):
         yield boat.move.forward(3).go()
 
     print 'Completed start and speed gate!!'
+    boat.pan_lidar()
 
 
     #yield boat.move.as_MoveToGoal(linear,angular).go()
