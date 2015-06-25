@@ -22,28 +22,24 @@ def main(nh):
     print 'Finding start gate with laser'
     boat = yield boat_scripting.get_boat(nh)
 
-    print 'Still the lidar at 3.3 degrees'
+    #print 'Still the lidar at 3.2 degrees'
     boat.still_lidar(nominal_angle=3.2)
 
     # How many gates we've gone through
     gates = 0
 
     while gates < 2:
-
-        print 'Start getting odom'
-        pose = boat.get_gps_odom_rel()
-
-        print 'Get objects'
+        #print 'Get objects'
         buoys = yield boat.get_objects()
         #print 'Original buoys' + str(buoys)
 
-        print 'Wait on odom to finish'
-        pose = yield pose
+        # Grab odom
+        pose = boat.odom.as_Pose()
 
         # Get an enu xyz array
         # Get a rotation matrix
-        position = xyz_array(pose.pose.pose.position)[0:2]
-        yaw = quat_to_rotvec(xyzw_array(pose.pose.pose.orientation))[2]
+        position = xyz_array(pose.position)[0:2]
+        yaw = quat_to_rotvec(xyzw_array(pose.orientation))[2]
         heading = numpy.array([numpy.cos(yaw), numpy.sin(yaw)])
 
         # Translate to base link (no rotation)
@@ -115,10 +111,10 @@ def main(nh):
 
         # get the orientation vector
         point_to = get_perpendicular(numpy.insert(buoy_to_buoy, 2, 0), numpy.array([0, 0, 1]))[0:2]
-        print 'Start gate pos: ', start_gate_pos
-        print 'point to: ', point_to
+        #print 'Start gate pos: ', start_gate_pos
+        #print 'point to: ', point_to
         angle = get_angle(point_to)
-        print 'Angle of goal: ', angle
+        #print 'Angle of goal: ', angle
         if get_angle(point_to) > numpy.pi / 2:
             # Flip the orientation
             point_to = -1 * point_to
