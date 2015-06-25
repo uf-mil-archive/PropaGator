@@ -18,13 +18,17 @@ def image_info_client():
 		#return send the image name
 		file_name = '3.jpg'
 		#and the shape that was indentified
-		image_shape = '3'
+		image_shape = 'THREE'
 		#the response objects returns the status that the server
 		#returned either true or false depending on whether
 		#the image wasidentified correctly
 		response = sendInfo(file_name, image_shape)
-		print response.is_right_image
-		return response.is_right_image
+		if response.is_right_image == True:
+			print "\033[0;32m%s\033[0m" %response.is_right_image
+			return response.is_right_image
+		else:
+			print "\033[0;31m%s\033[0m" %response.is_right_image
+			return response.is_right_image
 	except rospy.ServiceException:
 		print("Service call failed")
 

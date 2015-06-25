@@ -8,6 +8,7 @@ import sys
 import time
 from std_msgs.msg import String
 from server_interaction.srv import buoy_color
+from collections import OrderedDict
 
 ### This is a service that send the identified pinger buoy color to the server
 ### It receives buoy_color (string) and return is_right_buoy (bool) according to server response
@@ -33,23 +34,28 @@ def SendBuoyColor(buoyColor):
 
 	#post test server
 	#fullLink = 'https://posttestserver.com/post.php'
-
-	jsonString = {'course':'temp','team':'UF','buoyColor':'temp'}
-	jsonString['course'] = course
-	jsonString['buoyColor'] = color
+	payload = OrderedDict([("course",course),("team","UF"),("buoyColor",color)])
+	print"Payload being sent to server: "
+	print json.dumps(payload)
+	print (" ")
 	headers = {'content-type': 'application/json'}
-	
 	try:
 		#create request objet: post link is "fullLink", headers, data is the json string.	
-		r = requests.post(fullLink, headers=headers, data=json.dumps(jsonString), verify=False)
+		r = requests.post(fullLink, headers=headers, data=json.dumps(payload), verify=False)
+		print "Information received from server: "
 		print r.text
+		print (" ")
 		if(r.status_code == 200): 
 			success = r.json()
 			#if the right buoy color was sent, server return a json structure: {"success":"true"}.. else false
-			if(success['success'] == "true"):			
+			if(success['success'] == True):			
 			# return status from server to tell whether the right buoy was identified or not
+				print "Was the right buoy identified?"
+				print "\033[0;32m%s\033[0m" %success['success']
 				return True			
-			else:				
+			else:
+				print "Was the right buoy identified?"
+				print "\033[0;31m%s\033[0m" %success['success']				
 				return False		
 		else:			
 			raise rospy.ServiceException	
@@ -64,7 +70,8 @@ def send_buoy_color_server():
 	rospy.Subscriber('course_code', String, StoreCourseCode)
 	#initialize service
 	s = rospy.Service('send_buoy_color', buoy_color, SendBuoyColor)
-	print('ready to receive buoy color')
+	print('Ready to receive buoy color')
+	print (" ")
 	rospy.spin()
 
 if __name__ == '__main__':	

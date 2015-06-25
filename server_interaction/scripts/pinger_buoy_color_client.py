@@ -12,16 +12,24 @@ def buoy_color_client():
 	rospy.wait_for_service('send_buoy_color')
 	try:
 		#set sendColor to use the service 'send_buoy_color' which
-		#take in a type buoy_colo
+		#takes in a type buoy_color
 		sendColor = rospy.ServiceProxy('send_buoy_color', buoy_color)
 		#pass the parameter onto the method. The paramenter is the 
 		#color of the buoy that was identified as the pinger buoy
-		response = sendColor('blue')
-		#responde returns the status that the server returns
+		response = sendColor('red')
+		#response returns the status that the server returns
 		#either true or false depending on whether the right buoy
 		#was identified
-		print response.is_right_buoy
-		return response.is_right_buoy
+		if response.is_right_buoy == True:
+			print "Was the right buoy identified?"
+			print "\033[0;32m%s\033[0m" %response.is_right_buoy
+			print (" ")
+			return response.is_right_buoy
+		else:
+			print "Was the right buoy identified?"
+			print "\033[0;31m%s\033[0m" %response.is_right_buoy
+			print (" ")
+			return response.is_right_buoy	
 	except rospy.ServiceException:
 		print("Service call failed")
 
