@@ -19,12 +19,18 @@ def start_end_run_client():
 		#passing an argument to the service
 		#The argument would be 'start' if starting a run
 		#or 'end' if ending a run
-		response = sendStatus('end')
+		response = sendStatus('start')
 		#print the response from the service. This is a boolean
 		#based on what the server returned: either true or false.
 		#As per the rules, return from server is false if run is void
-		print response.success
-		return response.success
+		if response.success == True:
+			print "Run started/ended?"
+			print "\033[0;32m%s\033[0m" %response.success
+			return response.success
+		else:
+			print "Run started/ended?"
+			print "\033[0;31m%s\033[0m" %response.success
+			return response.success	
 
 	except rospy.ServiceException:
 		print("Service call failed")

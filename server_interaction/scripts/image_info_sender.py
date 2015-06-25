@@ -11,6 +11,7 @@ from std_msgs.msg import String
 from std_msgs.msg import Int8
 from server_interaction.srv import image_info
 import unicodedata
+from collections import OrderedDict
 
 ### Sends information pertaining the identified image that was received from the server ####
 ### This is a service. It receives strings file_name (name of the picture), and image_shape(identified shape from image)
@@ -47,34 +48,48 @@ def SendImageInfo(msg):
 	#Send image to server and get an image ID.
 	#create request #1 (POST), put image file on server
 	request1 = requests.post(putImageOnServerUrl, files=files, verify=False)
+	print (" ")
+	print "Information returned by server: "
 	print request1.text
+	print (" ")
 	#getting image ID from server. Will be a json structure like:
 	#{"imaeId":"a4aa8224-07f2-4b57-a03a-c8887c2505c7"}
-	# wait two seconds... just for the heck of it
-	time.sleep(2)
+	# wait one second... just for the heck of it
+	time.sleep(1)
 	imageID = request1.json()['imageId']
 	######################################## send image information #########################################				
 	#ready payload to send to server..
-	payload = {'course':'temp','team':'UF','shape':'temp','imageID':'temp'} 
-	payload['course'] = course
-	payload['shape'] = shape
 	imageID = unicodedata.normalize('NFKD', imageID).encode('ascii','ignore')
-	payload['imageID'] = imageID
-	headers = {'content-type':'application/json'}
-	print json.dumps(payload, sort_keys = True)
+	headers = {'Content-Type':'application/json'}
+	print "Payload being sent to server: "
+	print json.dumps(OrderedDict([("course",course),("team","UF"),("shape",shape),("imageId",imageID)]))
+	print (" ")
+	payload = OrderedDict([("course",course),("team","UF"),("shape",shape),("imageId",imageID)])
 	#create request #2, post image info json structure
-	time.sleep(5)
+	time.sleep(1)
 	try:
-		request2 = requests.post(sendImageInfoUrl, headers = headers, data = json.dumps(payload, sort_keys = True), verify = False)
-		time.sleep(5)
-		print request2.status_code
+		request2 = requests.post(sendImageInfoUrl, headers = headers, data = json.dumps(payload), verify = False)
+		time.sleep(1)
+		print "Request status code: "
+		if request2.status_code == 200:
+			print "\033[0;32m%s\033[0m" %(request2.status_code)
+			print (" ")
+		else:
+			print "\033[0;31m%s\033[0m" %(request2.status_code)
+			print (" ")	
+		print "Infromation returned by sever: "
+		print request2.text
 		if request2.status_code == 200:
 			#decode json response from server
 			status = request2.json()['success']
-			print(status)
-			if status == "true":
+			print (" ")
+			if status == True:
+				print "Is this the right image?"
+				print "\033[0;32m%s\033[0m" %status
 				return True
 			else:
+				print "Is this the right image?"
+				print "\033[0;31m%s\033[0m" %status
 				return False
 		else:
 			raise rospy.ServiceException		
