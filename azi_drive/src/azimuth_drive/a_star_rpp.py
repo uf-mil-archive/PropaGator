@@ -16,6 +16,7 @@ import tf
 from heapq import heappush, heappop # for priority queue
 import math
 import time
+
 """
     This class implements a simple reactive path planner
         The generation is as follows:
@@ -34,7 +35,7 @@ class a_star_rpp:
         self.orientation_radius = rospy.get_param('orientation_radius', 1)
         self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
 
-        
+
     # Accept a new goal in the form of a posetwist
     def new_goal(self, goal):
         self.desired_position = tools.position_from_posetwist(goal)
@@ -52,7 +53,6 @@ class a_star_rpp:
 
     # Recieve feedback in the form of a posetwist(pt)
     def feedback(self, pt):
-        print 'feedback'
         # Update current pt
         self.current_position = tools.position_from_posetwist(pt)
         # Zero the Z
@@ -73,30 +73,34 @@ class a_star_rpp:
         '''
         # Output a posetwist (carrot)
         # Project current position onto trajectory line
-        Bproj = self.line.proj_pt(self.current_position)
-        parallel_distance = np.linalg.norm(self.desired_position - Bproj)
+        #Bproj = self.line.proj_pt(self.current_position)
+        distance = np.linalg.norm(self.desired_position - self.current_position)
+
 
         # Move carrot along line
         #tracking_step = self.get_tracking_distance()
         print "self.map_builder()" 
         print self.map_builder()
         c_pos = self.current_position # + [1,0,0]
-
+        print 'c_pos1',c_pos
+        velocity = 1
         # If bproj is in threashold just set the carrot to the final position
-        if parallel_distance < self.orientation_radius:
-            c_pos = self.desired_position      
+        if distance < 0.5:
+            c_pos = self.desired_position
+            velocity = 0
+        print 'c_pos2',c_pos
 
         # Fill up PoseTwist
-        print 'carrot'
         carrot = PoseTwist(
                 pose = Pose(
                     position = tools.vector3_from_xyz_array(c_pos),
                     orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
 
                 twist = Twist(
-                    linear = Vector3(2, 0, 0),        # Wrench Generator handles the sine of the velocity
+                    linear = Vector3(velocity, 0, 0),        # Wrench Generator handles the sine of the velocity
                     angular = Vector3())
                 )
+        print 'carrot', carrot
         return carrot
 
     # Stop this path planner
@@ -134,6 +138,7 @@ class a_star_rpp:
 
     def map_builder(self):
         # MAIN
+
         dirs = 8 # number of possible directions to move on the map
         if dirs == 4:
             dx = [1, 0, -1, 0]
@@ -167,7 +172,7 @@ class a_star_rpp:
         print 'Route: ', '(', route, ')'
         return route
         
-        '''
+        
         # mark the route on the map
         if len(route) > 0:
             x = xA
@@ -198,7 +203,7 @@ class a_star_rpp:
             print
 
         raw_input('Press Enter...')
-        '''
+        
     # A-star algorithm.
     # The path returned will be a string of digits of directions.
     def pathFind(self, the_map, n, m, dirs, dx, dy, xA, yA, xB, yB):
@@ -206,6 +211,7 @@ class a_star_rpp:
         print "xB", xB
         print "yA", yA
         print "yB", yB
+
         closed_nodes_map = [] # map of closed (tried-out) nodes
         open_nodes_map = [] # map of open (not-yet-tried) nodes
         dir_map = [] # map of dirs
