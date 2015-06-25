@@ -33,13 +33,10 @@ def main(nh):
         buoys = yield boat.get_objects()
         #print 'Original buoys' + str(buoys)
 
-        # Grab odom
-        pose = boat.odom.as_Pose()
-
         # Get an enu xyz array
         # Get a rotation matrix
-        position = xyz_array(pose.position)[0:2]
-        yaw = quat_to_rotvec(xyzw_array(pose.orientation))[2]
+        position = boat.odom.position[0:2]
+        yaw = quat_to_rotvec(boat.odom.orientation)[2]
         heading = numpy.array([numpy.cos(yaw), numpy.sin(yaw)])
 
         # Translate to base link (no rotation)
