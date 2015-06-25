@@ -14,6 +14,8 @@ from dynamixel_servo.msg import DynamixelFullConfig
 from time import time
 from std_msgs.msg import Bool, Float64
 
+from azi_drive.srv import AziFloat
+
 '''
 Max thrust: 100
 Min thrust: -100
@@ -40,12 +42,12 @@ class Controller(object):
         # Set up kill handling
         self.kill_listener = KillListener(self.on_kill, self.on_unkill)
         self.kill_broadcaster = KillBroadcaster(id='Azi_drive', description='Azi drive node shutdown')
-        # Clear the kill 
         try:
             self.kill_broadcaster.clear()
         except rospy.service.ServiceException, e:
             rospy.logwarn(str(e))
         self.killed = False
+	self.float = False
         self.rc_takeover = False
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
@@ -90,6 +92,9 @@ class Controller(object):
         self.ZERO_NEWTONS = 0
         self.REV_CONV = (self.ZERO_NEWTONS - self.MIN_NEWTONS) / (0 - self.ABS_MIN_PW)
         self.FWD_CONV = (self.MAX_NEWTONS - self.ZERO_NEWTONS) / self.ABS_MAX_PW
+
+	# Service Initializations
+	float_srv = rospy.Service('float_mode', AziFloat, self.set_float)
 
     def on_kill(self):
         self.killed = True
@@ -144,6 +149,10 @@ class Controller(object):
                 self.set_servo_angles(angles)
                 print self.pwm_forces
                 self.set_forces(self.pwm_forces)
+	    elif self.float == True:
+                angles = np.array([0, 0])
+                self.set_servo_angles(angles)
+                self.set_forces((0.0, 0.0))
             # Otherwise normal operation
             else:
                 iteration_num += 1
@@ -305,6 +314,18 @@ class Controller(object):
             )
         )
 
+    # Used to place boat in floating mode (Thrusters are turned off)
+    def set_float(self, mode):
+	if self.float is not mode.float:
+		self.float = mode.float
+		rospy.loginfo('Azi drive float-mode is ' + str(mode.float))
+		#return True	# Used to determine if the change was succesful 
+		return mode.float
+	else:
+		rospy.loginfo('Azi drive float-mode is unchanged & currently ' + str(self.float))
+		#mode.out = mode.float
+		#return True
+		return mode.float
 
 if __name__ == '__main__':
     rospy.init_node('azi_drive')#, log_level=rospy.DEBUG)

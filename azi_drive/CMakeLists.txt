@@ -10,6 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
    FILES
    trajectory_mode.srv
+   AziFloat.srv
 )
 
 catkin_python_setup()
