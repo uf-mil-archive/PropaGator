@@ -66,4 +66,7 @@
             </rosparam>
         </node>
     </group>
+
+    <!-- Object handling node(s) -->
+    <node pkg="object_handling" type="object_handler.py" name="object_handler"/>
 </launch>
