@@ -41,7 +41,7 @@ class azi_waypoint:
         #self.desired_twist = self.current_twist = Twist()
 
         # Goal tolerances before seting succeded
-        self.linear_tolerance = rospy.get_param('linear_tolerance', 0.5)
+        self.linear_tolerance = rospy.get_param('linear_tolerance', 0.75)
         self.angular_tolerance = rospy.get_param('angular_tolerance', 20 * np.pi / 180)
 
         # Publishers
