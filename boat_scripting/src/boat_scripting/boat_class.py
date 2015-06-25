@@ -39,6 +39,7 @@ from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
 from object_handling.msg import Buoys
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
+from camera_docking.msg import Circle, Triangle, Cross
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
@@ -92,12 +93,9 @@ class _Boat(object):
 
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
-        self._circle_detect = self._node_handle.subscribe("circle_detected" , Bool)
-        self._square_detect = self._node_handle.subscribe("cross_detected" , Bool)
-        self._triangle_detect = self._node_handle.subscribe("triangle_detected" , Bool)
-        self._circle_pos = self._node_handle.subscribe("circle_x_pos" , Int16)
-        self._cross_pos = self._node_handle.subscribe("cross_x_pos" , Int16)
-        self._triangle_pos = self._node_handle.subscribe("triangle_x_pos" , Int16)
+        self._circle_sub = self._node_handle.subscribe("Circle_Sign" , Circle)
+        self._cross_sub = self._node_handle.subscribe("Cross_Sign" , Cross)
+        self._triangle_sub = self._node_handle.subscribe("Triangle_Sign" , Triangle)
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
@@ -214,14 +212,14 @@ class _Boat(object):
     @util.cancellableInlineCallbacks
     def get_shape_location(self, shape):
         if shape == 'circle':
-            msg = yield self._circle_pos.get_next_message()
-            defer.returnValue(msg)
+            msg = yield self._circle_sub.get_next_message()
+            defer.returnValue(msg.xpixel)
         if shape == 'cross':
-            msg = yield self._cross_pos.get_next_message()
-            defer.returnValue(msg)
+            msg = yield self._cross_sub.get_next_message()
+            defer.returnValue(msg.xpixel)
         if shape == 'triangle':
-            msg = yield self._triangle_pos.get_next_message()
-            defer.returnValue(msg)
+            msg = yield self._triangle_sub.get_next_message()
+            defer.returnValue(msg.xpixel)
 
         print 'Invalid shape ', shape
         assert False
@@ -289,3 +287,5 @@ def get_boat(node_handle, need_trajectory=True):
         _boats[node_handle] = yield _Boat(node_handle)._init(need_trajectory)
         # XXX remove on nodehandle shutdown
     defer.returnValue(_boats[node_handle])
+
+
