@@ -22,9 +22,8 @@ import math
 import threading
 from point_shoot_pp import point_shoot_pp
 from point_shoot_2_pp import point_shoot_2_pp
+from a_star_rpp import a_star_rpp
 from azi_drive.srv import *
-#from obstacle_avoidance import hub
-#from obstacle_avoidance import main
 
 class azi_waypoint:
     def __init__(self, name):
@@ -41,7 +40,7 @@ class azi_waypoint:
         #self.desired_twist = self.current_twist = Twist()
 
         # Goal tolerances before seting succeded
-        self.linear_tolerance = rospy.get_param('linear_tolerance', 0.5)
+        self.linear_tolerance = rospy.get_param('linear_tolerance', 0.75)
         self.angular_tolerance = rospy.get_param('angular_tolerance', 20 * np.pi / 180)
 
         # Publishers
@@ -73,7 +72,8 @@ class azi_waypoint:
         # Trajectory mode dictionary
         self.modes ={
             trajectory_modeRequest.POINT_SHOOT_PP:         point_shoot_pp,
-            trajectory_modeRequest.POINT_SHOOT_2_PP:       point_shoot_2_pp
+            trajectory_modeRequest.POINT_SHOOT_2_PP:       point_shoot_2_pp,
+            trajectory_modeRequest.A_STAR_RPP:             a_star_rpp
         }
 
         # Initilize Trajectory generator with current position as goal

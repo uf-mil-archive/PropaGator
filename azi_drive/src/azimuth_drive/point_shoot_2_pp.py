@@ -29,7 +29,7 @@ class point_shoot_2_pp:
         self.desired_orientation = self.current_orientation = np.zeros(3)
 
         # Region deffinitions
-        self.orientation_radius = rospy.get_param('orientation_radius', 1)
+        self.orientation_radius = rospy.get_param('orientation_radius', 2)
         self.slow_down_radius = rospy.get_param('slow_down_radius', 3.0)
 
         # Speed parameters

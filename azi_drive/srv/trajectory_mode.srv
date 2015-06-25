@@ -3,6 +3,7 @@
 # Below are constants for all possible modes
 string POINT_SHOOT_PP=point_shoot_pp
 string POINT_SHOOT_2_PP=point_shoot_2_pp
+string A_STAR_RPP=a_star_rpp
 
 # Mode holds the desired mode of opperation
 string mode

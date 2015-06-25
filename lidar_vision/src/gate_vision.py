@@ -2,7 +2,7 @@
 '''THIS IS LUCAS'S FILE GO TO HIM WITH QUESTIONS lbassettaudain AT ufl DOT edu
 '''
 import roslib
-roslib.load_manifest('start_gate_vision')
+#roslib.load_manifest('start_gate_vision')
 import sys
 import rospy
 import cv2
@@ -39,10 +39,10 @@ class image_converter:
     img = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)#HSV is good for color detection with lighting flux  
     #thresholding and building heat mask
     def find_red_gate(img):
-        h1 = 146
+        h1 = 164
         s1 = 128
         v1 = 40
-        h2 = 178
+        h2 = 195
         s2 = 255
         v2 = 255
         lower_value = np.array([h1, s1, v1], np.uint8)
@@ -68,12 +68,12 @@ class image_converter:
 
 
     def find_green_gate(img):
-        h1 = 46
-        s1 = 159
-        v1 = 47
-        h2 = 52
-        s2 = 224
-        v2 = 182
+        h1 = 44
+        s1 = 145
+        v1 = 69
+        h2 = 56
+        s2 = 255
+        v2 = 255
         lower_value = np.array([h1, s1, v1], np.uint8)
         upper_value = np.array([h2, s2, v2], np.uint8)
         #endthresholding
