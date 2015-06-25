@@ -80,7 +80,7 @@ class a_star_rpp:
         #tracking_step = self.get_tracking_distance()
         print "self.map_builder()" 
         print self.map_builder()
-        c_pos = self.current_position + [1,0,0]
+        c_pos = self.current_position # + [1,0,0]
 
         # If bproj is in threashold just set the carrot to the final position
         if parallel_distance < self.orientation_radius:
@@ -121,26 +121,7 @@ class a_star_rpp:
         self.redraw_line = False
 
     def pointcloud_callback(self, msg):
-        res = []
-        try:
-            for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
-                to_send = PointStamped(
-                    header = Header(
-                        seq=0,
-                        stamp= rospy.Duration(),
-                        frame_id="/enu",
-                    ),
-                    point = Point(
-                        x=p[0],
-                        y=p[1],
-                        z=p[2],
-                    )
-                )
-
-        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as err:
-            print err
-
-        pointcloud = iter(res)
+        pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):)
         # While there are points in the cloud to read...
         while True:
             try:
@@ -183,7 +164,7 @@ class a_star_rpp:
         t = time.time()
         '''
         route = self.pathFind(the_map, n, m, dirs, dx, dy, xA, yA, xB, yB)
-        print 'Route: ', route
+        print 'Route: ', '(', route, ')'
         return route
         
         '''
