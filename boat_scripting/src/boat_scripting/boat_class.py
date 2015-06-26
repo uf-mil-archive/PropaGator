@@ -39,6 +39,7 @@ from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
 from object_handling.msg import Buoys
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
+from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
 
 class _PoseProxy(object):
@@ -84,6 +85,8 @@ class _Boat(object):
         self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
 
         self._set_lidar_mode = self._node_handle.get_service_client('lidar/lidar_servo_mode', lidar_servo_mode)
+
+        self._set_path_planner_mode = self._node_handle.get_service_client('/azi_waypoint_mode', trajectory_mode)
 
         self._lidar_sub_raw = self._node_handle.subscribe('lidar/scan', LaserScan)
 
@@ -141,6 +144,9 @@ class _Boat(object):
         self._set_lidar_mode(lidar_servo_modeRequest(
                     mode = lidar_servo_modeRequest.STATIC,
                     nominal_angle = nominal_angle))
+
+    def switch_path_planner(self, mode):
+        self._set_path_planner_mode(trajectory_modeRequest(mode = mode))
     
     @util.cancellableInlineCallbacks
     def float(self):
