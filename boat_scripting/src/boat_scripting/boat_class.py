@@ -99,6 +99,8 @@ class _Boat(object):
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
+        self._current_challenge_pub = self._node_handle.advertise('_current_challenge', String)
+
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
             print 'Boat class __init__: Waiting on trajectory..'
@@ -284,6 +286,9 @@ class _Boat(object):
     def get_ecef_pos(self):
         msg = yield self._absodom_sub.get_next_message()
         defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
+	
+	def set_current_challenge(self,challenge):
+		self._current_challenge_pub.publish(challenge)    
     
     
 _boats = {}
