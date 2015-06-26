@@ -99,7 +99,7 @@ class _Boat(object):
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
-        self._current_challenge_pub = self._node_handle.advertise('_current_challenge', String)
+        self._current_challenge_pub = self._node_handle.advertise('current_challenge', String)
 
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
