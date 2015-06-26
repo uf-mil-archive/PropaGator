@@ -27,9 +27,12 @@ from azi_drive.srv import *
 
 class azi_waypoint:
     def __init__(self, name):
-
+        # Implement the moveto action server
+        self.moveto_as = actionlib.SimpleActionServer('moveto', MoveToAction, None, False)
         # Thread Locking
-        self.lock = threading.Lock()
+        self.as_lock = self.moveto_as.action_server.lock
+        self.moveto_as.register_goal_callback(self.new_goal)
+        self.moveto_as.register_preempt_callback(self.goal_preempt)
 
         # Trajectory generator (using stratagy design pattern where traj_gen is the stratagy)
         self.traj_gen = None
@@ -87,10 +90,6 @@ class azi_waypoint:
         # Start the main update loop
         rospy.Timer(rospy.Duration(0.1), self.update)
 
-        # Implement the moveto action server
-        self.moveto_as = actionlib.SimpleActionServer('moveto', MoveToAction, None, False)
-        self.moveto_as.register_goal_callback(self.new_goal)
-        self.moveto_as.register_preempt_callback(self.goal_preempt)
         self.moveto_as.start()
 
     def switch_mode(self, mode):
@@ -116,7 +115,9 @@ class azi_waypoint:
 
     def new_goal(self):
         # Lock on odom cb
-        self.lock.acquire()
+        #print 'New goal: wait for lock'
+        self.as_lock.acquire()
+        #print 'New goal lock'
 
         goal = self.moveto_as.accept_new_goal()
         pt = goal.posetwist
@@ -126,21 +127,24 @@ class azi_waypoint:
         #self.linear_tolerance = goal.linear_tolerance
         #self.angular_tolerance = goal.angular_tolerance
 
-        rospy.loginfo('Desired position:' + str(self.desired_position))
-        rospy.loginfo('Current position:' + str(self.current_position))
-        rospy.loginfo('Desired orientation:' + str(self.desired_orientation * 180 / np.pi))
-        rospy.loginfo('Current orientation:' + str(self.current_orientation * 180 / np.pi))
-        rospy.loginfo('linear_tolerance:' + str(self.linear_tolerance))
-        rospy.loginfo('angular_tolerance:' + str(self.angular_tolerance))
+        rospy.logdebug('Desired position:' + str(self.desired_position))
+        rospy.logdebug('Current position:' + str(self.current_position))
+        rospy.logdebug('Desired orientation:' + str(self.desired_orientation * 180 / np.pi))
+        rospy.logdebug('Current orientation:' + str(self.current_orientation * 180 / np.pi))
+        rospy.logdebug('linear_tolerance:' + str(self.linear_tolerance))
+        rospy.logdebug('angular_tolerance:' + str(self.angular_tolerance))
         
         # Pass the new goal to the trajectory generator
         if self.traj_gen is not None:
             self.traj_gen.new_goal(pt)
 
         # Release lock
-        self.lock.release()
+        self.as_lock.release()
+        #print 'new_goal released'
 
     def goal_preempt(self):
+        self.as_lock.acquire()
+        #print 'goal_preempt lock'
         rospy.loginfo('Goal preempted')
 
         # Set current position to desired position
@@ -154,11 +158,15 @@ class azi_waypoint:
         # Set action as preempted
         self.moveto_as.set_preempted()
         
+        # Release lock
+        self.as_lock.release()
+        #print 'preempt released'
 
     # Update pose and twist
     def odom_cb(self, msg):
         # Lock on odom cb
-        self.lock.acquire()
+        self.as_lock.acquire()
+        #print 'odom lock'
 
         self.current_position = tools.position_from_pose(msg.pose.pose)
         # Zero the Z
@@ -175,13 +183,15 @@ class azi_waypoint:
         self.angle_to_goal_orientation = map(tools.smallest_coterminal_angle, self.desired_orientation - self.current_orientation)
 
         # Release lock
-        self.lock.release()
+        self.as_lock.release()
+        #print 'odom released'
 
 
     # Update loop
     def update(self, event):
         # Lock on odom cb
-        self.lock.acquire()
+        self.as_lock.acquire()
+        #print 'update lock'
 
         # Make a header
         header = Header(
@@ -216,7 +226,8 @@ class azi_waypoint:
                     self.moveto_as.set_succeeded(None)
 
         # Release lock
-        self.lock.release()
+        self.as_lock.release()
+        #print 'update released'
 
 
     def get_current_posetwist(self):
@@ -243,6 +254,6 @@ class azi_waypoint:
         self.kill_broadcaster.send(True)
 
 if __name__ == '__main__':
-    rospy.init_node('azi_waypoint')
+    rospy.init_node('azi_waypoint')#, log_level=rospy.DEBUG)
     node = azi_waypoint(rospy.get_name())
     rospy.spin()
