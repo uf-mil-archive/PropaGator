@@ -8,15 +8,14 @@ import Queue
 import scipy
 
 import numpy
+from std_msgs.msg import String
 from twisted.internet import defer
 import sensor_msgs.point_cloud2 as pc2
-
 
 from txros import action, util, tf
 
 #SPP having access to the gps methods will allow us to easily switch from ECEF to lat/long
 import rawgps_common
-
 
 import genpy
 from std_msgs.msg import Header, Float64, Int16, Bool
@@ -41,7 +40,7 @@ from object_handling.msg import Buoys
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
-from std_msgs.msg import String
+from azi_drive.srv import AziFloat, AziFloatRequest
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
@@ -83,7 +82,7 @@ class _Boat(object):
         
         self.servo_full_config_pub = self._node_handle.advertise('dynamixel/dynamixel_full_config', DynamixelFullConfig)
         
-        self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
+        #self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
 
         self._set_lidar_mode = self._node_handle.get_service_client('lidar/lidar_servo_mode', lidar_servo_mode)
 
@@ -104,6 +103,8 @@ class _Boat(object):
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
         self._current_challenge_pub = self._node_handle.advertise('current_challenge', String)
+	
+	self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
@@ -148,18 +149,12 @@ class _Boat(object):
 
     def switch_path_planner(self, mode):
         self._set_path_planner_mode(trajectory_modeRequest(mode = mode))
-    
-    @util.cancellableInlineCallbacks
-    def float(self):
-        while True:
-            self._send_constant_wrench_service(SendConstantWrenchRequest(
-                wrench=Wrench(
-                    force=Vector3(0, 0, 0),
-                    torque=Vector3(0, 0, 0),
-                ),
-                lifetime=genpy.Duration(1),
-            ))
-            yield util.sleep(.5)
+   
+    def float_on(self):
+        response = self.float_srv(AziFloatRequest(True))	
+
+    def float_off(self):
+	response = self.float_srv(AziFloatRequest(False))
     
     @util.cancellableInlineCallbacks
     def wait_for_bump(self):
@@ -218,7 +213,6 @@ class _Boat(object):
 
     @util.cancellableInlineCallbacks
     def hold_at_current_pos(self):
-
         odom = yield self.get_gps_odom_rel()
         print odom
         odom_to_send = yield orientation_helpers.PoseEditor.from_Pose(odom.header.frame_id, odom.pose.pose)
