@@ -8,13 +8,25 @@ from uf_common.orientation_helpers import get_perpendicular
 from itertools import *
 
 """
-# This mission attempts to go through the start gate and speed gate using only lidar
-#   Algorithim: 
-#       * Set lidar angle to max so as to only see gates in front of the boat
-#       * Ignore everything behind the boat
-#       * Find the two clossest objects
-#       * If they look like a start gate move towards there centroid
-#       * repete one more time
+This mission attempts to go through the start gate and speed gate using only lidar data
+
+Algorithim: 
+* Set lidar angle to pan between max (calculated below) and slightly above horizontal, so as to only see start/speed gates which should be the tallest object
+* Ignore everything behind the boat
+* Find the two clossest objects
+* If they look like a start gate move towards there centroid
+* repete one more time
+
+Math:
+* Maximum angle of lidar, 3.529 deg at 50 ft and 7.031 deg at 25ft:
+  * The competitoin start/speed gate buoys are 49" tall
+  * The lidar sits above the water line about 1 ft
+  * Some of the gate will be submerged
+  * The max angle is the angle formed between the ray drawn from the lidar to the top of the buoy and the line drawn through the lidar parrallel to horizontal
+  * The buoys could be anywhere between 25-50 ft away
+  
+References:
+* [Rules] (https://s3.amazonaws.com/com.felixpageau.roboboat/RoboBoat_2015_final_rules_20150527.pdf)
 """
 @util.cancellableInlineCallbacks
 def main(nh):
@@ -22,8 +34,8 @@ def main(nh):
     print 'Finding start gate with laser'
     boat = yield boat_scripting.get_boat(nh)
 
-    #print 'Still the lidar at 3.2 degrees'
-    boat.still_lidar(nominal_angle=3.2)
+    #print 'Pan the lidar between the maximum angle and slightly above horizontal'
+    boat.pan_lidar(max_angle=3.264, min_angle=3.15, freq=0.5)
 
     # How many gates we've gone through
     gates = 0
