@@ -34,6 +34,9 @@ Math:
   * Some of the gate will be submerged
   * The max angle is the angle formed between the ray drawn from the lidar to the top of the buoy and the line drawn through the lidar parrallel to horizontal
   * The buoys could be anywhere between 25-50 ft away
+ 
+TODO:
+* See this [issue](https://github.com/uf-mil/PropaGator/issues/35)
   
 References:
 * [Rules] (https://s3.amazonaws.com/com.felixpageau.roboboat/RoboBoat_2015_final_rules_20150527.pdf)
