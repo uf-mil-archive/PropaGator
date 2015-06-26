@@ -41,6 +41,7 @@ from object_handling.msg import Buoys
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
+from std_msgs.msg import String
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
