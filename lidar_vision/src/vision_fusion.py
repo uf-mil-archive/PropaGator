@@ -24,6 +24,8 @@ black = (0,0,0)
 X_OFFSET = 80 
 Y_OFFSET = 300
 
+PERSITANCE = 1000
+
 
 '''
 
@@ -57,11 +59,7 @@ class lidar_theta(object):
 		# vector that will be filled to be compared to
 		self.focus_vector = numpy.array([0,00,0])
 		self.quad_assign = numpy.array([0,0,0])
-
-		# FOR TESTING ONLY RIGHT NOW
-		# height of display to be printed to 
-		# height and width will contain ueye camera dimensions eventually
-
+		
 		self.height  = 0
 		self.width  = 0
 		self.lidar_height = 0
@@ -81,11 +79,14 @@ class lidar_theta(object):
 		self.y_theta = 0
 		self.z_theta = 0
 
+		self.data_persist_x = [PERSITANCE]
+		self.data_persist_y = [PERSITANCE]
+
 		self.bridge = CvBridge()
 
 		self.quadrant = 0
 
-		self.rate = rospy.Rate(1)
+		self.rate = rospy.Rate(2)
 		self.tf_listener = tf.TransformListener()
 		self.lock = threading.Lock()
 
@@ -95,7 +96,16 @@ class lidar_theta(object):
 		rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
 		self.vison_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
 
-		
+	def persist_data(self):
+		if len(self.data_persist_x) > PERSITANCE:
+			diff = abs(len(self.data_persist_x) - PERSITANCE)
+		 	del self.data_persist_x[:diff]
+		 	del self.data_persist_y[:diff]
+
+		for i in range(1, len(self.data_persist_x)):
+			self.image[self.data_persist_x[i]][self.data_persist_y[i]] = 255
+			self.blank_image[self.data_persist_x[i]][self.data_persist_y[i]] = 255
+
 	def image_cb(self, data):
 		try:
 			self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -115,6 +125,7 @@ class lidar_theta(object):
 
 	def pointcloud_callback(self, msg):
 
+		
 		
 		self.lock.acquire()
 
@@ -168,39 +179,44 @@ class lidar_theta(object):
 			except StopIteration:
 
 				# Publish Data in 2D
+				self.persist_data()
 				image_message = self.bridge.cv2_to_imgmsg(self.image, encoding="bgr8")
 				self.vison_fusion.publish(image_message)
-				cv2.imshow("Window", self.blank_image)
-				cv2.waitKey(3)
+				#cv2.imshow("Window", self.blank_image)
+				#cv2.waitKey(3)
 				#self.rate.sleep()
 				self.lock.release()
 				break
 
 		'''
 
-		x, y, z = 1, -40, 10
-		self.quad_assign = numpy.array([y, z, x]) 
-		x, y, z = 1, -40, 10
-		self.focus_vector = numpy.array([y, z, x]) 
+		TESTING SECTION
 
-		# solve for all angles in vector
-		self.solve_angles(1)
-		self.solve_angles(2)
-		self.solve_angles(3)
+		for i in range(1,100):
+			x, y, z = i, i, i
+			self.quad_assign = numpy.array([y, z, x]) 
+			x, y, z = i, i, i
+			self.focus_vector = numpy.array([y, z, x]) 
 
-		rospy.logdebug("Magnitude: ({})".format(round(self.magnitude)))
-		rospy.logdebug("Quadrant: {}".format(self.quadrant))
-		rospy.logdebug("Theta-")
-		rospy.logdebug("	x: {}".format(self.x_theta))
-		rospy.logdebug("	y: {}".format(self.y_theta))
-		rospy.logdebug("	z: {}".format(self.z_theta))
+			# solve for all angles in vector
+			self.solve_angles(1)
+			self.solve_angles(2)
+			self.solve_angles(3)
 
-		self.quadrant_assign()
-		# map new vector to appropriate pixel on camera image
-		self.create_triangle() 
-		cv2.imshow("Window", self.blank_image)
-		cv2.waitKey(3)
-		self.rate.sleep()
+			rospy.logdebug("Magnitude: ({})".format(round(self.magnitude)))
+			rospy.logdebug("Quadrant: {}".format(self.quadrant))
+			rospy.logdebug("Theta-")
+			rospy.logdebug("	x: {}".format(self.x_theta))
+			rospy.logdebug("	y: {}".format(self.y_theta))
+			rospy.logdebug("	z: {}".format(self.z_theta))
+
+			self.quadrant_assign()
+			# map new vector to appropriate pixel on camera image
+			self.create_triangle() 
+			self.persist_data()
+			cv2.imshow("Window", self.blank_image)
+			cv2.waitKey(3)
+			self.rate.sleep()
 
 		'''
 
@@ -209,7 +225,6 @@ class lidar_theta(object):
 		if (self.quad_assign[0] < 0) & (self.quad_assign[1] > 0): self.quadrant = 2
 		if (self.quad_assign[0] < 0) & (self.quad_assign[1] < 0): self.quadrant = 3
 		if (self.quad_assign[0] > 0) & (self.quad_assign[1] < 0): self.quadrant = 4
-		
 
 	def solve_angles(self, obj_vect):
 		# buffer non-generic funtion used to decide which angle to solve for
@@ -241,14 +256,11 @@ class lidar_theta(object):
 			x = math.tan(self.x_theta) * self.magnitude
 			y = math.tan(self.y_theta) * -self.magnitude
 
-
 		x_final = x + self.height/2 
 		y_final = y + self.width/2
 
-
 		if x_final >= self.height or x_final < 0 : x_final = self.height - 1
 		if y_final >= self.width or y_final < 0 : y_final = self.width - 1
-
 
 		rospy.logdebug("Coordinates: ({}, {})".format(round(y_final - self.width/2, 2), round(x_final - self.height/2, 2)))
 
@@ -263,6 +275,8 @@ class lidar_theta(object):
 		self.image[x_final][y_final] = 255
 		self.blank_image[x_final][y_final] = 255
 
+		self.data_persist_x.append(x_final)
+		self.data_persist_y.append(y_final)
 
 	def find_magnitude(self, vector):
 		self.magnitude = math.sqrt(vector[0]*vector[0] +  vector[1]*vector[1] + vector[2]*vector[2])
@@ -270,7 +284,7 @@ class lidar_theta(object):
 
 if __name__ == '__main__':
 
-	rospy.init_node("vision_fusion", log_level=rospy.DEBUG)
+	rospy.init_node("vision_fusion") #log_level=rospy.DEBUG)
 	lidar = lidar_theta()
 	rospy.spin()
 
