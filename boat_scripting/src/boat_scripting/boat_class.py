@@ -128,7 +128,7 @@ class _Boat(object):
     def move(self):
         return _PoseProxy(self, self.pose)
 
-    def pan_lidar(self, freq = 1.0, min_angle = 2.7, max_angle = 3.4):
+    def pan_lidar(self, freq = 0.75, min_angle = 2.7, max_angle = 3.4):
         self._set_lidar_mode(lidar_servo_modeRequest(
                     mode = lidar_servo_modeRequest.PAN,
                     freq = freq,
