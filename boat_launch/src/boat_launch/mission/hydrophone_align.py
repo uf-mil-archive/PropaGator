@@ -10,39 +10,19 @@ import rospy
 
  #SPP allign the craft based on what pings the hydrophones hear for a given freq
 @util.cancellableInlineCallbacks
-def main(nh):
+def main(nh, freq):
 
     boat = yield boat_scripting.get_boat(nh, False)
-
-
-    '''
-
-    Ralph:
-
-    All should be set up in this file, I am still working on the boat class
-
-    Still need to set the frequency variable
-    It used to given as a parameter so the code is set up for it, I just didn't know how it worked
-
-
-    frequency = ???
-
-
-    '''
-
-    good = 0
-
     while True:
-
-        yield boat.float()
-
+        boat.float_on()
         try:
             yield util.sleep(.5)
-            ping_return = yield boat.get_processed_ping(frequency)
+            ping_return = yield boat.get_processed_ping(freq)
         finally: 
             pass
             # Figure out what you want to use here, used to be --> yield boat.cancel()
             # Not sure you really need to use anything really, test that out though
+	    boat.float_off()
         print ping_return
 
         if ping_return.declination > 1.2:
