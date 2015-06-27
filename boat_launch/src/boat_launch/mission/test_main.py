@@ -88,7 +88,7 @@ def main(nh):
 	print "Moving to first position: ", WAYPOINT_A
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED, False) ECEF_TIME)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED) ECEF_TIME)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at first position"
 	except Exception:
@@ -106,14 +106,14 @@ def main(nh):
 	print "Moving to safe position now: ", WAYPOINT_F
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED, False) ONE_MINUTE)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED) ONE_MINUTE)
 		yield boat.move.heading(SOUTH).go()
 		print "Moved to " + WAYPOINT_F + ", now moving to " + WAYPOINT_E + " to begin docking"
 	except Exception:
 		print "Could not make it to second position in " + ONE_MINUTE + " seconds"
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED, False) ONE_MINUTE)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED) ONE_MINUTE)
 		yield boat.move.heading(EAST).go()
 		print "Moved to " + WAYPOINT_E + ", starting docking challenge"
 	except Exception:
@@ -143,7 +143,7 @@ def main(nh):
 	print "Moving back to startate begining position", WAYPOINT_A
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED, False) ONE_MINUTE)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED) ONE_MINUTE)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at ", WAYPOINT_A
 	except Exception:
