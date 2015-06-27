@@ -16,13 +16,15 @@ from txros import util
 import time
 import threading
 
-DISPLAY_SIZE = (960, 480) # Display to be printed out to 
+DISPLAY_SIZE = (480, 640) # Display to be printed out to 
 
 white = (255,255,255)
 black = (0,0,0)
 
 X_OFFSET = 80 
 Y_OFFSET = 300
+
+PERSITANCE = 1000
 
 
 '''
@@ -55,19 +57,15 @@ class lidar_theta(object):
 		self.z_unit_vect = numpy.array([0,0,1])
 
 		# vector that will be filled to be compared to
-		self.focus_vector = numpy.array([1,1,1])
-		self.quad_assign = numpy.array([1,1,1])
-
-		# FOR TESTING ONLY RIGHT NOW
-		# height of display to be printed to 
-		# height and width will contain ueye camera dimensions eventually
-
+		self.focus_vector = numpy.array([0,00,0])
+		self.quad_assign = numpy.array([0,0,0])
+		
 		self.height  = 0
 		self.width  = 0
 		self.lidar_height = 0
 		self.lidar_width = 0
 		self.image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
-		self.blank_image = numpy.zeros((DISPLAY_SIZE[0]/2,DISPLAY_SIZE[1]/2))
+		self.blank_image = numpy.zeros((DISPLAY_SIZE[0],DISPLAY_SIZE[1]))
 
 		self.x_co_final = 0
 		self.y_co_final = 0
@@ -81,20 +79,33 @@ class lidar_theta(object):
 		self.y_theta = 0
 		self.z_theta = 0
 
+		self.data_persist_x = [PERSITANCE]
+		self.data_persist_y = [PERSITANCE]
+
 		self.bridge = CvBridge()
 
 		self.quadrant = 0
 
-		self.rate = rospy.Rate(1)
+		self.rate = rospy.Rate(2)
 		self.tf_listener = tf.TransformListener()
 		self.lock = threading.Lock()
 
+		self.magnitude = 0 
 		# starts main loop that constantly feeds from lidar
 		rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
 		rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
 		self.vison_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
 
-		
+	def persist_data(self):
+		if len(self.data_persist_x) > PERSITANCE:
+			diff = abs(len(self.data_persist_x) - PERSITANCE)
+		 	del self.data_persist_x[:diff]
+		 	del self.data_persist_y[:diff]
+
+		for i in range(1, len(self.data_persist_x)):
+			self.image[self.data_persist_x[i]][self.data_persist_y[i]] = 255
+			self.blank_image[self.data_persist_x[i]][self.data_persist_y[i]] = 255
+
 	def image_cb(self, data):
 		try:
 			self.cv_image = self.bridge.imgmsg_to_cv2(data, "bgr8")
@@ -108,15 +119,15 @@ class lidar_theta(object):
 		self.width_center = self.width/2
 		self.height_center = self.height/2
 
-		self.image = numpy.zeros((rows,cols))
-		self.blank_image = numpy.zeros((rows,cols))
-		self.image = self.cv_image		
-		
+		self.image = self.cv_image	
+		self.blank_image = numpy.zeros((self.height,self.width))
+			
 
 	def pointcloud_callback(self, msg):
 
+		
+		
 		self.lock.acquire()
-
 
 		res = []
 		try:
@@ -146,10 +157,16 @@ class lidar_theta(object):
 				# new point
 				xyz_point = next(pointcloud) 
 				x, y, z = xyz_point.point.x, xyz_point.point.y, xyz_point.point.z
-				print x,y,z
-				self.quad_assign = numpy.array([x, y, z]) 
+				self.quad_assign = numpy.array([y, z, x]) 
 				x, y, z = abs(xyz_point.point.x), abs(xyz_point.point.y), abs(xyz_point.point.z)
-				self.focus_vector = numpy.array([x, y, z]) 
+				self.focus_vector = numpy.array([y, z, x]) 
+
+				rospy.logdebug("Magnitude: ({})".format(round(self.magnitude)))
+				rospy.logdebug("Quadrant: {}".format(self.quadrant))
+				rospy.logdebug("Theta-")
+				rospy.logdebug("	x: {}".format(self.x_theta))
+				rospy.logdebug("	y: {}".format(self.y_theta))
+				rospy.logdebug("	z: {}".format(self.z_theta))
 
 				# solve for all angles in vector
 				self.solve_angles(1)
@@ -162,30 +179,58 @@ class lidar_theta(object):
 			except StopIteration:
 
 				# Publish Data in 2D
+				self.persist_data()
 				image_message = self.bridge.cv2_to_imgmsg(self.image, encoding="bgr8")
 				self.vison_fusion.publish(image_message)
-				self.rate.sleep()
+				#cv2.imshow("Window", self.blank_image)
+				#cv2.waitKey(3)
+				#self.rate.sleep()
 				self.lock.release()
 				break
 
+		'''
+
+		TESTING SECTION
+
+		for i in range(1,100):
+			x, y, z = i, i, i
+			self.quad_assign = numpy.array([y, z, x]) 
+			x, y, z = i, i, i
+			self.focus_vector = numpy.array([y, z, x]) 
+
+			# solve for all angles in vector
+			self.solve_angles(1)
+			self.solve_angles(2)
+			self.solve_angles(3)
+
+			rospy.logdebug("Magnitude: ({})".format(round(self.magnitude)))
+			rospy.logdebug("Quadrant: {}".format(self.quadrant))
+			rospy.logdebug("Theta-")
+			rospy.logdebug("	x: {}".format(self.x_theta))
+			rospy.logdebug("	y: {}".format(self.y_theta))
+			rospy.logdebug("	z: {}".format(self.z_theta))
+
+			self.quadrant_assign()
+			# map new vector to appropriate pixel on camera image
+			self.create_triangle() 
+			self.persist_data()
+			cv2.imshow("Window", self.blank_image)
+			cv2.waitKey(3)
+			self.rate.sleep()
+
+		'''
 
 	def quadrant_assign(self):
 		if (self.quad_assign[0] > 0) & (self.quad_assign[1] > 0): self.quadrant = 1
 		if (self.quad_assign[0] < 0) & (self.quad_assign[1] > 0): self.quadrant = 2
 		if (self.quad_assign[0] < 0) & (self.quad_assign[1] < 0): self.quadrant = 3
 		if (self.quad_assign[0] > 0) & (self.quad_assign[1] < 0): self.quadrant = 4
-		rospy.logdebug("Quadrant: {}".format(self.quadrant))
 
 	def solve_angles(self, obj_vect):
 		# buffer non-generic funtion used to decide which angle to solve for
 		if obj_vect == 1: self.x_theta = self.find_angle(self.x_unit_vect); #print self.x_theta 
 		if obj_vect == 2: self.y_theta = self.find_angle(self.y_unit_vect); #print self.y_theta 
-		if obj_vect == 3: self.z_theta = self.find_angle(self.x_unit_vect); #print self.z_theta 
-
-		rospy.logdebug("Theta-")
-		rospy.logdebug("	x: {}".format(self.x_theta))
-		rospy.logdebug("	y: {}".format(self.y_theta))
-		rospy.logdebug("	z: {}".format(self.z_theta))
+		if obj_vect == 3: self.z_theta = self.find_angle(self.z_unit_vect); #print self.z_theta 
 
 	def find_angle(self, obj_vect):
 		# refer to notes above for complete steps
@@ -199,43 +244,47 @@ class lidar_theta(object):
 	def create_triangle(self):
 		# generic function to create a triangle from each axis to map 3D -> 2D
 		if self.quadrant == 1:
-			x = int(math.tan(self.x_theta) * 1)
-			y = int(math.sin(self.y_theta) * 1)
+			x = math.tan(self.x_theta) * -self.magnitude
+			y = math.sin(self.y_theta) * self.magnitude
 		if self.quadrant == 2:
-			x = int(math.tan(self.x_theta) * -1)
-			y = int(math.sin(self.y_theta) * 1)
+			x = math.tan(self.x_theta) * self.magnitude
+			y = math.tan(self.y_theta) * -self.magnitude
 		if self.quadrant == 3:
-			x = int(math.tan(self.x_theta) * -1)
-			y = int(math.sin(self.y_theta) * -1)
+			x = math.tan(self.x_theta) * -self.magnitude
+			y = math.tan(self.y_theta) * self.magnitude
 		if self.quadrant == 4:
-			x = int(math.tan(self.x_theta) * 1)
-			y = int(math.sin(self.y_theta) * -1)
-
+			x = math.tan(self.x_theta) * self.magnitude
+			y = math.tan(self.y_theta) * -self.magnitude
 
 		x_final = x + self.height/2 
 		y_final = y + self.width/2
 
+		if x_final >= self.height or x_final < 0 : x_final = self.height - 1
+		if y_final >= self.width or y_final < 0 : y_final = self.width - 1
 
-
-		if x_final >= 640 or x_final < 0 : x_final = 639
-		if y_final >= 480 or y_final < 0 : y_final = 479
-
-
-		rospy.logdebug("Coordinates: ({}, {})".format(round(x_final, 2), round(y_final, 2)))
+		rospy.logdebug("Coordinates: ({}, {})".format(round(y_final - self.width/2, 2), round(x_final - self.height/2, 2)))
 
 		# plot those points to the screen
 
-		self.image[y_final][x_final] = 255
-		self.blank_image[y_final][x_final] = 255
+		for i in range(0,self.width):
+			self.blank_image[self.height_center][i] = 255
 
+		for i in range(0, self.height):
+			self.blank_image[i][self.width_center] = 255
+
+		self.image[x_final][y_final] = 255
+		self.blank_image[x_final][y_final] = 255
+
+		self.data_persist_x.append(x_final)
+		self.data_persist_y.append(y_final)
 
 	def find_magnitude(self, vector):
-		magnitude = math.sqrt(vector[0]*vector[0] +  vector[1]*vector[1] + vector[2]*vector[2])
-		return magnitude
+		self.magnitude = math.sqrt(vector[0]*vector[0] +  vector[1]*vector[1] + vector[2]*vector[2])
+		return self.magnitude
 
 if __name__ == '__main__':
 
-	rospy.init_node("vision_fusion", log_level=rospy.DEBUG)
+	rospy.init_node("vision_fusion") #log_level=rospy.DEBUG)
 	lidar = lidar_theta()
 	rospy.spin()
 

@@ -1,20 +1,28 @@
 #! /usr/bin/env python
 
 from __future__ import division
-from txros import util
+from txros import action, util, tf
 import boat_scripting
 import station_hold
 from std_msgs.msg import Bool 
 import rospy
-
+import numpy
+from legacy_vision import msg as legacy_vision_msg
+from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
+from tf import transformations
+import traceback
 
 
 @util.cancellableInlineCallbacks
-def main(self, camera, object_name, size_estimate, desired_distance, selector=lambda items, body_tf: items[0]):
-    goal_mgr = self._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
+def main(nh, camera, object_name, size_estimate, desired_distance, selector=lambda items, body_tf: items[0]):
+
+    boat = yield boat_scripting.get_boat(nh)
+
+    goal_mgr = boat._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
         object_names=[object_name],
     ))
-    start_pose = self.pose
+
+    start_pose = boat.pose
     start_map_transform = tf.Transform(
         start_pose.position, start_pose.orientation)
     try:
@@ -23,9 +31,9 @@ def main(self, camera, object_name, size_estimate, desired_distance, selector=la
             res = map(json.loads, feedback.targetreses[0].object_results)
             
             try:
-                transform = yield self._tf_listener.get_transform('/base_link',
+                transform = yield boat._tf_listener.get_transform('/base_link',
                     feedback.header.frame_id, feedback.header.stamp)
-                map_transform = yield self._tf_listener.get_transform('/enu',
+                map_transform = yield boat._tf_listener.get_transform('/enu',
                     '/base_link', feedback.header.stamp)
             except Exception:
                 traceback.print_exc()
@@ -64,15 +72,14 @@ def main(self, camera, object_name, size_estimate, desired_distance, selector=la
             print desired_pos, numpy.linalg.norm(error_pos)/6e-2
             
             if numpy.linalg.norm(error_pos) < 6e-2: # 6 cm
-                yield (self.move
+                yield (boat.move
                     .set_position(desired_pos)
                     .go())
-                
                 return
             
             # go towards desired position
-            self._moveto_action_client.send_goal(
+            boat._moveto_action_client.send_goal(
                 start_pose.set_position(desired_pos).as_MoveToGoal(speed=0.1)).forget()
     finally:
-        goal_mgr.cancel()
-        yield self.move.go() # stop moving
+        goal_mgr.util.cancel()
+        yield boat.move.go() # stop moving

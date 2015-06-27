@@ -39,6 +39,7 @@ from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
 from object_handling.msg import Buoys
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
+from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
 
 class _PoseProxy(object):
@@ -85,6 +86,8 @@ class _Boat(object):
 
         self._set_lidar_mode = self._node_handle.get_service_client('lidar/lidar_servo_mode', lidar_servo_mode)
 
+        self._set_path_planner_mode = self._node_handle.get_service_client('/azi_waypoint_mode', trajectory_mode)
+
         self._lidar_sub_raw = self._node_handle.subscribe('lidar/scan', LaserScan)
 
         self._lidar_sub_pointcloud = self._node_handle.subscribe('lidar/raw_pc', PointCloud2)
@@ -98,6 +101,8 @@ class _Boat(object):
         self._triangle_sub = self._node_handle.subscribe("Triangle_Sign" , Triangle)
 
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
+
+        self._current_challenge_pub = self._node_handle.advertise('current_challenge', String)
 
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
@@ -135,7 +140,7 @@ class _Boat(object):
     def move(self):
         return _PoseProxy(self, self.pose)
 
-    def pan_lidar(self, freq = 1.0, min_angle = 2.7, max_angle = 3.4):
+    def pan_lidar(self, freq = 0.75, min_angle = 2.7, max_angle = 3.4):
         self._set_lidar_mode(lidar_servo_modeRequest(
                     mode = lidar_servo_modeRequest.PAN,
                     freq = freq,
@@ -146,6 +151,9 @@ class _Boat(object):
         self._set_lidar_mode(lidar_servo_modeRequest(
                     mode = lidar_servo_modeRequest.STATIC,
                     nominal_angle = nominal_angle))
+
+    def switch_path_planner(self, mode):
+        self._set_path_planner_mode(trajectory_modeRequest(mode = mode))
     
     @util.cancellableInlineCallbacks
     def float(self):
@@ -217,11 +225,15 @@ class _Boat(object):
     @util.cancellableInlineCallbacks
     def hold_at_current_pos(self):
 
+        yield self.move.set_position(self.odom.position).go()
+
+        '''
         odom = yield self.get_gps_odom_rel()
         print odom
         odom_to_send = yield orientation_helpers.PoseEditor.from_Pose(odom.header.frame_id, odom.pose.pose)
         goal = yield odom_to_send.as_MoveToGoal()
         self._moveto_action_client.send_goal(goal)
+        '''
               
     @util.cancellableInlineCallbacks
     def get_shape_location(self, shape):
@@ -291,6 +303,9 @@ class _Boat(object):
     def get_ecef_pos(self):
         msg = yield self._absodom_sub.get_next_message()
         defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
+	
+	def set_current_challenge(self,challenge):
+		self._current_challenge_pub.publish(challenge)    
     
     
 _boats = {}

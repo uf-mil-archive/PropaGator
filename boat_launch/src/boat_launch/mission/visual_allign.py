@@ -1,15 +1,23 @@
 #! /usr/bin/env python
 
 from __future__ import division
-from txros import util
+from txros import action, util, tf
 import boat_scripting
 import station_hold
 from std_msgs.msg import Bool 
 import rospy
+import numpy
+from legacy_vision import msg as legacy_vision_msg
+from uf_common.msg import MoveToAction, MoveToGoal, PoseTwistStamped, Float64Stamped
+from tf import transformations
+import traceback
 
 
 @util.cancellableInlineCallbacks
-def main(self, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):
+def main(nh, camera, object_name, distance_estimate, selector=lambda items, body_tf: items[0], turn=True):
+
+    boat = yield boat_scripting.get_boat(nh)
+
     goal_mgr = self._camera_2d_action_clients[camera].send_goal(legacy_vision_msg.FindGoal(
         object_names=[object_name],
     ))

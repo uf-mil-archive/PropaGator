@@ -5,7 +5,7 @@ from tools import line
 import rospy
 import numpy as np
 from uf_common.msg import PoseTwist
-from geometry_msgs.msg import Pose, Twist
+from geometry_msgs.msg import Pose, Twist, Vector3, Point
 import math
 from geometry_msgs.msg import Vector3
 from uf_common.orientation_helpers import xyz_array
@@ -16,7 +16,18 @@ import tf
 from heapq import heappush, heappop # for priority queue
 import math
 import time
+'''
+The a_star algoritm returns a string of numbers representing the optimal path
+each step is represented by a number from 0 to 7
+after each iteraton of the algoritim the trajectory generator passes the first step of the path 
+as an /enu point
+boat = >
+__________
+|5_|6_|7_|
+|4_|>_|0_|
+|3_|2_|1_|
 
+'''
 """
     This class implements a simple reactive path planner
         The generation is as follows:
@@ -30,12 +41,17 @@ class a_star_rpp:
         # Desired pose
         self.desired_position = self.current_position = np.zeros(3)
         self.desired_orientation = self.current_orientation = np.zeros(3)
-
         # Region deffinitions
         self.orientation_radius = rospy.get_param('orientation_radius', 1)
         self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
-
-
+        self.xyz_point = [0,0,0]
+        self.listener = tf.TransformListener()
+        self.cell_dir_tf = {'0':'/step0',
+                            'z':'/step1',
+                            '1':'/step2',
+                            '3':'/step6',
+                            '7':'/step7'}
+            
     # Accept a new goal in the form of a posetwist
     def new_goal(self, goal):
         self.desired_position = tools.position_from_posetwist(goal)
@@ -75,32 +91,46 @@ class a_star_rpp:
         # Project current position onto trajectory line
         #Bproj = self.line.proj_pt(self.current_position)
         distance = np.linalg.norm(self.desired_position - self.current_position)
-
-
+        step_angle = {'0':self.line.angle, 
+                      '3':self.line.angle+np.pi/3, 
+                      '1':self.line.angle-np.pi/3}
         # Move carrot along line
         #tracking_step = self.get_tracking_distance()
-        print "self.map_builder()" 
-        print self.map_builder()
-        c_pos = self.current_position # + [1,0,0]
-        print 'c_pos1',c_pos
-        velocity = 1
+        print "decision" 
+        decision = self.map_builder()
+        print decision
+
+        if decision in self.cell_dir_tf.keys():
+            c_pos = self.look_up_step(self.cell_dir_tf[decision])
+            c_angle = step_angle[decision]
+            #print 'c_pos', c_pos, type(c_pos)
+            c_pos=tools.vector3_from_xyz_array(c_pos)
+
+        else:  
+            c_pos = tools.vector3_from_xyz_array(self.current_position)
+            c_angle =  self.line.angle#self.line.angle
+        
         # If bproj is in threashold just set the carrot to the final position
         if distance < 0.5:
-            c_pos = self.desired_position
-            velocity = 0
-        print 'c_pos2',c_pos
-
+            c_pos = tools.vector3_from_xyz_array(self.current_position)
+            c_angle =  self.line.angle
+        #print 'c_pos start'
+        #print 'c_pos type', type(c_pos)
+        #print c_pos
+        #print 'c_pos end'
         # Fill up PoseTwist
+        print 'self.line.angle', self.line.angle
+        print 'c_angle', c_angle
         carrot = PoseTwist(
                 pose = Pose(
-                    position = tools.vector3_from_xyz_array(c_pos),
-                    orientation = tools.quaternion_from_rotvec([0, 0, self.line.angle])),
+                    position = (c_pos),
+                    orientation = tools.quaternion_from_rotvec([0, 0, c_angle])),
 
                 twist = Twist(
-                    linear = Vector3(velocity, 0, 0),        # Wrench Generator handles the sine of the velocity
+                    linear = Vector3(0, 0, 0),        
                     angular = Vector3())
                 )
-        print 'carrot', carrot
+        #print 'carrot', carrot
         return carrot
 
     # Stop this path planner
@@ -130,16 +160,22 @@ class a_star_rpp:
         while True:
             try:
                 # new point
-                xyz_point = next(pointcloud) 
-                print xyz_point
+                point = next(pointcloud) - self.current_position
+                self.xyz_point[0]=abs(int(math.trunc(point[0])))
+                self.xyz_point[1]=abs(int(math.trunc(point[1]))+10)
+                self.xyz_point[2]=0
+                #self.xyz_point = point
+                #print xyz_point
             # When the last point has been processed
             except StopIteration:
                 break
+        print 'self.xyz_point', self.xyz_point
+        return self.xyz_point
 
     def map_builder(self):
         # MAIN
 
-        dirs = 8 # number of possible directions to move on the map
+        dirs = 4 # number of possible directions to move on the map
         if dirs == 4:
             dx = [1, 0, -1, 0]
             dy = [0, 1, 0, -1]
@@ -154,12 +190,17 @@ class a_star_rpp:
         for i in range(m): # create empty map
             the_map.append(list(row))
 
+        #obstacles = self.raw_pc_sub
         # fillout the map with a '+' pattern
-        for x in range(n / 8, n * 7 / 8):
-            the_map[m / 2][x] = 1
-        for y in range(m/8, m * 7 / 8):
-            the_map[y][n / 2] = 1
-
+        #for i in len(obstacles):
+            #the_map[obstacles[i].x][obstacles[i].y] = 1
+        print self.xyz_point
+        if self.xyz_point != None and 0 < self.xyz_point[0] < 20 and 0 < self.xyz_point[1] < 20:
+            the_map[self.xyz_point[1]][self.xyz_point[0]] = 1
+            the_map[self.xyz_point[1]+1][self.xyz_point[0]] = 1
+            the_map[self.xyz_point[1]][self.xyz_point[0]+1] = 1
+            the_map[self.xyz_point[1]+1][self.xyz_point[0]+1] = 1
+        print self.xyz_point
 
         (xA, yA, xB, yB) = [0, int(round(n/2)), abs(int(round(self.desired_position[0]-self.current_position[0]))), int(round(self.desired_position[1]-self.current_position[1] + n/2))]
         '''
@@ -170,9 +211,9 @@ class a_star_rpp:
         '''
         route = self.pathFind(the_map, n, m, dirs, dx, dy, xA, yA, xB, yB)
         print 'Route: ', '(', route, ')'
-        return route
-        
-        
+        if len(route)>0:
+            return route[0]
+                
         # mark the route on the map
         if len(route) > 0:
             x = xA
@@ -186,6 +227,7 @@ class a_star_rpp:
             the_map[y][x] = 4
 
         # display the map with the route added
+        
         print 'Map:'
         for y in range(m):
             for x in range(n):
@@ -201,8 +243,7 @@ class a_star_rpp:
                 elif xy == 4:
                     print 'F', # finish
             print
-
-        raw_input('Press Enter...')
+        
         
     # A-star algorithm.
     # The path returned will be a string of digits of directions.
@@ -296,6 +337,17 @@ class a_star_rpp:
                         pqi = 1 - pqi
                         heappush(pq[pqi], m0) # add the better node instead
         return '' # if no route found
+    
+    def look_up_step(self, name):
+        #rospy.init_node('step_listner')
+        while not rospy.is_shutdown():
+            try:
+                step, _ = self.listener.lookupTransform('/enu', name, rospy.Time()) 
+                return step
+            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+                continue
+
+
 
 
 
@@ -326,3 +378,6 @@ class node:
         # Chebyshev distance
         # d = max(abs(xd), abs(yd))
         return(d)
+
+
+    

@@ -1,0 +1,8 @@
+<launch>
+   	
+  
+	<node pkg="server_interaction" type="image_info_sender.py" name="send_image_info_server" output="screen" />
+	<node pkg="server_interaction" type="pinger_buoy_color_sender.py" name="buoy_color_sender" output="screen" />	
+	
+
+ </launch>
