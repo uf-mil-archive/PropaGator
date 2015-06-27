@@ -25,7 +25,7 @@ def main():
 	mainurl_pub = rospy.Publisher('main_server_url', String, queue_size=10)
 	coursecode_pub = rospy.Publisher('course_code', String, queue_size=10)
 	rospy.init_node('url_challenge_course_provider')
-	rate = rospy.Rate(1)
+	rate = rospy.Rate(2)
 
 	while not rospy.is_shutdown():
 		

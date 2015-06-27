@@ -4,11 +4,12 @@ import rospy
 import roslib
 roslib.load_manifest('server_interaction')
 from server_interaction.srv import start_end_run
+import sys
 
 # This is an example of a client code to send "start run"
 # or "end run" on call to the competition server
 
-def start_end_run_client():
+def start_end_run_client(argv):
 	#wait until the service is available
 	rospy.wait_for_service('send_start_end_run')
 
@@ -19,7 +20,10 @@ def start_end_run_client():
 		#passing an argument to the service
 		#The argument would be 'start' if starting a run
 		#or 'end' if ending a run
-		response = sendStatus('end')
+		start_or_end = str(sys.argv[1])
+		print "Request sent to server:"
+		print sys.argv[1] 
+		response = sendStatus(start_or_end)
 		#print the response from the service. This is a boolean
 		#based on what the server returned: either true or false.
 		#As per the rules, return from server is false if run is void
@@ -37,4 +41,4 @@ def start_end_run_client():
 
 if __name__ == '__main__':
 	
-	start_end_run_client()			
+	start_end_run_client(sys.argv)			
