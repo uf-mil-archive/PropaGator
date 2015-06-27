@@ -9,6 +9,7 @@ import rospy
 import boat_scripting
 import traceback
 from boat_launch.mission import start_gate_vision, find_circle, find_cross, find_triangle, go_to_ecef_pos
+from rawgps_common import gps
 
 SPEED = 1
 
@@ -25,6 +26,10 @@ NORTH = np.pi/2
 EAST = 0
 SOUTH = (3*np.pi)/2
 WEST = np.pi
+
+# TODO: Move this to some common place to be used across files
+def ll(lat, lon):
+    return gps.ecef_from_latlongheight(math.radians(lat), math.radians(lon), 0)
 
 # LAKE WAYPOINTS
 
@@ -45,7 +50,7 @@ def do_dock(nh, shape):
 			print "Docking --- circle"
 			yield util.wrap_timeout(find_circle.main(nh), CIRCLE_TIME)
 		except Exception:
-            yield boat.move.forward(-6).go()
+			yield boat.move.forward(-6).go()
 			print "Could not find circle, moving  to next shape"
 
 	if shape == 'triangle':
@@ -53,7 +58,7 @@ def do_dock(nh, shape):
 			print "Docking --- triangle"
 			yield util.wrap_timeout(find_triangle.main(nh), TRIANGLE_TIME)
 		except Exception:
-            yield boat.move.forward(-6).go()
+			yield boat.move.forward(-6).go()
 			print "Could not find triangle, moving to next shape"
 
 	if shape == 'cross':
@@ -61,7 +66,7 @@ def do_dock(nh, shape):
 			print "Docking --- cross"
 			yield util.wrap_timeout(find_cross.main(nh), CROSS_TIME)
 		except Exception:
-            yield boat.move.forward(-6).go()
+			yield boat.move.forward(-6).go()
 			print "Could not find cross, moving to next shape"
 
 
@@ -88,7 +93,7 @@ def main(nh):
 	print "Moving to first position: ", WAYPOINT_A
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED) ECEF_TIME)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ECEF_TIME)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at first position"
 	except Exception:
@@ -106,14 +111,14 @@ def main(nh):
 	print "Moving to safe position now: ", WAYPOINT_F
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED) ONE_MINUTE)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED), ONE_MINUTE)
 		yield boat.move.heading(SOUTH).go()
 		print "Moved to " + WAYPOINT_F + ", now moving to " + WAYPOINT_E + " to begin docking"
 	except Exception:
 		print "Could not make it to second position in " + ONE_MINUTE + " seconds"
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED) ONE_MINUTE)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED), ONE_MINUTE)
 		yield boat.move.heading(EAST).go()
 		print "Moved to " + WAYPOINT_E + ", starting docking challenge"
 	except Exception:
@@ -143,7 +148,7 @@ def main(nh):
 	print "Moving back to startate begining position", WAYPOINT_A
 
 	try:
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED) ONE_MINUTE)
+		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ONE_MINUTE)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at ", WAYPOINT_A
 	except Exception:
