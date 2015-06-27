@@ -104,7 +104,7 @@ class _Boat(object):
 
 		self._current_challenge_pub = self._node_handle.advertise('current_challenge', String)
 	
-	self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
+		self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
 		# Make sure trajectory topic is publishing 
 		if(need_trajectory == True):
@@ -154,7 +154,7 @@ class _Boat(object):
 		response = self.float_srv(AziFloatRequest(True))	
 
 	def float_off(self):
-	response = self.float_srv(AziFloatRequest(False))
+		response = self.float_srv(AziFloatRequest(False))
 	
 	@util.cancellableInlineCallbacks
 	def wait_for_bump(self):
