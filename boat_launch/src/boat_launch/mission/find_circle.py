@@ -110,7 +110,9 @@ def main(nh):
 
         if farthest_distance >= 5: yield boat.move.forward(avg_distance).go()
         if farthest_distance > 1 and farthest_distance < 5: yield boat.move.forward(shortest_distance).go()
-        if farthest_distance <= 1: break
+        if farthest_distance <= 1: 
+            yield boat.move.forward(-6).go()
+            return True
 
         # Print only if a move is commanded
         print "Moving forward " + shortest_distance + " meters"
