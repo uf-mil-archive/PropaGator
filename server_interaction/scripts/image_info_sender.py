@@ -106,6 +106,7 @@ def send_image_info_server():
 	rospy.Subscriber('main_server_url', String, StoreServerUrl)
 	s = rospy.Service('send_image_info', image_info, SendImageInfo)
 	print('Ready to receive image info')
+	print (" ")
 	rospy.spin()
 
 if __name__ == '__main__':	
