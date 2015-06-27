@@ -78,7 +78,7 @@ def SendStartEndRun(runStatus):
 		else:
 			print "\033[0;31m%s\033[0m" %r.status_code
 			print(" ")
-		print "Information retuned by sever: "	
+		print "Information retuned by server: "	
 		print r.text
 		print (" ")
 		print("Did the server authorize the run to end?")

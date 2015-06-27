@@ -105,7 +105,7 @@ def send_image_info_server():
 	rospy.Subscriber('course_code', String, StoreCourseInfo)
 	rospy.Subscriber('main_server_url', String, StoreServerUrl)
 	s = rospy.Service('send_image_info', image_info, SendImageInfo)
-	print('ready to receive image info')
+	print('Ready to receive image info')
 	rospy.spin()
 
 if __name__ == '__main__':	
