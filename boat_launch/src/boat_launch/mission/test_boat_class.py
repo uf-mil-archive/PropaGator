@@ -12,8 +12,32 @@ def ll(lat, lon):
 def main(nh, location='lake_alice'):
 	boat = yield boat_scripting.get_boat(nh)
 
-	#boat.pan_lidar(freq = 2, min_angle = 2.9, max_angle=3.14)
-	yield go_to_ecef_pos.main(nh, ll(36.80190, -76.19136))
+	boat.set_current_challenge('Go to place')
+
+	print 'pan_lidar'
+	boat.pan_lidar(freq = 2, min_angle = 2.9, max_angle=3.14)
+
+	print 'Switch pp to point_shoot_pp'
+	boat.switch_path_planner('point_shoot_pp')
+
+	print 'Go to 36.80190, -76.19136'
+	go_place = go_to_ecef_pos.main(nh, ll(36.80190, -76.19136))
+
+
+
+	print 'sleep 3 sec'
+	yield util.sleep(3)
+	print 'float'
+	boat.float_on()
+	print 'sleep 3'
+	yield util.sleep(3)
+	print 'float off'
+	boat.float_off()
+
+	print 'Wait to get to 36.80190, -76.19136'
+	yield go_place
+
+	boat.set_current_challenge('Pace')
 
 	while True:
 		for i in xrange(0,3):
@@ -27,4 +51,5 @@ def main(nh, location='lake_alice'):
 			print "yield boat.move.forward(2).go()"
 			yield boat.move.forward(2).go()
 
-	#boat.still_lidar(nominal_angle=2.8)
+	print 'still lidar'
+	boat.still_lidar(nominal_angle=2.8)
