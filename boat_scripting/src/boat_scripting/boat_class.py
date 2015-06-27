@@ -307,7 +307,7 @@ _boats = {}
 def get_boat(node_handle, need_trajectory=True, need_odom=True):
     if node_handle not in _boats:
         _boats[node_handle] = None # placeholder to prevent this from happening reentrantly
-        _boats[node_handle] = yield _Boat(node_handle)._init(need_trajectory)
+        _boats[node_handle] = yield _Boat(node_handle)._init(need_trajectory, need_odom)
         # XXX remove on nodehandle shutdown
     defer.returnValue(_boats[node_handle])
 
