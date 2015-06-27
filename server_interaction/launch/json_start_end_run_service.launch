@@ -1,5 +1,0 @@
-<launch>
-   	
-   	<node pkg="server_interaction" type="start_end_run.py" name="start_end_run_sender" output="screen" />
-
- </launch>

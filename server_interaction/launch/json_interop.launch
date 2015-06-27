@@ -1,7 +1,0 @@
-<launch>
-   	
-	<node pkg="server_interaction" type="heartbeat_sender.py" name="heartbeat" output="screen" />
-	<node pkg="server_interaction" type="image_info_sender.py" name="send_image_info_server" output="screen" />	
-	<node pkg="server_interaction" type="server_image_getter.py" name="from_server_image_getter" output="screen" />
-
- </launch>
