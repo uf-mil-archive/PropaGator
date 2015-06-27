@@ -294,7 +294,7 @@ class _Boat(object):
 	
 _boats = {}
 @util.cancellableInlineCallbacks
-def get_boat(node_handle, need_trajectory=True):
+def get_boat(node_handle, need_trajectory=True, need_odom=True):
 	if node_handle not in _boats:
 		_boats[node_handle] = None # placeholder to prevent this from happening reentrantly
 		_boats[node_handle] = yield _Boat(node_handle)._init(need_trajectory)
