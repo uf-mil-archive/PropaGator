@@ -12,16 +12,23 @@ from uf_common.orientation_helpers import xyz_array
 import sensor_msgs.point_cloud2 as pc2
 from sensor_msgs.msg import PointCloud2
 import tf
+import threading
 
 from heapq import heappush, heappop # for priority queue
 import math
-import time
 '''
 The a_star algoritm returns a string of numbers representing the optimal path
 each step is represented by a number from 0 to 7
 after each iteraton of the algoritim the trajectory generator passes the first step of the path 
 as an /enu point
 boat = >
+if dirs == 8:
+__________
+|5_|6_|7_|
+|4_|>_|0_|
+|3_|2_|1_|
+
+if dirs == 4:
 __________
 |5_|6_|7_|
 |4_|>_|0_|
@@ -44,14 +51,19 @@ class a_star_rpp:
         # Region deffinitions
         self.orientation_radius = rospy.get_param('orientation_radius', 1)
         self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
+        self.pc_to_keep = 8
+        self.pc_count = 0
+        self.store_pc = []
         self.xyz_point = [0,0,0]
+        self.store_points = [[0,0,0]]*386
         self.listener = tf.TransformListener()
         self.cell_dir_tf = {'0':'/step0',
                             'z':'/step1',
                             '1':'/step2',
                             '3':'/step6',
                             '7':'/step7'}
-            
+        self.lock = threading.Lock()
+    
     # Accept a new goal in the form of a posetwist
     def new_goal(self, goal):
         self.desired_position = tools.position_from_posetwist(goal)
@@ -92,8 +104,11 @@ class a_star_rpp:
         #Bproj = self.line.proj_pt(self.current_position)
         distance = np.linalg.norm(self.desired_position - self.current_position)
         step_angle = {'0':self.line.angle, 
-                      '3':self.line.angle+np.pi/3, 
-                      '1':self.line.angle-np.pi/3}
+                      '3':self.line.angle+np.pi/4, 
+                      '1':self.line.angle-np.pi/4}
+        x_velocity = {'0':2, 
+                      '3':1, 
+                      '1':1}
         # Move carrot along line
         #tracking_step = self.get_tracking_distance()
         print "decision" 
@@ -102,14 +117,15 @@ class a_star_rpp:
 
         if decision in self.cell_dir_tf.keys():
             c_pos = self.look_up_step(self.cell_dir_tf[decision])
-            c_angle = step_angle[decision]
-            #print 'c_pos', c_pos, type(c_pos)
             c_pos=tools.vector3_from_xyz_array(c_pos)
+            c_angle = step_angle[decision]
+            c_velocity = x_velocity[decision]
+            #print 'c_pos', c_pos, type(c_pos)
 
         else:  
             c_pos = tools.vector3_from_xyz_array(self.current_position)
             c_angle =  self.line.angle#self.line.angle
-        
+            c_velocity = 0
         # If bproj is in threashold just set the carrot to the final position
         if distance < 0.5:
             c_pos = tools.vector3_from_xyz_array(self.current_position)
@@ -127,7 +143,7 @@ class a_star_rpp:
                     orientation = tools.quaternion_from_rotvec([0, 0, c_angle])),
 
                 twist = Twist(
-                    linear = Vector3(0, 0, 0),        
+                    linear = Vector3(c_velocity, 0, 0),        
                     angular = Vector3())
                 )
         #print 'carrot', carrot
@@ -155,22 +171,45 @@ class a_star_rpp:
         self.redraw_line = False
 
     def pointcloud_callback(self, msg):
+        #print 'lockup'
+        #self.lock.acquire()
+
         pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
         # While there are points in the cloud to read...
+
+        if self.pc_count!=self.pc_to_keep:
+            self.pc_count=self.pc_count+1
+        else:self.store_pc.pop(0)
+        
         while True:
             try:
                 # new point
                 point = next(pointcloud) - self.current_position
-                self.xyz_point[0]=abs(int(math.trunc(point[0])))
-                self.xyz_point[1]=abs(int(math.trunc(point[1]))+10)
+                self.xyz_point[0]=abs(int(math.trunc(point[0])))+5
+                self.xyz_point[1]=abs(int(math.trunc(point[1])))+15
                 self.xyz_point[2]=0
+                #print 'self.xyz_point', self.xyz_point
+                
+                self.store_points.append(list(self.xyz_point))
+                self.store_points.pop(0)
+                
+                
+                #print self.store_points
+
                 #self.xyz_point = point
                 #print xyz_point
             # When the last point has been processed
             except StopIteration:
+                #print self.store_points
+
+                #self.lock.release()
+                #print 'lockrel'
                 break
-        print 'self.xyz_point', self.xyz_point
-        return self.xyz_point
+        self.store_pc.append(list(self.store_points))
+  
+
+        #print 'self.store_points', self.store_points
+        #return self.xyz_point
 
     def map_builder(self):
         # MAIN
@@ -183,26 +222,48 @@ class a_star_rpp:
             dx = [1, 1, 0, -1, -1, -1, 0, 1]
             dy = [0, 1, 1, 1, 0, -1, -1, -1]
 
-        n = 20# horizontal size of the map
-        m = 20# vertical size of the map
+        n = 30# horizontal size of the map
+        m = 30# vertical size of the map
         the_map = []
         row = [0] * n
         for i in range(m): # create empty map
             the_map.append(list(row))
-
         #obstacles = self.raw_pc_sub
         # fillout the map with a '+' pattern
         #for i in len(obstacles):
             #the_map[obstacles[i].x][obstacles[i].y] = 1
-        print self.xyz_point
-        if self.xyz_point != None and 0 < self.xyz_point[0] < 20 and 0 < self.xyz_point[1] < 20:
-            the_map[self.xyz_point[1]][self.xyz_point[0]] = 1
-            the_map[self.xyz_point[1]+1][self.xyz_point[0]] = 1
-            the_map[self.xyz_point[1]][self.xyz_point[0]+1] = 1
-            the_map[self.xyz_point[1]+1][self.xyz_point[0]+1] = 1
-        print self.xyz_point
-
-        (xA, yA, xB, yB) = [0, int(round(n/2)), abs(int(round(self.desired_position[0]-self.current_position[0]))), int(round(self.desired_position[1]-self.current_position[1] + n/2))]
+        #print 'xyz_point', self.store_points
+        #for i in len(self.store_points):
+        #the_map[self.store_points[i][1]][self.store_points[i][2]] = 1 
+        #print 'self.store_points', self.store_points
+        #print 'self.xyz_point', self.xyz_point
+        i=0
+        j=0
+        k=0
+        a=0
+        print 'store pc: ', self.store_pc
+        if self.pc_count != 0:
+            for x in range(0,self.pc_count):
+                point_cloud = self.store_pc[x]
+                for k in range(0, len(point_cloud)):
+                    point = point_cloud[k]
+                    if point != None and len(point) > 1 and 0 < point[0] < 29 and 0 < point[1] < 29:
+                        the_map[point[1]][point[0]] = 1
+                        #the_map[self.xyz_point[1]-1][self.xyz_point[0]] = 1
+                        #the_map[self.xyz_point[1]][self.xyz_point[0]-1] = 1
+                        #the_map[self.xyz_point[1]-1][self.xyz_point[0]-1] = 1
+        else:
+            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
+            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
+            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
+            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
+            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
+        #print self.xyz_point
+        
+        (xA, yA, xB, yB) = [5, 
+                            int(round(n/2)), 
+                            5+abs(int(round(self.desired_position[0]-self.current_position[0]))), 
+                            int(round(self.desired_position[1]-self.current_position[1] + n/2))]
         '''
         print 'Map size (X,Y): ', n, m
         print 'Start: ', xA, yA
