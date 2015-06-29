@@ -22,6 +22,10 @@ Forward is x-positive, right is y-positive, down is z-positive. According to nau
     rosrun azi_drive azi_drive_node.py
     rosrun azi_drive control_manager.py  # Run this in a seperate window, this will stop the thrusters if you manually interrupt Azi_Drive (CTRL+C)
 
+ The azi_waypoint trajectory generator is configured using a service to recive breadcrums from multiple sources. This can be done in missions using a function defined in the boat class as well as from the command line 
+
+ 	rosservice call /azi_waypoint_mode "mode: 'MODE'"
+
 To visualize, run
     rosrun azi_drive visualize_azi_drive.py
 
