@@ -38,6 +38,9 @@ __________
 """
     This class implements a simple reactive path planner
         The generation is as follows:
+            The algorithim takes in a current position, a desired position, 
+            posible movements(dirs), and occupied nodes and finds an optimal path 
+            from the start to finish as a series of steps
             
 
 """
@@ -48,22 +51,35 @@ class a_star_rpp:
         # Desired pose
         self.desired_position = self.current_position = np.zeros(3)
         self.desired_orientation = self.current_orientation = np.zeros(3)
-        # Region deffinitions
+        # Positional tolerance
         self.orientation_radius = rospy.get_param('orientation_radius', 1)
+        
+        #Management of occupied points
+        '''The points are taken in through the pointcloud_callback which has a generator 
+           that iterates through the PointCloud2 message and converts each point in the message into an occupancy grid coordinant 
+           and adds it to a list called store_points 
+           this list is then added to a list called store_pc
+        '''
         self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
         self.pc_to_keep = 8
         self.pc_count = 0
         self.store_pc = []
         self.xyz_point = [0,0,0]
         self.store_points = [[0,0,0]]*386
+
+        #Management of movement steps
+        '''Static tf broadcasters in the azi launch file keep track of the /enu coordinants of the cells surounding the boat
+           the step decision references a tf listner which generates a desired position of the boat which is passed to azi_waypoint 
+           which publishes it to the trajectory topic
+        '''
         self.listener = tf.TransformListener()
         self.cell_dir_tf = {'0':'/step0',
                             'z':'/step1',
                             '1':'/step2',
                             '3':'/step6',
                             '7':'/step7'}
-        self.lock = threading.Lock()
     
+
     # Accept a new goal in the form of a posetwist
     def new_goal(self, goal):
         self.desired_position = tools.position_from_posetwist(goal)
@@ -86,10 +102,7 @@ class a_star_rpp:
         # Zero the Z
         self.current_position[2] = 0
         self.current_orientation = tools.orientation_from_posetwist(pt)
-        # Get distance to the goal
-        #vector_to_goal = self.desired_position - self.current_position
-        #self.distance_to_goal = np.linalg.norm(vector_to_goal)
-
+        
     # Update the trajactory and return a posetwist
     def update(self):
         '''
@@ -100,18 +113,15 @@ class a_star_rpp:
             self.line = line(self.desired_position, tools.normal_vector_from_rotvec(self.desired_orientation) + self.desired_position)
         '''
         # Output a posetwist (carrot)
-        # Project current position onto trajectory line
-        #Bproj = self.line.proj_pt(self.current_position)
         distance = np.linalg.norm(self.desired_position - self.current_position)
+        #angles so the boat isnt asked to straif too severly
         step_angle = {'0':self.line.angle, 
                       '3':self.line.angle+np.pi/4, 
                       '1':self.line.angle-np.pi/4}
         x_velocity = {'0':2, 
                       '3':1, 
                       '1':1}
-        # Move carrot along line
-        #tracking_step = self.get_tracking_distance()
-        print "decision" 
+        
         decision = self.map_builder()
         print decision
 
@@ -120,7 +130,6 @@ class a_star_rpp:
             c_pos=tools.vector3_from_xyz_array(c_pos)
             c_angle = step_angle[decision]
             c_velocity = x_velocity[decision]
-            #print 'c_pos', c_pos, type(c_pos)
 
         else:  
             c_pos = tools.vector3_from_xyz_array(self.current_position)
@@ -130,13 +139,7 @@ class a_star_rpp:
         if distance < 0.5:
             c_pos = tools.vector3_from_xyz_array(self.current_position)
             c_angle =  self.line.angle
-        #print 'c_pos start'
-        #print 'c_pos type', type(c_pos)
-        #print c_pos
-        #print 'c_pos end'
-        # Fill up PoseTwist
-        print 'self.line.angle', self.line.angle
-        print 'c_angle', c_angle
+
         carrot = PoseTwist(
                 pose = Pose(
                     position = (c_pos),
@@ -146,7 +149,6 @@ class a_star_rpp:
                     linear = Vector3(c_velocity, 0, 0),        
                     angular = Vector3())
                 )
-        #print 'carrot', carrot
         return carrot
 
     # Stop this path planner
@@ -171,8 +173,6 @@ class a_star_rpp:
         self.redraw_line = False
 
     def pointcloud_callback(self, msg):
-        #print 'lockup'
-        #self.lock.acquire()
 
         pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
         # While there are points in the cloud to read...
@@ -185,26 +185,18 @@ class a_star_rpp:
             try:
                 # new point
                 point = next(pointcloud) - self.current_position
+                #convert point to a_star map coordinates
                 self.xyz_point[0]=abs(int(math.trunc(point[0])))+5
                 self.xyz_point[1]=abs(int(math.trunc(point[1])))+15
                 self.xyz_point[2]=0
-                #print 'self.xyz_point', self.xyz_point
-                
+                #add point to list of points
                 self.store_points.append(list(self.xyz_point))
                 self.store_points.pop(0)
-                
-                
-                #print self.store_points
 
-                #self.xyz_point = point
-                #print xyz_point
             # When the last point has been processed
             except StopIteration:
-                #print self.store_points
-
-                #self.lock.release()
-                #print 'lockrel'
                 break
+        
         self.store_pc.append(list(self.store_points))
   
 
@@ -228,15 +220,7 @@ class a_star_rpp:
         row = [0] * n
         for i in range(m): # create empty map
             the_map.append(list(row))
-        #obstacles = self.raw_pc_sub
-        # fillout the map with a '+' pattern
-        #for i in len(obstacles):
-            #the_map[obstacles[i].x][obstacles[i].y] = 1
-        #print 'xyz_point', self.store_points
-        #for i in len(self.store_points):
-        #the_map[self.store_points[i][1]][self.store_points[i][2]] = 1 
-        #print 'self.store_points', self.store_points
-        #print 'self.xyz_point', self.xyz_point
+        
         i=0
         j=0
         k=0
@@ -249,27 +233,14 @@ class a_star_rpp:
                     point = point_cloud[k]
                     if point != None and len(point) > 1 and 0 < point[0] < 29 and 0 < point[1] < 29:
                         the_map[point[1]][point[0]] = 1
-                        #the_map[self.xyz_point[1]-1][self.xyz_point[0]] = 1
-                        #the_map[self.xyz_point[1]][self.xyz_point[0]-1] = 1
-                        #the_map[self.xyz_point[1]-1][self.xyz_point[0]-1] = 1
         else:
-            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
-            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
-            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
-            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
-            print 'NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS NO POINTS '
-        #print self.xyz_point
-        
+            print 'NO POINTS'
+        #the placing of the current position and the desired position on the occupancy grid    
         (xA, yA, xB, yB) = [5, 
                             int(round(n/2)), 
                             5+abs(int(round(self.desired_position[0]-self.current_position[0]))), 
                             int(round(self.desired_position[1]-self.current_position[1] + n/2))]
-        '''
-        print 'Map size (X,Y): ', n, m
-        print 'Start: ', xA, yA
-        print 'Finish: ', xB, yB
-        t = time.time()
-        '''
+                            
         route = self.pathFind(the_map, n, m, dirs, dx, dy, xA, yA, xB, yB)
         print 'Route: ', '(', route, ')'
         if len(route)>0:
