@@ -1,5 +1,3 @@
-from __future___ import division 
-
 import math 
 import traceback 
 from txros import util 
@@ -11,8 +9,9 @@ from geometry_msgs.msg import Point
 
 import boat_scripting
 from rawgps_common import gps
+from boat_launch.mission import hydrophone_align
 
-freq = [27E3, 32E3]
+freq = [27E3, 40E3]
 course_alice = [29.641341, -82.361133]
 
 @util.cancellableInlineCallbacks
@@ -22,29 +21,33 @@ def _send_result(course, lat, lon):
     pass
 
 @util.cancellableInlineCallbacks 
-def main(nh, course=course_alice, freq=freq): 
+def main(nh, course=course_alice, freq=freq):
     # nh = Node Handler from txros
     # course = Set of GPS points 
     # freq = 27440 Remnant from previous mission file. I don't really know why this is here.
     boat = yield boat_scripting.get_boat(nh)
-    print "Beginning ping mission" 
-    print "Deploying hydrophone..."
-    yield boat.deploy_hydrophone()
-    print "Hydrophone has been deployed"
-	
+
     try:
-        util.wrap_timeout(boat.hydrophone_align.main(nh, freq), 60*2)
-    except Exception:
-	traceback.print_exc()
-    print "Ping mission has finished"
+        print "Beginning ping mission" 
+        print "Deploying hydrophone..."
+        yield boat.deploy_hydrophone()
+        print "Hydrophone has been deployed"
+        
+        try:
+            yield util.wrap_timeout(hydrophone_align.main(nh, freq), 60*2)
+        except Exception:
+            traceback.print_exc()
+        print "Ping mission has finished"
 
-    msg = yield bot.get_gps_odom()
-    temp = gps.latlongheight_from_ecef([msg.pose.pose.position.x, msg.pose.pose.position.y, msg.pose.position.z])
-    print "latitude: ", temp[0], " longitude: ", temp[1]
+        #temp = gps.latlongheight_from_ecef(boat.odom.position)
+        #print "latitude: ", temp[0], " longitude: ", temp[1]
 
-    # In the main mission state machine remember to rerun the retract hydrophone mission 
-    # in case this mission timesout.
-    print "Retracting hydrophone..."
-    yield boat.retract_hydrophone()
-    print "Hydrophone retracted"
-    print "Done"
+        # In the main mission state machine remember to rerun the retract hydrophone mission 
+        # in case this mission timesout.
+        print "Retracting hydrophone..."
+        yield boat.retract_hydrophone()
+        print "Hydrophone retracted"
+        print "Done"
+
+    finally:
+        boat.default_state()

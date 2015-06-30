@@ -203,11 +203,11 @@ class _Boat(object):
         
     #SPP get the latest processed acoustic message that is at the specified frequency
     @util.cancellableInlineCallbacks
-    def get_processed_ping(self, frequency):
+    def get_processed_ping(self, (min_freq, max_freq)):
         while True:
             # keep looking for a ping at the specified frequency
             msg = yield self._hydrophone_ping_sub.get_next_message()
-            if abs(msg.freq-frequency) < 1.5e3:
+            if msg.freq >= min_freq and msg.freq <= max_freq:
                 # only if you receive one should you return. NOTE: mission_core run_missions will timeout and kill this task so it wont run forever()
                 defer.returnValue(msg)     
 
