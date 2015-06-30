@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import rospy
-from lidar_vision.msg import buoy
-from object_handling.msg import Buoys
+from object_handling.msg import Buoys, BuoyStamped
 import numpy as np
 
 # This node takes in raw object data and removes all duplicates then republishes an array of data
@@ -15,7 +14,7 @@ class object_handler:
 		# Publishers
 		self.object_pub = rospy.Publisher('/objects', Buoys, queue_size = 10)
 		# Subscribers
-		self.object_sub = rospy.Subscriber('/lidar/buoy', buoy, self.objectCb)
+		self.object_sub = rospy.Subscriber('/lidar/buoy', BuoyStamped, self.objectCb)
 		# Parameters
 		self.same_object_distance = [ # to be to different objects they must be this far apart
 			rospy.get_param('~same_buoy_distance', 0.5)]
@@ -30,9 +29,9 @@ class object_handler:
 		
 	def getDistanceBetweenObjects(self, obj1, obj2):
 		return np.linalg.norm(np.array(
-						[obj1.position.x - obj2.position.x, 
-						 obj1.position.y - obj2.position.y,
-						 obj1.position.z - obj2.position.z]))
+						[obj1.buoy.position.x - obj2.buoy.position.x, 
+						 obj1.buoy.position.y - obj2.buoy.position.y,
+						 obj1.buoy.position.z - obj2.buoy.position.z]))
 
 	# Check the distance and type of object
 	def isSameObject(self, obj1, obj2):
@@ -84,7 +83,7 @@ class object_handler:
 
 			# Publish objects
 			objects = Buoys()
-			objects.buoys = self.objects[i]
+			objects.buoys = [obj.buoy for obj in self.objects[i]]					# Temporary
 			self.object_pub.publish(objects)
 
 

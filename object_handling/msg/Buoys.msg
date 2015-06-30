@@ -1,2 +1,2 @@
 #Buoys
-lidar_vision/buoy[] buoys
+object_handling/Buoy[] buoys

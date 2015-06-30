@@ -5,7 +5,7 @@
 #include <pcl/sample_consensus/sac_model_circle3d.h>			//Use 2D if you squash the data to two dimensions
 #include <pcl/sample_consensus/ransac.h>
 #include <visualization_msgs/Marker.h>
-#include "lidar_vision/buoy.h"
+#include "object_handling/BuoyStamped.h"
 
 /*** TODO:
  * 		Pick the best robust sample consensus estimator
@@ -77,13 +77,13 @@ private:	//Functions
 			pcl::toROSMsg(*out_pc, *out_pc_msg);										//Generate msg
 			buoy_pc_pub_.publish(out_pc_msg);
 
-			lidar_vision::buoy::Ptr out_msg(new lidar_vision::buoy);
-			out_msg->header.frame_id = "base_link";
+			object_handling::BuoyStamped::Ptr out_msg(new object_handling::BuoyStamped);
+			out_msg->header.frame_id = pc_msg->header.frame_id;
 			out_msg->header.stamp = ros::Time::now();
-			out_msg->position.x = coeff[0];
-			out_msg->position.y = coeff[1];
-			out_msg->position.z = 0;
-			out_msg->radius = coeff[3];
+			out_msg->buoy.position.x = coeff[0];
+			out_msg->buoy.position.y = coeff[1];
+			out_msg->buoy.position.z = 0;
+			out_msg->buoy.radius = coeff[3];
 			buoy_pub_.publish(out_msg);
 
 			//Publish a marker for visualization
@@ -162,7 +162,7 @@ public:		//Functions
 		ros::NodeHandle public_nh;
 		topic = public_nh.resolveName("segmented_pc");		//Get the topic
 		pc_sub_ = public_nh.subscribe<sensor_msgs::PointCloud2>(topic.c_str(), 100, &FeatureExtractor::extract, this);
-		buoy_pub_ = public_nh.advertise<lidar_vision::buoy>("buoy", 100);
+		buoy_pub_ = public_nh.advertise<object_handling::BuoyStamped>("buoy", 100);
 		buoy_pc_pub_ = public_nh.advertise<sensor_msgs::PointCloud2>("buoy_pc", 10);
 		buoy_marker_pub_ = public_nh.advertise<visualization_msgs::Marker>("buoy_marker", 100);
 	}
