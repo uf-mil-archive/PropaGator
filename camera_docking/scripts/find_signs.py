@@ -276,8 +276,8 @@ class image_converter:
 
     thresh = cv2.adaptiveThreshold(thresh,255,1,1,5,2)
 
-    cv2.imshow('thresh', thresh)
-    cv2.waitKey(1)
+    #cv2.imshow('thresh', thresh)
+    #cv2.waitKey(1)
 
     cv2.rectangle(thresh,(0,300),(1240,1080),(0,0,0),-1)  #Empty blinding rectangle.  Ensures that no false positives will come from the water.
 
@@ -748,13 +748,13 @@ class image_converter:
     try:
       self.image_pub.publish(self.bridge.cv2_to_imgmsg(frame_real, "bgr8"))        
     
-      cv2.imshow('frame_real', frame_real)
-      cv2.waitKey(1)
+      #cv2.imshow('frame_real', frame_real)
+      #cv2.waitKey(1)
 
-      cv2.moveWindow('frame_real', 20, 20)
-      cv2.moveWindow('thresh', 20, 550)
+      #cv2.moveWindow('frame_real', 20, 20)
+      #cv2.moveWindow('thresh', 20, 550)
 
-      cv2.moveWindow('window', 1200, 500)
+      #cv2.moveWindow('window', 1200, 500)
 
       #self.image_white.publish(self.bridge.cv2_to_imgmsg(thresh, "8UC1"))
     except CvBridgeError, e:
