@@ -8,7 +8,7 @@ from txros import util
 import rospy
 import boat_scripting
 import traceback
-from boat_launch.mission import start_gate_vision, find_circle, find_cross, find_triangle, go_to_ecef_pos
+from boat_launch.mission import start_gate_laser, find_circle, find_cross, find_triangle, go_to_ecef_pos
 from rawgps_common import gps
 
 SPEED = 1
@@ -19,7 +19,7 @@ TOTAL_TIME = 20 * ONE_MINUTE
 CIRCLE_TIME = ONE_MINUTE
 TRIANGLE_TIME = ONE_MINUTE
 CROSS_TIME = ONE_MINUTE
-ECEF_TIME = ONE_MINUTE
+ECEF_TIME = 2 * ONE_MINUTE
 START_GATE_TIME = ONE_MINUTE
 
 NORTH = np.pi/2
@@ -44,7 +44,7 @@ WAYPOINT_H = ll(29.641274, -82.361403)
 
 @util.cancellableInlineCallbacks
 def do_dock(nh, shape):
-
+	boat = yield boat_scripting.get_boat(nh)
 	if shape == 'circle':
 		try:
 			print "Docking --- circle"
@@ -88,11 +88,14 @@ def main(nh):
 
 	'''
 
+	boat = yield boat_scripting.get_boat(nh)
+
 	print "Starting main mission"
 
 	print "Moving to first position: ", WAYPOINT_A
 
 	try:
+		boat.set_current_challenge('Go to point A')
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ECEF_TIME)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at first position"
@@ -102,7 +105,8 @@ def main(nh):
 
 	print "Starting speed gates now"
 	try:
-		start_gate = yield util.wrap_timeout(start_gate_vision.main(nh), ONE_MINUTE)
+		boat.set_current_challenge('speed_gates')
+		start_gate = yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
 		print "Startgates completed succesfully!"
 	except Exception:
 		print "Could not complete stargates in" + START_GATE_TIME + " seconds"
@@ -111,6 +115,7 @@ def main(nh):
 	print "Moving to safe position now: ", WAYPOINT_F
 
 	try:
+		boat.set_current_challenge('Go to point F')
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED), ONE_MINUTE)
 		yield boat.move.heading(SOUTH).go()
 		print "Moved to " + WAYPOINT_F + ", now moving to " + WAYPOINT_E + " to begin docking"
@@ -118,6 +123,7 @@ def main(nh):
 		print "Could not make it to second position in " + ONE_MINUTE + " seconds"
 
 	try:
+		boat.set_current_challenge('Go to point E')
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED), ONE_MINUTE)
 		yield boat.move.heading(EAST).go()
 		print "Moved to " + WAYPOINT_E + ", starting docking challenge"
@@ -125,18 +131,21 @@ def main(nh):
 		print "Could not make it to third position in " + ONE_MINUTE + " seconds"
 
 	try:
+		boat.set_current_challenge('Dock circle')
 		yield do_dock(nh, 'circle')
 	except Exception:
 		pass
 		#traceback.print_exc()
 
 	try:
+		boat.set_current_challenge('Dock triangle')
 		yield do_dock(nh, 'triangle')
 	except Exception:
 		pass
 		#traceback.print_exc()
 
 	try:
+		boat.set_current_challenge('Dock cross')
 		yield do_dock(nh, 'cross')
 	except Exception:
 		pass
@@ -148,6 +157,7 @@ def main(nh):
 	print "Moving back to startate begining position", WAYPOINT_A
 
 	try:
+		boat.set_current_challenge('Go to point A')
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ONE_MINUTE)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at ", WAYPOINT_A
