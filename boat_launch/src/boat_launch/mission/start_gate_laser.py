@@ -30,8 +30,11 @@ References:
 """
 
 # Find gate algorithim
-def find_gate(boat, buoys):
-    #print 'Original buoys' + str(buoys)
+def filter_gates(boat, gates):
+    if gates is None:
+        return (None, None)
+
+    #print 'Original gates' + str(gates)
 
     # Get an enu xyz array
     # Get a rotation matrix
@@ -43,99 +46,64 @@ def find_gate(boat, buoys):
     def translate(v):
         return xyz_array(v.position)[0:2] - position
 
-    buoys = map(translate, buoys)
-    #print 'buoy translated to base_link: ' + str(buoys)
+    gates_xyz = map(translate, gates)
+    gates = zip(gates, gates_xyz)
+    #print 'gate translated to base_link: ' + str(gates)
 
     # Get a vector in the boats forward direction
     def get_angle(v):
-        return numpy.arccos(v.dot(heading) / numpy.linalg.norm(v))
+        return numpy.arccos(v[1].dot(heading) / numpy.linalg.norm(v[1]))
 
-    buoy_angle = map(get_angle, buoys)
-    #print 'buoy angles: ' + str(buoy_angle)
+    gate_angles = map(get_angle, gates)
+    #print 'gate angles: ' + str(gate_angles)
 
-    buoys = zip(buoys, buoy_angle)
-    #print 'Ziped buoys: ' + str(buoys)
+    gates = zip(gates, gate_angles)
+    #print 'Ziped gates: ' + str(gates)
 
-    buoys = filter(lambda x: abs(x[1]) < 60 * numpy.pi / 180, buoys)
-    #print 'Filter buoys behind the boat: ' + str(buoys)
+    gates = filter(lambda x: abs(x[1]) < 60 * numpy.pi / 180, gates)
+    #print 'Filter gates behind the boat: ' + str(gates)
 
     # Drop the angles
-    buoys = [b[0] for b in buoys]
+    gates = [g[0] for g in gates]
 
-    # Get the two closses to the front buoys
-    def distance(b1, b2):
-        value =  numpy.linalg.norm(b1) - numpy.linalg.norm(b2)
-        if value < 0:
-            return -1
-        elif value > 0:
-            return 1
-        else:
-            return 0
-
-    buoys = sorted(buoys, cmp=distance)
-
-    # Check to make sure there are at least two buoys
-    # If not try again
-    if len(buoys) < 2:
-        print '1 or less buoys found trying again'
-        return (None, None)
-
-
-    # Make sure the buoys are at least x meters apart and
-    #   no more than y meters apart
-    start_gate_pos = numpy.zeros(2)
-    buoy_to_buoy = numpy.zeros(2)
-    for b in combinations(buoys, 2):
-        buoy_to_buoy = b[0] - b[1]
-        dis = numpy.linalg.norm(buoy_to_buoy)
-        if dis > 1 and dis < 5:
-            # Found a gate
-            start_gate_pos = (b[0] + b[1]) / 2
-            break 
-    
-    if not numpy.any(start_gate_pos):
-        print 'No two buoys form a start gate trying again'
-        return (None, None)
+    gate = min(gates, key=lambda x: numpy.linalg.norm(x[1]))
 
     # get the xyz of the goal
-    goal_pos = position + start_gate_pos
+    goal_pos = gate[1] + position
     goal_pos = numpy.insert(goal_pos, 2, 0)
     #print 'Goal pose: ' + str(goal_pos)
 
-    # get the orientation vector
-    point_to = get_perpendicular(numpy.insert(buoy_to_buoy, 2, 0), numpy.array([0, 0, 1]))[0:2]
-    #print 'Start gate pos: ', start_gate_pos
-    #print 'point to: ', point_to
-    angle = get_angle(point_to)
+    # Get orientation angle and make sure we are facing forward and not backward
+    angle = gate[0].yaw + numpy.pi / 2
+    if abs(angle - yaw) > numpy.pi / 2:
+        angle = angle + numpy.pi
     #print 'Angle of goal: ', angle
-    if get_angle(point_to) > numpy.pi / 2:
-        # Flip the orientation
-        point_to = -1 * point_to
-    goal_orientation = rotvec_to_quat(numpy.array([0, 0, numpy.arctan2(point_to[1], point_to[0])])) 
+    
+    goal_orientation = rotvec_to_quat(numpy.array([0, 0, angle])) 
 
     return (goal_pos, goal_orientation)
 
 @util.cancellableInlineCallbacks
 def main(nh):
-    # Print mission start msg
-    print 'Finding start gate with laser'
+    # #Print mission start msg
+    #print 'Finding start gate with laser'
     boat = yield boat_scripting.get_boat(nh)
 
     #print 'Pan the lidar between the maximum angle and slightly above horizontal'
     boat.pan_lidar(max_angle=3.264, min_angle=3.15, freq=0.5)
 
     # How many gates we've gone through
-    gates = 0
+    gates_passed = 0
 
     have_gate = False
     last_gate_pos = None
     move = None
 
-    while gates < 2:
-        #print 'Get objects'
-        buoys = yield boat.get_objects()
+    while gates_passed < 2:
+        #print 'Get gates'    
+        gates = yield boat.get_gates()
 
-        (gate_pos, gate_orientation) = find_gate(boat, buoys)
+        (gate_pos, gate_orientation) = filter_gates(boat, gates)
 
         # Check if valid gate found
         if gate_pos is not None:
@@ -145,15 +113,16 @@ def main(nh):
                 # Check if the gate center has drifted
                 # Don't go to a different gate (dis < 5)
                 dis = numpy.linalg.norm(last_gate_pos - gate_pos)
-                print 'Distance: ', dis
+                #print 'Distance: ', dis
                 if dis > 0.1 and dis < 5:
                     print 'Gate drifted re-placing goal point'
                     move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
                 else:
-                    print 'Still happy with my current goal'
+                    #print 'Still happy with my current goal'
+                    pass
             else:
                 # Just found a gate    
-                print 'Moving to gate ' + str(gates + 1)
+                print 'Moving to gate ' + str(gates_passed + 1)
                 move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
 
             # Set last gate pos
@@ -172,10 +141,10 @@ def main(nh):
             yield boat.move.forward(3).go()
             have_gate = False
             last_gate_pos = None
-            gates = gates + 1
+            gates_passed = gates_passed + 1
         
 
-    print 'Completed start and speed gate!!'
+    #print 'Completed start and speed gate!!'
     boat.pan_lidar()
 
 

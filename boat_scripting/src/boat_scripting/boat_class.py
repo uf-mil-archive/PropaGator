@@ -36,7 +36,7 @@ from dynamixel_servo.msg import DynamixelFullConfig
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
 from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
-from object_handling.msg import Buoys
+from object_handling.msg import Buoys, Gates
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
@@ -92,7 +92,8 @@ class _Boat(object):
 
         self._lidar_sub_pointcloud = self._node_handle.subscribe('lidar/raw_pc', PointCloud2)
         
-        self._object_sub = self._node_handle.subscribe('/object_handling/buoys', Buoys)
+        self._buoy_sub = self._node_handle.subscribe('/object_handling/buoys', Buoys)
+        self._gate_sub = self._node_handle.subscribe('/object_handling/gates', Gates)
 
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
@@ -274,9 +275,14 @@ class _Boat(object):
         defer.returnValue(msg)
     
     @util.cancellableInlineCallbacks
-    def get_objects(self):
-        msg = yield self._object_sub.get_next_message()
+    def get_buoys(self):
+        msg = yield self._buoy_sub.get_next_message()
         defer.returnValue(msg.buoys)
+
+    @util.cancellableInlineCallbacks
+    def get_gates(self):
+        msg = yield self._gate_sub.get_next_message()
+        defer.returnValue(msg.gates)
         
     @util.cancellableInlineCallbacks
     def get_start_gate_vision(self):
