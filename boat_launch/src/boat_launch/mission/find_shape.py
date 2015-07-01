@@ -18,6 +18,8 @@ PIXEL_TOLERANCE = 20
 ANGLE_OFFSET = 20
 DISPLAY_HEIGHT = 640
 
+DEFAULT_SHAPE = 'circle'
+
 def calc_angle(opp_input):
     adjacent = DISPLAY_HEIGHT / 2
     opposite = opp_input
@@ -26,7 +28,9 @@ def calc_angle(opp_input):
     return arcsin
 
 @util.cancellableInlineCallbacks
-def main(nh):
+def main(nh, shape=None):
+    if shape == None:
+        shape = DEFAULT_SHAPE
 
     boat = yield boat_scripting.get_boat(nh, False, False)
 
@@ -44,11 +48,11 @@ def main(nh):
             # 0 is dead center
             # positive values mean right
             # negative values mean left
-            msg =  yield boat.get_shape_location('circle')
+            msg =  yield boat.get_shape_location(shape)
 
             # If the pixel location is within our range of error
             if abs(msg.data) < PIXEL_TOLERANCE:
-                print "circle in Center at location: " + str(msg.data) + " --- Locking Target"
+                print shape + " in Center at location: " + str(msg.data) + " --- Locking Target"
                 break
                 # Break the loop and continue
 
@@ -64,7 +68,7 @@ def main(nh):
                 # turn the number of degrees left between the center and the target, minus an offset
                 yield boat.move.turn_left(-angle_move).go()
 
-            print "circle at pixel location: ", abs(msg.data) 
+            print shape + " at pixel location: ", abs(msg.data) 
 
         # Target is now in center, moving onto to lidar distance sensing
         
@@ -112,7 +116,7 @@ def main(nh):
         if farthest_distance > 1 and farthest_distance < 5: yield boat.move.forward(shortest_distance).go()
         if farthest_distance <= 1: 
             yield boat.move.forward(-6).go()
-            print 'Find circle success'
+            print 'Find shape success'
             break
 
         # Print only if a move is commanded
