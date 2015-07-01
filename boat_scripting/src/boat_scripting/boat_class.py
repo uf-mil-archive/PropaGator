@@ -92,7 +92,7 @@ class _Boat(object):
 
         self._lidar_sub_pointcloud = self._node_handle.subscribe('lidar/raw_pc', PointCloud2)
         
-        self._object_sub = self._node_handle.subscribe('/object_handling/objects', Buoys)
+        self._object_sub = self._node_handle.subscribe('/object_handling/buoys', Buoys)
 
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
