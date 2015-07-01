@@ -69,6 +69,8 @@ class object_handler:
 
 		# Publish objects
 		objects = Buoys()
+		objects.header.stamp = rospy.Time.now()
+		objects.header.frame_id = '/enu'
 		objects.buoys = [obj.buoy for obj in self.objects]
 		self.object_pub.publish(objects)
 
