@@ -28,7 +28,7 @@ private:	//Vars
 private:	//Functions
 	void extract(const sensor_msgs::PointCloud2::ConstPtr& pc_msg)
 	{
-		ROS_INFO("Begining extraction");
+		ROS_DEBUG("Begining extraction");
 		//Convert from msgs to PointCloud<point>
 		pcl::PointCloud<point>::Ptr pc_in(new pcl::PointCloud<point>);
 		pcl::fromROSMsg(*pc_msg, *pc_in);
@@ -58,12 +58,12 @@ private:	//Functions
 		{
 			return;
 		}
-		ROS_INFO("Size of inliers is %i", static_cast<int>(inliers.size()));
+		ROS_DEBUG("Size of inliers is %i", static_cast<int>(inliers.size()));
 
 		//Determine if this is good enough to be a buoy
 		Eigen::VectorXf coeff;														//Vector to hold coeff
 		ransac.getModelCoefficients(coeff);											//Get model coefficients
-		//ROS_INFO("Model Params are x:%f y:%f z:%f radius:%f nx:%f ny:%f nz:%f",
+		//ROS_DEBUG("Model Params are x:%f y:%f z:%f radius:%f nx:%f ny:%f nz:%f",
 		//		coeff[0], coeff[1], coeff[2], coeff[3], coeff[4], coeff[5], coeff[6]);
 		//Index 3 is radius as defined in http://docs.pointclouds.org/trunk/group__sample__consensus.html
 
@@ -90,7 +90,7 @@ private:	//Functions
 			visualization_msgs::Marker marker;
 			//marker.header = pc_in->header;
 			marker.header.frame_id = pc_in->header.frame_id;
-			ROS_INFO("Frame_ID: %s", marker.header.frame_id.c_str());
+			ROS_DEBUG("Frame_ID: %s", marker.header.frame_id.c_str());
 			//marker.header.frame_id = "base_link";
 			marker.header.stamp = ros::Time(pc_in->header.stamp);
 
@@ -144,19 +144,19 @@ public:		//Functions
 		//Get some ros params
 		topic = private_nh.resolveName("distance_threshold");				//Distance threshold in meters
 		private_nh.param<double>(topic.c_str(), distance_threshold_, 0.1);
-		ROS_INFO("Param %s value %f", topic.c_str(), distance_threshold_);
+		ROS_DEBUG("Param %s value %f", topic.c_str(), distance_threshold_);
 
 		topic = private_nh.resolveName("max_iterations");					//Max iterations
 		private_nh.param<int>(topic.c_str(), max_iterations_, 1000);
-		ROS_INFO("Param %s value %i", topic.c_str(), max_iterations_);
+		ROS_DEBUG("Param %s value %i", topic.c_str(), max_iterations_);
 
 		topic = private_nh.resolveName("probability");						//Probability
 		private_nh.param<double>(topic.c_str(), probability_, 0.99);
-		ROS_INFO("Param %s value %f", topic.c_str(), probability_);
+		ROS_DEBUG("Param %s value %f", topic.c_str(), probability_);
 
 		topic = private_nh.resolveName("max_buoy_radius");					//max buoy radius in meters
 		private_nh.param<double>(topic.c_str(), max_buoy_radius_, 0.25);
-		ROS_INFO("Param %s value %f", topic.c_str(), max_buoy_radius_);
+		ROS_DEBUG("Param %s value %f", topic.c_str(), max_buoy_radius_);
 
 		//Set up subscribers and publishers
 		ros::NodeHandle public_nh;
