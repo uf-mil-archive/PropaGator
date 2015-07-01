@@ -63,9 +63,9 @@ class a_star_rpp:
         self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
         self.pc_to_keep = 8
         self.pc_count = 0
-        self.store_pc = []
+        self.store_pc = [0]
         self.xyz_point = [0,0,0]
-        self.store_points = [[0,0,0]]*386
+        self.store_points = [[]]
 
         #Management of movement steps
         '''Static tf broadcasters in the azi launch file keep track of the /enu coordinants of the cells surounding the boat
@@ -74,10 +74,9 @@ class a_star_rpp:
         '''
         self.listener = tf.TransformListener()
         self.cell_dir_tf = {'0':'/step0',
-                            'z':'/step1',
-                            '1':'/step2',
-                            '3':'/step6',
-                            '7':'/step7'}
+                            '1':'/step1',
+                            '2':'/step2',
+                            '3':'/step3',}
     
 
     # Accept a new goal in the form of a posetwist
@@ -116,11 +115,14 @@ class a_star_rpp:
         distance = np.linalg.norm(self.desired_position - self.current_position)
         #angles so the boat isnt asked to straif too severly
         step_angle = {'0':self.line.angle, 
-                      '3':self.line.angle+np.pi/4, 
-                      '1':self.line.angle-np.pi/4}
-        x_velocity = {'0':2, 
-                      '3':1, 
-                      '1':1}
+                      '3':self.line.angle+np.pi/3, 
+                      '1':self.line.angle-np.pi/3,
+                      '2':self.line.angle
+                      }
+        x_velocity = {'0':0, 
+                      '3':0, 
+                      '1':0,
+                      '2':0}
         
         decision = self.map_builder()
         print decision
@@ -177,21 +179,19 @@ class a_star_rpp:
         pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
         # While there are points in the cloud to read...
 
-        if self.pc_count!=self.pc_to_keep:
+        if self.pc_count<self.pc_to_keep:
             self.pc_count=self.pc_count+1
-        else:self.store_pc.pop(0)
+        #else:self.store_pc.pop(0)
         
         while True:
             try:
                 # new point
-                point = next(pointcloud) - self.current_position
+                point = next(pointcloud)
                 #convert point to a_star map coordinates
-                self.xyz_point[0]=abs(int(math.trunc(point[0])))+5
-                self.xyz_point[1]=abs(int(math.trunc(point[1])))+15
-                self.xyz_point[2]=0
+                self.xyz_point = point
                 #add point to list of points
                 self.store_points.append(list(self.xyz_point))
-                self.store_points.pop(0)
+                #self.store_points.pop(0)
 
             # When the last point has been processed
             except StopIteration:
@@ -225,21 +225,35 @@ class a_star_rpp:
         j=0
         k=0
         a=0
-        print 'store pc: ', self.store_pc
-        if self.pc_count != 0:
+        #print 'store pc: ', self.store_pc
+        print 'len(self.pc_count)', (self.pc_count)
+        if self.pc_count > 0:
             for x in range(0,self.pc_count):
                 point_cloud = self.store_pc[x]
-                for k in range(0, len(point_cloud)):
-                    point = point_cloud[k]
-                    if point != None and len(point) > 1 and 0 < point[0] < 29 and 0 < point[1] < 29:
-                        the_map[point[1]][point[0]] = 1
+                if type(point_cloud) != int:
+                    for k in range(0, len(point_cloud)):
+                        point = point_cloud[k]
+                        if point != None and len(point) > 1:  
+                            point = point - self.current_position
+                            baselink_point = point.tolist()
+                            baselink_point[0]=(abs(int(math.floor(point[0])))+4)
+                            baselink_point[1]=(int(math.floor(point[1])))+15
+                            baselink_point[2]=0
+                            #print 'baselink_point' , type(baselink_point)
+                            #print 'baselink_point', baselink_point
+                            #print 'self.current_position,', self.current_position
+                            if baselink_point != None and len(baselink_point) > 1 and 0 < baselink_point[0] < 29 and 0 < baselink_point[1] < 29:
+                                the_map[baselink_point[1]][baselink_point[0]] = 1 
+                                #the_map[baselink_point[1]-1][baselink_point[0]] = 1
+                                #the_map[baselink_point[1]][baselink_point[0]-1] = 1
+                                #the_map[baselink_point[1]+1][baselink_point[0]] = 1
         else:
             print 'NO POINTS'
         #the placing of the current position and the desired position on the occupancy grid    
         (xA, yA, xB, yB) = [5, 
-                            int(round(n/2)), 
-                            5+abs(int(round(self.desired_position[0]-self.current_position[0]))), 
-                            int(round(self.desired_position[1]-self.current_position[1] + n/2))]
+                            int(math.floor(n/2)), 
+                            5+abs(int(math.floor(self.desired_position[0]-self.current_position[0]))), 
+                            int(math.floor(self.desired_position[1]-self.current_position[1] + n/2))]
                             
         route = self.pathFind(the_map, n, m, dirs, dx, dy, xA, yA, xB, yB)
         print 'Route: ', '(', route, ')'
@@ -368,7 +382,7 @@ class a_star_rpp:
                             heappop(pq[pqi])       
                         pqi = 1 - pqi
                         heappush(pq[pqi], m0) # add the better node instead
-        return '' # if no route found
+        return 'NO ROUTE' # if no route found
     
     def look_up_step(self, name):
         #rospy.init_node('step_listner')
