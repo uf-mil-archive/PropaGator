@@ -24,7 +24,7 @@ black = (0,0,0)
 X_OFFSET = 80 
 Y_OFFSET = 300
 
-PERSITANCE = 100000
+PERSITANCE = 1000
 
 
 '''
@@ -92,20 +92,10 @@ class lidar_theta(object):
 		self.magnitude = 0 
 		# starts main loop that constantly feeds from lidar
 		rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
-		#rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
+		rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
 
 		rospy.Subscriber("/camera/image_raw", Image, self.image_cb)
 		self.vison_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
-
-	def persist_data(self):
-		if len(self.data_persist_x) > PERSITANCE:
-			diff = abs(len(self.data_persist_x) - PERSITANCE)
-		 	del self.data_persist_x[:diff]
-		 	del self.data_persist_y[:diff]
-
-		for i in range(1, len(self.data_persist_x)):
-			self.image[self.data_persist_x[i]][self.data_persist_y[i]] = 255
-			self.blank_image[self.data_persist_x[i]][self.data_persist_y[i]] = 255
 
 	def image_cb(self, data):
 		try:
@@ -122,26 +112,37 @@ class lidar_theta(object):
 
 		self.image = self.cv_image	
 		self.blank_image = numpy.zeros((self.height,self.width))
+
+# --------------------------------------------------------------------------------------------------------------------
+# MAIN LOOP
 			
-
 	def pointcloud_callback(self, msg):
-
-		self.lock.acquire()
 
 		pointcloud = pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[])
 
 		# Find Angles in base frame
 
-		trans = []
-
 		while True:
 			try:
 				# new point
 				xyz_point = next(pointcloud) 
+				# Assign points in typical X-depth, Y-horizontal, Z-Vertial axis conventions
 				x, y, z = xyz_point[0], xyz_point[1], xyz_point[2]
-				self.quad_assign = numpy.array([y, z, x]) 
+				# Assign to one vector to solve for quadrant 
+				self.quad_assign = numpy.array([x,y,z]) 
+				# Assign to focus vector for conversion to 2D - THIS IS WHERE IT GOES BACK TO CARTESIAN
 				x, y, z = abs(xyz_point[0]), abs(xyz_point[1]), abs(xyz_point[2])
-				self.focus_vector = numpy.array([y, z, x]) 
+				self.focus_vector = numpy.array([y, z, x]) # y = x, z = y, x = z
+
+				# solve for all angles in vector with points supplied above
+				self.solve_angles(1)
+				self.solve_angles(2)
+				self.solve_angles(3)
+				self.quadrant_assign()
+
+				# Once we have solved angles from center in base_link frame...
+
+				self.create_triangle()
 
 				rospy.logdebug("Magnitude: ({})".format(round(self.magnitude)))
 				rospy.logdebug("Quadrant: {}".format(self.quadrant))
@@ -150,65 +151,20 @@ class lidar_theta(object):
 				rospy.logdebug("	y: {}".format(self.y_theta))
 				rospy.logdebug("	z: {}".format(self.z_theta))
 
-				# solve for all angles in vector
-				self.solve_angles(1)
-				self.solve_angles(2)
-				self.solve_angles(3)
-				self.quadrant_assign()
-				trans.append((self.x_theta, self.y_theta, self.z_theta))
 			# When the last point has been processed
 			except StopIteration:
-				break
-
-		# Tranform angles ro camera frame
-
-		res = []
-		try:
-			for p in trans:
-				to_send = PointStamped(
-					header = Header(
-						seq=0,
-	                	stamp= rospy.Duration(),
-	                	frame_id= "/base_link",
-	            	),
-	            	point = Point(
-	            		x=p[0],
-	            		y=p[1],
-	            		z=p[2],
-	            	)
-				)
-
-				res.append(self.tf_listener.transformPoint("/camera", to_send))
-		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as err:
-			print err
-
-
-		pointcloud = iter(res)
-
-
-		# While there are points in the cloud to read...
-		while True:
-			try:
-
-				# new point
-				xyz_point = next(pointcloud) 
-				self.create_triangle(xyz_point.point.x, xyz_point.point.y) 
-			# When the last point has been processed
-			except StopIteration:
-
 				# Publish Data in 2D
 				self.persist_data()
-				#image_message = self.bridge.cv2_to_imgmsg(self.image)
-				#self.vison_fusion.publish(image_message)
+				image_message = self.bridge.cv2_to_imgmsg(self.image)
+				self.vison_fusion.publish(image_message)
 				cv2.imshow("Window", self.blank_image)
 				cv2.waitKey(3)
 				#self.rate.sleep()
-				self.lock.release()
 				break
 
 		'''
 
-		TESTING SECTION
+		# TESTING SECTION
 
 		for i in range(1,100):
 			x, y, z = i, i, i
@@ -238,7 +194,17 @@ class lidar_theta(object):
 
 		'''
 
+# --------------------------------------------------------------------------------------------------------------------
 
+	def persist_data(self):
+		if len(self.data_persist_x) > PERSITANCE:
+			diff = abs(len(self.data_persist_x) - PERSITANCE)
+		 	del self.data_persist_x[:diff]
+		 	del self.data_persist_y[:diff]
+
+		for i in range(1, len(self.data_persist_x)):
+			self.image[self.data_persist_y[i]][self.data_persist_x[i]] = 255
+			self.blank_image[self.data_persist_y[i]][self.data_persist_x[i]] = 255
 
 	def quadrant_assign(self):
 		if (self.quad_assign[0] > 0) & (self.quad_assign[1] > 0): self.quadrant = 1
@@ -261,34 +227,54 @@ class lidar_theta(object):
 		cosine = numerator / focus_magnitude
 		return math.acos(cosine)
 
-	def create_triangle(self, x_t, y_t):
+	def create_triangle(self):
 		# generic function to create a triangle from each axis to map 3D -> 2D
 		if self.quadrant == 1:
-			x = math.tan(x_t) * -self.magnitude
-			y = math.sin(y_t) * self.magnitude
+			x = math.tan(self.x_theta) * -self.magnitude
+			y = math.sin(self.y_theta) * self.magnitude
 		if self.quadrant == 2:
-			x = math.tan(x_t) * self.magnitude
-			y = math.tan(y_t) * -self.magnitude
+			x = math.tan(self.x_theta) * self.magnitude
+			y = math.sin(self.y_theta) * -self.magnitude
 		if self.quadrant == 3:
-			x = math.tan(x_t) * -self.magnitude
-			y = math.tan(y_t) * self.magnitude
+			x = math.tan(self.x_theta) * -self.magnitude
+			y = math.sin(self.y_theta) * self.magnitude
 		if self.quadrant == 4:
-			x = math.tan(x_t) * self.magnitude
-			y = math.tan(y_t) * -self.magnitude
+			x = math.tan(self.x_theta) * self.magnitude
+			y = math.sin(self.y_theta) * -self.magnitude
 
-		x_final = x + self.height/2 
-		y_final = y + self.width/2
+		x_final = x + self.width/2 
+		y_final = y + self.height/2
 
-		if x_final >= self.height or x_final < 0 : x_final = self.height - 1
-		if y_final >= self.width or y_final < 0 : y_final = self.width - 1
+		if x_final >= self.width or x_final < 0 : x_final = 0
+		if y_final >= self.height or y_final < 0 : y_final = 0
 
-		rospy.logdebug("Coordinates: ({}, {})".format(round(y_final - self.width/2, 2), round(x_final - self.height/2, 2)))
+		# Prepare to transform point from enu to camera frame 
+		try:
+			final_point = PointStamped(
+				header = Header(
+					seq=0,
+                	stamp= rospy.Duration(),
+                	frame_id= "/enu",
+            	),
+            	point = Point(
+            		x=x_final,
+            		y=y_final,
+            		z=0,
+            	)
+			)
+		except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as err:
+			print err
+
+		# Transform from enu to camera frame
+		trans_point = self.tf_listener.transformPoint("/camera", final_point)
+
+		rospy.logdebug("Coordinates: ({}, {})".format(round(final_point.point.x - self.width/2, 2), round(final_point.point.y - self.height/2, 2)))
 
 		# plot those points to the screen
 
+		self.image[final_point.point.y][final_point.point.x] = 255
+		self.blank_image[final_point.point.y][final_point.point.x] = 255
 
-		self.image[x_final][y_final] = 255
-		self.blank_image[x_final][y_final] = 255
 		'''
 		for i in range(0,self.width):
 			self.blank_image[self.height_center][i] = 255
@@ -297,8 +283,8 @@ class lidar_theta(object):
 			self.blank_image[i][self.width_center] = 255
 		'''
 
-		self.data_persist_x.append(x_final)
-		self.data_persist_y.append(y_final)
+		self.data_persist_x.append(final_point.point.x)
+		self.data_persist_y.append(final_point.point.y)
 
 	def find_magnitude(self, vector):
 		self.magnitude = math.sqrt(vector[0]*vector[0] +  vector[1]*vector[1] + vector[2]*vector[2])
