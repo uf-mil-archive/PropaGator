@@ -4,7 +4,6 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/sample_consensus/sac_model_circle3d.h>			//Use 2D if you squash the data to two dimensions
 #include <pcl/sample_consensus/ransac.h>
-#include <visualization_msgs/Marker.h>
 #include "object_handling/BuoyStamped.h"
 
 /*** TODO:
@@ -19,7 +18,6 @@ private:	//Typedefs
 private:	//Vars
 	ros::Subscriber pc_sub_;					//Subscriber to segmented point cloud data
 	ros::Publisher buoy_pub_, shore_pub_, buoy_pc_pub_;	//publisher for buoy's and land masses respectively
-	ros::Publisher buoy_marker_pub_;			//publisher for buoy markers (visualization)
 	double distance_threshold_;					//... TODO: figure out exactly how this effects the computation
 	int max_iterations_;						//Maximum number of itterations before giving up
 	double probability_;						//... TODO: figure out exactly how this effects the computation
@@ -85,49 +83,6 @@ private:	//Functions
 			out_msg->buoy.position.z = 0;
 			out_msg->buoy.radius = coeff[3];
 			buoy_pub_.publish(out_msg);
-
-			//Publish a marker for visualization
-			visualization_msgs::Marker marker;
-			//marker.header = pc_in->header;
-			marker.header.frame_id = pc_in->header.frame_id;
-			ROS_DEBUG("Frame_ID: %s", marker.header.frame_id.c_str());
-			//marker.header.frame_id = "base_link";
-			marker.header.stamp = ros::Time(pc_in->header.stamp);
-
-			//Unique identifier for marker
-			marker.ns = "buoy";
-			marker.id = coeff[3] * 1000;
-
-			//Shape of marker
-			marker.type = visualization_msgs::Marker::SPHERE;
-
-			//Action (We'll just add it)
-			marker.action = visualization_msgs::Marker::ADD;
-
-			//Set position
-			marker.pose.position.x = coeff[0];
-			marker.pose.position.y = coeff[1];
-			marker.pose.position.z = 0;
-			//No need to adjust the orientation
-
-			//Set the scale to the radius
-			float size = coeff[3] * 5;
-			marker.scale.x = size;
-			marker.scale.y = size;
-			marker.scale.z = size;
-
-			//Set the color
-			marker.color.r = 1.0;
-			marker.color.g = 1.0;
-			marker.color.b = 0.0;
-			marker.color.a = 1.0;
-
-			//Lifetime set to infinite
-			marker.lifetime = ros::Duration(1);
-
-			//Publish
-			buoy_marker_pub_.publish(marker);
-
 		}
 
 
@@ -164,7 +119,6 @@ public:		//Functions
 		pc_sub_ = public_nh.subscribe<sensor_msgs::PointCloud2>(topic.c_str(), 100, &FeatureExtractor::extract, this);
 		buoy_pub_ = public_nh.advertise<object_handling::BuoyStamped>("buoy", 100);
 		buoy_pc_pub_ = public_nh.advertise<sensor_msgs::PointCloud2>("buoy_pc", 10);
-		buoy_marker_pub_ = public_nh.advertise<visualization_msgs::Marker>("buoy_marker", 100);
 	}
 };
 

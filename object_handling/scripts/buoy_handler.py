@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import rospy
 from object_handling.msg import Buoys, BuoyStamped
+from visualization_msgs.msg import MarkerArray, Marker
+from std_msgs.msg import Header
 import numpy as np
 
 # This node takes in raw object data and removes all duplicates then republishes an array of data
@@ -12,19 +14,41 @@ class object_handler:
 	def __init__(self):
 		rospy.init_node('object_handler', anonymous=False)
 		# Publishers
-		self.object_pub = rospy.Publisher('buoys', Buoys, queue_size = 10)
+		self.buoy_pub = rospy.Publisher('buoys', Buoys, queue_size = 10)
+		self.buoy_viz_pub = rospy.Publisher('buoys_viz', MarkerArray, queue_size = 10)
 		# Subscribers
-		self.object_sub = rospy.Subscriber('/lidar/buoy', BuoyStamped, self.objectCb)
+		self.buoy_sub = rospy.Subscriber('/lidar/buoy', BuoyStamped, self.objectCb)
 		# Parameters
 		# to be to different objects they must be this far apart
 		self.same_object_distance = rospy.get_param('~same_buoy_distance', 0.5)
 
 		# to be to different objects they must be this far apart
-		self.object_lifetime = rospy.get_param('~buoy_lifetime', 5.0)
+		self.lifetime = rospy.get_param('~buoy_lifetime', 5.0)
 
-		self.objects = list()
+		self.buoys = list()
 
 		rospy.Timer(rospy.Duration(0.1), self.updateCb)
+
+	def visualize(self):
+		m_array = MarkerArray()
+		for i, b in enumerate(self.buoys):
+			m = Marker()
+			m.header = Header(frame_id = '/enu', stamp = rospy.Time.now())
+			m.ns = 'buoys'
+			m.id = i
+			m.type = Marker.SPHERE
+			m.action = Marker.ADD
+			m.pose.position = b.buoy.position
+			m.scale.x = m.scale.y = m.scale.z = b.buoy.radius * 1.5
+			m.color.r = 0.5
+			m.color.b = 0.1
+			m.color.g = 0.75
+			m.color.a = 1.0
+			m.lifetime = rospy.Duration(self.lifetime)
+			m_array.markers.append(m)
+
+		self.buoy_viz_pub.publish(m_array)
+
 		
 	def getDistanceBetweenObjects(self, obj1, obj2):
 		return np.linalg.norm(np.array(
@@ -46,33 +70,35 @@ class object_handler:
 	# make sure the object hasn't lived longer than it should
 	def isFreshObject(self, obj):
 		now = rospy.get_time()
-		if now - obj.header.stamp.to_sec() < self.object_lifetime:
+		if now - obj.header.stamp.to_sec() < self.lifetime:
 			return True
 		else:
 			return False
 
 	def objectCb(self, new_obj):
 		# Put the object in the object list
-		for i, old_obj in enumerate(self.objects):
+		for i, old_obj in enumerate(self.buoys):
 			if self.isSameObject(new_obj, old_obj):
 				# Replace the current object with its newer self
-				self.objects[i] = new_obj
+				self.buoys[i] = new_obj
 				return
 
 		# If we are this far then its a new object yay
-		self.objects.append(new_obj)						
+		self.buoys.append(new_obj)						
 
 	# Check that all objects are "Fresh" and publish them 
 	def updateCb(self, event):
 		# Remove old Objects
-		self.objects = filter(self.isFreshObject, self.objects)
+		self.buoys = filter(self.isFreshObject, self.buoys)
 
 		# Publish objects
 		objects = Buoys()
 		objects.header.stamp = rospy.Time.now()
 		objects.header.frame_id = '/enu'
-		objects.buoys = [obj.buoy for obj in self.objects]
-		self.object_pub.publish(objects)
+		objects.buoys = [obj.buoy for obj in self.buoys]
+		self.buoy_pub.publish(objects)
+
+		self.visualize()
 
 
 

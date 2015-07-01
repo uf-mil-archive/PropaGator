@@ -3,6 +3,7 @@ import numpy
 from geometry_msgs.msg import Vector3
 from std_msgs.msg import Header
 from object_handling.msg import Buoys, Gate, Gates
+from visualization_msgs.msg import MarkerArray, Marker
 from itertools import *
 import rospy
 
@@ -35,6 +36,7 @@ class gate_handler:
         rospy.init_node('gate_handler', anonymous=False)#, log_level=rospy.DEBUG)
         # Publishers
         self.gate_pub = rospy.Publisher('gates', Gates, queue_size = 10)
+        self.gate_viz_pub = rospy.Publisher('gates_viz', MarkerArray, queue_size = 10)
         # Subscribers
         self.buoys_sub = rospy.Subscriber('buoys', Buoys, self.buoysCb)
         # Parameters
@@ -55,6 +57,27 @@ class gate_handler:
         self.gates = list()
 
         rospy.Timer(rospy.Duration(0.1), self.updateCb)
+
+    def visualize(self):
+        m_array = MarkerArray()
+        for i, g in enumerate(self.gates):
+            m = Marker()
+            m.header = Header(frame_id = '/enu', stamp = rospy.Time.now())
+            m.ns = 'gates'
+            m.id = i
+            m.type = Marker.LINE_STRIP
+            m.action = Marker.ADD
+            m.scale.x = 0.1
+            m.color.r = 0.5
+            m.color.b = 0.75
+            m.color.g = 0.1
+            m.color.a = 1.0
+            m.points.append(g[1].buoy1.position)
+            m.points.append(g[1].buoy2.position)
+            m.lifetime = rospy.Duration(self.lifetime)
+            m_array.markers.append(m)
+
+        self.gate_viz_pub.publish(m_array)
 
     # make sure the object hasn't goen stale (lived longer than it should have)
     def isFreshObject(self, g):
@@ -183,6 +206,8 @@ class gate_handler:
         )
 
         self.gate_pub.publish(gates)
+
+        self.visualize()
 
 # Run the node
 if __name__ == '__main__':
