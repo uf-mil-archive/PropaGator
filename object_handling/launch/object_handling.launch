@@ -7,12 +7,28 @@
     <!-- buoy_lifetime is how long buoys exist in memory without a repeted hit -->
     <arg name="buoy_lifetime" default="5.0"/>
 
+    <arg name="gate_max_width" default="5.0"/>
+    <arg name="gate_min_width" default="1.0"/>
+    <!-- 15 degrees -->
+    <arg name="same_gate_angular_tolerance" default="0.26179939"/>
+    <arg name="same_gate_distance_tolerance" default="0.5"/>
+    <arg name="gate_intersecting_buoy_tolerance" default="0.5"/>
+    <arg name="gate_lifetime" default="5.0"/>
+
     <!-- group to put every thing related to lidar in-->
     <group ns="object_handling">
         <!-- Lidar driver -->
         <node pkg="object_handling" type="buoy_handler.py" name="buoy_handler">
             <param name="same_buoy_distance" value="$(arg same_buoy_distance)"/>
             <param name="buoy_lifetime" value="$(arg buoy_lifetime)"/>
+        </node>
+        <node pkg="object_handling" type="gate_handler.py" name="gate_handler">
+            <param name="max_width" value="$(arg gate_max_width)"/>
+            <param name="min_width" value="$(arg gate_min_width)"/>
+            <param name="same_angular_tolerance" value="$(arg same_gate_angular_tolerance)"/>
+            <param name="same_distance_tolerance" value="$(arg same_gate_distance_tolerance)"/>
+            <param name="intersecting_buoy_tolerance" value="$(arg gate_intersecting_buoy_tolerance)"/>
+            <param name="lifetime" value="$(arg gate_lifetime)"/>
         </node>
     </group>
 
