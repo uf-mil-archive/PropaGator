@@ -111,7 +111,7 @@ public:
  */
 LidarAngleManager::LidarAngleManager():
 		abs_max_angle_(3.4), abs_min_angle_(2.7),
-		in_frequency_(50), out_frequency_(1),
+		in_frequency_(50), out_frequency_(0.5),
 		mode_(PAN), nominal_angle_(M_PI),
 		min_freq_(0.05), max_freq_(4.5)
 {
