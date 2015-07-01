@@ -1,0 +1,19 @@
+<!-- Launch file for object_handling-->
+<launch>
+    <!-- args-->
+    <!-- same_buoy_distance is the distance apart at which buoys are no longer considered the same buoy -->
+    <arg name="same_buoy_distance" default="0.5"/> 
+
+    <!-- buoy_lifetime is how long buoys exist in memory without a repeted hit -->
+    <arg name="buoy_lifetime" default="5.0"/>
+
+    <!-- group to put every thing related to lidar in-->
+    <group ns="object_handling">
+        <!-- Lidar driver -->
+        <node pkg="object_handling" type="buoy_handler.py" name="buoy_handler">
+            <param name="same_buoy_distance" value="$(arg same_buoy_distance)"/>
+            <param name="buoy_lifetime" value="$(arg buoy_lifetime)"/>
+        </node>
+    </group>
+
+</launch>

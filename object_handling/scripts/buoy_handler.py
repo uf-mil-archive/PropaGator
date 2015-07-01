@@ -12,7 +12,7 @@ class object_handler:
 	def __init__(self):
 		rospy.init_node('object_handler', anonymous=False)
 		# Publishers
-		self.object_pub = rospy.Publisher('/objects', Buoys, queue_size = 10)
+		self.object_pub = rospy.Publisher('objects', Buoys, queue_size = 10)
 		# Subscribers
 		self.object_sub = rospy.Subscriber('/lidar/buoy', BuoyStamped, self.objectCb)
 		# Parameters
