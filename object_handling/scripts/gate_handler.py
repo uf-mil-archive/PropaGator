@@ -4,6 +4,8 @@ from geometry_msgs.msg import Vector3
 from std_msgs.msg import Header
 from object_handling.msg import Buoys, Gate, Gates
 from visualization_msgs.msg import MarkerArray, Marker
+from nav_msgs.msg import Odometry
+from uf_common.orientation_helpers import xyz_array
 from itertools import *
 import rospy
 
@@ -37,24 +39,25 @@ class gate_handler:
         # Publishers
         self.gate_pub = rospy.Publisher('gates', Gates, queue_size = 10)
         self.gate_viz_pub = rospy.Publisher('gates_viz', MarkerArray, queue_size = 10)
-        # Subscribers
-        self.buoys_sub = rospy.Subscriber('buoys', Buoys, self.buoysCb)
         # Parameters
         # Maximum width
         self.max_width = rospy.get_param('~max_width', 5.0)
         # Minimum width
         self.min_width = rospy.get_param('~min_width', 1.0)
         # to be to different gates they must have this much angular tolerance
-        self.same_ang_tol = rospy.get_param('~same_angular_tolerance', 15.0 * numpy.pi / 180.0)
+        self.same_ang_tol = rospy.get_param('~same_angular_tolerance', 30.0 * numpy.pi / 180.0)
         # Distance tolerance
-        self.same_dis_tol = rospy.get_param('~same_distance_tolerance', 0.5)
+        self.same_dis_tol = rospy.get_param('~same_distance_tolerance', 1)
         # Intersecting buoy distance
         self.intersecting_buoy_tol = rospy.get_param('intersecting_buoy_tolerance', 0.5)
 
         # to be to different objects they must be this far apart
-        self.lifetime = rospy.get_param('~lifetime', 5.0)
+        self.lifetime = rospy.get_param('~lifetime', 0.1)
 
         self.gates = list()
+
+        # Subscribers
+        self.buoys_sub = rospy.Subscriber('buoys', Buoys, self.buoysCb)
 
         rospy.Timer(rospy.Duration(0.1), self.updateCb)
 
@@ -109,14 +112,16 @@ class gate_handler:
             if self.isSameGate(new_g, old_g):
                 # Replace old gate
                 self.gates[i] = (rospy.get_time(), new_g)
+                #rospy.logdebug('Replace an old gate')
                 return
 
         # If its made it this far it is a new gate
+        rospy.logdebug('New gate')
         self.gates.append((rospy.get_time(), new_g))
 
     # Callback for when new buoys are recieved
     def buoysCb(self, buoys):
-        rospy.logdebug('Buoys callback start')
+        rospy.logdebug('Buoys callback start with ' + str(len(buoys.buoys)) + ' buoys')
         # Check to make sure there are at least two buoys
         # If not try again
         if len(buoys.buoys) < 2:
@@ -129,7 +134,7 @@ class gate_handler:
             # Get numpy arrays of the positoins
             b0 = xy_array(comb[0].position)
             b1 = xy_array(comb[1].position)
-            rospy.logdebug('Combination: ' + str(b0) + ' : ' + str(b1))
+            #rospy.logdebug('Combination: ' + str(b0) + ' : ' + str(b1))
 
             #
             # Width check
@@ -137,8 +142,8 @@ class gate_handler:
             buoy_to_buoy = b0 - b1 
             width = numpy.linalg.norm(buoy_to_buoy)
             if width < self.min_width or width > self.max_width:
+                #rospy.logdebug('Fail width check')
                 continue
-            rospy.logdebug('Pass width check')
 
             #
             # Check to see if any other buoy intersects the line drawn between the two composing buoys
@@ -150,11 +155,11 @@ class gate_handler:
 
                 # Check if this is one of the buoys in the gate (if the distance is less than 1cm its the same buoy)
                 if numpy.linalg.norm(b - b0) < 0.01:
+                    #rospy.logdebug('Intersecting test: Fail same buoy check')
                     continue
                 elif numpy.linalg.norm(b - b1) < 0.01:
+                    #rospy.logdebug('Intersecting test: Fail same buoy check')
                     continue
-
-                rospy.logdebug('Intersecting test: Pass same buoy check')
 
                 # Shift points such that buoy 0 is at 0,0
                 b = b - b0
@@ -174,11 +179,12 @@ class gate_handler:
                 if numpy.linalg.norm(b_perp) < self.intersecting_buoy_tol:
                     # There is a buoy between the composing buoys this is not a gate
                     intersecting_buoy = True
+                    #rospy.logdebug('Intersecting test: Fail buoy intersects')
                     break
 
             if intersecting_buoy:
                 continue
-            rospy.logdebug('Pass intersecting buoy check')
+            
 
             #
             # This is a gate
