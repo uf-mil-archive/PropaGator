@@ -50,25 +50,36 @@ def main(nh, shape=None):
             # negative values mean left
             msg =  yield boat.get_shape_location(shape)
 
+            print msg
+
             # If the pixel location is within our range of error
+<<<<<<< HEAD:boat_launch/src/boat_launch/mission/find_shape.py
             if abs(msg.data) < PIXEL_TOLERANCE:
                 print shape + " in Center at location: " + str(msg.data) + " --- Locking Target"
+=======
+            if abs(msg) < PIXEL_TOLERANCE and msg !=0:
+                print "circle in Center at location: " + str(msg) + " --- Locking Target"
+>>>>>>> LAKE_UPDATES: Merge changes made on 7-1-15:boat_launch/src/boat_launch/mission/find_circle.py
                 break
                 # Break the loop and continue
 
-            angle_move = calc_angle(msg.data) - ANGLE_OFFSET
+            angle_move = calc_angle(msg) - ANGLE_OFFSET
 
             # If the target is right of the center 
-            if msg.data > 0:
+            if msg > 0:
                 # turn the number of degrees right between the center and the target, minus an offset
                 yield boat.move.turn_left(angle_move).go()
 
             # If the target is left of the center
-            if msg.data < 0:
+            if msg < 0:
                 # turn the number of degrees left between the center and the target, minus an offset
                 yield boat.move.turn_left(-angle_move).go()
 
+<<<<<<< HEAD:boat_launch/src/boat_launch/mission/find_shape.py
             print shape + " at pixel location: ", abs(msg.data) 
+=======
+            print "circle at pixel location: ", abs(msg) 
+>>>>>>> LAKE_UPDATES: Merge changes made on 7-1-15:boat_launch/src/boat_launch/mission/find_circle.py
 
         # Target is now in center, moving onto to lidar distance sensing
         
@@ -101,12 +112,14 @@ def main(nh, shape=None):
 
             avg_distance = temp_distance/len(hold)
 
+            print "Average distance from target:", avg_distance
+            print "Shortest distance between boat and object:", shortest_distance
+            print "Farther distance between boat and object:", farthest_distance
+
 
         # When we get a good reading
 
-        print "Average distance from target:", avg_distance
-        print "Shortest distance between boat and object:", shortest_distance
-        print "Farther distance between boat and object:", farthest_distance
+        
 
         # If the boat is 5 or more meters away, command larger move -- avg_distance
         # If the boat is less than 5 meters away, command smaller moves - smallest_distance

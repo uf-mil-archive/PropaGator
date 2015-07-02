@@ -36,11 +36,16 @@ from dynamixel_servo.msg import DynamixelFullConfig
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
 from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
+<<<<<<< HEAD
 from object_handling.msg import Buoys, Gates
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
+=======
+from object_handling.msg import Buoys
+#from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
+>>>>>>> LAKE_UPDATES: Merge changes made on 7-1-15
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
-from azi_drive.srv import AziFloat, AziFloatRequest
+#from azi_drive.srv import AziFloat, AziFloatRequest
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
@@ -84,7 +89,7 @@ class _Boat(object):
         
         #self._send_constant_wrench_service = self._node_handle.get_service_client('send_constant_wrench', SendConstantWrench)
 
-        self._set_lidar_mode = self._node_handle.get_service_client('lidar/lidar_servo_mode', lidar_servo_mode)
+        #self._set_lidar_mode = self._node_handle.get_service_client('lidar/lidar_servo_mode', lidar_servo_mode)
 
         self._set_path_planner_mode = self._node_handle.get_service_client('/azi_waypoint_mode', trajectory_mode)
 
@@ -105,7 +110,7 @@ class _Boat(object):
 
         self._current_challenge_pub = self._node_handle.advertise('current_challenge', String)
     
-        self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
+        #self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
@@ -136,12 +141,16 @@ class _Boat(object):
     def move(self):
         return _PoseProxy(self, self.pose)
 
+    '''
+
     def pan_lidar(self, freq = 0.75, min_angle = 2.7, max_angle = 3.4):
         self._set_lidar_mode(lidar_servo_modeRequest(
                     mode = lidar_servo_modeRequest.PAN,
                     freq = freq,
                     min_angle = min_angle,
                     max_angle = max_angle))
+
+    '''
 
     def still_lidar(self, nominal_angle = numpy.pi):
         self._set_lidar_mode(lidar_servo_modeRequest(
@@ -214,11 +223,16 @@ class _Boat(object):
 
     @util.cancellableInlineCallbacks
     def hold_at_current_pos(self):
+
+        yield self.move.set_position(self.odom.position).go()
+
+        '''
         odom = yield self.get_gps_odom_rel()
         print odom
         odom_to_send = yield orientation_helpers.PoseEditor.from_Pose(odom.header.frame_id, odom.pose.pose)
         goal = yield odom_to_send.as_MoveToGoal()
         self._moveto_action_client.send_goal(goal)
+        '''
               
     @util.cancellableInlineCallbacks
     def get_shape_location(self, shape):

@@ -18,10 +18,7 @@ wrench:
     z: 0.0"
 }
 
-function h(){
-    roscd boat_launch/src/boat_launch/mission/
-    python -c 'import station_hold; station_hold.hold_at_current_pos()' 
-}
+
 
 alias sim="rosrun boat_sim sim"
 alias vis="rosrun boat_sim path_visualizer.py"
@@ -47,5 +44,9 @@ function mission(){
 echo "rosrun mission_core run_missions boat_launch.mission.$1"
 rosrun mission_core run_missions boat_launch.mission.$1
 
+}
+
+function h(){
+  mission station_hold 
 }
 
