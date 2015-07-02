@@ -17,7 +17,7 @@ def get_heading(x, y):
 
  #SPP allign the craft based on what pings the hydrophones hear for a given freq
 @util.cancellableInlineCallbacks
-def main(nh, (min_freq, max_freq)):
+def main(nh, min_freq, max_freq):
     boat = yield boat_scripting.get_boat(nh)
     while True:
         ping_return = None
@@ -27,7 +27,7 @@ def main(nh, (min_freq, max_freq)):
                 boat.float_on()
                 yield util.sleep(.5)
                 print 'Listen'
-                ping_return = yield util.wrap_timeout(boat.get_processed_ping((min_freq, max_freq)), 5)
+                ping_return = yield util.wrap_timeout(boat.get_processed_ping((min_freq, max_freq)), 20)
             except Exception:
                 # Timeout rotate 30 deg
                 print 'Timeout no ping rotating 30 degrees left'
@@ -37,11 +37,12 @@ def main(nh, (min_freq, max_freq)):
                 print 'Rotated 30 degrees'
 
 	    boat.float_off()
-        declination = get_declination(ping_return.position.x, ping_return.position.y, ping_return.position.z)
-        heading = get_heading(ping_return.position.x, ping_return.position.y)
+        
+        # Changed message type to handle this. Conversion is carried out in the hydrophones script in 
+        # software_common/hydrophones/scripts
         print 'Ping is: ', ping_return
-        print 'I say heading is: ', heading
-        print 'I say declination is: ', declination
+        print 'I say heading is: ', ping_return.heading
+        print 'I say declination is: ', ping_return.declination
 
         if ping_return.declination > 1.2:
             good += 1
@@ -51,7 +52,7 @@ def main(nh, (min_freq, max_freq)):
         elif abs(ping_return.heading) > math.radians(30):
             good = 0
             print 'Turn to ping'
-            yield boat.move.yaw_left(heading).go()
+            yield boat.move.yaw_left(ping_return.heading).go()
         else:
             good = 0
             print 'Move towards ping'
