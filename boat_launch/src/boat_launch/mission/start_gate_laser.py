@@ -63,6 +63,10 @@ def filter_gates(boat, gates):
     gates = filter(lambda x: abs(x[1]) < 60 * numpy.pi / 180, gates)
     #print 'Filter gates behind the boat: ' + str(gates)
 
+    if len(gates) == 0:
+        print 'No gates in front of boat'
+        return (None, None)
+
     # Drop the angles
     gates = [g[0] for g in gates]
 
