@@ -45,6 +45,7 @@ def main():
 	rospy.init_node('url_course_provider')
 	s = rospy.Service('url_course_service', url_and_course, publishUrlandCourse)
 	print "Ready to receive url and course"
+	rospy.spin()
 
 if __name__ == '__main__':
 	try:
