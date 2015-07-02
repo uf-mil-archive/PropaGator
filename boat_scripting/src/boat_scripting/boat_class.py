@@ -188,10 +188,10 @@ class _Boat(object):
         deploy_msg.led=0
         deploy_msg.goal_position=4.3 # 2.4 rad/s~22 rpm NOTE: we explicitly retract to pi to try and avoid being at the 0/2*PI boundary on a powerup
         deploy_msg.moving_speed=1.4 # 1.4 rad/s~22 rpm
-        deploy_msg.torque_limit=143 # 143/1023 is about 14% torque (so we don't break the rope if someone didn't feed them correctly to start)
+        deploy_msg.torque_limit= 205 # 205/1023 is about 20% torque (so we don't break the rope if someone didn't feed them correctly to start)
         deploy_msg.goal_acceleration=20
         deploy_msg.control_mode=DynamixelFullConfig.CONTINUOUS_ANGLE
-        deploy_msg.goal_velocity=1.4
+        deploy_msg.goal_velocity=1.6
         self.servo_full_config_pub.publish(deploy_msg)
         for i in xrange(100):
             self.servo_full_config_pub.publish(deploy_msg)
