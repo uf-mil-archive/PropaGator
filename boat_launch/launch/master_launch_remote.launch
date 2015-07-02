@@ -1,6 +1,7 @@
 <launch>
 	<!-- Launches on remote computer -->
-	<include file="$(find communication_monitor)/launch/shore_communication_monitor.launch"/>
+	
 	<node name="joy_node" pkg="joy" type="joy_node" />
+	<include file="$(find communication_monitor)/launch/shore_communication_monitor.launch"/>
 </launch>
 
