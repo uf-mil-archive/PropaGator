@@ -1,0 +1,9 @@
+<launch>
+  <!-- Launches -->
+  <include file="$(find boat_launch)/launch/navigation.launch"/>
+  <include file="$(find boat_launch)/launch/run.launch"/>
+  <include file="$(find azi_drive)/launch/run_azi.launch"/>
+  <include file="$(find boat_launch)/launch/controller.launch"/>
+
+</launch>
+
