@@ -41,6 +41,7 @@ from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
 from azi_drive.srv import AziFloat, AziFloatRequest
+from server_interaction.srv import start_end_run, url_and_course, start_end_runRequest, url_and_courseRequest
 
 class _PoseProxy(object):
     def __init__(self, boat, pose):
@@ -103,6 +104,10 @@ class _Boat(object):
         self._odom_pub = self._node_handle.advertise('odom', Odometry)
 
         self._current_challenge_pub = self._node_handle.advertise('current_challenge', String)
+
+        self.url_and_course_srv = self._node_handle.get_service_client('/url_course_service', url_and_course)
+
+        self.start_end_run_srv = self._node_handle.get_service_client('/send_start_end_run', start_end_run)
     
         self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
@@ -289,7 +294,13 @@ class _Boat(object):
         defer.returnValue(orientation_helpers.xyz_array(msg.pose.pose.position))
     
     def set_current_challenge(self,challenge):
-        self._current_challenge_pub.publish(String(challenge))    
+        self._current_challenge_pub.publish(String(challenge))
+
+    def set_url_and_course(self,course,url='http://ec2-52-7-253-202.compute-1.amazonaws.com:80'):
+        self.url_and_course_srv(url_and_courseRequest(course=course,url=url))
+
+    def start_or_end_run(self,run):
+        self.start_end_run_srv(start_end_runRequest(status=run))        
 
     # Enter a default state
     #   retract_hydrophone
