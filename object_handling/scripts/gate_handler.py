@@ -59,8 +59,6 @@ class gate_handler:
         # Subscribers
         self.buoys_sub = rospy.Subscriber('buoys', Buoys, self.buoysCb)
 
-        rospy.Timer(rospy.Duration(0.1), self.updateCb)
-
     def visualize(self):
         m_array = MarkerArray()
         for i, g in enumerate(self.gates):
@@ -118,6 +116,21 @@ class gate_handler:
         # If its made it this far it is a new gate
         rospy.logdebug('New gate')
         self.gates.append((rospy.get_time(), new_g))
+
+    # Publish all gates that are fresh
+    def sendGates(self):
+        self.gates = filter(self.isFreshObject, self.gates)
+
+        gates = Gates(
+            header = Header(
+                stamp = rospy.Time.now(),
+                frame_id = '/enu'),
+            gates = [g[1] for g in self.gates]
+        )
+
+        self.gate_pub.publish(gates)
+
+        self.visualize()
 
     # Callback for when new buoys are recieved
     def buoysCb(self, buoys):
@@ -200,20 +213,7 @@ class gate_handler:
             # Insert the new gate
             self.insertGate(new_g)
 
-
-    def updateCb(self, event):
-        self.gates = filter(self.isFreshObject, self.gates)
-
-        gates = Gates(
-            header = Header(
-                stamp = rospy.Time.now(),
-                frame_id = '/enu'),
-            gates = [g[1] for g in self.gates]
-        )
-
-        self.gate_pub.publish(gates)
-
-        self.visualize()
+        self.sendGates()
 
 # Run the node
 if __name__ == '__main__':
