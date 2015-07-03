@@ -6,7 +6,6 @@ from object_handling.msg import Buoys, Gate, Gates
 from visualization_msgs.msg import MarkerArray, Marker
 from nav_msgs.msg import Odometry
 from uf_common.orientation_helpers import xyz_array
-from itertools import *
 import rospy
 
 """
@@ -57,7 +56,7 @@ class gate_handler:
         self.gates = list()
 
         # Subscribers
-        self.buoys_sub = rospy.Subscriber('buoys', Buoys, self.buoysCb)
+        self.buoys_sub = rospy.Subscriber('buoys', Buoys, self.buoysCb, queue_size=1)
 
     def visualize(self):
         m_array = MarkerArray()
@@ -143,75 +142,76 @@ class gate_handler:
 
         # Make sure the buoys are at least min meters apart and
         #   no more than max meters apart
-        for comb in combinations(buoys.buoys, 2):
-            # Get numpy arrays of the positoins
-            b0 = xy_array(comb[0].position)
-            b1 = xy_array(comb[1].position)
-            #rospy.logdebug('Combination: ' + str(b0) + ' : ' + str(b1))
+        for iii, buoy0 in enumerate(buoys.buoys[0:-1]):
+            b0 = xy_array(buoy0.position)
+            # Sort the list based on clossness to b0
+            # Drop all buoys already checked and the same buoy
+            sorted_buoys = buoys.buoys[(iii + 1):]
+            sorted_buoys = sorted(sorted_buoys, 
+                cmp = lambda x, y: cmp(numpy.linalg.norm(b0 - xy_array(x.position)),
+                                       numpy.linalg.norm(b0 - xy_array(y.position)) ))
 
-            #
-            # Width check
-            #
-            buoy_to_buoy = b0 - b1 
-            width = numpy.linalg.norm(buoy_to_buoy)
-            if width < self.min_width or width > self.max_width:
-                #rospy.logdebug('Fail width check')
-                continue
+            for jjj, buoy1 in enumerate(sorted_buoys):
+                b1 = xy_array(buoy1.position)
+                rospy.logdebug('Combination: ' + str(b0) + ' : ' + str(b1))
 
-            #
-            # Check to see if any other buoy intersects the line drawn between the two composing buoys
-            #
-            intersecting_buoy = False
-            for b in buoys.buoys:
-                # Convert to numpy array
-                b = xy_array(b.position)
-
-                # Check if this is one of the buoys in the gate (if the distance is less than 1cm its the same buoy)
-                if numpy.linalg.norm(b - b0) < 0.01:
-                    #rospy.logdebug('Intersecting test: Fail same buoy check')
+                #
+                # Width check
+                #
+                buoy_to_buoy = b0 - b1 
+                width = numpy.linalg.norm(buoy_to_buoy)
+                if width < self.min_width:
+                    rospy.logdebug('Fail width check: to close')
                     continue
-                elif numpy.linalg.norm(b - b1) < 0.01:
-                    #rospy.logdebug('Intersecting test: Fail same buoy check')
-                    continue
-
-                # Shift points such that buoy 0 is at 0,0
-                b = b - b0
-                b1_shift = b1 - b0
-                b_proj = buoy_to_buoy * (numpy.dot(b, buoy_to_buoy) / (width**2))
-
-                # Check if the projection is between the two composing buoys in the shifted cordinates
-                if numpy.linalg.norm(b_proj) > width:
-                    # Does not intersect
-                    continue
-                elif numpy.linalg.norm(b_proj - b1_shift) > width:
-                    # Does not intersect
-                    continue
-
-                # This buoys projection is between the composing buoys, check perpendicular distance
-                b_perp = b - b_proj
-                if numpy.linalg.norm(b_perp) < self.intersecting_buoy_tol:
-                    # There is a buoy between the composing buoys this is not a gate
-                    intersecting_buoy = True
-                    #rospy.logdebug('Intersecting test: Fail buoy intersects')
+                elif width > self.max_width:
+                    rospy.logdebug('Fail width check: to far apart')
+                    # Since buoys are sorted by closeness we can break this loop
                     break
+                rospy.logdebug('Pass width check')
 
-            if intersecting_buoy:
-                continue
-            
+                #
+                # Check to see if any other buoy intersects the line drawn between the two composing buoys
+                #
+                intersecting_buoy = False
+                rospy.logdebug('Checking ' + str(len(sorted_buoys[:jjj])) + ' possible intersecting buoy(s)')
+                for b_sect in sorted_buoys[:jjj]:
+                    # Convert to numpy array
+                    b_sect = xy_array(b_sect.position)
 
-            #
-            # This is a gate
-            #
-            new_g = Gate(
-                    position = to_vector((b0 + b1) / 2),
-                    buoy1 = comb[0],
-                    buoy2 = comb[1],
-                    yaw = numpy.arctan2(buoy_to_buoy[1], buoy_to_buoy[0]) % numpy.pi,
-                    width = width
-                )
+                    # Shift points such that buoy 0 is at 0,0
+                    b_sect = b_sect - b0
+                    b1_shift = b1 - b0
+                    b_sect_proj = buoy_to_buoy * (numpy.dot(b_sect, buoy_to_buoy) / (width**2))
 
-            # Insert the new gate
-            self.insertGate(new_g)
+                    # Check if the projection is between the two composing buoys in the shifted cordinates
+                    if numpy.linalg.norm(b_sect_proj - b1_shift) > width:
+                        # Does not intersect
+                        continue
+
+                    # This buoys projection is between the composing buoys, check perpendicular distance
+                    b_sect_perp = b_sect - b_sect_proj
+                    if numpy.linalg.norm(b_sect_perp) < self.intersecting_buoy_tol:
+                        # There is a buoy between the composing buoys this is not a gate
+                        intersecting_buoy = True
+                        rospy.logdebug('Intersecting test: Fail buoy intersects')
+                        break
+                if intersecting_buoy:
+                    continue
+                rospy.logdebug('Pass Intersecting test')
+                
+                #
+                # This is a gate
+                #
+                new_g = Gate(
+                        position = to_vector((b0 + b1) / 2),
+                        buoy1 = buoy0,
+                        buoy2 = buoy1,
+                        yaw = numpy.arctan2(buoy_to_buoy[1], buoy_to_buoy[0]) % numpy.pi,
+                        width = width
+                    )
+
+                # Insert the new gate
+                self.insertGate(new_g)
 
         self.sendGates()
 
