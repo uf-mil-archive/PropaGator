@@ -7,6 +7,7 @@ import json
 import sys
 import time
 from std_msgs.msg import String
+from std_msgs.msg import Bool
 from server_interaction.msg import docking_bay_sequence
 # import ssl
 # from functools import wraps
@@ -23,14 +24,13 @@ def StoreCourseCode(courseCode):
 
 	global course
 	course = courseCode.data
-	postDockingSequence()
 
 def StoreServerUrl(serverUrl):
 
 	global mainUrl
 	mainUrl = serverUrl.data
 
-def postDockingSequence():	
+def postDockingSequence(send):	
 
 	try:
 		sublinkMain = '/automatedDocking/%s/UF' %course
@@ -87,8 +87,7 @@ def main():
 	rospy.Subscriber('course_code', String, StoreCourseCode)
 	#subscribe to 'main_server_url'
 	rospy.Subscriber('main_server_url', String, StoreServerUrl)
-	#wait five seconds 
-	time.sleep(5)
+	rospy.Subscriber('start_server_interaction', Bool, postDockingSequence)
 	rospy.spin()
 
 if __name__ == '__main__':	

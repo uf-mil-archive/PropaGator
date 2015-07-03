@@ -7,6 +7,7 @@ import json
 import sys
 import time
 from std_msgs.msg import String
+from std_msgs.msg import Bool
 from server_interaction.srv import start_end_run
 # import ssl
 # from functools import wraps
@@ -24,8 +25,8 @@ def StoreCourseCode(courseCode):
 	course = courseCode.data
 
 def SendStartEndRun(runStatus):
-	
 	start_or_end = runStatus.status
+	start_run_pub = rospy.Publisher('start_server_interaction', Bool)
 	startLink = '/run/start/%s/UF' %(course)
 	endLink = '/run/end/%s/UF' %(course)
 	headers = {'Content-Type':'application/json'}
@@ -59,6 +60,7 @@ def SendStartEndRun(runStatus):
 		print("Did the server authorize the run to start?")
 		if r.json()["success"] == True:
 			print "\033[0;32m%s\033[0m" %r.json()["success"]
+			start_run_pub.publish(True)
 			return True
 		else:
 			print "\033[0;31m%s\033[0m" %r.json()["success"]

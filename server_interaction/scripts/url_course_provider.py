@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 import rospy
 import sys
+import time
 from std_msgs.msg import String
 from server_interaction.srv import url_and_course
+from server_interaction.srv import start_end_run
 
 ## Scans information pertaining the server
 # def ScanMainUrl():
@@ -20,24 +22,21 @@ from server_interaction.srv import url_and_course
 # 	return coursecode
 
 def publishUrlandCourse(url_and_course):
-	
+
 	mainurl = url_and_course.url
 	coursecode = url_and_course.course 
 
 	mainurl_pub = rospy.Publisher('main_server_url', String, queue_size=10)
 	coursecode_pub = rospy.Publisher('course_code', String, queue_size=10)
-
-	rate = rospy.Rate(2)
-
-	return True
-
+	rate = rospy.Rate(1)
 	while not rospy.is_shutdown():
-		
 		rospy.loginfo(mainurl)	
 		rospy.loginfo(coursecode)
 		mainurl_pub.publish(mainurl)
 		coursecode_pub.publish(coursecode)
-		rate.sleep()   
+		rate.sleep()
+		 
+	return True  
 
 
 def main():

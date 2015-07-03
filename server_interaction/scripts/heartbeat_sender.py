@@ -71,21 +71,23 @@ def normalizeAngle(angle):
 
 def GetGpsData(gpsPos):
 	#getting gps data from boat in ecef coordinates (x,y,z)
+	global x,y,z
 	x = gpsPos.pose.pose.position.x
 	y = gpsPos.pose.pose.position.y
 	z = gpsPos.pose.pose.position.z
+def sendHeartBeat(blah):	
 	ecef = (x,y,z)
 	global gpsData
 	gpsData = ecef2lla(ecef)
-	print "X data: "
-	print x
-	print(" ")
-	print "Y data: "
-	print y
-	print(" ")
-	print "Z data: "
-	print z
-	print(" ")	
+	# print "X data: "
+	# print x
+	# print(" ")
+	# print "Y data: "
+	# print y
+	# print(" ")
+	# print "Z data: "
+	# print z
+	# print(" ")	
 	timeStamp = datetime.utcnow()
 	timeStamp = timeStamp.strftime('%Y%m%d%H%M%S')
 	latitude = str(gpsData[0])
@@ -117,6 +119,7 @@ def main():
 	rospy.Subscriber('main_server_url', String, StoreMainServerUrl)
 	rospy.Subscriber('absodom', Odometry, GetGpsData)
 	rospy.Subscriber('course_code', String, StoreCourseInfo)
+	rospy.Subscriber('course_code', String, sendHeartBeat)
 	rospy.Subscriber('current_challenge', String, GetCurrentTask)	
 	rospy.spin()
 

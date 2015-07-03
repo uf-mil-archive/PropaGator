@@ -16,7 +16,7 @@ def buoy_color_client():
 		sendColor = rospy.ServiceProxy('send_buoy_color', buoy_color)
 		#pass the parameter onto the method. The paramenter is the 
 		#color of the buoy that was identified as the pinger buoy
-		response = sendColor('red')
+		response = sendColor('blue')
 		#response returns the status that the server returns
 		#either true or false depending on whether the right buoy
 		#was identified

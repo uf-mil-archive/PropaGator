@@ -7,6 +7,7 @@ import json
 import sys
 import time
 from std_msgs.msg import String
+from std_msgs.msg import Bool
 from server_interaction.msg import gate_code
 
 
@@ -17,8 +18,11 @@ def StoreCourseCode(courseCode):
 	course = courseCode.data
 
 def SendRequest(serverUrl):
+	global mainUrl
+	mainUrl = serverUrl.data
+
+def requestInfo(send):	
 	try:
-		mainUrl = serverUrl.data
 		sublinkMain = '/obstacleAvoidance/%s/UF' %course
 		url = mainUrl +  sublinkMain
 		r = requests.get(url, verify = False)	
@@ -47,6 +51,7 @@ def main():
 	rospy.init_node('gate_code_provider')
 	rospy.Subscriber('course_code', String, StoreCourseCode)
 	rospy.Subscriber('main_server_url', String, SendRequest)
+	rospy.Subscriber('start_server_interaction', Bool, requestInfo)
 	rospy.spin()
 
 if __name__ == '__main__':

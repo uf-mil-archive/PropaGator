@@ -10,6 +10,7 @@ import json
 import os
 import time
 from std_msgs.msg import String
+from std_msgs.msg import Bool
 from server_interaction.msg import images_info
 
 ## Gets images from server and publishes strings file_path and image_count
@@ -41,10 +42,12 @@ def StoreCourseInfo(courseInfo):
 	except NameError:
 		pass 
 
+def getImages(send):
 	# main sublink
 	# the last part of the link needs to be removed i.e.
 	# the actual link is: /interop/images/%s/UF
 	# this is just to test on my server
+
 
 	sublinkMain = '/interop/images/%s/UF' %course
 	#creating url
@@ -128,7 +131,7 @@ def main():
 	# and we have to process and identify one of them
 	rospy.Subscriber('main_server_url', String, StoreServerUrl) 
 	rospy.Subscriber('course_code', String, StoreCourseInfo)
-	time.sleep(5)
+	rospy.Subscriber('start_server_interaction', Bool, getImages)
 	rospy.spin()
 			
 
