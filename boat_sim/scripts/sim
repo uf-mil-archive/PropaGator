@@ -321,7 +321,7 @@ class lidar:
 
         self.send_lidar_transform()
         publish_lidar(scan_ranges)
-        #self.pitch_lidar()
+        self.pitch_lidar()
 
 #Instantiate a "Lidar"
 boat_lidar = lidar()
