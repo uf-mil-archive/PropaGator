@@ -1,4 +1,4 @@
-__author__ = 'ralphfleyva'
+__author__ = 'Ralph F. Leyva'
 
 #!/usr/bin/env python
 

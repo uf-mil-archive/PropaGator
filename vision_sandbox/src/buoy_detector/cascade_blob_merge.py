@@ -1,6 +1,4 @@
-__author__ = 'ralphfleyva'
-
-#!/usr/bin/env python
+__author__ = 'Ralph F. Leyva'
 
 import os
 import sys
