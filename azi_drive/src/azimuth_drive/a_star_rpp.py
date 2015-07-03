@@ -74,9 +74,9 @@ class a_star_rpp:
         '''
         self.listener = tf.TransformListener()
         self.cell_dir_tf = {'0':'/step0',
-                            '1':'/step1',
+                            '1':'/step3',
                             '2':'/step2',
-                            '3':'/step3',}
+                            '3':'/step1',}
     
 
     # Accept a new goal in the form of a posetwist
@@ -115,8 +115,8 @@ class a_star_rpp:
         distance = np.linalg.norm(self.desired_position - self.current_position)
         #angles so the boat isnt asked to straif too severly
         step_angle = {'0':self.line.angle, 
-                      '3':self.line.angle+np.pi/3, 
-                      '1':self.line.angle-np.pi/3,
+                      '1':self.line.angle+np.pi/3, 
+                      '3':self.line.angle-np.pi/3,
                       '2':self.line.angle
                       }
         x_velocity = {'0':0, 
@@ -126,7 +126,17 @@ class a_star_rpp:
         
         decision = self.map_builder()
         print decision
+        if decision == None:
+            print 'EMPTY' 
+            return PoseTwist(
+                pose = Pose(
+                    position = tools.vector3_from_xyz_array(self.desired_position),
+                    orientation = tools.quaternion_from_rotvec(self.desired_orientation)),
 
+                twist = Twist(
+                    linear = Vector3(),        
+                    angular = Vector3())
+                )
         if decision in self.cell_dir_tf.keys():
             c_pos = self.look_up_step(self.cell_dir_tf[decision])
             c_pos=tools.vector3_from_xyz_array(c_pos)
@@ -146,7 +156,6 @@ class a_star_rpp:
                 pose = Pose(
                     position = (c_pos),
                     orientation = tools.quaternion_from_rotvec([0, 0, c_angle])),
-
                 twist = Twist(
                     linear = Vector3(c_velocity, 0, 0),        
                     angular = Vector3())
@@ -205,6 +214,27 @@ class a_star_rpp:
 
     def map_builder(self):
         # MAIN
+        print 'current_position',self.current_position
+        print 'desi_position',self.desired_position
+        print 'current_orientation', self.current_orientation
+        rot = None
+        try:
+            (trans,rot) = self.listener.lookupTransform('/enu','/base_link', rospy.Time(0))
+        except tf.Exception as e:
+            rospy.logwarn('tf error' + str(e))
+        if rot == None or trans == None: return
+        rot = np.asarray(rot)
+        trans = np.array(trans)
+        angle = tools.quat_to_rotvec(rot)
+        z_rotation = angle[2]
+        rotMatrix = np.array([[np.cos(z_rotation), np.sin(z_rotation)], 
+                              [-np.sin(z_rotation),  np.cos(z_rotation)]])
+
+        #test = np.array([0,0,0])#self.current_position + [1,0,0]
+        #print 'Current pose: ', test
+        #print 'translate: ', test - trans
+        #print 'translate rotat: ', rotMatrix.dot((test - trans)[:2])
+
 
         dirs = 4 # number of possible directions to move on the map
         if dirs == 4:
@@ -221,6 +251,19 @@ class a_star_rpp:
         for i in range(m): # create empty map
             the_map.append(list(row))
         
+        (xA, yA) = [5, 
+                    int(math.floor(n/2))]
+        (xB, yB) = [self.desired_position[0]-self.current_position[0], 
+                    self.desired_position[1]-self.current_position[1]]
+        print '1', xB, yB
+        des_pos_grid = np.array([xB, yB])
+        des_pos_grid = rotMatrix.dot(des_pos_grid)
+        print '2', des_pos_grid
+        (xB, yB) = [int(math.floor(des_pos_grid[0]+xA)), 
+                    int(math.floor(des_pos_grid[1]+yA))]
+        print '3', xB, yB
+        if (xA, yA) == (xB, yB):
+            return None
         i=0
         j=0
         k=0
@@ -230,35 +273,43 @@ class a_star_rpp:
         if self.pc_count > 0:
             for x in range(0,self.pc_count):
                 point_cloud = self.store_pc[x]
-                if type(point_cloud) != int:
-                    for k in range(0, len(point_cloud)):
-                        point = point_cloud[k]
-                        if point != None and len(point) > 1:  
-                            point = point - self.current_position
-                            baselink_point = point.tolist()
-                            baselink_point[0]=(abs(int(math.floor(point[0])))+4)
-                            baselink_point[1]=(int(math.floor(point[1])))+15
-                            baselink_point[2]=0
-                            #print 'baselink_point' , type(baselink_point)
-                            #print 'baselink_point', baselink_point
-                            #print 'self.current_position,', self.current_position
-                            if baselink_point != None and len(baselink_point) > 1 and 0 < baselink_point[0] < 29 and 0 < baselink_point[1] < 29:
-                                the_map[baselink_point[1]][baselink_point[0]] = 1 
-                                #the_map[baselink_point[1]-1][baselink_point[0]] = 1
-                                #the_map[baselink_point[1]][baselink_point[0]-1] = 1
-                                #the_map[baselink_point[1]+1][baselink_point[0]] = 1
+
+                # Workaround weird ints instead of pcs
+                if type(point_cloud) == int: continue
+
+                for k in range(0, len(point_cloud)):
+                    point = point_cloud[k]
+                    if point != None and len(point) > 1:
+                        # Translate to base_link
+                        point = point - trans
+                        # Drop the z
+                        point = point[:2]
+                        # rotate to base_link
+                        point = np.dot(rotMatrix, point)
+
+                        # Convert to grid
+                        baselink_point = [
+                                    (int(math.floor(point[0])))+xA,
+                                    (int(math.floor(point[1])))+yA,
+                                    0]
+
+                        #print 'baselink_point' , type(baselink_point)
+                        #print 'baselink_point', baselink_point
+                        #print 'self.current_position,', self.current_position
+                        if baselink_point != None and len(baselink_point) > 1 and 0 < baselink_point[0] < 29 and 0 < baselink_point[1] < 29:
+                            the_map[baselink_point[1]][baselink_point[0]] = 1 
+                            the_map[baselink_point[1]-1][baselink_point[0]] = 1
+                            the_map[baselink_point[1]][baselink_point[0]-1] = 1
+                            the_map[baselink_point[1]+1][baselink_point[0]] = 1
         else:
             print 'NO POINTS'
         #the placing of the current position and the desired position on the occupancy grid    
-        (xA, yA, xB, yB) = [5, 
-                            int(math.floor(n/2)), 
-                            5+abs(int(math.floor(self.desired_position[0]-self.current_position[0]))), 
-                            int(math.floor(self.desired_position[1]-self.current_position[1] + n/2))]
-                            
+
+
+
         route = self.pathFind(the_map, n, m, dirs, dx, dy, xA, yA, xB, yB)
         print 'Route: ', '(', route, ')'
-        if len(route)>0:
-            return route[0]
+
                 
         # mark the route on the map
         if len(route) > 0:
@@ -274,7 +325,7 @@ class a_star_rpp:
 
         # display the map with the route added
         
-        print 'Map:'
+        print 'Map (Bottom up view):'
         for y in range(m):
             for x in range(n):
                 xy = the_map[y][x]
@@ -289,7 +340,8 @@ class a_star_rpp:
                 elif xy == 4:
                     print 'F', # finish
             print
-        
+        if len(route)>0:
+            return route[0]        
         
     # A-star algorithm.
     # The path returned will be a string of digits of directions.
@@ -382,7 +434,7 @@ class a_star_rpp:
                             heappop(pq[pqi])       
                         pqi = 1 - pqi
                         heappush(pq[pqi], m0) # add the better node instead
-        return 'NO ROUTE' # if no route found
+        return '' # if no route found
     
     def look_up_step(self, name):
         #rospy.init_node('step_listner')
