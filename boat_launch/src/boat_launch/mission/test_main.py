@@ -8,7 +8,7 @@ from txros import util
 import rospy
 import boat_scripting
 import traceback
-from boat_launch.mission import start_gate_laser, find_circle, find_cross, find_triangle, go_to_ecef_pos
+from boat_launch.mission import start_gate_laser, find_shape go_to_ecef_pos
 from rawgps_common import gps
 
 SPEED = 1
@@ -48,25 +48,22 @@ def do_dock(nh, shape):
 	if shape == 'circle':
 		try:
 			print "Docking --- circle"
-			yield util.wrap_timeout(find_circle.main(nh), CIRCLE_TIME)
+			yield util.wrap_timeout(find_shape.main(nh, 'circle'), CIRCLE_TIME)
 		except Exception:
-			yield boat.move.forward(-6).go()
 			print "Could not find circle, moving  to next shape"
 
 	if shape == 'triangle':
 		try:
 			print "Docking --- triangle"
-			yield util.wrap_timeout(find_triangle.main(nh), TRIANGLE_TIME)
+			yield util.wrap_timeout(find_shape.main(nh, 'triangle'), TRIANGLE_TIME)
 		except Exception:
-			yield boat.move.forward(-6).go()
 			print "Could not find triangle, moving to next shape"
 
 	if shape == 'cross':
 		try:
 			print "Docking --- cross"
-			yield util.wrap_timeout(find_cross.main(nh), CROSS_TIME)
+			yield util.wrap_timeout(find_shape.main(nh, 'cross'), CROSS_TIME)
 		except Exception:
-			yield boat.move.forward(-6).go()
 			print "Could not find cross, moving to next shape"
 
 
