@@ -6,6 +6,7 @@ from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.orientation_helpers import rotvec_to_quat
 from uf_common.orientation_helpers import get_perpendicular
 from itertools import *
+from boat_launch.mission import move_on_line
 
 """
 This mission attempts to go through the start gate and speed gate using only lidar data
@@ -28,9 +29,12 @@ Math:
 References:
 * [Rules] (https://s3.amazonaws.com/com.felixpageau.roboboat/RoboBoat_2015_final_rules_20150527.pdf)
 """
+# The boat stops GATE_DISTANCE before the first gate and 
+#   GATE_DISTANCE after gate two
+GATE_DISTANCE = 3.0
 
 # Find gate algorithim
-def filter_gates(boat, gates):
+def filter_gates(boat, gates, look_ahead):
     if gates is None:
         return (None, None)
 
@@ -41,8 +45,9 @@ def filter_gates(boat, gates):
     position = boat.odom.position[0:2]
     yaw = quat_to_rotvec(boat.odom.orientation)[2]
     heading = numpy.array([numpy.cos(yaw), numpy.sin(yaw)])
-
-    # Translate to base link (no rotation)
+    if look_ahead:
+        position = position + heading * (GATE_DISTANCE + 1.0)
+    # Translate to base link or base_link + GATE_DISTANCE (no rotation)
     def translate(v):
         return xyz_array(v.position)[0:2] - position
 
@@ -72,7 +77,7 @@ def filter_gates(boat, gates):
 
     gate = min(gates, key=lambda x: numpy.linalg.norm(x[1]))
 
-    # get the xyz of the goal
+    # get the xyz of the goal in enu
     goal_pos = gate[1] + position
     goal_pos = numpy.insert(goal_pos, 2, 0)
     #print 'Goal pose: ' + str(goal_pos)
@@ -83,9 +88,11 @@ def filter_gates(boat, gates):
         angle = angle + numpy.pi
     #print 'Angle of goal: ', angle
     
-    goal_orientation = rotvec_to_quat(numpy.array([0, 0, angle])) 
+    goal_orientation = numpy.array([0, 0, angle])
+    #goal_orientation = rotvec_to_quat(numpy.array([0, 0, angle])) 
 
     return (goal_pos, goal_orientation)
+
 
 @util.cancellableInlineCallbacks
 def main(nh):
@@ -93,63 +100,71 @@ def main(nh):
     #print 'Finding start gate with laser'
     boat = yield boat_scripting.get_boat(nh)
 
-    #print 'Pan the lidar between the maximum angle and slightly above horizontal'
-    boat.pan_lidar(max_angle=3.264, min_angle=3.15, freq=0.5)
+    try:
+        #print 'Pan the lidar between the maximum angle and slightly above horizontal'
+        boat.pan_lidar(max_angle=3.264, min_angle=3.15, freq=0.5)
 
-    # How many gates we've gone through
-    gates_passed = 0
+        # How many gates we've gone through
+        gates_passed = 0
 
-    have_gate = False
-    last_gate_pos = None
-    move = None
+        have_gate = False
+        last_gate_pos = None
+        move = None
 
-    while gates_passed < 2:
-        #print 'Get gates'    
-        gates = yield boat.get_gates()
+        while gates_passed < 2:
+            #print 'Get gates'    
+            gates = yield boat.get_gates()
 
-        (gate_pos, gate_orientation) = filter_gates(boat, gates)
+            (gate_pos, gate_orientation) = (None, None) 
+            if gates_passed == 0:
+                (gate_pos, gate_orientation) = filter_gates(boat, gates, False)
+            else:
+                (gate_pos, gate_orientation) = filter_gates(boat, gates, True)
 
-        # Check if valid gate found
-        if gate_pos is not None:
-            have_gate = True
-            # Check if we previously found a gate
-            if last_gate_pos is not None:
-                # Check if the gate center has drifted
-                # Don't go to a different gate (dis < 5)
-                dis = numpy.linalg.norm(last_gate_pos - gate_pos)
-                #print 'Distance: ', dis
-                if dis > 0.1 and dis < 5:
-                    print 'Gate drifted re-placing goal point'
-                    move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
+            # Check if valid gate found
+            if gate_pos is not None:
+                have_gate = True
+                # Check if we previously found a gate
+                if last_gate_pos is not None:
+                    # Check if the gate center has drifted
+                    # Don't go to a different gate (dis < 5)
+                    dis = numpy.linalg.norm(last_gate_pos - gate_pos)
+                    #print 'Distance: ', dis
+                    if dis > 0.1 and dis < 5:
+                        print 'Gate drifted re-placing goal point'
+                        #move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
+                        if gates_passed == 0:
+                            move = move_on_line.main(nh, gate_pos, gate_orientation, -GATE_DISTANCE)
+                        else:
+                            move = move_on_line.main(nh, gate_pos, gate_orientation, GATE_DISTANCE)
+                    else:
+                        #print 'Still happy with my current goal'
+                        pass
                 else:
-                    #print 'Still happy with my current goal'
-                    pass
+                    # Just found a gate    
+                    print 'Moving to gate ' + str(gates_passed + 1)
+                    #move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
+                    if gates_passed == 0:
+                        move = move_on_line.main(nh, gate_pos, gate_orientation, -GATE_DISTANCE)
+                    else:
+                        move = move_on_line.main(nh, gate_pos, gate_orientation, GATE_DISTANCE)
+
+                # Set last gate pos
+                last_gate_pos = gate_pos
+
             else:
-                # Just found a gate    
-                print 'Moving to gate ' + str(gates_passed + 1)
-                move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
+                if have_gate is False:
+                    print 'No gate found moving forward 1m'
+                    yield boat.move.forward(1).go()
+                else:
+                    print 'Lost sight of gate; Continuing to last known position'
 
-            # Set last gate pos
-            last_gate_pos = gate_pos
-
-        else:
-            if have_gate is False:
-                print 'No gate found moving forward 1m'
-                yield boat.move.forward(1).go()
-            else:
-                print 'Lost sight of gate; Continuing to last known position'
-
-        # Check if task complete
-        if have_gate and move.called:
-            print 'Move complete, Go forward 3'
-            yield boat.move.forward(3).go()
-            have_gate = False
-            last_gate_pos = None
-            gates_passed = gates_passed + 1
-        
-
-    #print 'Completed start and speed gate!!'
-    boat.pan_lidar()
-
-
-    #yield boat.move.as_MoveToGoal(linear,angular).go()
+            # Check if task complete
+            if have_gate and move.called:
+                print 'Move complete'
+                #yield boat.move.forward(3).go()
+                have_gate = False
+                last_gate_pos = None
+                gates_passed = gates_passed + 1
+    finally:
+        boat.default_state()
