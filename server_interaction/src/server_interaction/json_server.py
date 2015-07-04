@@ -27,6 +27,10 @@ class server_interaction:
 	url = None
 	course = None
 	challenge = None
+	running = None
+	x = None
+	y = None
+	z = None
 
 	def __init__(self, url, course):
 		self.url = url
@@ -38,7 +42,8 @@ class server_interaction:
 		self.send_image_service = rospy.Service('send_image', image_info ,self.send_image_callback)
 		self.send_buoy_service = rospy.Service('send_buoy_color', buoy_color, self.send_buoy_callback)
 		self.run_service = rospy.Service('start_end_run', start_end_run, self.run_callback)
-		self.gps_subscriber = rospy.Subscriber('absodom', Odometry, self.heartbeat)
+		self.gps_subscriber = rospy.Subscriber('absodom', Odometry, self.gps_callback)
+		self.callback_timer = rospy.Timer(rospy.Duration(1),self.heartbeat)
 
 	def get_docking_bay(self):
 		link = '/automatedDocking/%s/UF' %self.course
@@ -228,6 +233,7 @@ class server_interaction:
 			r = requests.post(fullLink, headers = headers, verify = False)
 			print "Request status code:"
 			if r.status_code == 200:
+				self.running =  True
 				print "\033[0;32m%s\033[0m" %r.status_code
 				print(" ")
 			else:
@@ -253,6 +259,7 @@ class server_interaction:
 			r = requests.post(fullLink, headers = headers, verify = False)
 			print "Request status code:"
 			if r.status_code == 200:
+				self.running = False
 				print "\033[0;32m%s\033[0m" %r.status_code
 				print(" ")
 			else:
@@ -315,11 +322,13 @@ class server_interaction:
 		is_right_buoy = send_buoy(pinger_buoy_color)
 		return is_right_buoy.is_right_buoy
 
-	def heartbeat(self, gps_pos):
-		rate = rospy.Rate(1)
-		x = gps_pos.pose.pose.position.x
-		y = gps_pos.pose.pose.position.y
-		z = gps_pos.pose.pose.position.z
+	def gps_callback(self, gps_pos):
+
+		self.x = gps_pos.pose.pose.position.x
+		self.y = gps_pos.pose.pose.position.y
+		self.z = gps_pos.pose.pose.position.z
+
+	def heartbeat(self,event):	
 		def ecef_to_lla(ecef):
 			#earths's radius in meters
 			a = 6378137 
@@ -357,29 +366,24 @@ class server_interaction:
 			while new_angle > 180: 
 				new_angle -= 360	
 			return new_angle;
-
-		ecef = (x,y,z)
-		gps_data = ecef_to_lla(ecef)
-		timeStamp = datetime.utcnow()
-		timeStamp = timeStamp.strftime('%Y%m%d%H%M%S')
-		latitude = str(gps_data[0])
-		longitude = str(gps_data[1])
-		latitude = latitude[0:9]
-		longitude = longitude[0:10]	
-		sublinkMain = '/heartbeat/%s/UF' %self.course
-		url = self.url +  sublinkMain
-		#payload to send to server
-		position = OrderedDict([("datum","WGS84"),("latitude",latitude),("longitude",longitude)])
-		payload = OrderedDict([("timestamp",timeStamp),("challenge",self.challenge),("position",position)])
-		heartbeat_pub = rospy.Publisher('gps_heartbeat', String, queue_size=10)
-		headers = {'content-type': 'application/json'}
-		print "Heartbeat payload sent to server: "
-		print json.dumps(payload)					
-		r = requests.post(url, headers = headers, data = json.dumps(payload), verify = False)
-		print "Server return:"
-		print r.text
-		rate.sleep()
-
-		
-	
-
+		if self.running:
+			ecef = (self.x,self.y,self.z)
+			gps_data = ecef_to_lla(ecef)
+			timeStamp = datetime.utcnow()
+			timeStamp = timeStamp.strftime('%Y%m%d%H%M%S')
+			latitude = str(gps_data[0])
+			longitude = str(gps_data[1])
+			latitude = latitude[0:9]
+			longitude = longitude[0:10]	
+			sublinkMain = '/heartbeat/%s/UF' %self.course
+			url = self.url +  sublinkMain
+			#payload to send to server
+			position = OrderedDict([("datum","WGS84"),("latitude",latitude),("longitude",longitude)])
+			payload = OrderedDict([("timestamp",timeStamp),("challenge",self.challenge),("position",position)])
+			heartbeat_pub = rospy.Publisher('gps_heartbeat', String, queue_size=10)
+			headers = {'content-type': 'application/json'}
+			print "Heartbeat payload sent to server: "
+			print json.dumps(payload)					
+			r = requests.post(url, headers = headers, data = json.dumps(payload), verify = False)
+			print "Server return:"
+			print r.text
