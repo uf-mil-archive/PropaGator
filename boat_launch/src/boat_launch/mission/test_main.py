@@ -105,6 +105,8 @@ def main(nh):
 		print "Arrived at first position"
 	except Exception:
 		print "Could not make it to first position in " + str(ECEF_TIME) + " seconds"
+	finally:
+		boat.default_state()
 
 
 	print "Starting speed gates now"
@@ -114,6 +116,8 @@ def main(nh):
 		print "Startgates completed succesfully!"
 	except Exception:
 		print "Could not complete stargates in" + str(START_GATE_TIME) + " seconds"
+	finally:
+		boat.default_state()
  
 
 	print "Moving to safe position now: ", WAYPOINT_F
@@ -125,6 +129,8 @@ def main(nh):
 		print "Moved to " + WAYPOINT_F + ", now moving to " + str(WAYPOINT_E) + " to begin docking"
 	except Exception:
 		print "Could not make it to second position in " + str(ONE_MINUTE) + " seconds"
+	finally:
+		boat.default_state()
 
 	try:
 		# boat.set_current_challenge('Go to point E')
@@ -133,28 +139,32 @@ def main(nh):
 		print "Moved to " + WAYPOINT_E + ", starting docking challenge"
 	except Exception:
 		print "Could not make it to third position in " + ONE_MINUTE + " seconds"
+	finally:
+		boat.default_state()
 
 	try:
 		s.set_current_challenge('docking')
 		yield do_dock(nh, 'circle')
 	except Exception:
 		pass
-		#traceback.print_exc()
+	finally:
+		boat.default_state()
 
 	try:
 		s.set_current_challenge('docking')
 		yield do_dock(nh, 'triangle')
 	except Exception:
 		pass
-		#traceback.print_exc()
+	finally:
+		boat.default_state()
 
 	try:
 		s.set_current_challenge('docking')
 		yield do_dock(nh, 'cross')
 	except Exception:
 		pass
-		#traceback.print_exc()
-
+	finally:
+		boat.default_state()
 
 
 	print "Docking complete"
@@ -167,6 +177,8 @@ def main(nh):
 		print "Arrived at ", WAYPOINT_A
 	except Exception:
 		print "Could not make it to third position in " + str(ONE_MINUTE) + " seconds"
+	finally:
+		boat.default_state()
 
 	
 	
