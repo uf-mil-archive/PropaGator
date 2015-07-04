@@ -21,6 +21,7 @@
   <build_depend>controller</build_depend>
   <build_depend>sim</build_depend>
   <build_depend>odometry_utils</build_depend>
+  <build_depend>server_interaction</build_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
   <run_depend>thruster_mapper</run_depend>
@@ -29,6 +30,7 @@
   <run_depend>controller</run_depend>
   <run_depend>sim</run_depend>
   <run_depend>odometry_utils</run_depend>
+  <run_depend>server_interaction</run_depend>
 
   <!-- Dependencies needed only for running tests. -->
   <!-- <test_depend>thruster_mapper</test_depend> -->
