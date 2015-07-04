@@ -86,7 +86,7 @@ When reporting the pinger buoy, do it like so:
 
     s.send_buoy_info('blue')
 
-Where the argument is the color of the identified buoy. The previous called returns a boolean based on whether the server returned that the right pinger buoy was identified.
+Where the argument is the color of the identified buoy. The previous call returns a boolean based on whether the server returned that the right pinger buoy was identified.
 
 When all the missions have been completed, the run needs to be ended like so:
 
