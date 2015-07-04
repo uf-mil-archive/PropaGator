@@ -138,6 +138,7 @@ class gate_handler:
         # If not try again
         if len(buoys.buoys) < 2:
             rospy.logdebug('1 or less buoys, therfore no new gates')
+            self.sendGates()
             return
 
         # Make sure the buoys are at least min meters apart and
