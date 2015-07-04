@@ -1,2 +1,4 @@
+bool get_images
+---
 string file_path
 int8 image_count

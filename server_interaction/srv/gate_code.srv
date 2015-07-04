@@ -1,2 +1,4 @@
+bool get_gate
+---
 string entrance
 string exit

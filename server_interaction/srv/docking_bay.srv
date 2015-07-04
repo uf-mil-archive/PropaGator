@@ -1,3 +1,5 @@
+bool get_dock
+---
 string first_dock_symbol
 string first_dock_color
 string second_dock_symbol

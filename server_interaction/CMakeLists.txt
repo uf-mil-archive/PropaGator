@@ -11,17 +11,17 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   message_runtime
 )
-
+catkin_python_setup()
 ## Generate messages in the 'msg' folder
-add_message_files(
+#add_message_files(
 
-   DIRECTORY msg
-   FILES
-   docking_bay_sequence.msg
-   gate_code.msg
-   images_info.msg	
+#   DIRECTORY msg
+#   FILES
+#   docking_bay_sequence.msg
+#   gate_code.msg
+#   images_info.msg	
 #   Message2.msg
- )
+# )
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -29,7 +29,9 @@ add_service_files(
    image_info.srv
    buoy_color.srv
    start_end_run.srv
-   url_and_course.srv	
+   gate_code.srv
+   server_images.srv
+   docking_bay.srv	
 #   Service2.srv
  )
 
@@ -79,8 +81,8 @@ include_directories(
 
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
-install(PROGRAMS
-   scripts/dockingbayprovider
-   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
- )
+#install(PROGRAMS
+#   scripts/dockingbayprovider
+#   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
