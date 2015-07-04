@@ -21,7 +21,7 @@ If you are doing this from the main mission, a run must be started as per compet
 
     s.start_run()
 
-The previous call will return a boolean in case it wants to be used. The boolean is based on the server response i.e. true if the run is authorized, false otherwise.    
+The previous call to .start_run() will return a boolean in case it wants to be used. The boolean is based on the server response i.e. true if the run is authorized, false otherwise.    
 
 NOTICE THE SETTING OF THE FIRST CHALLENGE BEFORE STARTING THE RUN. Additionally, every time a new challenge is started the new current challenge needs to be  set as per competition regulations.
 
