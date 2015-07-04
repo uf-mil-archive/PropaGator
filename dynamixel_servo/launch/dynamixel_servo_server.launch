@@ -68,7 +68,7 @@
 		<!-- output="log|screen", Optional value to indicate where the output of things like ROS_INFO should go. By default they will go to a "log" file, but if "screen" is used they will instead be displayed in the terminal window. -->
 		<!-- NOTE: Setting the namespace (ns) for a node in a launch file causes ros::node::getNamespace() to technically return the wrong namespace (root will be "//" instead of '/'). Passing the argument __ns:="desired_namespace" to the node is a hack around this. -->
 		<!--				For more information on this issue see: http://goo.gl/oi4V4h  or  https://code.ros.org/trac/ros/ticket/3617 -->
-		<node pkg="dynamixel_servo" type="dynamixel_servo_server" name="$(arg server_namespace)" args="__ns:=$(arg dynamixel_root_namespace)" respawn="true" output="screen">
+		<node pkg="dynamixel_servo" type="dynamixel_servo_server" name="$(arg server_namespace)" args="__ns:=$(arg dynamixel_root_namespace)" respawn="true">
 			
 			<!-- The following parameters are private ("~") since they are within the node's xml block. -->
 			<!-- For more information on a node's parameters see: http://wiki.ros.org/roslaunch/XML/param -->

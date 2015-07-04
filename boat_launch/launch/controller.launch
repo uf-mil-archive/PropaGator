@@ -1,7 +1,7 @@
 <launch>
   <node name="motor_newtons" pkg="motor_control" type="thruster_control.py"/>
-  <node name="pd_controller" pkg="controller" type="pd_controller.py" output="screen"/>
-  <node name="control_arbiter" pkg="controller" type="control_arbiter.py" output="screen"/>
-  <node name="remote_control" pkg="remote_control" type="rc_script.py" output="screen"/>
+  <node name="pd_controller" pkg="controller" type="pd_controller.py"/>
+  <node name="control_arbiter" pkg="controller" type="control_arbiter.py"/>
+  <node name="remote_control" pkg="remote_control" type="rc_script.py"/>
 
 </launch>

@@ -35,11 +35,9 @@
 <node pkg="tf" type="static_transform_publisher" name="step2tf"
     args="-1 0 0  0 0 0 1  /base_link /step2 100" />
 
-<node if="$(arg visualize)" name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py" 
-         output="screen" /> 
-<node name="azi_waypoint" pkg="azi_drive" type="azi_waypoint.py" 
-         output="screen" /> 
-<node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py" output="screen">
+<node if="$(arg visualize)" name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py"/> 
+<node name="azi_waypoint" pkg="azi_drive" type="azi_waypoint.py" output="screen" /> 
+<node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py">
 	<param name="simulate" value="$(arg simulate)"/>
 	</node> 
 </launch>
