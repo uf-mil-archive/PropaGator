@@ -60,8 +60,8 @@ class a_star_rpp:
            and adds it to a list called store_points 
            this list is then added to a list called store_pc
         '''
-        self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
-        self.pc_to_keep = 8
+        self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback, queue_size=1)
+        self.pc_to_keep = 100
         self.pc_count = 0
         self.store_pc = [0]
         self.xyz_point = [0,0,0]
@@ -119,7 +119,8 @@ class a_star_rpp:
                       '3':self.line.angle-np.pi/3,
                       '2':self.line.angle
                       }
-        x_velocity = {'0':0, 
+        #desired speed in x direction
+        x_velocity = {'0':0.7, 
                       '3':0, 
                       '1':0,
                       '2':0}
@@ -196,6 +197,7 @@ class a_star_rpp:
             try:
                 # new point
                 point = next(pointcloud)
+                #print point
                 #convert point to a_star map coordinates
                 self.xyz_point = point
                 #add point to list of points
@@ -218,11 +220,13 @@ class a_star_rpp:
         print 'desi_position',self.desired_position
         print 'current_orientation', self.current_orientation
         rot = None
+        #get transformation from /enu to /base_link
         try:
             (trans,rot) = self.listener.lookupTransform('/enu','/base_link', rospy.Time(0))
         except tf.Exception as e:
             rospy.logwarn('tf error' + str(e))
         if rot == None or trans == None: return
+        
         rot = np.asarray(rot)
         trans = np.array(trans)
         angle = tools.quat_to_rotvec(rot)
@@ -250,12 +254,14 @@ class a_star_rpp:
         row = [0] * n
         for i in range(m): # create empty map
             the_map.append(list(row))
-        
+        #place starting position in the grid at (15,5)
         (xA, yA) = [5, 
                     int(math.floor(n/2))]
+        #translate desired position into baselink
         (xB, yB) = [self.desired_position[0]-self.current_position[0], 
                     self.desired_position[1]-self.current_position[1]]
         print '1', xB, yB
+        #apply rotation matrix
         des_pos_grid = np.array([xB, yB])
         des_pos_grid = rotMatrix.dot(des_pos_grid)
         print '2', des_pos_grid
@@ -292,14 +298,14 @@ class a_star_rpp:
                                     (int(math.floor(point[0])))+xA,
                                     (int(math.floor(point[1])))+yA,
                                     0]
-
-                        #print 'baselink_point' , type(baselink_point)
                         #print 'baselink_point', baselink_point
-                        #print 'self.current_position,', self.current_position
+
                         if baselink_point != None and len(baselink_point) > 1 and 0 < baselink_point[0] < 29 and 0 < baselink_point[1] < 29:
+                            #print 'placeing baselink_point', baselink_point                        
                             the_map[baselink_point[1]][baselink_point[0]] = 1 
-                            the_map[baselink_point[1]-1][baselink_point[0]] = 1
+                            #the_map[baselink_point[1]-1][baselink_point[0]] = 1
                             the_map[baselink_point[1]][baselink_point[0]-1] = 1
+                            #the_map[baselink_point[1]][baselink_point[0]-2] = 1
                             the_map[baselink_point[1]+1][baselink_point[0]] = 1
         else:
             print 'NO POINTS'
