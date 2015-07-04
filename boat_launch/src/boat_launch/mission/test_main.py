@@ -8,7 +8,7 @@ from txros import util
 import rospy
 import boat_scripting
 import traceback
-from boat_launch.mission import start_gate_laser, find_shape go_to_ecef_pos
+from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos
 from rawgps_common import gps
 from server_interaction import json_server
 
@@ -88,7 +88,7 @@ def main(nh):
 
 	boat = yield boat_scripting.get_boat(nh)
 
-	s = json_server.server_interaction('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','courseA')
+	s = json_server.server_interaction('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')
 
 	s.set_current_challenge('gates')
 
