@@ -74,12 +74,12 @@ When doing the interop challenge retrieve the images from the server like so:
     images_path = images_info.file_path
     images_count = images_info.image_count
 
-When reporting an image to the service, do it like so:
+When reporting an image to the server, do it like so:
 (Assuming the server instance is called s)
 
     s.send_image_info('1.JPG','ONE')
 
-where you pass the file name and the identified shape. The previous called will return a boolean based on whether the server returned that the right image was identified. 
+where you pass the file name and the identified shape. The previous call will return a boolean based on whether the server returned that the right image was identified. 
 
 When reporting the pinger buoy, do it like so:
 (Assuming the server instance is called s)
