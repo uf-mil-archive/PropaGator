@@ -44,7 +44,7 @@ Get the information by creating variables to represent entrance and exit:
     gate_entrance = start_gate_info.entrance
     gate_exit = start_gate_info.exit
 
-When doing the docking bay challenge, the dock information can be retreived like so:
+When doing the docking bay challenge, the dock information can be retrieved like so:
 (Assuming the server instance is called s)
 
     s.get_dock_info()
@@ -60,7 +60,7 @@ Get the information by creating variables to represent the first dock color, sha
     dock_two_color = docking_info.second_dock_color
     dock_two_shap = docking_info.second_dock_symbol
 
-When doing the interop challenge retreive the images from the server like so:
+When doing the interop challenge retrieve the images from the server like so:
 (Assuming the server instance is called s)
 
     s.get_server_images()
@@ -69,12 +69,12 @@ When doing the interop challenge retreive the images from the server like so:
  
     images_info = s.get_server_images()
 
- Get the information by creating variables to represent the path that the images where saved at and the image count:
+ Get the information by creating variables to represent the path that the images were saved at and the image count:
 
     images_path = images_info.file_path
     images_count = images_info.image_count
 
-When reporting and image to the service, do it like so:
+When reporting an image to the service, do it like so:
 (Assuming the server instance is called s)
 
     s.send_image_info('1.JPG','ONE')
