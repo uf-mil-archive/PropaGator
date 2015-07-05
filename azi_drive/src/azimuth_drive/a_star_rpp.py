@@ -61,7 +61,7 @@ class a_star_rpp:
            this list is then added to a list called store_pc
         '''
         self.raw_pc_sub = rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback, queue_size=1)
-        self.pc_to_keep = 100
+        self.pc_to_keep = 16
         self.pc_count = 0
         self.store_pc = [0]
         self.xyz_point = [0,0,0]
