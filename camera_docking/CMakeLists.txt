@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
    Circle.msg
    Triangle.msg
    Cross.msg
+   Sign.msg
  )
 
 ## Generate services in the 'srv' folder

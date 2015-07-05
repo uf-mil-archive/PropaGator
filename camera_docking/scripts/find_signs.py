@@ -17,7 +17,7 @@ from std_msgs.msg import Header
 from std_msgs.msg import Bool, Int16, String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
-from camera_docking.msg import Circle, Triangle, Cross
+from camera_docking.msg import Circle, Triangle, Cross, Sign
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
@@ -239,6 +239,8 @@ class image_converter:
     self.circle = rospy.Publisher('Circle_Sign', Circle, queue_size = 1)
     self.triangle = rospy.Publisher('Triangle_Sign', Triangle, queue_size = 1)
     self.cross = rospy.Publisher('Cross_Sign', Cross, queue_size = 1)
+    self.signx = rospy.Publisher('Sign', Sign, queue_size = 1)
+
 
 
     self.bridge = CvBridge()
@@ -254,6 +256,7 @@ class image_converter:
     crcl = Circle()
     trgl = Triangle()
     crss = Cross()
+    sgn = Sign()
     
 #**************** while(cap.isOpened()): *************************************************************
     counter = 0
@@ -409,6 +412,14 @@ class image_converter:
                 corner.append(y)
                 corner.append(w)
                 corner.append(h)
+
+                sgn.xpixel = (x + (w / 2)) - 500
+
+                sgn.header = Header(
+                        stamp = rospy.get_rostime(),
+                        frame_id = '/camera'
+                    )
+                self.signx.publish(sgn)
 
                 cv2.rectangle(frame_real,(x,y),(x+w,y+h),(0,255,0),2)
                 cv2.circle(frame_real,(x,y), 2, (128,0,0),-1)
