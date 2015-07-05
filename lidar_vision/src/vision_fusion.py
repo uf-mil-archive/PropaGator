@@ -91,11 +91,13 @@ class lidar_theta(object):
 
 		self.magnitude = 0 
 		# starts main loop that constantly feeds from lidar
-		rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
-		rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
 
 		rospy.Subscriber("/camera/image_raw", Image, self.image_cb)
-		self.vison_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
+		self.vision_fusion = rospy.Publisher("camera/lidar_camera_blend", Image, queue_size = 10)
+		rospy.Subscriber("/lidar/raw_pc", PointCloud2, self.pointcloud_callback)
+		#rospy.Subscriber("/forward_camera/image_rect_color", Image, self.image_cb)
+
+		
 
 	def image_cb(self, data):
 		try:
@@ -156,7 +158,7 @@ class lidar_theta(object):
 				# Publish Data in 2D
 				self.persist_data()
 				image_message = self.bridge.cv2_to_imgmsg(self.image)
-				self.vison_fusion.publish(image_message)
+				self.vision_fusion.publish(image_message)
 				cv2.imshow("Window", self.blank_image)
 				cv2.waitKey(3)
 				#self.rate.sleep()

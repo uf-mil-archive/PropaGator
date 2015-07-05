@@ -217,16 +217,10 @@ class _Boat(object):
 
     @util.cancellableInlineCallbacks
     def hold_at_current_pos(self):
+        move = self.move.set_position(self.odom.position).go()
+        yield util.sleep(3)
+        move.cancel()
 
-        yield self.move.set_position(self.odom.position).go()
-
-        '''
-        odom = yield self.get_gps_odom_rel()
-        print odom
-        odom_to_send = yield orientation_helpers.PoseEditor.from_Pose(odom.header.frame_id, odom.pose.pose)
-        goal = yield odom_to_send.as_MoveToGoal()
-        self._moveto_action_client.send_goal(goal)
-        '''
               
     @util.cancellableInlineCallbacks
     def get_shape_location(self, shape):
@@ -309,6 +303,7 @@ class _Boat(object):
     #   point_shoot_2_pp
     def default_state(self):
         self.retract_hydrophone()
+        self.hold_at_current_pos()
         self.pan_lidar()
         self.float_off()
         self.switch_path_planner('point_shoot_2_pp')

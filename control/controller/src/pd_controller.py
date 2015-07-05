@@ -26,9 +26,9 @@ from kill_handling.broadcaster import KillBroadcaster
 class Controller(object):
     def __init__(self):
 
-        self.d_x = 40
-        self.d_y = 30
-        self.d_z = 20
+        self.d_x = 175
+        self.d_y = 90
+        self.d_z = 50
         self.p_x = 30
         self.p_y = 30
         self.p_z = 40

@@ -17,7 +17,7 @@ SPEED = 1
 ONE_MINUTE = 60
 
 TOTAL_TIME = 20 * ONE_MINUTE
-CIRCLE_TIME = ONE_MINUTE
+CIRCLE_TIME = ONE_MINUTE * 2
 TRIANGLE_TIME = ONE_MINUTE
 CROSS_TIME = ONE_MINUTE
 ECEF_TIME = 2 * ONE_MINUTE
@@ -88,99 +88,101 @@ def main(nh):
 
 	boat = yield boat_scripting.get_boat(nh)
 
-	s = json_server.server_interaction('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')
-
-	s.set_current_challenge('gates')
-
-	s.start_run()
-
-	print "Starting main mission"
-
-	print "Moving to first position: ", WAYPOINT_A
-
 	try:
+		s = json_server.server_interaction('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')
 		s.set_current_challenge('gates')
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ECEF_TIME)
-		yield boat.move.heading(NORTH).go()
-		print "Arrived at first position"
+		s.start_run()
+
+
+
+		print "Starting main mission"
+
+
+
+		print "Moving to first position: ", str(WAYPOINT_A)
+		try:
+			s.set_current_challenge('gates')
+			dock_info = s.get_dock_info()
+			dockOneColor = dock_info.first_dock_color
+			print "Dock 1 color: ", dockOneColor
+			yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ECEF_TIME)
+			yield boat.move.heading(NORTH).go()
+			print "Arrived at first position"
+		except Exception:
+			print "Could not make it to first position in " + str(ECEF_TIME) + " seconds"
+		finally:
+			boat.default_state()
+
+		print "Starting speed gates now"
+		try:
+			s.set_current_challenge('gates')
+			start_gate = yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
+			print "Startgates completed succesfully!"
+		except Exception:
+			print "Could not complete stargates in" + str(START_GATE_TIME) + " seconds"
+		finally:
+			boat.default_state()
+
+		print "Moving to safe position now: ", str(WAYPOINT_F)
+
+		try:
+			yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED), ONE_MINUTE)
+			yield boat.move.heading(EAST).go()\
+			print "Moved to " + str(WAYPOINT_F) + ", now moving to " + str(WAYPOINT_E) + " to begin docking"
+		except Exception:
+			print "Could not make it to second position in " + str(ONE_MINUTE) + " seconds"
+		finally:
+			boat.default_state()
+
+		try:
+			yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED), ONE_MINUTE)
+			yield boat.move.heading(EAST).go()
+			print "Moved to " + str(WAYPOINT_E) + ", starting docking challenge"
+		except Exception:
+			print "Could not make it to third position in " + str(ONE_MINUTE) + " seconds"
+		finally:
+			boat.default_state()
+
+		try:
+			s.set_current_challenge('docking')
+			yield do_dock(nh, 'circle')
+		except Exception:
+			pass
+		finally:
+			boat.default_state()
+
+		try:
+			s.set_current_challenge('docking')
+			yield do_dock(nh, 'triangle')
+		except Exception:
+			pass
+		finally:
+			boat.default_state()
+
+		try:
+			s.set_current_challenge('docking')
+			yield do_dock(nh, 'cross')
+		except Exception:
+			pass
+		finally:
+			boat.default_state()
+
+		print "Docking complete"
+		print "Moving back to startate begining position", str(WAYPOINT_A)
+
+		try:
+			s.set_current_challenge('return')
+			yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ONE_MINUTE)
+			yield boat.move.heading(NORTH).go()
+			print "Arrived at ", str(WAYPOINT_A)
+		except Exception:
+			print "Could not make it to third position in " + str(ONE_MINUTE) + " seconds"
+		finally:
+			boat.default_state()
 	except Exception:
-		print "Could not make it to first position in " + str(ECEF_TIME) + " seconds"
+		print "Failed to get boat"
 	finally:
 		boat.default_state()
-
-
-	print "Starting speed gates now"
-	try:
-		s.set_current_challenge('gates')
-		start_gate = yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
-		print "Startgates completed succesfully!"
-	except Exception:
-		print "Could not complete stargates in" + str(START_GATE_TIME) + " seconds"
-	finally:
-		boat.default_state()
- 
-
-	print "Moving to safe position now: ", WAYPOINT_F
-
-	try:
-		# boat.set_current_challenge('Go to point F')
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED), ONE_MINUTE)
-		yield boat.move.heading(SOUTH).go()
-		print "Moved to " + WAYPOINT_F + ", now moving to " + str(WAYPOINT_E) + " to begin docking"
-	except Exception:
-		print "Could not make it to second position in " + str(ONE_MINUTE) + " seconds"
-	finally:
-		boat.default_state()
-
-	try:
-		# boat.set_current_challenge('Go to point E')
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_E, SPEED), ONE_MINUTE)
-		yield boat.move.heading(EAST).go()
-		print "Moved to " + WAYPOINT_E + ", starting docking challenge"
-	except Exception:
-		print "Could not make it to third position in " + ONE_MINUTE + " seconds"
-	finally:
-		boat.default_state()
-
-	try:
-		s.set_current_challenge('docking')
-		yield do_dock(nh, 'circle')
-	except Exception:
-		pass
-	finally:
-		boat.default_state()
-
-	try:
-		s.set_current_challenge('docking')
-		yield do_dock(nh, 'triangle')
-	except Exception:
-		pass
-	finally:
-		boat.default_state()
-
-	try:
-		s.set_current_challenge('docking')
-		yield do_dock(nh, 'cross')
-	except Exception:
-		pass
-	finally:
-		boat.default_state()
-
-
-	print "Docking complete"
-	print "Moving back to startate begining position", WAYPOINT_A
-
-	try:
-		s.set_current_challenge('return')
-		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ONE_MINUTE)
-		yield boat.move.heading(NORTH).go()
-		print "Arrived at ", WAYPOINT_A
-	except Exception:
-		print "Could not make it to third position in " + str(ONE_MINUTE) + " seconds"
-	finally:
-		boat.default_state()
-
-	
 	
 	
 	
