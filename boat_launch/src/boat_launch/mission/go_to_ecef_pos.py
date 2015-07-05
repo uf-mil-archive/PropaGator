@@ -25,7 +25,7 @@ def main(nh, pos, speed=0, turn=True):
             error_ecef = pos - orientation_helpers.xyz_array(abs_msg.pose.pose.position)
             error_enu = gps.enu_from_ecef(ecef_v=error_ecef, ecef_pos=orientation_helpers.xyz_array(abs_msg.pose.pose.position))
             error_enu[2] = 0
-            print error_enu, '=>', numpy.linalg.norm(error_enu), '->', 1
+            #print error_enu, '=>', numpy.linalg.norm(error_enu), '->', 1
             
             enu_pos = orientation_helpers.xyz_array(msg.pose.pose.position) + error_enu
             enu_pos[2] = boat.pose.position[2]
