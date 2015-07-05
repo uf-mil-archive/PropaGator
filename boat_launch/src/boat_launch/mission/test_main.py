@@ -208,7 +208,7 @@ def main(nh):
 
 	try:
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_F, SPEED), ONE_MINUTE)
-		yield boat.move.heading(EAST).go()\
+		yield boat.move.heading(EAST).go()
 		print "Moved to " + str(WAYPOINT_F) + ", now moving to " + str(WAYPOINT_E) + " to begin docking"
 	except Exception:
 		print "Could not make it to second position in " + str(ONE_MINUTE) + " seconds"
@@ -260,14 +260,10 @@ def main(nh):
 	except Exception:
 		print "Could not make it to third position in " + str(ONE_MINUTE) + " seconds"
 	finally:
-		boat.default_state()
-
-	except Exception:
-		print "Failed to get boat"
-	finally:
 		print "Ending run"
 		yield s.end_run()
 		boat.default_state()
+
 	
 	
 	

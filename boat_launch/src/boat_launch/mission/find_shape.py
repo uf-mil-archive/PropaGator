@@ -9,8 +9,8 @@ import rospy
 import sensor_msgs.point_cloud2 as pc2
 import math
 
-FIVE_DEG - .0425
-TEN_DEG - .085
+FIVE_DEG = .0425 #maybe? # FIVE_DEG - .0425
+TEN_DEG = .085 #maybe? # TEN_DEG - .085
 
 LEFT_TURN = .0425
 RIGHT_TURN = -.0425
