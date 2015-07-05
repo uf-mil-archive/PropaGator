@@ -31,7 +31,9 @@ add_service_files(
    start_end_run.srv
    gate_code.srv
    server_images.srv
-   docking_bay.srv	
+   docking_bay.srv
+   challenge.srv	
+   url_and_course.srv
 #   Service2.srv
  )
 
