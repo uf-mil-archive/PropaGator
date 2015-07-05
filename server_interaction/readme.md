@@ -16,9 +16,9 @@ Additionaly an instance of server_interaction must be created. The constructor t
 
 Where nh is a node handle    
 
-When doing the initialization, do it like so:
+After creating the server instance, initialize interaction like so:
 
-    url_was_set = (yield s.interact('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')).was_set
+    url_was_set = (yield s.interact('http://url','course')).was_set
 
     if url_was_set:
 
@@ -35,8 +35,9 @@ When doing the initialization, do it like so:
             if run_started:
 
                 print "Run started succesfully"
- 
 
+NOTICE the http:// in the server url. NOTICE the two parameters are strings. (url and course)
+ 
 NOTICE THE SETTING OF THE FIRST CHALLENGE BEFORE STARTING THE RUN. Additionally, every time a new challenge is started the new current challenge needs to be  set as per competition regulations.
 
     yield s.set_current_challege(challenge)
