@@ -4,28 +4,42 @@ Server_Interaction
 
 # Usage
 
+A FULL EXAMPLE OF USAGE IS FOUND IN THE test_main MISSION UNDER boat_launch
+
 When writing a mission that requires interaction with the server, one must import server interaction by:
 
-    from server_interaction import json_server
+    from server_interaction import json_server_proxy
 
 Additionaly an instance of server_interaction must be created. The constructor takes in the server URL/IP address and the course that is being attempted. Example:
 
-    s = json_server.server_interaction('http://server-address','courseA')
+    s =  yield json_server_proxy.get_server(nh)
 
-NOTICE THE HTTP:// in the previous implementation
+Where nh is a node handle    
 
-If you are doing this from the main mission, a run must be started as per competition regulations, do this lik so:
-(Assuming the server interaction instance is called s)
+When doing the initialization, do it like so:
 
-    s.set_current_challenge('gates') 
+    url_was_set = (yield s.interact('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')).was_set
 
-    s.start_run()
+    if url_was_set:
 
-The previous call to .start_run() will return a boolean in case it wants to be used. The boolean is based on the server response i.e. true if the run is authorized, false otherwise.    
+        print "Url and course were set succesfully"
+
+        challenge_was_set = (yield s.set_current_challenge('gates')).was_set
+
+        if challenge_was_set:
+
+            print "Challenge was set succesfully"
+
+            run_started = (yield s.start_run()).success
+
+            if run_started:
+
+                print "Run started succesfully"
+ 
 
 NOTICE THE SETTING OF THE FIRST CHALLENGE BEFORE STARTING THE RUN. Additionally, every time a new challenge is started the new current challenge needs to be  set as per competition regulations.
 
-    s.set_current_challege(challenge)
+    yield s.set_current_challege(challenge)
 
 where challenge is a string with the name of the challenge. As per regulations, the only challenges that matter and must be reported are:
 "gates","obstacles","docking","pinger", "interop" or "return"
@@ -33,11 +47,11 @@ where challenge is a string with the name of the challenge. As per regulations, 
 When doing the start gate challenge, the gate information can be retrieved like so:
 (Assuming the server instance is called s)
 
-    s.get_gate_info()
+    yield s.get_gate_info()
 
 Assign the previous call to a variable because you will need to get the information from it. Example:
 
-    start_gate_info = s.get_gate_info()
+    start_gate_info = yield s.get_gate_info()
 
 Get the information by creating variables to represent entrance and exit:
 
@@ -47,11 +61,11 @@ Get the information by creating variables to represent entrance and exit:
 When doing the docking bay challenge, the dock information can be retrieved like so:
 (Assuming the server instance is called s)
 
-    s.get_dock_info()
+    yield s.get_dock_info()
 
 Assign the previous call to a variable because you will need to get the information from it. Example:
 
-    docking_info = s.get_dock_info()
+    docking_info = yield s.get_dock_info()
 
 Get the information by creating variables to represent the first dock color, shape, and second dock color, shape:
 
@@ -63,11 +77,11 @@ Get the information by creating variables to represent the first dock color, sha
 When doing the interop challenge retrieve the images from the server like so:
 (Assuming the server instance is called s)
 
-    s.get_server_images()
+    yield s.get_server_images()
 
  Assign the previous call to a variable because you will need to get the information from it. Example:
  
-    images_info = s.get_server_images()
+    images_info = yield s.get_server_images()
 
  Get the information by creating variables to represent the path that the images were saved at and the image count:
 
@@ -77,20 +91,20 @@ When doing the interop challenge retrieve the images from the server like so:
 When reporting an image to the server, do it like so:
 (Assuming the server instance is called s)
 
-    s.send_image_info('1.JPG','ONE')
+    yield s.send_image_info('1.JPG','ONE')
 
 where you pass the file name and the identified shape. The previous call will return a boolean based on whether the server returned that the right image was identified. 
 
 When reporting the pinger buoy, do it like so:
 (Assuming the server instance is called s)
 
-    s.send_buoy_info('blue')
+    yield s.send_buoy_info('blue')
 
 Where the argument is the color of the identified buoy. The previous call returns a boolean based on whether the server returned that the right pinger buoy was identified.
 
 When all the missions have been completed, the run needs to be ended like so:
 
-    s.end_run()    
+    yield s.end_run()    
 
 # Testing
 
