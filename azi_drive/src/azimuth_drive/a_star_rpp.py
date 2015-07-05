@@ -30,9 +30,9 @@ __________
 
 if dirs == 4:
 __________
-|5_|6_|7_|
-|4_|>_|0_|
-|3_|2_|1_|
+|__|1_|__|
+|2_|>_|0_|
+|__|3_|__|
 
 '''
 """
@@ -299,10 +299,10 @@ class a_star_rpp:
                                     (int(math.floor(point[1])))+yA,
                                     0]
                         #print 'baselink_point', baselink_point
-
+                        #the_map[y][x] (row,column)
                         if baselink_point != None and len(baselink_point) > 1 and 0 < baselink_point[0] < 29 and 0 < baselink_point[1] < 29:
                             #print 'placeing baselink_point', baselink_point                        
-                            the_map[baselink_point[1]][baselink_point[0]] = 1 
+                            the_map[baselink_point[1]][baselink_point[0]] = 1
                             #the_map[baselink_point[1]-1][baselink_point[0]] = 1
                             the_map[baselink_point[1]][baselink_point[0]-1] = 1
                             #the_map[baselink_point[1]][baselink_point[0]-2] = 1
@@ -346,6 +346,8 @@ class a_star_rpp:
                 elif xy == 4:
                     print 'F', # finish
             print
+
+
         if len(route)>0:
             return route[0]        
         
