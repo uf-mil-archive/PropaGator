@@ -17,7 +17,8 @@ private:	//Typedefs
 
 private:	//Vars
 	ros::Subscriber pc_sub_;					//Subscriber to segmented point cloud data
-	ros::Publisher buoy_pub_, shore_pub_, buoy_pc_pub_;	//publisher for buoy's and land masses respectively
+	ros::Publisher buoy_pub_, unknown_object_pub_, 
+					buoy_pc_pub_;				//publisher for buoy's and land masses respectively
 	double distance_threshold_;					//... TODO: figure out exactly how this effects the computation
 	int max_iterations_;						//Maximum number of itterations before giving up
 	double probability_;						//... TODO: figure out exactly how this effects the computation
@@ -84,6 +85,10 @@ private:	//Functions
 			out_msg->buoy.radius = coeff[3];
 			buoy_pub_.publish(out_msg);
 		}
+		else
+		{
+			unknown_object_pub_.publish(pc_msg);
+		}
 
 
 	}
@@ -119,6 +124,7 @@ public:		//Functions
 		pc_sub_ = public_nh.subscribe<sensor_msgs::PointCloud2>(topic.c_str(), 100, &FeatureExtractor::extract, this);
 		buoy_pub_ = public_nh.advertise<object_handling::BuoyStamped>("buoy", 100);
 		buoy_pc_pub_ = public_nh.advertise<sensor_msgs::PointCloud2>("buoy_pc", 10);
+		unknown_object_pub_ = public_nh.advertise<sensor_msgs::PointCloud2>("unknown_object_pc", 10);
 	}
 };
 
