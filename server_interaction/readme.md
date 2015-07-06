@@ -10,13 +10,15 @@ When writing a mission that requires interaction with the server, one must impor
 
     from server_interaction import json_server_proxy
 
-Additionaly an instance of server_interaction must be created. The constructor takes in the server URL/IP address and the course that is being attempted. Example:
+Additionaly an instance of json_server_proxy must be created. 
 
 (We yield to make sure the instance is created)
 
     s =  yield json_server_proxy.get_server(nh)
 
-Where nh is a node handle    
+Where nh is a node handle 
+
+The .interact()method takes in the server URL/IP address and the course that is being attempted. Example:   
 
 After creating the server instance, initialize interaction like so:
 
