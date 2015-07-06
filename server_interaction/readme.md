@@ -4,13 +4,15 @@ Server_Interaction
 
 # Usage
 
-A FULL EXAMPLE OF USAGE IS FOUND IN THE test_main MISSION UNDER boat_launch
+A FULL EXAMPLE OF USAGE IS FOUND IN THE test_main MISSION UNDER boat_launch. PLEASE refer to this example to see how everything works.
 
 When writing a mission that requires interaction with the server, one must import server interaction by:
 
     from server_interaction import json_server_proxy
 
 Additionaly an instance of server_interaction must be created. The constructor takes in the server URL/IP address and the course that is being attempted. Example:
+
+(We yield to make sure the instance is created)
 
     s =  yield json_server_proxy.get_server(nh)
 
@@ -48,11 +50,13 @@ where challenge is a string with the name of the challenge. As per regulations, 
 When doing the start gate challenge, the gate information can be retrieved like so:
 (Assuming the server instance is called s)
 
-    yield s.get_gate_info()
+Assign the previous call to a variable because you will need to get (yield) information from it. Example:
 
-Assign the previous call to a variable because you will need to get the information from it. Example:
+    start_gate_info = s.get_gate_info()
 
-    start_gate_info = yield s.get_gate_info()
+Once you decide you need the information received from the server, yield it:
+
+    start_gate_info = yield start_gate_info
 
 Get the information by creating variables to represent entrance and exit:
 
@@ -62,11 +66,13 @@ Get the information by creating variables to represent entrance and exit:
 When doing the docking bay challenge, the dock information can be retrieved like so:
 (Assuming the server instance is called s)
 
-    yield s.get_dock_info()
+    docking_info = s.get_dock_info()
 
 Assign the previous call to a variable because you will need to get the information from it. Example:
+When you're ready to get the information:
 
-    docking_info = yield s.get_dock_info()
+
+    docking_info = yield docking_info
 
 Get the information by creating variables to represent the first dock color, shape, and second dock color, shape:
 
@@ -78,11 +84,12 @@ Get the information by creating variables to represent the first dock color, sha
 When doing the interop challenge retrieve the images from the server like so:
 (Assuming the server instance is called s)
 
-    yield s.get_server_images()
+    images_info = s.get_server_images()
 
  Assign the previous call to a variable because you will need to get the information from it. Example:
+ When you're ready to get the information:
  
-    images_info = yield s.get_server_images()
+    images_info = yield images_info
 
  Get the information by creating variables to represent the path that the images were saved at and the image count:
 
@@ -92,16 +99,28 @@ When doing the interop challenge retrieve the images from the server like so:
 When reporting an image to the server, do it like so:
 (Assuming the server instance is called s)
 
-    yield s.send_image_info('1.JPG','ONE')
+WARNING: Yield right away only if you are not doing anything else in the background. If the server is slow the mission will halt here until a server response is received
+
+    send_image = yield s.send_image_info('1.JPG','ONE')
 
 where you pass the file name and the identified shape. The previous call will return a boolean based on whether the server returned that the right image was identified. 
+
+Find out whether the server returned that the right image was identified (This is a boolean):
+
+    server_response = send_image.is_right_image
 
 When reporting the pinger buoy, do it like so:
 (Assuming the server instance is called s)
 
-    yield s.send_buoy_info('blue')
+WARNING: Yield right away only if you are not doing anything else in the background. If the server is slow the mission will halt here until a server response is received
+
+    send_buoy_color = yield s.send_buoy_info('blue')
 
 Where the argument is the color of the identified buoy. The previous call returns a boolean based on whether the server returned that the right pinger buoy was identified.
+
+Find out whether the server returned that the right pinger buoy was identified (This is a boolean):
+
+    server_response = send_buoy_color.is_right_buoy
 
 When all the missions have been completed, the run needs to be ended like so:
 
