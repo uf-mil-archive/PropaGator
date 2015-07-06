@@ -15,7 +15,7 @@ from server_interaction import json_server_proxy
 
 SPEED = 1
 
-ONE_MINUTE = 60
+ONE_MINUTE = 10
 
 TOTAL_TIME = 20 * ONE_MINUTE
 CIRCLE_TIME = ONE_MINUTE * 2
@@ -89,9 +89,9 @@ def main(nh):
 
 	boat = yield boat_scripting.get_boat(nh)
 
-	s =  yield json_server_proxy.get_server(nh)
-
 	################## Start server like this ########################
+
+	s =  yield json_server_proxy.get_server(nh)
 
 	url_was_set = (yield s.interact('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')).was_set
 
@@ -115,27 +115,13 @@ def main(nh):
 
 	############## Get gate info #####################################
 
-	gate_info = yield s.get_gate_info()
+	#request that the gate info be retrieved
+	gate_info = s.get_gate_info()
 
-	entrance_gate = gate_info.entrance
+	############### Get the docking bay info like so ##################
 
-	exit_gate = gate_info.exit
-
-	print "Gate info: " + entrance_gate +" "+ exit_gate
-
-	# ############## Get the docking bay info like so ##################
-
-	dock_info = yield s.get_dock_info()	
-
-	dock_one_symbol = dock_info.first_dock_symbol
-
-	dock_one_color = dock_info.first_dock_color
-
-	dock_two_symbol = dock_info.second_dock_symbol
-
-	dock_two_color = dock_info.second_dock_color
-
-	print "Dock info: " + dock_one_symbol +" "+ dock_one_color +" "+ dock_two_symbol +" "+ dock_two_color
+	#request that the dock info be retrieved
+	dock_info = s.get_dock_info()	
 
 	#################################################################
 
@@ -143,36 +129,10 @@ def main(nh):
 
 	print "Downloading images..."
 
-	images_info =  yield s.get_server_images()
+	#requests that the images be dowloaded
+	images_info = s.get_server_images()
 
-	images_path = images_info.file_path
-
-	images_count = images_info.image_count
-
-	print "Images info: " + images_path +" "+ str(images_count)
-
-	#################################################################
-
-	############### Report an image to te server ####################
-
-	print "Sending image to server..."
-
-	send_image = yield s.send_image_info('1.jpg','ONE')
-	#### The paramenters would be the information regarding the identified image 
-	print "Is it the right image?: " + str(send_image.is_right_image)
-
-	#################################################################
-
-	############## Report the pinger buoy to the server #############
-
-	print "Sending buoy color to server..."
-
-	send_buoy = yield s.send_buoy_info('yellow')
-	### The paramenter is the identified color
-	print "Is is the right buoy?: " + str(send_buoy.is_right_buoy)
-
-	#################################################################
-
+	################################################################
 
 	print "Starting main mission"
 
@@ -181,10 +141,7 @@ def main(nh):
 
 	print "Moving to first position: ", str(WAYPOINT_A)
 	try:
-		s.set_current_challenge('gates')
-		dock_info = s.get_dock_info()
-		dockOneColor = dock_info.first_dock_color
-		print "Dock 1 color: ", dockOneColor
+
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ECEF_TIME)
 		yield boat.move.heading(NORTH).go()
 		print "Arrived at first position"
@@ -196,7 +153,21 @@ def main(nh):
 
 	print "Starting speed gates now"
 	try:
+		# Set the current challenge to gates
 		s.set_current_challenge('gates')
+
+		##################### Recover gate info #######################
+
+		gate_info = yield gate_info
+
+		entrance_gate = gate_info.entrance
+
+		exit_gate = gate_info.exit
+
+		print "Gate info: " + entrance_gate +" "+ exit_gate
+
+		##############################################################		
+
 		start_gate = yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
 		print "Startgates completed succesfully!"
 	except Exception:
@@ -225,7 +196,25 @@ def main(nh):
 		boat.default_state()
 
 	try:
+		# Set the current challenge to docking
 		s.set_current_challenge('docking')
+
+		######################## Recover docking info ###################
+		
+		dock_info = yield dock_info		
+
+		dock_one_symbol = dock_info.first_dock_symbol
+
+		dock_one_color = dock_info.first_dock_color
+
+		dock_two_symbol = dock_info.second_dock_symbol
+
+		dock_two_color = dock_info.second_dock_color
+
+		print "Dock info: " + dock_one_symbol +" "+ dock_one_color +" "+ dock_two_symbol +" "+ dock_two_color
+
+		#################################################################		
+
 		yield do_dock(nh, 'circle')
 	except Exception:
 		pass
@@ -233,6 +222,7 @@ def main(nh):
 		boat.default_state()
 
 	try:
+
 		s.set_current_challenge('docking')
 		yield do_dock(nh, 'triangle')
 	except Exception:
@@ -252,6 +242,53 @@ def main(nh):
 		print "Docking complete"
 		print "Moving back to startate begining position", str(WAYPOINT_A)
 
+	# Set current challenge to interop	
+
+	s.set_current_challenge('interop')
+
+	################ Recover image path and image count #############
+
+	images_info = yield images_info
+
+	images_path = images_info.file_path
+
+	images_count = images_info.image_count
+
+	print "Images info: " + images_path +" "+ str(images_count)
+
+	################################################################
+
+	############### Report an image to te server ####################
+
+	print "Sending image to server..."
+
+	#The paramenters would be the information regarding the identified image 
+	send_image = yield s.send_image_info('1.jpg','ONE')
+	#Only yield the server response right away if you need to work with the respose
+	#right away. This might take some time if the server is slow and the mission will
+	#halt at this point until you get a server response
+
+	print "Is it the right image?: " + str(send_image.is_right_image)
+
+	#################################################################
+
+	############## Report the pinger buoy to the server #############
+
+	#Set challenge to pinger
+	s.set_current_challenge('pinger')
+
+	print "Sending buoy color to server..."
+
+	#The paramenter is the identified color
+	send_buoy = yield s.send_buoy_info('yellow')
+	#Only yield the server response right away if you need to work with the respose
+	#right away. This might take some time if the server is slow and the mission will
+	#halt at this point until you get a server response
+
+	print "Is this the right buoy?: " + str(send_buoy.is_right_buoy)
+
+	#################################################################
+
 	try:
 		s.set_current_challenge('return')
 		yield util.wrap_timeout(go_to_ecef_pos.main(nh, WAYPOINT_A, SPEED), ONE_MINUTE)
@@ -260,8 +297,10 @@ def main(nh):
 	except Exception:
 		print "Could not make it to third position in " + str(ONE_MINUTE) + " seconds"
 	finally:
+		######### Make sure the run is ended with the server ###############		
 		print "Ending run"
 		yield s.end_run()
+		####################################################################		
 		boat.default_state()
 
 	
