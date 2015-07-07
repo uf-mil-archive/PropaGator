@@ -34,7 +34,7 @@ References:
 GATE_DISTANCE = 1.5
 
 # Max + - angle that gates can be in
-GATE_ANGLE = 30 * numpy.pi / 180, gates
+GATE_ANGLE = 30 * numpy.pi / 180
 
 # Find gate algorithim
 def filter_gates(boat, gates, look_ahead):
@@ -68,7 +68,7 @@ def filter_gates(boat, gates, look_ahead):
     gates = zip(gates, gate_angles)
     #print 'Ziped gates: ' + str(gates)
 
-    gates = filter(lambda x: abs(x[1]) < GATE_ANGLE)
+    gates = filter(lambda x: abs(x[1]) < GATE_ANGLE, gates)
     #print 'Filter gates behind the boat: ' + str(gates)
 
     if len(gates) == 0:
