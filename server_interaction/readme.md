@@ -4,7 +4,7 @@ Server_Interaction
 
 # Usage
 
-Currently there is no launch file for the node that handles all the requests so it needs to be ran like so:
+Currently there is no launch file for the node that handles all the requests so it needs to be run like so:
 
     rosrun server_interaction json_server_node
 
