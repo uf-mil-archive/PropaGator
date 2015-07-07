@@ -4,6 +4,10 @@ Server_Interaction
 
 # Usage
 
+Currently there is no launch file for the node that handles all the requests so it needs to be ran like so:
+
+    rosrun server_interaction json_server_node
+
 A FULL EXAMPLE OF USAGE IS FOUND IN THE test_main MISSION UNDER boat_launch. PLEASE refer to this example to see how everything works.
 
 When writing a mission that requires interaction with the server, one must import server interaction by:
@@ -52,7 +56,7 @@ where challenge is a string with the name of the challenge. As per regulations, 
 When doing the start gate challenge, the gate information can be retrieved like so:
 (Assuming the server instance is called s)
 
-Assign the previous call to a variable because you will need to get (yield) information from it. Example:
+Assign the following call to a variable because you will need to get (yield) information from it. Example:
 
     start_gate_info = s.get_gate_info()
 
