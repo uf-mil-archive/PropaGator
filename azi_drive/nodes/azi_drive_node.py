@@ -23,11 +23,11 @@ class Controller(object):
     def __init__(self, rate=20):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
-        self.servo_max_rotation = 0.3
+        self.servo_max_rotation = 0.1
         self.controller_max_rotation = self.servo_max_rotation / self.rate
 
-        rospy.init_node('azi_drive', log_level=rospy.DEBUG)
-        # rospy.init_node('azi_drive', log_level=rospy.WARN)
+        # rospy.init_node('azi_drive', log_level=rospy.DEBUG)
+        rospy.init_node('azi_drive', log_level=rospy.WARN)
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
@@ -76,7 +76,7 @@ class Controller(object):
 
             rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
             if (cur_time - self.last_msg_time) > self.control_timeout:
-                rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
+                rospy.logwarn("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
                 self.stop()
 
             thrust_solution = Azi_Drive.map_thruster(
@@ -124,34 +124,13 @@ class Controller(object):
 
     def _wrench_cb(self, msg):
         '''Recieve a force, torque command for the mapper to achieve
-
-        Compute the minimum and maximum wrenches by multiplying the minimum and maximum thrusts 
-          by the thrust matrix at the current thruster orientations. This gives a strong estimate
-          for what is a feasible wrench in the neighborhood of linearity
-
-        The 0.9 is just a fudge factor for extra certainty
         '''
         force = msg.wrench.force
         torque = msg.wrench.torque
 
-        # Compute the minimum and maximum wrenches the boat can produce
-        #  By linearity, everything in between should be reasonably achievable
-        max_fx, max_fy, _ = Azi_Drive.net_force(self.cur_angles, [80, 80])
-        min_fx, min_fy, _ = Azi_Drive.net_force(self.cur_angles, [-70, -70])
-
-        _, _, max_torque = Azi_Drive.net_force(self.cur_angles, [-70, 80])
-        _, _, min_torque = Azi_Drive.net_force(self.cur_angles, [80, -70])
-
-        # max_f* could be positive, and min_f* could be negative; clip requires ordered inputs
-        fx_range = (min_fx, max_fx)
-        fy_range = (min_fy, max_fy)
-        tz_range = (min_torque, max_torque)
-        print tz_range
-
-        self.des_fx = np.clip(force.x, min(fx_range), max(fx_range)) * 0.9 
-        # I put a negative sign here to work with Forrest's pd_controller
-        self.des_fy = -np.clip(force.y, min(fy_range), max(fy_range)) * 0.9
-        self.des_torque = np.clip(torque.z, min(tz_range), max(tz_range)) * 0.9
+        self.des_fx = force.x
+        self.des_fy = force.y
+        self.des_torque = torque.z
 
         self.last_msg_time = time()
 
