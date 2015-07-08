@@ -40,7 +40,7 @@ class gate_handler:
         self.gate_viz_pub = rospy.Publisher('gates_viz', MarkerArray, queue_size = 10)
         # Parameters
         # Maximum width
-        self.max_width = rospy.get_param('~max_width', 6.0)
+        self.max_width = rospy.get_param('~max_width', 7.0)
         # Minimum width
         self.min_width = rospy.get_param('~min_width', 1.0)
         # to be to different gates they must have this much angular tolerance
