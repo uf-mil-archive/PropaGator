@@ -7,7 +7,7 @@
     <!-- buoy_lifetime is how long buoys exist in memory without a repeted hit -->
     <arg name="buoy_lifetime" default="5.0"/>
 
-    <arg name="gate_max_width" default="5.0"/>
+    <arg name="gate_max_width" default="8.0"/>
     <arg name="gate_min_width" default="1.0"/>
     <!-- 15 degrees -->
     <arg name="same_gate_angular_tolerance" default="0.52"/>
