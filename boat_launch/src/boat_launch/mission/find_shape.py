@@ -18,6 +18,7 @@ PIXEL_TOLERANCE = 35
 ANGLE_OFFSET = 5
 DISPLAY_HEIGHT = 640
 DEFAULT_SHAPE = 'circle'
+DEFAULT_COLOR = 'blue'
 BOAT_LENGTH_OFFSET = 2
 MOVE_OFFSET = 5
 
@@ -28,59 +29,167 @@ def calc_angle(opp_input):
     arcsin = math.asin(opposite/hypotenuse)
     return arcsin
 
+<<<<<<< Updated upstream
+=======
+def find_shape(shape):
+
+    # While the boat is not locked on to the target's orientation
+    while True:
+        # Get new target location - 
+        # 0 is dead center
+        # positive values mean right
+        # negative values mean left
+        msg =  yield boat.get_shape_location(shape)
+
+        # Throws out bad readings
+        if msg != 0:
+
+            # If the pixel location is within our range of error
+            if abs(msg) < PIXEL_TOLERANCE:
+                print "circle in Center at location: " + str(msg) + " --- Locking Target"
+                break
+                # Break the loop and continue
+
+            angle_move = calc_angle(msg) / ANGLE_OFFSET
+
+            # If the target is right of the center 
+            if msg > 0:
+                # turn the number of degrees right between the center and the target, minus an offset
+                yield boat.move.turn_left(angle_move).go()
+                print "Turning right", abs(angle_move)
+
+            # If the target is left of the center
+            if msg < 0:
+                # turn the number of degrees left between the center and the target, minus an offset
+                yield boat.move.turn_left(-angle_move).go()
+                print "Turning left", abs(angle_move)
+
+            print shape + " at pixel location: ", abs(msg)
+
+>>>>>>> Stashed changes
 @util.cancellableInlineCallbacks
-def main(nh, shape=None):
+def main(nh, shape=None, color=None):
 
     if shape == None:
         shape = DEFAULT_SHAPE
+    if color == None:
+        color = DEFAULT_COLOR
 
     boat = yield boat_scripting.get_boat(nh, False, False)
-    count = 1
 
     # While the boat is still distant from the target
-    while True and not rospy.is_shutdown() and count < 3:
+    while True and not rospy.is_shutdown():
 
         temp_distance = 0
         avg_distance = 0
         shortest_distance = 100
         farthest_distance = 0
+        x_mean = 0
+        y_mean = 0
+        numerator = 0
+        denom = 0
+#-----------------------------------------------------------------------------------------------------------------
+#--------------------------------- PLACE SIGN IN CENTER ----------------------------------------------------------
 
         # While the boat is not locked on to the target's orientation
-        while True and shortest_distance > 3:
+        while True:
             # Get new target location - 
             # 0 is dead center
             # positive values mean right
             # negative values mean left
-            msg =  yield boat.get_shape_location(shape)
+
+            msg = yield boat.get_shape_location(shape)
+            msg_x = msg[0]
+            msg_color = msg[1]
 
             # Throws out bad readings
 
-            if msg == 0: pass
+            if msg_x == 0: pass
                 #yield boat.move.forward(.5).go()
                 #print "No shape found, moving forward"
-            if msg != 0:
+            if msg_x != 0 and msg_color == color:
 
                 # If the pixel location is within our range of error
-                if abs(msg) < PIXEL_TOLERANCE:
-                    print "circle in Center at location: " + str(msg) + " --- Locking Target"
+                if abs(msg_x) < PIXEL_TOLERANCE:
+                    print color + shape + " in Center at location: " + str(msg_x) + " --- Locking Target"
                     break
                     # Break the loop and continue
 
                 angle_move = FIVE_DEG 
 
                 # If the target is right of the center 
-                if msg > 0:
+                if msg_x > 0:
                     # turn the number of degrees right between the center and the target, minus an offset
-                    boat.move.turn_left(-angle_move).go()
+                    #boat.move.turn_left(-angle_move).go()
                     print "Turning right", abs(angle_move)
 
                 # If the target is left of the center
-                if msg < 0:
+                if msg_x < 0:
                     # turn the number of degrees left between the center and the target, minus an offset
-                    boat.move.turn_left(angle_move).go()
+                    #boat.move.turn_left(angle_move).go()
                     print "Turning left", abs(angle_move)
 
-                print shape + " at pixel location: ", abs(msg)
+                print color + " " + shape + " at pixel location: ", abs(msg_x)
+
+#-----------------------------------------------------------------------------------------------------------------
+#--------------------------------- REORIENT ----------------------------------------------------------------------
+        '''
+
+        print "Holding at current position"
+        print "Scanning lidar"
+
+        
+
+        hold = []
+
+        # loops until lidar gets a good filtered lidar reading
+        while len(hold) <= 0:
+            pointcloud = yield boat.get_pointcloud()
+            yield util.sleep(.1) # sleep to avoid tooPast errors
+            pointcloud_base = yield boat.to_baselink(pointcloud)
+            yield util.sleep(.1) # sleep to avoid tooPast errors
+
+            pointcloud_enu = []
+
+            for p in pc2.read_points(pointcloud, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
+                    pointcloud_enu.append((p[0], p[1], p[2]))
+
+            yield util.sleep(.1) # sleep to avoid tooPast errors
+
+            point_in_base = []
+            hold = []
+
+            # Filter lidar data to only data right in front of the boat
+            print "Filtering lidar data"
+            for i in range(0, len(pointcloud_base)):
+                temp = pointcloud_base[i]
+                if abs(temp[1]) < .1:
+                    hold.append(pointcloud_enu[i])
+
+        for i in hold:
+            x_mean += i[0]
+            y_mean += i[1]
+
+        y_mean = y_mean/len(hold)
+        x_mean = x_mean/len(hold)
+
+        for i in hold:
+            numerator += (i[0] - x_mean)*(i[1] - y_mean)
+            denom += (i[0] - x_mean)*(i[0] - x_mean)
+
+        if denom == 0: denom = 1
+        m = numerator/denom
+        b = y_mean - (m * x_mean)
+        angle = math.atan(m)
+
+        '''
+
+<<<<<<< Updated upstream
+#-----------------------------------------------------------------------------------------------------------------
+#--------------------------------- MOVE TO TARGET ----------------------------------------------------------------
+=======
+        find_shape(shape)
+>>>>>>> Stashed changes
 
         print "Holding at current position"
         print "Scanning lidar"
@@ -123,12 +232,12 @@ def main(nh, shape=None):
             # Print only if a move is commanded
             print "Moving forward " + str(final_move) + " meters"
             yield boat.move.forward(final_move).go()
-        if farthest_distance <= 2: 
+        if farthest_distance <= 1.5: 
             #raw_input("Press enter to move forward one meter")
             # Print only if a move is commanded
             print "Moving forward one meter"
-            yield boat.move.forward(1.5).go()
-            yield util.sleep(3)
+            boat.move.forward(1.5)
+            yield util.sleep(5)
             yield boat.move.forward(-5).go()
             print 'Find shape success'
             count +=1

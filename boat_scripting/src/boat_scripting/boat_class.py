@@ -14,6 +14,8 @@ import sensor_msgs.point_cloud2 as pc2
 
 from txros import action, util, tf
 
+import rospy
+
 #SPP having access to the gps methods will allow us to easily switch from ECEF to lat/long
 import rawgps_common
 
@@ -108,11 +110,15 @@ class _Boat(object):
     
         self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
+        '''
+
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
             print 'Boat class __init__: Waiting on trajectory..'
             yield self._trajectory_sub.get_next_message()
             print 'Boat class __init__: Got trajectory'
+
+        '''
 
         # Make sure odom is publishing
         if(need_odom == True):
@@ -224,15 +230,23 @@ class _Boat(object):
               
     @util.cancellableInlineCallbacks
     def get_shape_location(self, shape):
+
+        ret = []
         if shape == 'circle':
             msg = yield self._circle_sub.get_next_message()
-            defer.returnValue(msg.xpixel)
+            ret.append(msg.xpixel)
+            ret.append(msg.color)
+            defer.returnValue(ret)
         if shape == 'cross':
             msg = yield self._cross_sub.get_next_message()
-            defer.returnValue(msg.xpixel)
+            ret.append(msg.xpixel)
+            ret.append(msg.color)
+            defer.returnValue(ret)
         if shape == 'triangle':
             msg = yield self._triangle_sub.get_next_message()
-            defer.returnValue(msg.xpixel)
+            ret.append(msg.xpixel)
+            ret.append(msg.color)
+            defer.returnValue(ret)
 
         print 'Invalid shape ', shape
         assert False
@@ -254,6 +268,13 @@ class _Boat(object):
         res = []
         for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
             res.append(transform.transform_point((p[0], p[1], p[2])))
+        defer.returnValue(res)
+
+    @util.cancellableInlineCallbacks
+    def to_enu(self, msg):
+        res = []
+        for p in pc2.read_points(msg, field_names=("x", "y", "z"), skip_nans=False, uvs=[]):
+            res.append((p[0], p[1], p[2]))
         defer.returnValue(res)
     
     @util.cancellableInlineCallbacks
