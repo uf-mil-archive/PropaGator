@@ -15,7 +15,7 @@ from server_interaction import json_server_proxy
 
 SPEED = 1
 
-ONE_MINUTE = 10
+ONE_MINUTE = 60
 
 TOTAL_TIME = 20 * ONE_MINUTE
 CIRCLE_TIME = ONE_MINUTE * 2
