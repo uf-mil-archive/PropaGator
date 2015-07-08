@@ -29,15 +29,21 @@ Math:
 References:
 * [Rules] (https://s3.amazonaws.com/com.felixpageau.roboboat/RoboBoat_2015_final_rules_20150527.pdf)
 """
+
+# TODO:
+#       use start angle instead of constantly changing angle
+#       
+
 # The boat stops GATE_DISTANCE before the first gate and 
 #   GATE_DISTANCE after gate two
 GATE_DISTANCE = 1.5
+GATE_LOOK_AHEAD = GATE_DISTANCE * 1.0 + 1.0
 
 # Max + - angle that gates can be in
-GATE_ANGLE = 30 * numpy.pi / 180
+GATE_ANGLE = 20 * numpy.pi / 180
 
 # Find gate algorithim
-def filter_gates(boat, gates, look_ahead):
+def filter_gates(boat, gates, yaw, look_ahead):
     if gates is None:
         return (None, None)
 
@@ -46,17 +52,19 @@ def filter_gates(boat, gates, look_ahead):
     # Get an enu xyz array
     # Get a rotation matrix
     position = boat.odom.position[0:2]
-    yaw = quat_to_rotvec(boat.odom.orientation)[2]
+    
     heading = numpy.array([numpy.cos(yaw), numpy.sin(yaw)])
-    if look_ahead:
-        position = position + heading * (GATE_DISTANCE + 1.0)
+
     # Translate to base link or base_link + GATE_DISTANCE (no rotation)
     def translate(v):
         return xyz_array(v.position)[0:2] - position
 
     gates_xyz = map(translate, gates)
     gates = zip(gates, gates_xyz)
-    #print 'gate translated to base_link: ' + str(gates)
+    if look_ahead:
+        # Remove gates that are to close
+        gates = filter(lambda x: numpy.linalg.norm(x[1]) > GATE_LOOK_AHEAD, gates)
+        
 
     # Get a vector in the boats forward direction
     def get_angle(v):
@@ -104,9 +112,10 @@ def main(nh):
     boat = yield boat_scripting.get_boat(nh)
 
     try:
+        yaw = quat_to_rotvec(boat.odom.orientation)[2]
         #print 'Pan the lidar between the maximum angle and slightly above horizontal'
         boat.pan_lidar(max_angle=3.264, min_angle=3.15, freq=0.5)
-
+        
         # How many gates we've gone through
         gates_passed = 0
 
@@ -120,9 +129,9 @@ def main(nh):
 
             (gate_pos, gate_orientation) = (None, None) 
             if gates_passed == 0:
-                (gate_pos, gate_orientation) = filter_gates(boat, gates, False)
+                (gate_pos, gate_orientation) = filter_gates(boat, gates, yaw, False)
             else:
-                (gate_pos, gate_orientation) = filter_gates(boat, gates, True)
+                (gate_pos, gate_orientation) = filter_gates(boat, gates, yaw, True)
 
             # Check if valid gate found
             if gate_pos is not None:
@@ -166,8 +175,10 @@ def main(nh):
             if have_gate and move.called:
                 print 'Move complete'
                 #yield boat.move.forward(3).go()
+                yaw = quat_to_rotvec(boat.odom.orientation)[2]
                 have_gate = False
                 last_gate_pos = None
                 gates_passed = gates_passed + 1
+        
     finally:
         boat.default_state()
