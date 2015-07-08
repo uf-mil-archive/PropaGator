@@ -33,6 +33,7 @@ class server_interaction:
 	x = None
 	y = None
 	z = None
+	retries = 0
 
 	def __init__(self):
 		rospy.init_node('server_interaction')
@@ -52,15 +53,22 @@ class server_interaction:
 		link = '/automatedDocking/%s/UF' %self.course
 		url = self.url+link
 		r = requests.get(url, verify = False)
-		json_info = r.json()['dockingBaySequence']
-		firstDockInfo = json_info[0]
-		secondDockInfo = json_info[1]
-		firstDockSymbol = firstDockInfo['symbol']				
-		firstDockColor = firstDockInfo['color']				
-		secondDockSymbol = secondDockInfo['symbol']							
-		secondDockColor =  secondDockInfo['color']
-		######## docking bay information ##########
-		return (firstDockSymbol,firstDockColor, secondDockSymbol, secondDockColor)
+		if r.status_code == 200:
+			json_info = r.json()['dockingBaySequence']
+			firstDockInfo = json_info[0]
+			secondDockInfo = json_info[1]
+			firstDockSymbol = firstDockInfo['symbol']				
+			firstDockColor = firstDockInfo['color']				
+			secondDockSymbol = secondDockInfo['symbol']							
+			secondDockColor =  secondDockInfo['color']
+			######## docking bay information ##########
+			return (firstDockSymbol,firstDockColor, secondDockSymbol, secondDockColor)
+		else:
+			time.sleep(2)
+			self.retries = self.retries+1
+			print ".get_docking_bay() retry number: %s" %str(self.retries)
+			assert self.retries <= 5, 'MAX RETRIES WHEN REQUESTING DOCKING BAY: ERROR CODE: %s' %str(r.status_code)
+			self.get_docking_bay()	
 	def dock_callback(self,request_info):
 		return self.get_docking_bay()
 
@@ -68,12 +76,19 @@ class server_interaction:
 		link = '/obstacleAvoidance/%s/UF' %self.course
 		url = self.url+link
 		r = requests.get(url, verify = False)
-		json_info = r.json()['gateCode']
-		gate_code = json_info.split(",")
-		entrance = gate_code[0].replace("(","")
-		exit = gate_code[1].replace(")","")
-		######### gate code information #######
-		return (entrance, exit)
+		if r.status_code == 200:
+			json_info = r.json()['gateCode']
+			gate_code = json_info.split(",")
+			entrance = gate_code[0].replace("(","")
+			exit = gate_code[1].replace(")","")
+			######### gate code information #######
+			return (entrance, exit)
+		else:
+			time.sleep(2)
+			self.retries = self.retries+1
+			print ".get_gates() retry number: %s" %str(self.retries)
+			assert self.retries <= 5, 'MAX RETRIES WHEN REQUESTING GATES INFO: ERROR CODE: %s' %str(r.status_code)
+			self.get_gates()	
 	def gate_callback(self,request_info):
 		return self.get_gates()
 
@@ -87,42 +102,47 @@ class server_interaction:
 		url = self.url+link
 		headers = {'Content-Type':'text/html'}
 		r = requests.get(url, headers = headers, verify = False)
-		html_info = r.text
-		links = html_info.split('"')
-		links2 = []
-		imageNames = []
-		counter = -1
-		for index in my_range(0, len(links), 1):
-		    if index % 2 != 0:
-		    	links2.append(links[index])
-		for sublink in links2:
-			imageNames.append(sublink.split("/")[5])
-		global imgCount
-		global path
-		imgCount = 0					
-		for sublink in links2:				
-			requestLink = self.url + sublink
-			counter = counter + 1
-			imageName = imageNames[counter]
-			print "Dowloading: %s" %imageName
-			#after having parsed the html that the server returned
-			#this generates as many requests as links the server provides
-			#and saves the images to ~/output/ServerImages/					
-			time.sleep(1)
-			r = requests.get(requestLink, stream = True)
-			path = os.path.join(os.path.expanduser('~'), 'output', 'ServerImages/')
-			if os.path.isdir(path):
-				print("Saving image on %s") %str(path)
-			else:
-				os.makedirs(path)
-			time.sleep(1)						
-			with open(path+imageName,'wb') as out_file:					
-				shutil.copyfileobj(r.raw, out_file)					
-			del r
-			imgCount = imgCount + 1
-		path = str(path)		
-		count = int(imgCount/2)
-		return path, count
+		if r.status_code == 200:
+			html_info = r.text
+			links = html_info.split('"')
+			links2 = []
+			imageNames = []
+			counter = -1
+			for index in my_range(0, len(links), 1):
+			    if index % 2 != 0:
+			    	links2.append(links[index])
+			for sublink in links2:
+				imageNames.append(sublink.split("/")[5])
+			global imgCount
+			global path
+			imgCount = 0					
+			for sublink in links2:				
+				requestLink = self.url + sublink
+				counter = counter + 1
+				imageName = imageNames[counter]
+				print "Dowloading: %s" %imageName
+				#after having parsed the html that the server returned
+				#this generates as many requests as links the server provides
+				#and saves the images to ~/output/ServerImages/					
+				r = requests.get(requestLink, stream = True)
+				path = os.path.join(os.path.expanduser('~'), 'output', 'ServerImages/')
+				if os.path.isdir(path):
+					print("Saving image on %s") %str(path)
+				else:
+					os.makedirs(path)						
+				with open(path+imageName,'wb') as out_file:					
+					shutil.copyfileobj(r.raw, out_file)					
+				del r
+				imgCount = imgCount + 1
+			path = str(path)		
+			count = int(imgCount/2)
+			return path, count
+		else:
+			time.sleep(2)
+			self.retries = self.retries+1
+			print ".get_images() retry number: %s" %str(self.retries)
+			assert self.retries <= 5, 'MAX RETRIES WHEN GETTING IMAGES: ERROR CODE: %s' %str(r.status_code)
+			self.get_images()	
 	def images_callback(self,request_info):
 		return self.get_images()
 
@@ -149,7 +169,6 @@ class server_interaction:
 		#getting image ID from server. Will be a json structure like:
 		#{"imaeId":"a4aa8224-07f2-4b57-a03a-c8887c2505c7"}
 		# wait one second... just for the heck of it
-		time.sleep(1)
 		imageID = request1.json()['imageId']
 		######################################## send image information #########################################				
 		#ready payload to send to server..
@@ -160,10 +179,8 @@ class server_interaction:
 		print (" ")
 		payload = OrderedDict([("course",self.course),("team","UF"),("shape",shape),("imageId",imageID)])
 		#create request #2, post image info json structure
-		time.sleep(1)
 		try:
 			request2 = requests.post(sendImageInfoUrl, headers = headers, data = json.dumps(payload), verify = False)
-			time.sleep(1)
 			print "Request status code: "
 			if request2.status_code == 200:
 				print "\033[0;32m%s\033[0m" %(request2.status_code)
@@ -243,6 +260,11 @@ class server_interaction:
 			else:
 				print "\033[0;31m%s\033[0m" %r.status_code
 				print(" ")
+				time.sleep(2)
+				self.retries = self.retries+1
+				print "start run retry number: %s" %str(self.retries)
+				assert self.retries <= 5, 'MAX RETRIES WHEN STARTIG RUN: ERROR CODE: %s' %str(r.status_code)
+				self.run_callback(request_info)
 			print "Information returned by sever: "		
 			print r.text
 			print (" ")
@@ -252,7 +274,7 @@ class server_interaction:
 				return True
 			else:
 				print "\033[0;31m%s\033[0m" %r.json()["success"]
-				return False	
+				return False			
 		if start_or_end== "end":
 			print "Ending run..."
 			print (" ")
@@ -269,6 +291,11 @@ class server_interaction:
 			else:
 				print "\033[0;31m%s\033[0m" %r.status_code
 				print(" ")
+				time.sleep(2)
+				self.retries = self.retries+1
+				print "end run retry number: %s" %str(self.retries)
+				assert self.retries <= 5, 'MAX RETRIES WHEN ENDING RUN: ERROR CODE: %s' %str(r.status_code)
+				self.run_callback(request_info)
 			print "Information retuned by server: "	
 			print r.text
 			print (" ")
