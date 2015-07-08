@@ -1,6 +1,26 @@
 Server_Interaction
 ==========
 
+# Testing
+
+If, when running a mission, connection with the server seems not to be established. The availability of the server can be tested like so:
+IN A PYTHON SHELL:
+
+    import requests
+
+    ip_url = 'http://serverIp:port/run/start/courseToAttempt/UF'
+
+    headers = {'content-type':'application/json'}
+
+    r = requests.post(ip_url, headers=headers)
+
+    print r.text
+
+Where serverIp is the server's ip address, port is the server's port and courseToAttemp is the course that the run is being started on, either "courseA", "courseB" or "openTest" without the quotes.
+If the run started successfully, additionally to a 200 satus code, r.text should print:
+
+    {'success':true}
+
 
 # Usage
 
@@ -14,6 +34,7 @@ When writing a mission that requires interaction with the server, one must impor
 
     from server_interaction import json_server_proxy
 
+DO ALL CODING WITHIN A FUNCTION
 Additionaly an instance of json_server_proxy must be created. 
 
 (We yield to make sure the instance is created)
@@ -132,9 +153,6 @@ When all the missions have been completed, the run needs to be ended like so:
 
     yield s.end_run()    
 
-# Testing
-
-N/A (Depends on an active server)
 
 # What's in here?
 
