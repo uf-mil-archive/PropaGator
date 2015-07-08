@@ -4,6 +4,7 @@ from scipy import optimize, misc
 import numpy as np
 import time
 from tools import Tools
+from azi_drive import azi_cvxbind
 
 '''
 Ideas for optimization:
@@ -185,6 +186,9 @@ class Azi_Drive(object):
                     Surface Vehicle Utilizing Azimuth Thrusters",
                 See: http://bit.ly/1ayOdlg
 
+            [3] Mattingley, Jacob "CVXGEN"
+                See: http://cvxgen.com/docs/license.html
+
         Author: Jacob Panikulam
 
         '''
@@ -195,137 +199,37 @@ class Azi_Drive(object):
 
         # Desired
         tau = np.array([fx_des, fy_des, -1 * m_des])
-        if np.allclose([0.0, 0.0, 0.0], tau, atol=5.0):
-            return np.array([0.0, 0.0]), -u_0, True
 
         # Linearizations
-        d_singularity = Tools.jacobian(self.singularity_avoidance, pt=alpha_0, order=3, dx=0.01)
+        # Singularity unused
+        # d_singularity = Tools.jacobian(self.singularity_avoidance, pt=alpha_0, order=3, dx=0.01)
         dBu_dalpha = self.thrust_jacobian(alpha_0, u_0)
         d_power = self.power_cost_scale
-
         B = self.thrust_matrix(alpha_0)
 
-        def get_s((delta_angle, delta_u)):
-            '''Equality constraint
-            'S' is the force/torque error
+        Q = np.diag([10., 10., 30.]).astype(np.double)
+        Ohm = np.diag([5., 5.]).astype(np.double)
 
-                s + B(alpha_0) * delta_u + jac(B*u)*delta_alpha 
-                    = -tau - B(alpha_0) * u_0
-            -->   
-            
-                s = (-B(alpha_0) * delta_u) - jac(B*u)*delta_alpha - tau - B*alpha_0 *u_0
-            '''
-            s = -np.dot(B, delta_u) - np.dot(dBu_dalpha, delta_angle) + tau - np.dot(B, u_0)
-            return s
-
-        def objective((delta_angle_1, delta_angle_2, delta_u_1, delta_u_2)):
-            '''Objective function for minimization'''
-
-            delta_u = np.array([delta_u_1, delta_u_2])
-
-            delta_angle = np.array([delta_angle_1, delta_angle_2])
-            s = get_s((delta_angle, delta_u))
-
-            # Sub-costs
-            # P = np.diag([1.0, 1.0])
-            # power = Tools.quadratic(delta_angle + alpha_0, P)
-            power = 0
-
-            G = thrust_error_weights = np.diag([20.0, 20.0, 40.0])
-            thrust_error = (s * G * s.T).A1
-
-            Q = angle_change_weight = np.diag([4.0, 4.0])
-            angle_change = np.dot(
-                np.dot(delta_angle, angle_change_weight),
-                np.transpose(delta_angle)
-            )
-
-            A = angle_weight = np.diag([2.0, 2.0])
-            angle_cost = Tools.quadratic((delta_angle + alpha_0), A)
-
-            singularity = np.dot(d_singularity, delta_angle).A1
-
-            # Note, the error will increase when adding power and singularity costs
-            # cost = power + thrust_error + angle_change + singularity + angle_cost
-            cost = thrust_error
-            return cost
-
-        # Formatted as such because I thought I would do something 
-        #  funky by varying the bounds
-        u_max = self.u_max
-        u_min = self.u_min
-        alpha_max = self.alpha_max
-        alpha_min = self.alpha_min
-        delta_alpha_min = self.delta_alpha_min
-        delta_alpha_max = self.delta_alpha_max
-        thruster_min = self.thruster_min
-
-        # Plot the cost function (visually observe convexity)
-        if test_plot:
-            def objective_r(*args):
-                return objective(args)
-
-            x_range = np.linspace(-np.pi, np.pi, 100)
-            y_range = np.linspace(-np.pi, np.pi, 100)
-
-            X, Y = np.meshgrid(x_range, y_range)
-            f = np.vectorize(objective_r)
-            Z = f(X, Y, np.zeros(len(X)), np.zeros(len(Y)))
-
-            fig = plt.figure(figsize=(14, 6))
-            ax = fig.add_subplot(1, 2, 1, projection='3d')
-            p = ax.plot_surface(X, Y, Z, rstride=4, cstride=4, linewidth=0)
-            plt.show()
-
-        minimization = optimize.minimize(
-            fun=objective,
-            x0=(0.1, 0.1, 0.0, 0.0),
-            method='SLSQP',
-            constraints=[
-                # Inequality requires nonnegativity, i.e. fun(o) >= 0
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_1 + u_0[0]) + u_max},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_1 + u_0[0] - u_min},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_1 + alpha_0[0]) + alpha_max},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_1 + alpha_0[0] - alpha_min},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_1) + delta_alpha_max},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_1 - delta_alpha_min},
-
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_u_2 + u_0[1]) + u_max},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_u_2 + u_0[1] - u_min},
-
-                # Account for minimum thruster output
-                # {'type': 'ineq', 'fun': 
-                    # lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_1 + u_0[0]) - thruster_min},
-                # {'type': 'ineq', 'fun': 
-                    # lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): abs(delta_u_2 + u_0[1]) - thruster_min},
-
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2 + alpha_0[1]) + alpha_max},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 + alpha_0[1] - alpha_min},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): -(delta_angle_2) + delta_alpha_max},
-                {'type': 'ineq', 'fun': 
-                    lambda (delta_angle_1, delta_angle_2, delta_u_1, delta_u_2): delta_angle_2 - delta_alpha_min},
-            ]
+        soln = azi_cvxbind.ksolve(
+            u_0.flatten(),
+            alpha_0.flatten(),
+            Ohm.flatten(),
+            Q.flatten(),
+            B.transpose().flatten(),  # Transpose because cvxgen is column-major indexed
+            dBu_dalpha.transpose().A1,
+            self.u_max,
+            self.u_min,
+            self.alpha_min,
+            self.alpha_max,
+            self.delta_alpha_max,
+            tau.flatten(),
         )
-        delta_alpha_1, delta_alpha_2, delta_u_1, delta_u_2 = minimization.x
-        delta_alpha, delta_u = np.array([delta_alpha_1, delta_alpha_2]), np.array([delta_u_1, delta_u_2])
 
-        if not minimization.success:
-            success = False
-            if minimization.message == 'Inequality constraints incompatible':
-                pass  # WE FUCT UP!
-        else:
-            success = True
+        du_1, du_2, da_1, da_2 = soln
+        delta_u = np.array([du_1, du_2]).astype(np.double)
+        delta_alpha = np.array([da_1, da_2]).astype(np.double)
+
+        success = True  # Minimization always succeeds, QP's, baby!
         return delta_alpha, delta_u, success
 
 
@@ -335,17 +239,16 @@ if __name__ == '__main__':
     u_0 = np.array([0.0, 0.0])
     alpha_0 = np.array([0.0, 0.0])
 
-    for k in range(10):
-
-
+    for k in range(500):
         delta_alpha, delta_u, s =  Azi_Drive.map_thruster(
-            100, 10, 5, 
+            50, 30, 10, 
             alpha_0=alpha_0, 
             u_0=u_0,
         )
         toc = time.time() - tic
-        print 'took {} seconds'.format(toc)
+        # print 'took {} seconds'.format(toc)
         u_0 += delta_u
         alpha_0 += delta_alpha
-        print u_0
-        print Azi_Drive.net_force(alpha_0, u_0)
+        # print u_0
+    print Azi_Drive.net_force(alpha_0, u_0)
+    print 'took {} seconds'.format(toc)
