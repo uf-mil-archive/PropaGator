@@ -13,7 +13,7 @@
     <arg name="same_gate_angular_tolerance" default="0.52"/>
     <arg name="same_gate_distance_tolerance" default="1.0"/>
     <arg name="gate_intersecting_buoy_tolerance" default="0.5"/>
-    <arg name="gate_lifetime" default="0.1"/>
+    <arg name="gate_lifetime" default="5.0"/>
 
     <!-- group to put every thing related to lidar in-->
     <group ns="object_handling">
