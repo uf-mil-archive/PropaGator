@@ -13,16 +13,17 @@ from rawgps_common import gps
 from server_interaction import json_server_proxy
 
 # Sub mission imports
-from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos
+from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon
 
 # Timeout limits 
 ONE_MINUTE = 60
 
 TOTAL_TIME = 20 * ONE_MINUTE
 DOCK_TIME = ONE_MINUTE
-#NTROP_TIME = 
+NTROP_TIME = 
 OBS_COURSE_TIME = ONE_MINUTE
 START_GATE_TIME = ONE_MINUTE
+HYDRO_TIME = ONE_MINUTE * 2
 
 # TODO: Move this to some common place to be used across files
 def ll(lat, lon):
@@ -153,6 +154,7 @@ def main(nh):
         try:
             print "Beginning Dock 1"
             yield util.wrap_timeout(find_shape.main(nh, shape1, color1), DOCK_TIME)
+            print "Completed Dock 1"
         except Exception:
             print "Could not dock first shape, moving to next shape"
         finally:
@@ -161,6 +163,7 @@ def main(nh):
         try:
             print "Beginning Dock 2"
             yield util.wrap_timeout(find_shape.main(nh, shape2, color2), DOCK_TIME)
+            print "Completed Dock 2"
         except Exception:
             print "Could not dock second shape, moving on"
         finally:
@@ -197,11 +200,14 @@ def main(nh):
             courseB=HYDRO_B,
         )[course])  
 
-        '''
-
-        NEED TO ADD CHALLENGE IN
-
-        '''
+        try:
+            print "Beginning Pinger challenge"
+            yield util.wrap_timeout(acoustic_beacon.main(nh), HYDRO_TIME)
+            print "Completed pinger challenge"
+        except Exception:
+            print "Could not finish pinger challenge"
+        finally:
+            boat.default_state()
 
 ##-------------------------------- RETURN ---------------------------------------------------------------
 
