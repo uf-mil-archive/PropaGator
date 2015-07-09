@@ -110,15 +110,13 @@ class _Boat(object):
     
         self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
-        '''
-
+        
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
             print 'Boat class __init__: Waiting on trajectory..'
             yield self._trajectory_sub.get_next_message()
             print 'Boat class __init__: Got trajectory'
 
-        '''
 
         # Make sure odom is publishing
         if(need_odom == True):
@@ -205,6 +203,42 @@ class _Boat(object):
         for i in xrange(100):
             self.servo_full_config_pub.publish(deploy_msg)
             yield util.sleep(20/100)
+
+    @util.cancellableInlineCallbacks
+    def get_distance_from_object(self, radius):
+
+        temp_distance = 0
+        avg_distance = 0
+        shortest_distance = 100
+        farthest_distance = 0
+        return_array = []
+        hold = []
+
+        while len(hold) <= 0:
+            # get pointcloud
+            pointcloud = yield self.get_pointcloud()
+            yield util.sleep(.2) # sleep to avoid tooPast errors
+            pointcloud_base = yield self.to_baselink(pointcloud)
+            yield util.sleep(.2) # sleep to avoid tooPast errors
+
+            # Filter lidar data to only data right in front of the boat
+            hold = filter(lambda x: abs(x[1]) < radius, pointcloud_base)
+
+        # Calculate several distances between target and boat
+        for x in range(len(hold)):
+            dist = hold[x]
+            temp_distance += dist[0]
+            # Check and assign the closest object to the boat
+            if dist[0] < shortest_distance: shortest_distance = dist[0]
+            if dist[0] > farthest_distance: farthest_distance = dist[0]
+
+        avg_distance = temp_distance/len(hold)
+        shortest_distance = shortest_distance
+        farthest_distance = farthest_distance
+        return_array.append(avg_distance)
+        return_array.append(shortest_distance)
+        return_array.append(farthest_distance)
+        defer.returnValue(return_array)
       
     @util.cancellableInlineCallbacks
     def get_hydrophone_freq(self):
