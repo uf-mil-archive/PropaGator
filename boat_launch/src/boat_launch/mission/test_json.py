@@ -18,8 +18,8 @@ def main(nh):
     s =  yield json_server_proxy.get_server(nh)
 
     #url_was_set = s.interact('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')
-    course = raw_input('Course: ')
-    url_was_set = yield s.interact('http://10.0.2.1:8080',course) 
+    course = raw_input('Course:')
+    url_was_set = yield s.interact('http://10.0.2.1:8080', course) 
 
     if url_was_set.was_set:
 
@@ -52,6 +52,9 @@ def main(nh):
 
                 test = yield s.send_buoy_info('blue')
                 print test
+
+                print '____Beat?____'
+                yield util.sleep(60)
     
                 yield util.sleep(60)
 
