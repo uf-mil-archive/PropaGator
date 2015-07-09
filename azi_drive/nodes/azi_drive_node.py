@@ -24,7 +24,7 @@ min angle: -pi/2
 '''
 
 class Controller(object):
-    def __init__(self, rate=20):
+    def __init__(self, rate=100):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
         self.servo_max_rotation = 0.1
@@ -47,7 +47,7 @@ class Controller(object):
         except rospy.service.ServiceException, e:
             rospy.logwarn(str(e))
         self.killed = False
-	self.float = False
+        self.float = False
         self.rc_takeover = False
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
@@ -165,8 +165,8 @@ class Controller(object):
 
                 thrust_solution = Azi_Drive.map_thruster(
                     fx_des=self.des_fx,
-                    fy_des=self.des_fy,
-                    m_des=self.des_torque, 
+                    fy_des=-1 * self.des_fy,
+                    m_des= -1 * self.des_torque, 
                     alpha_0= self.cur_angles,
                     u_0=self.cur_forces,
                 )
@@ -182,7 +182,7 @@ class Controller(object):
                 self.cur_angles += d_theta
                 self.cur_forces += d_force
 
-                if iteration_num > 4:
+                if iteration_num > 10:
                     iteration_num = 0
                     self.set_servo_angles(self.cur_angles)
                     if success:

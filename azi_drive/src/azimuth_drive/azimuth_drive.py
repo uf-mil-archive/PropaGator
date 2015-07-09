@@ -194,18 +194,18 @@ class Azi_Drive(object):
         '''
         # Early Checks
         # Convert to numpy arrays
-        alpha_0 = np.array(alpha_0)
-        u_0 = np.array(u_0)
+        alpha_0 = np.array(alpha_0).astype(np.double)
+        u_0 = np.array(u_0).astype(np.double)
 
         # Desired
-        tau = np.array([fx_des, fy_des, -1 * m_des])
+        tau = np.array([fx_des, fy_des, m_des]).astype(np.double)
 
         # Linearizations
         # Singularity unused
         # d_singularity = Tools.jacobian(self.singularity_avoidance, pt=alpha_0, order=3, dx=0.01)
-        dBu_dalpha = self.thrust_jacobian(alpha_0, u_0)
+        dBu_dalpha = self.thrust_jacobian(alpha_0, u_0).astype(np.double)
         d_power = self.power_cost_scale
-        B = self.thrust_matrix(alpha_0)
+        B = self.thrust_matrix(alpha_0).astype(np.double)
 
         Q = np.diag([10., 10., 30.]).astype(np.double)
         Ohm = np.diag([5., 5.]).astype(np.double)
