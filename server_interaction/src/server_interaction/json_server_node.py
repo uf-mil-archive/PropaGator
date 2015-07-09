@@ -326,7 +326,6 @@ class server_interaction:
             self.retries = 0
             raise Exception("Communication with server failed!")
 
-<<<<<<< HEAD
     def url_and_course_callback(self,request_info):
         self.url = request_info.url
         self.course = request_info.course
@@ -339,13 +338,6 @@ class server_interaction:
         return True 
 
     def gps_callback(self, gps_pos):
-=======
-	def url_and_course_callback(self,request_info):
-		self.url = request_info.url
-		self.course = request_info.course
-		print "Server url and course were set"
-		return True
->>>>>>> JSON_SERVER_NODE: Handle retries
 
         self.x = gps_pos.pose.pose.position.x
         self.y = gps_pos.pose.pose.position.y
