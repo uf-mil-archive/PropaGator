@@ -4,6 +4,7 @@ import os
 import cv2
 import errno
 import rospy
+import random
 import roslib
 import argparse
 import subprocess
@@ -31,8 +32,9 @@ from server_interaction.msg import images_info
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--path', help='Input file directory', required=False)
 args = parser.parse_args()
+
 JSON_file_path = ''
-detected_digits =
+detected_digits = []
 
 # Ideally all ROS topics should be setup as a service that we can poll
 # for information regarding file paths, and other things instead of having a constant
@@ -95,6 +97,52 @@ def transform_image(image):
     mask_blur = cv2.blur(orange_mask_hsv,(25,25))
     return cv2.threshold(mask_blur, 50, 255, cv2.THRESH_BINARY_INV)[1]
 
+def rand_pick():
+    # Used for cases where SSOCR cannot agree on what character is currently
+    # in the image
+    val = random.randint(0,15)
+    if val == 10:
+        return 'a'
+    elif val == 11:
+        return 'b'
+    elif val == 12:
+        return 'c'
+    elif val == 13:
+        return 'd'
+    elif val == 14:
+        return 'e'
+    elif val == 15:
+        return 'f'
+    else:
+        return str(val)
+
+def json_prep(val):
+    # AUVSI's JSON server is expecting the values to be of a certain format.
+    # For example, instead of '1', the server is expecting 'one'
+    if val == 0:
+        return 'zero'
+    elif val == 1:
+        return 'one'
+    elif val == 2:
+        return 'two'
+    elif val == 3:
+        return 'three'
+    elif val == 4:
+        return 'four'
+    elif val == 5:
+        return 'five'
+    elif val == 6:
+        return 'six'
+    elif val == 7:
+        return 'seven'
+    elif val == 8:
+        return 'eight'
+    elif val == 9:
+        return 'nine'
+    else:
+        # Cases for 0x0A through 0x0F which should already be a string
+        return str(val)
+
 # HSV color-ranges used to threshold out the hexadecimal value
 orange_min_hsv = np.array([0, 50, 50],np.uint8)
 orange_max_hsv = np.array([10, 255, 255],np.uint8)
@@ -108,8 +156,11 @@ def detect_digits(args):
         if exception.errno != errno.EEXIST:
             raise
 
-    listing = os.listdir(args.path)
-    working_path = args.path + 'tmp_path'
+    working_path = args.path + '/' + 'tmp_path'
+    relevant_extensions = ['jpg','JPG','jpeg','Jpeg','JPEG','png','Png','PNG']
+
+    # listing = os.listdir(working_path)
+    listing = [fn for fn in os.listdir(args.path) if any([fn.endswith(ext) for ext in relevant_extensions])]
 
     # Image processing
     for infile in listing:
@@ -119,6 +170,9 @@ def detect_digits(args):
             print "Current file is: " + infile
             cv_image = cv2.imread(args.path + '/' + infile)
             cv_image = transform_image(cv_image)
+
+            cv2.imshow('', cv_image)
+            cv2.waitKey(0)
 
             if np.mean(cv_image) == 255:
                 # Images with everything thresholded out is
@@ -131,17 +185,25 @@ def detect_digits(args):
                 cv2.rectangle(cv_image, (x,y), (x+w, y+y+h), (0,255,0), 2)
                 roi = cv_image[y:y+h, x:x+w]
 
-                roi_small_sqr = cv2.resize(roi,(30,30))     # Seems to work well enough for most characters
+                # Seems to work well enough for most characters
+                roi_small_sqr = cv2.resize(roi,(30,30))
                 cv2.imwrite(working_path + '/' + str(infile) + '.jpg', roi_small_sqr)
 
-    listing = os.listdir(working_path)
-    for infile in listing:
-        text = str(subprocess.check_output(["ssocr","-d","-1", str(working_path + '/' + infile)]))
-        if text is None:
-            print "No digit found in " + str(infile)
-        else:
+    #listing = os.listdir(working_path)
+    listing = [fn for fn in os.listdir(working_path) if any([fn.endswith(ext) for ext in relevant_extensions])]
+    accepted_ans = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f']
 
-            print "Digit found in " + str(infile) + ": " + str(text)
+    for infile in listing:
+        try:
+            text = str(subprocess.check_output(["ssocr","-d","-1", str(working_path + '/' + infile)]))
+            if text is None:
+                print "No digit found in " + str(infile)
+            elif any([text == letters for letters in accepted_ans]):
+                print "Probable digit found, but unrecognized..."
+            else:
+                print "Digit found in ", str(infile), ": " + str(text)
+        except subprocess.CalledProcessError:
+            print "Exception occured, we are randomly picking value: ", rand_pick()
 
     print "Removing temporary work path"
     shutil.rmtree(working_path)
