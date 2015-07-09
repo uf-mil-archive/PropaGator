@@ -326,6 +326,9 @@ class server_interaction:
 			self.retries = 0
 			raise Exception("Communication with server failed!")
 
+
+				print '______________running___________', self.running
+
 	def url_and_course_callback(self,request_info):
 		self.url = request_info.url
 		self.course = request_info.course
@@ -357,7 +360,7 @@ class server_interaction:
 			b = math.sqrt( asq * (1-esq) )
 			bsq = math.pow(b,2)
 			ep = math.sqrt( (asq - bsq)/bsq)
-			p = math.sqrt( math.pow(x,2) + math.pow(y,2) )
+			p = math.sqrt( math.pow(float(x),2.0) + math.pow(float(y),2.0) )
 			th = math.atan2(a*z, b*p)
 			lon = math.atan2(y,x)
 			lat = math.atan2( (z + math.pow(ep,2)*b*math.pow(math.sin(th),3) ), (p - esq*a*math.pow(math.cos(th),3)) )
@@ -383,7 +386,8 @@ class server_interaction:
 			return new_angle;
 		if self.running:
 			ecef = (self.x,self.y,self.z)
-			gps_data = ecef_to_lla(ecef)
+			#gps_data = ecef_to_lla(ecef)
+			gps_data=(0.0,0.0)
 			timeStamp = datetime.utcnow()
 			timeStamp = timeStamp.strftime('%Y%m%d%H%M%S')
 			latitude = str(gps_data[0])
@@ -403,6 +407,8 @@ class server_interaction:
 			r = requests.post(url, headers = headers, data = json.dumps(payload), verify = False)
 			print "Server return:"
 			print r.text
+		else:
+			print 'No beat!'
 
 def main():
 	s = server_interaction()

@@ -68,5 +68,5 @@
     </group>
 
     <!-- Object handling node(s) -->
-    <include file="$(find object_handling)/launch/object_handling.launch"/>
+    <!--<include file="$(find object_handling)/launch/object_handling.launch"/>-->
 </launch>
