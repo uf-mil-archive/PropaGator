@@ -177,7 +177,7 @@ def main(nh):
                     # Don't go to a different gate (dis < 5)
                     dis = numpy.linalg.norm(last_gate_pos - gate_pos)
                     #print 'Distance: ', dis
-                    if dis > 0.1 and dis < 3:
+                    if dis >= 0.1 and dis < 3:
                         print 'Gate drifted re-placing goal point'
                         #move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
                         if gates_passed == 0:
@@ -192,6 +192,7 @@ def main(nh):
                     print 'Moving to gate ' + str(gates_passed + 1)
                     #move = boat.move.set_position(gate_pos).set_orientation(gate_orientation).go()
                     if gates_passed == 0:
+                        #yield boat.move.yaw_left_deg(30).go()
                         move = move_on_line.main(nh, gate_pos, gate_orientation, -GATE_DISTANCE)
                         print 'zzz'
                         yield util.sleep(1.0)
