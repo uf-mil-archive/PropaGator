@@ -324,13 +324,7 @@ class server_interaction:
 
 		except AssertionError:
 			self.retries = 0
-			raise Exception("Communication with server failed!")			
-
-
-				print '______________running___________', self.running
-
-
-				print '______________running___________', self.running
+			raise Exception("Communication with server failed!")
 
 	def url_and_course_callback(self,request_info):
 		self.url = request_info.url
