@@ -45,6 +45,7 @@ from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
 from azi_drive.srv import AziFloat, AziFloatRequest
+from vision_sandbox.msg import Buoy, Buoys
                                       
             
 class _PoseProxy(object):
@@ -110,6 +111,8 @@ class _Boat(object):
     
         self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
+        self_bouy_subsriber = self._node_handle.subscribe('topic', Buoys)
+
         
         # Make sure trajectory topic is publishing 
         if(need_trajectory == True):
@@ -140,6 +143,11 @@ class _Boat(object):
     @property
     def move(self):
         return _PoseProxy(self, self.pose)
+
+    def get_bouys(self):
+        msg = yield self._buoy_sub.get_next_message()
+        defer.returnValue(msg)
+
 
     def pan_lidar(self, freq = 0.5, min_angle = 2.7, max_angle = 3.4):
         self._set_lidar_mode(lidar_servo_modeRequest(
