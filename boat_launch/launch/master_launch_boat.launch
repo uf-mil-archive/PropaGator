@@ -6,7 +6,8 @@
   <include file="$(find azi_drive)/launch/run_azi.launch"/>
   <include file="$(find boat_launch)/launch/controller.launch"/>
   <include file="$(find ueye_cam)/launch/rgb8.launch"/>
-  <node pkg="camera_docking" name="docking_camera" type="find_signs.py"/>
+  <node pkg="camera_docking" name="docking_camera" type="find_signs_PVC.py"/>
+  <!--node pkg="camera_docking" name="docking_camera" type="find_signs_8020.py"/-->
   <node pkg="server_interaction" name="server_interaction" type="json_server_node.py"/>
 
  <!-- Launches on laptop one day
