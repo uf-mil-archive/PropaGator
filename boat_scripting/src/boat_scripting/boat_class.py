@@ -279,7 +279,7 @@ class _Boat(object):
             ret.append(msg.xpixel)
             ret.append(msg.color)
             defer.returnValue(ret)
-        if shape == 'cross':
+        if shape == 'cruciform':
             msg = yield self._cross_sub.get_next_message()
             ret.append(msg.xpixel)
             ret.append(msg.color)
