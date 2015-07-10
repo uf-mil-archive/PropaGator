@@ -42,7 +42,7 @@ class gate_handler:
         # Maximum width
         self.max_width = rospy.get_param('~max_width', 8.0)
         # Minimum width
-        self.min_width = rospy.get_param('~min_width', 1.0)
+        self.min_width = rospy.get_param('~min_width', 2.0)
         # to be to different gates they must have this much angular tolerance
         self.same_ang_tol = rospy.get_param('~same_angular_tolerance', 30.0 * numpy.pi / 180.0)
         # Distance tolerance
