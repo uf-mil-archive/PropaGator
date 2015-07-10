@@ -22,6 +22,7 @@ from uf_common.msg import PoseTwistStamped
 from controller.srv import Enable, EnableResponse
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
+from collections import deque
 
 class Controller(object):
     def __init__(self):
@@ -60,6 +61,11 @@ class Controller(object):
         [0,0,0,0,0,0],
         [0,0,0,0,0,0],
         [0,0,0,0,0,self.p_z]])
+
+        # Averaging parameters
+        self.last_average = numpy.zeros(6)
+        self.num_to_avg = 75 # At 50 hz this is 50 samples is one second of data
+        self.outputs = deque([numpy.zeros(6) for i in range(0, self.num_to_avg)])
         
         self.desired_state_set = False
         self.desired_state = numpy.ones(6)
@@ -207,10 +213,22 @@ class Controller(object):
 
             desired_state_dot = numpy.concatenate([vels, self.desired_state_dot[3:6]])
 
-            print 'Desired_state tf: ', desired_state_dot
+            #print 'Desired_state tf: ', desired_state_dot
             e_dot = desired_state_dot - self.state_dot
             output = self.K_p.dot(e) + self.K_d.dot(e_dot)
-            print 'Output: ', output
+
+            # Apply simple moving average filter
+            new = output / self.num_to_avg
+            old = (self.outputs[0] / self.num_to_avg) 
+            self.last_average = self.last_average - old + new
+            self.outputs.popleft()
+            self.outputs.append(output)
+
+            # Resuse output var
+            #print 'Outputs: ', self.outputs
+            output = self.last_average
+
+            #print 'Last Average: ', output
             self.lock.release()
 
             self.x_error = e[0]
@@ -221,7 +239,7 @@ class Controller(object):
             self.dy_error = e_dot[1]
             self.dz_error = e_dot[5]
 
-            self.to_terminal()            
+            #self.to_terminal()            
             
             if (not(self.odom_active)):
                 output = [0,0,0,0,0,0]
