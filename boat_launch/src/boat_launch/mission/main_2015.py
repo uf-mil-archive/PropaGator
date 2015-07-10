@@ -34,9 +34,9 @@ STARTGATES_A = ll( 36.801843,-76.190816)
 STARTGATES_B = ll(36.801786, -76.190831)
 
 DOCK_A = ll(36.802122, -76.191344)
-DOCK_B = ll(36.801754, -76.191911)
+DOCK_B = ll(36.801710, -76.191940)
 
-OBSTACLE_A = ll(36.80190, -76.19136)
+OBSTACLE_A = ll(36.801845, -76.191164)
 OBSTACLE_B = ll(36.80189, -76.19139)
 
 HYDRO_A = ll(36.802553, -76.191496)
@@ -57,10 +57,10 @@ HOME_3 = ll(36.801805, -76.190871)
 def main(nh):
     # Grab interfaces for boat and JSON server
     boat = yield boat_scripting.get_boat(nh)
-    s =  yield json_server_proxy.get_server(nh)
+    #s =  yield json_server_proxy.get_server(nh)
 
     # Grab mission input such as JSON server ip, and course
-    ip_port = raw_input('Enter ip:port (ex. 10.0.2.1:8080): ')
+    #ip_port = raw_input('Enter ip:port (ex. 10.0.2.1:8080): ')
     course = raw_input('Enter course with corect spelling! (courseA, courseB, ...): ')
 
     shape1 = None
@@ -74,62 +74,74 @@ def main(nh):
     try:
         # Main mission code
 
-        #JSON initilization
-        #TODO: if any failures start over
+        # JSON initilization
+        # TODO: if any failures start over
         # IP - http://10.0.2.1:8080
-        url_was_set = (yield s.interact('http://'+ip_port, course)).was_set
-        assert not url_was_set, 'Failed to set URL to ' + 'http://'+ip_port + ' on course ' + course
+        #url_was_set = (yield s.interact('http://'+ip_port, course)).was_set
+        #assert not url_was_set, 'Failed to set URL to ' + 'http://'+ip_port + ' on course ' + course
 
         print "Url and course were set succesfully"
 
         # end run just in case
-        end_run = yield s.end_run()
-        run_started = (yield s.start_run()).success
+        #end_run = yield s.end_run()
+        #run_started = (yield s.start_run()).success
 
-        assert not run_started, 'Run failed to start'
-        print "Run started succesfully"
+        #assert not run_started, 'Run failed to start'
+        #print "Run started succesfully"
+
+        
 
 ##-------------------------------- GATES ---------------------------------------------------------------
 
         # Set the gate challange as the first challange
-        challenge_was_set = (yield s.set_current_challenge('gates')).was_set
-        assert not challenge_was_set, 'Failed to set current challange to gates'
-        print "Challenge was set succesfully"
+        #challenge_was_set = (yield s.set_current_challenge('gates')).was_set
+        #assert not challenge_was_set, 'Failed to set current challange to gates'
+        #print "Challenge was set succesfully"
 
         print "Moving to position to begin startgates"
         # TOO CLOSE TO DOCK
+
+        '''
 
         yield go_to_ecef_pos.main(nh, dict(
             courseA=STARTGATES_A,
             courseB=STARTGATES_B,
         )[course])
 
-        yield boat.move.heading(2.5).go()
+        '''
 
+        #yield boat.move.heading(-2.5).go()
+
+        '''
         try:
             print "Beginning startgates"
-            yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
+            #yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
+            yield boat.move.forward(2).go()
+
+            for i in xrange(6):
+                print 'Side', i
+                yield boat.move.forward(5).go()
             print "Startgates completed succesfully!"
         except Exception:
             print "Could not complete stargates in" + str(START_GATE_TIME) + " seconds"
         finally:
             boat.default_state()
 
+        '''
+
 ##-------------------------------- OBS COURSE ------------------------------------------------------------
 
         
         print "Moving to position to begin obstacle course"
 
-        
         yield go_to_ecef_pos.main(nh, dict(
             courseA=OBSTACLE_A,
             courseB=OBSTACLE_B,
         )[course])
         
-
-        challenge_was_set = (yield s.set_current_challenge('obstacle course')).was_set
-        assert not challenge_was_set, 'Failed to set current challange to obstacle course'
-        print "Challenge was set succesfully"
+        #challenge_was_set = (yield s.set_current_challenge('obstacle course')).was_set
+        #assert not challenge_was_set, 'Failed to set current challange to obstacle course'
+        #print "Challenge was set succesfully"
 
         try:
             print "Beginning obstacle course"
@@ -143,18 +155,19 @@ def main(nh):
 ##-------------------------------- DOCKING ---------------------------------------------------------------
 
 
-        challenge_was_set = (yield s.set_current_challenge('docking')).was_set
-        assert not challenge_was_set, 'Failed to set current challange to docking'
-        print "Challenge was set succesfully"
+        #challenge_was_set = (yield s.set_current_challenge('docking')).was_set
+        #assert not challenge_was_set, 'Failed to set current challange to docking'
+        #print "Challenge was set succesfully"
 
         print "Moving to position to begin docking"
+        
         
         yield go_to_ecef_pos.main(nh, dict(
             courseA=DOCK_A,
             courseB=DOCK_B,
         )[course])
         
-
+        
         print "Turning to face dock"
 
         
@@ -183,6 +196,10 @@ def main(nh):
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
 
+        #challenge_was_set = (yield s.set_current_challenge('interoperability')).was_set
+        #assert not challenge_was_set, 'Failed to set current challange to interoperability'
+        #print "Challenge was set succesfully"
+
         print "Moving to position to begin interoperability"
 
         
@@ -191,17 +208,12 @@ def main(nh):
             courseB=QUAD_B,
         )[course])
 
-
-        challenge_was_set = (yield s.set_current_challenge('interoperability')).was_set
-        assert not challenge_was_set, 'Failed to set current challange to interoperability'
-        print "Challenge was set succesfully"
-
         
 ##-------------------------------- PINGER ---------------------------------------------------------------
 
-        challenge_was_set = (yield s.set_current_challenge('pinger')).was_set
-        assert not challenge_was_set, 'Failed to set current challange to pinger'
-        print "Challenge was set succesfully"
+        #challenge_was_set = (yield s.set_current_challenge('pinger')).was_set
+        #assert not challenge_was_set, 'Failed to set current challange to pinger'
+        #print "Challenge was set succesfully"
 
         print "Moving to position to begin pinger challenge"
 
@@ -250,4 +262,4 @@ def main(nh):
         # We do not yield here because if something hangs we still want everything else to complete
         print 'Ending run and returning to default state'
         boat.default_state()
-        s.end_run()
+        #s.end_run()
