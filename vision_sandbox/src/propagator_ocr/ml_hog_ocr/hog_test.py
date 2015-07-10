@@ -1,11 +1,8 @@
-import subprocess
-
 __author__ = 'Ralph F. Leyva'
 
 # Module imports
 import cv2
 import argparse
-import subprocess
 import pytesseract
 import numpy as np
 from sklearn.externals import joblib

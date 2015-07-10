@@ -106,8 +106,6 @@ def blob_process(cv_image):
   #bilateral = cv2.bilateralFilter(cv_image, 2,25,25)
   return dilatated_masked_img
   #return bilateral
-
-def detect_bouys(processed_cv_image):
   bouy_detector = cv2.SimpleBlobDetector()
   keypoints = bouy_detector.detect(processed_cv_image)
   cv2.drawKeypoints(processed_cv_image, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)

@@ -36,6 +36,9 @@ class server_interaction:
 	retries = 0
 
 	def __init__(self):
+		self.x = 1220467.47
+		self.y = -4965409.60
+		self.z = 3799801.33
 		rospy.init_node('server_interaction')
 		self.dock_service = rospy.Service('docking_bay_information',docking_bay,self.dock_callback)
 		self.gate_service = rospy.Service('gate_code_information',gate_code,self.gate_callback)

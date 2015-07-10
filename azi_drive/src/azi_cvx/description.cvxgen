@@ -1,0 +1,44 @@
+# Produced by CVXGEN, 2015-07-07 00:46:47 -0400.
+# CVXGEN is Copyright (C) 2006-2012 Jacob Mattingley, jem@cvxgen.com.
+# The code in this file is Copyright (C) 2006-2012 Jacob Mattingley.
+# CVXGEN, or solvers produced by CVXGEN, cannot be used for commercial
+# applications without prior written permission from Jacob Mattingley.
+
+# Filename: description.cvxgen.
+# Description: A description of the CVXGEN problem.
+
+parameters
+  Ba (3, 2)
+  jBa_u (3, 2)
+  Q (3, 3) psd  # quadratic penalty.
+  Ohm (2, 2) psd  # quadratic penalty.
+  tau (3)
+  u_0 (2)
+  a_0 (2)
+
+  u_min (2)
+  u_max (2)
+  a_min (2)
+  a_max (2)
+  da_max (2)
+
+end
+
+variables
+  da (2)
+  du (2)
+  s (3)
+end
+
+minimize
+  #quad(da, Ohm) + quad(s, Q)
+  quad(da, Ohm) + quad(tau - (Ba * u_0) - (Ba * du) - (jBa_u * da), Q)
+
+subject to
+  #(Ba * du) + (jBa_u * da) + s == tau - (Ba * u_0)
+
+  u_min - u_0 <= du <= u_max - u_0
+  a_min - a_0 <= da <= a_max - a_0
+
+  -da_max <= da <= da_max
+end

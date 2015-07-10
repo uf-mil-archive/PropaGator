@@ -40,9 +40,9 @@ class gate_handler:
         self.gate_viz_pub = rospy.Publisher('gates_viz', MarkerArray, queue_size = 10)
         # Parameters
         # Maximum width
-        self.max_width = rospy.get_param('~max_width', 6.0)
+        self.max_width = rospy.get_param('~max_width', 8.0)
         # Minimum width
-        self.min_width = rospy.get_param('~min_width', 1.0)
+        self.min_width = rospy.get_param('~min_width', 2.0)
         # to be to different gates they must have this much angular tolerance
         self.same_ang_tol = rospy.get_param('~same_angular_tolerance', 30.0 * numpy.pi / 180.0)
         # Distance tolerance
@@ -51,7 +51,7 @@ class gate_handler:
         self.intersecting_buoy_tol = rospy.get_param('intersecting_buoy_tolerance', 0.5)
 
         # to be to different objects they must be this far apart
-        self.lifetime = rospy.get_param('~lifetime', 1.0)
+        self.lifetime = rospy.get_param('~lifetime', 5.0)
 
         self.gates = list()
 

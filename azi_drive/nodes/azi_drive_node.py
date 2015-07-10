@@ -24,10 +24,10 @@ min angle: -pi/2
 '''
 
 class Controller(object):
-    def __init__(self, rate=20):
+    def __init__(self, rate=100):
         '''I can't swim on account of my ass-mar'''
         self.rate = rate
-        self.servo_max_rotation = 0.3
+        self.servo_max_rotation = 0.1
         self.controller_max_rotation = self.servo_max_rotation / self.rate
         print rospy.get_param('~simulate')
         if rospy.get_param('~simulate', False) is False:
@@ -47,7 +47,7 @@ class Controller(object):
         except rospy.service.ServiceException, e:
             rospy.logwarn(str(e))
         self.killed = False
-	self.float = False
+        self.float = False
         self.rc_takeover = False
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
@@ -149,24 +149,24 @@ class Controller(object):
                 self.set_servo_angles(angles)
                 print self.pwm_forces
                 self.set_forces(self.pwm_forces)
-	    elif self.float == True:
+            elif self.float == True:
                 angles = np.array([0, 0])
                 self.set_servo_angles(angles)
                 self.set_forces((0.0, 0.0))
             # Otherwise normal operation
             else:
                 iteration_num += 1
-
                 cur_time = time()
+
                 rospy.logdebug("Targeting Fx: {} Fy: {} Torque: {}".format(self.des_fx, self.des_fy, self.des_torque))
                 if (cur_time - self.last_msg_time) > self.control_timeout:
-                    rospy.logerr("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
+                    rospy.logwarn("AZI_DRIVE: No control input in over {} seconds! Turning off motors".format(self.control_timeout))
                     self.stop()
 
                 thrust_solution = Azi_Drive.map_thruster(
                     fx_des=self.des_fx,
-                    fy_des=self.des_fy,
-                    m_des=self.des_torque, 
+                    fy_des=-1 * self.des_fy,
+                    m_des= -1 * self.des_torque, 
                     alpha_0= self.cur_angles,
                     u_0=self.cur_forces,
                 )
@@ -175,28 +175,24 @@ class Controller(object):
                 # print 'Took {} seconds'.format(toc)
 
                 d_theta, d_force, success = thrust_solution
-                if any(np.fabs(self.cur_angles + d_theta) > np.pi / 2):
-                    rospy.logwarn('|cur_angles + d_theata| > pi/2, setting angles to 0')
+                if any(np.fabs(self.cur_angles + d_theta) > np.pi/2):
                     self.cur_angles = np.array([0.0, 0.0])
                     continue
 
                 self.cur_angles += d_theta
                 self.cur_forces += d_force
 
-                if iteration_num > 8:
+                if iteration_num > 10:
                     iteration_num = 0
-
                     self.set_servo_angles(self.cur_angles)
                     if success:
                         self.set_forces(self.cur_forces)
                     else:
                         rospy.logwarn("AZI_DRIVE: Failed to attain valid solution setting forces to 0")
-                        rospy.logwarn("Offending wrench:\n" + str(self.last_wrench))
                         self.set_forces((0.0, 0.0))
-
-                    rate.sleep()
                     rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
+                rate.sleep()
 
     def control_callback(self, msg):
         
@@ -219,39 +215,13 @@ class Controller(object):
 
     def _wrench_cb(self, msg):
         '''Recieve a force, torque command for the mapper to achieve
-
-        Compute the minimum and maximum wrenches by multiplying the minimum and maximum thrusts 
-          by the thrust matrix at the current thruster orientations. This gives a strong estimate
-          for what is a feasible wrench in the neighborhood of linearity
-
-        The 0.9 is just a fudge factor for extra certainty
-        '''                                                                                                              
-        self.last_wrench = msg
-
+        '''
         force = msg.wrench.force
         torque = msg.wrench.torque
 
-        # Compute the minimum and maximum wrenches the boat can produce
-        #  By linearity, everything in between should be reasonably achievable
-        max_fx, max_fy, _ = Azi_Drive.net_force(self.cur_angles, [80, 80])
-        min_fx, min_fy, _ = Azi_Drive.net_force(self.cur_angles, [-70, -70])
-
-        _, _, max_torque = Azi_Drive.net_force(self.cur_angles, [-70, 80])
-        _, _, min_torque = Azi_Drive.net_force(self.cur_angles, [80, -70])
-
-        # max_f* could be positive, and min_f* could be negative; clip requires ordered inputs
-        fx_range = (min_fx, max_fx)
-        fy_range = (min_fy, max_fy)
-        tz_range = (min_torque, max_torque)
-        #print '----Ranges-----'
-        #print 'fx\t', fx_range
-        #print 'fy\t', fy_range
-        #print 'z\t', tz_range
-
-        self.des_fx = np.clip(force.x, min(fx_range), max(fx_range)) * 0.9 
-        # I put a negative sign here to work with Forrest's pd_controller
-        self.des_fy = -np.clip(force.y, min(fy_range), max(fy_range)) * 0.9
-        self.des_torque = np.clip(torque.z, min(tz_range), max(tz_range)) * 0.9
+        self.des_fx = force.x
+        self.des_fy = force.y
+        self.des_torque = torque.z
 
         self.last_msg_time = time()
 
