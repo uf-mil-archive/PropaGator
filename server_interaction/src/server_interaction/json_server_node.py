@@ -105,9 +105,9 @@ class server_interaction:
 
 	def get_images(self):
 		def my_range(start, end, step):
-		    while start < end:
-		        yield start
-		        start += step
+			while start < end:
+				yield start
+				start += step
 		try:
 			link = '/interop/images/%s/UF' %self.course	
 			url = self.url+link
@@ -120,8 +120,8 @@ class server_interaction:
 				imageNames = []
 				counter = -1
 				for index in my_range(0, len(links), 1):
-				    if index % 2 != 0:
-				    	links2.append(links[index])
+					if index % 2 != 0:
+						links2.append(links[index])
 				for sublink in links2:
 					imageNames.append(sublink.split("/")[5])
 				global imgCount
@@ -255,9 +255,6 @@ class server_interaction:
 
 	def run_callback(self,request_info):
 		try:
-			if self.running == 5:
-				return False;
-
 			start_or_end = request_info.status
 			startLink = '/run/start/%s/UF' %self.course
 			endLink = '/run/end/%s/UF' %self.course

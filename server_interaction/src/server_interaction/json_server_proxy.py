@@ -53,58 +53,28 @@ class json_server(object):
 
 	@util.cancellableInlineCallbacks	
 	def get_dock_info(self):
-		try:
-			try:
-				response = yield self.dock_service(docking_bayRequest(True))
-				defer.returnValue(response)
-			except ServiceError:
-				pass
-		except NameError:
-			raise Exception("Connection with server failed!")
-
+		response = yield self.dock_service(docking_bayRequest(True))
+		defer.returnValue(response)
+	
 	@util.cancellableInlineCallbacks	
 	def get_gate_info(self):
-		try:
-			try:
-				response = yield self.gate_service(gate_codeRequest(True))
-				defer.returnValue(response)
-			except ServiceError:
-				pass
-		except NameError:
-			raise Exception("Connection with server failed!")	
+		response = yield self.gate_service(gate_codeRequest(True))
+		defer.returnValue(response)
 
 	@util.cancellableInlineCallbacks
 	def get_server_images(self):
-		try:
-			try:
-				response = yield self.get_images_service(server_imagesRequest(True))
-				defer.returnValue(response)
-			except ServiceError:
-				pass
-		except NameError:
-			raise Exception("Connection with server failed!")
-
+		response = yield self.get_images_service(server_imagesRequest(True))
+		defer.returnValue(response)
+	
 	@util.cancellableInlineCallbacks
 	def start_run(self):
-		try:
-			try:
-				response = yield self.run_service(start_end_runRequest('start'))
-				defer.returnValue(response)
-			except ServiceError:
-				pass
-		except NameError:
-			pass			
-
+		response = yield self.run_service(start_end_runRequest('start'))
+		defer.returnValue(response)
+		
 	@util.cancellableInlineCallbacks
 	def end_run(self):
-		try:
-			try:
-				response = yield self.run_service(start_end_runRequest('end'))
-				defer.returnValue(response)
-			except ServiceError:
-				pass
-		except NameError:
-			raise Exception("Connection with server failed!")	
+		response = yield self.run_service(start_end_runRequest('end'))
+		defer.returnValue(response)
 
 	@util.cancellableInlineCallbacks
 	def send_image_info(self,file_name, image_shape):
