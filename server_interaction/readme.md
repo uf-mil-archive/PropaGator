@@ -20,9 +20,11 @@ Additionaly an instance of json_server_proxy must be created.
 
     s =  yield json_server_proxy.get_server(nh)
 
-Where nh is a node handle 
+Where nh is a node handle
 
-The .interact()method takes in the server URL/IP address and the course that is being attempted. Example:   
+If communication with the server fails. We will retry to establish connection 5 times and then stop trying. If starting the run fails, all subsequent requests will fail by default since the server will refuse the requests even if connection if established. If this were to happen, the return objects from the services will not have fields and will return None instead. In the mission an AtributeError will be raised. EXCEPT IT! this will allow the mission to keep on going even though communication with the server failed. Again, anywhere you expect to yield a field from the server, except this error. Examples are shown below. 
+
+The .interact() method takes in the server URL/IP address and the course that is being attempted. Example:   
 
 After creating the server instance, initialize interaction like so:
 
@@ -42,7 +44,12 @@ After creating the server instance, initialize interaction like so:
 
             if run_started:
 
-                print "Run started succesfully"
+                try:
+
+                    print "Run started succesfully"
+
+                except AttributeError:
+                    pass #or do whatever pertinent    
 
 NOTICE the http:// in the server url. NOTICE the two parameters are strings. (url and course)
  
@@ -82,10 +89,13 @@ When you're ready to get the information:
 
 Get the information by creating variables to represent the first dock color, shape, and second dock color, shape:
 
-    dock_one_color = docking_info.first_dock_color 
-    dock_one_shape = docking_info.first_dock_symbol
-    dock_two_color = docking_info.second_dock_color
-    dock_two_shap = docking_info.second_dock_symbol
+    try:
+        dock_one_color = docking_info.first_dock_color 
+        dock_one_shape = docking_info.first_dock_symbol
+        dock_two_color = docking_info.second_dock_color
+        dock_two_shap = docking_info.second_dock_symbol
+    except AttributeError:
+        pass #or do whatever pertinent  
 
 When doing the interop challenge retrieve the images from the server like so:
 (Assuming the server instance is called s)
@@ -99,8 +109,11 @@ When doing the interop challenge retrieve the images from the server like so:
 
  Get the information by creating variables to represent the path that the images were saved at and the image count:
 
-    images_path = images_info.file_path
-    images_count = images_info.image_count
+    try:  
+        images_path = images_info.file_path
+        images_count = images_info.image_count
+    except AttributeError:
+        pass #or do whatever pertinent  
 
 When reporting an image to the server, do it like so:
 (Assuming the server instance is called s)
@@ -113,7 +126,12 @@ where you pass the file name and the identified shape. The previous call will re
 
 Find out whether the server returned that the right image was identified (This is a boolean):
 
-    server_response = send_image.is_right_image
+    try:
+
+        server_response = send_image.is_right_image
+    
+    except AttributeError:
+        pass #or do whatever pertinent  
 
 When reporting the pinger buoy, do it like so:
 (Assuming the server instance is called s)
@@ -126,7 +144,12 @@ Where the argument is the color of the identified buoy. The previous call return
 
 Find out whether the server returned that the right pinger buoy was identified (This is a boolean):
 
-    server_response = send_buoy_color.is_right_buoy
+    try:
+
+        server_response = send_buoy_color.is_right_buoy
+    
+    except AttributeError:
+        pass #or do whatever pertinent  
 
 When all the missions have been completed, the run needs to be ended like so:
 
