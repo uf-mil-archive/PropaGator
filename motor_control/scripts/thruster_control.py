@@ -65,7 +65,7 @@ starboard_current = 0.0
 #Timing Variables
 PUB_RATE = rospy.Duration(0.01)
 UPDATE_RATE = 100                      #Update at 100 Hz
-RAMP_RATE = 100.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
+RAMP_RATE = 5#Newtons/second #100.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
 
 # Kill vars
 killed = False
