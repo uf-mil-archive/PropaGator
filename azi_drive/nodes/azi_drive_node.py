@@ -52,6 +52,7 @@ class Controller(object):
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
+        Azi_Drive.set_thrust_bound((-50,50))
         
         # These should not be queued! Old commands are garbage.
         # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
