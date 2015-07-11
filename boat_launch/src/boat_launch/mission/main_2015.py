@@ -18,7 +18,7 @@ from os import listdir
 from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon
 
 # Timeout limits 
-ONE_MINUTE = 60
+ONE_MINUTE = 1
 
 TOTAL_TIME = 20 * ONE_MINUTE
 DOCK_TIME = 5 * ONE_MINUTE
@@ -92,7 +92,7 @@ def start_gates(nh, boat, s):
 
     
     # TOO CLOSE TO DOCK
-    #yield go_to_ecef_pos.main(nh, STARTGATE[course])
+    yield go_to_ecef_pos.main(nh, STARTGATE[course])
 
     yield boat.move.heading(-2.5).go()
     
@@ -113,7 +113,7 @@ def obstical_course(nh, boat, s):
     print "Moving to position to begin obstacle course"
 
     s.set_current_challenge('obstacles')
-    #yield go_to_ecef_pos.main(nh, OBSTACLE[course])
+    yield go_to_ecef_pos.main(nh, OBSTACLE[course])
 
     # Get start gate info
     obstical_info = yield obstical_info
@@ -133,7 +133,7 @@ def docking(nh, boat, s):
     print "Moving to position to begin docking"
     s.set_current_challenge('docking')        
     
-    #yield go_to_ecef_pos.main(nh, DOCK[course])
+    yield go_to_ecef_pos.main(nh, DOCK[course])
     
     print "Turning to face dock"
 
@@ -180,7 +180,7 @@ def interoperability(nh, boat, s):
     images_path = images_info.file_path
     images_count = images_info.image_count
     
-    #yield go_to_ecef_pos.main(nh, QUAD[course])
+    yield go_to_ecef_pos.main(nh, QUAD[course])
 
     # Send the image but don't yield that way we can move while it sends
     #sent_image = s.send_image_info('TODO.jpg', 'ALL_CAPS_NUMBER')
@@ -195,10 +195,21 @@ def pinger(nh, boat, s):
     print "Moving to position to begin pinger challenge"
     s.set_current_challenge('pinger')
 
-    #yield go_to_ecef_pos.main(nh, HYDRO[course]) 
-
+    yield go_to_ecef_pos.main(nh, HYDRO[course])
     print "Beginning Pinger challenge"
-    yield acoustic_beacon.main(nh)
+
+    color = 'blue'
+    for c in ['blue', 'green', 'red', 'yellow', 'black']:
+        check = yield s.send_buoy_info(c)
+        if check.is_right_buoy:
+            print 'Got the right buoy: ' + c
+            color = c
+            break
+        else:
+            print 'Got the wrong buoy: ' + c
+
+    
+    #yield acoustic_beacon.main(nh)
     print "Completed pinger challenge"
 
 
@@ -315,16 +326,16 @@ def main(nh):
 
         if course is 'courseA':
             print "Moving to safe point to avoid fountain"
-            #yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
+            yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
 
         print "Moving to first point to get home"
-        #yield go_to_ecef_pos.main(nh, HOME_1[course]) 
+        yield go_to_ecef_pos.main(nh, HOME_1[course]) 
 
         print "Moving to second point to get home"
-        #yield go_to_ecef_pos.main(nh, HOME_2[course])  
+        yield go_to_ecef_pos.main(nh, HOME_2[course])  
 
         print "Moving to third point to get home"
-        #yield go_to_ecef_pos.main(nh, HOME_3[course])  
+        yield go_to_ecef_pos.main(nh, HOME_3[course])  
 
 ##------------------------------ CLEAN UP -----------------------------------------------------
         

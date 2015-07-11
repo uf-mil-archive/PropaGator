@@ -53,8 +53,17 @@ def main(nh):
                     gates = yield s.get_gate_info()
 
                     print gates
+                    color = 'blue'
+                    for c in ['blue', 'green', 'red', 'yellow', 'black']:
+                        check = yield s.send_buoy_info(c)
+                        if check.is_right_buoy:
+                            print 'Got the right buoy: ' + c
+                            color = c
+                            break
+                        else:
+                            print 'Got the wrong buoy: ' + c
 
-                    test = yield s.send_buoy_info('blue')
+
                     print test
 
                     print '____Beat?____'
