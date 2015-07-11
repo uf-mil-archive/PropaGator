@@ -49,7 +49,6 @@ class azi_waypoint:
         # Publishers
         self.traj_pub = rospy.Publisher('/trajectory', PoseTwistStamped, queue_size = 10)
         self.traj_debug_pub = rospy.Publisher('/trajectory_debug', PoseStamped, queue_size = 10)
-        self.goal_debug_pub = rospy.Publisher('/goal_debug', PoseStamped, queue_size = 10)
 
         # Set desired twist to 0
         #self.desired_twist.linear.x = self.desired_twist.linear.y = self.desired_twist.linear.z = 0
@@ -212,10 +211,6 @@ class azi_waypoint:
 
         # Publish desired pose for RVIZ
         self.traj_debug_pub.publish(PoseStamped(header=header, pose=traj.posetwist.pose))
-        self.goal_debug_pub.publish(PoseStamped(header=header, pose=
-            Pose(
-                position = tools.vector3_from_xyz_array(self.desired_position),
-                orientation = tools.quaternion_from_rotvec(self.desired_orientation))))
 
         # Killed logic
         if not self.killed:

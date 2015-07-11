@@ -2,42 +2,28 @@
     <arg name="simulate" default="false"/>
     <arg name="visualize" default="false"/> 
 
-<!-- If dirs = 8-->
-<!--<node pkg="tf" type="static_transform_publisher" name="step0tf"
+
+<node pkg="tf" type="static_transform_publisher" name="step0tf"
     args="1 0 0  0 0 0 1  /base_link /step0 100" />
 
 <node pkg="tf" type="static_transform_publisher" name="step1tf"
     args="1 -1 0  0 0 0 1  /base_link /step1 100" />
 
 <node pkg="tf" type="static_transform_publisher" name="step2tf"
-   args="0 -1 0  0 0 0 1  /base_link /step2 100" />
+    args="0 -1 0  0 0 0 1  /base_link /step2 100" />
 
 <node pkg="tf" type="static_transform_publisher" name="step6tf"
     args="0 1 0  0 0 0 1  /base_link /step6 100" />
 
-<node pkg="tf" type="static_transform_publisher" name="step4tf"
-    args="-1 0 0  0 0 0 1  /base_link /step4 100" />
-
 <node pkg="tf" type="static_transform_publisher" name="step7tf"
     args="1 1 0  0 0 0 1  /base_link /step7 100" />
--->
-<!-- If dirs = 4-->
 
-<node pkg="tf" type="static_transform_publisher" name="step0tf"
-    args="1 0 0  0 0 0 1  /base_link /step0 100" />
 
-<node pkg="tf" type="static_transform_publisher" name="step1tf"
-    args="0 -1 0  0 0 0 1  /base_link /step1 100" />
-
-<node pkg="tf" type="static_transform_publisher" name="step3tf"
-    args="0 1 0  0 0 0 1  /base_link /step3 100" />
-
-<node pkg="tf" type="static_transform_publisher" name="step2tf"
-    args="-1 0 0  0 0 0 1  /base_link /step2 100" />
-
-<node if="$(arg visualize)" name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py"/> 
-<node name="azi_waypoint" pkg="azi_drive" type="azi_waypoint.py" output="screen" /> 
-<node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py">
+<node if="$(arg visualize)" name="azi_drive_visualizer" pkg="azi_drive" type="visualize_azi_drive.py" 
+         output="screen" /> 
+<node name="azi_waypoint" pkg="azi_drive" type="azi_waypoint.py" 
+         output="screen" /> 
+<node name="azi_drive" pkg="azi_drive" type="azi_drive_node.py" output="screen">
 	<param name="simulate" value="$(arg simulate)"/>
 	</node> 
 </launch>
