@@ -383,8 +383,7 @@ class server_interaction:
             return new_angle;
         if self.running:
             ecef = (self.x,self.y,self.z)
-            #gps_data = ecef_to_lla(ecef)
-            gps_data=(0.0,0.0)
+            gps_data = ecef_to_lla(ecef)
             timeStamp = datetime.utcnow()
             timeStamp = timeStamp.strftime('%Y%m%d%H%M%S')
             latitude = str(gps_data[0])
