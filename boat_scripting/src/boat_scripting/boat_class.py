@@ -38,14 +38,13 @@ from dynamixel_servo.msg import DynamixelFullConfig
 from rise_6dof.srv import SendConstantWrench, SendConstantWrenchRequest
 from sensor_msgs.msg import LaserScan, PointCloud2
 from sensor_msgs.msg import Image
-from object_handling.msg import Buoys, Gates
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
-from object_handling.msg import Buoys
 from lidar_vision.srv import lidar_servo_mode, lidar_servo_modeRequest
 from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
 from azi_drive.srv import AziFloat, AziFloatRequest
-from vision_sandbox.msg import Buoy, Buoys
+import object_handling.msg
+#import vision_sandbox.msg
                                       
             
 class _PoseProxy(object):
@@ -98,8 +97,8 @@ class _Boat(object):
 
         self._lidar_sub_pointcloud = self._node_handle.subscribe('lidar/raw_pc', PointCloud2)
         
-        self._buoy_sub = self._node_handle.subscribe('/object_handling/buoys', Buoys)
-        self._gate_sub = self._node_handle.subscribe('/object_handling/gates', Gates)
+        self._buoy_sub = self._node_handle.subscribe('/object_handling/buoys', object_handling.msg.Buoys)
+        self._gate_sub = self._node_handle.subscribe('/object_handling/gates', object_handling.msg.Gates)
 
         self._start_gate_vision_sub = self._node_handle.subscribe('start_gate_vision', Float64)
 
@@ -111,7 +110,7 @@ class _Boat(object):
     
         self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
-        self_bouy_subsriber = self._node_handle.subscribe('topic', Buoys)
+        #self_bouy_subsriber = self._node_handle.subscribe('topic', vision_sandbox.msg.Buoys)
 
         
         # Make sure trajectory topic is publishing 
