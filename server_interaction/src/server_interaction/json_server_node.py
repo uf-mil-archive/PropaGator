@@ -398,9 +398,9 @@ class server_interaction:
             payload = OrderedDict([("timestamp",timeStamp),("challenge",self.challenge),("position",position)])
             heartbeat_pub = rospy.Publisher('gps_heartbeat', String, queue_size=10)
             headers = {'content-type': 'application/json'}
-            # print "Heartbeat payload sent to server: "
-            # print json.dumps(payload)
-            print "Heartbeat:"                  
+            print "Heartbeat payload sent to server: "
+            print json.dumps(payload)
+            #print "Heartbeat:"                  
             r = requests.post(url, headers = headers, data = json.dumps(payload), verify = False)
             print "Server return:"
             print r.text
