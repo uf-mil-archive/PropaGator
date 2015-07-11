@@ -21,11 +21,11 @@ from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, ac
 ONE_MINUTE = 60
 
 TOTAL_TIME = 20 * ONE_MINUTE
-DOCK_TIME = ONE_MINUTE
+DOCK_TIME = 5 * ONE_MINUTE
 NTROP_TIME = ONE_MINUTE
-OBS_COURSE_TIME = ONE_MINUTE
+OBS_COURSE_TIME = 2 * ONE_MINUTE
 START_GATE_TIME = ONE_MINUTE
-HYDRO_TIME = ONE_MINUTE * 2
+HYDRO_TIME = ONE_MINUTE * 3
 
 # TODO: Move this to some common place to be used across files
 def ll(lat, lon):
@@ -83,9 +83,134 @@ DOCK_HEADING = {
     'courseB'   :   -0.2
 }
 
+@util.cancellableInlineCallbacks
+def start_gates(nh, boat, s):
+    print "Moving to position to begin startgates"
+
+    # Set the gate challange as the first challange
+    s.set_current_challenge('gates')
+
+    
+    # TOO CLOSE TO DOCK
+    #yield go_to_ecef_pos.main(nh, STARTGATE[course])
+
+    yield boat.move.heading(-2.5).go()
+    
+
+    print "Beginning startgates"
+    #yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)  if uncommented add a try except block
+    yield boat.move.forward(2).go()
+
+    for i in xrange(6):
+        print 'Crawl:', i
+        yield boat.move.forward(5).go()
+    print "Startgates completed succesfully!"
+
+
+@util.cancellableInlineCallbacks
+def obstical_course(nh, boat, s):
+    global obstical_info
+    print "Moving to position to begin obstacle course"
+
+    s.set_current_challenge('obstacles')
+    #yield go_to_ecef_pos.main(nh, OBSTACLE[course])
+
+    # Get start gate info
+    obstical_info = yield obstical_info
+    print 'JSON says: \n\n' + str(obstical_info) + '\n\n'
+
+    entrance = obstical_info.entrance
+    exit = obstical_info.exit
+
+    print "Beginning obstacle course"
+    yield boat.move.forward(30).go()
+    print "Obstacle course completed succesfully!"
+
+@util.cancellableInlineCallbacks
+def docking(nh, boat, s):
+    global docking_info
+
+    print "Moving to position to begin docking"
+    s.set_current_challenge('docking')        
+    
+    #yield go_to_ecef_pos.main(nh, DOCK[course])
+    
+    print "Turning to face dock"
+
+    
+    yield boat.move.heading(DOCK_HEADING[course]).go()
+    
+    # Get dock info
+    docking_info = yield docking_info
+    print 'JSON says: \n\n' + str(docking_info) + '\n\n'
+
+    shape1 = docking_info.first_dock_symbol
+    color1 = docking_info.first_dock_color
+    try:
+        print "Beginning Dock 1"
+        yield util.wrap_timeout(find_shape.main(nh, shape1, color1), DOCK_TIME / 2.0)
+        print "Completed Dock 1"
+    except Exception:
+        print "Could not dock first shape, moving to next shape"
+    finally:
+        boat.default_state()
+
+    shape2 = docking_info.second_dock_symbol
+    color2 = docking_info.second_dock_color
+    try:
+        print "Beginning Dock 2"
+        yield util.wrap_timeout(find_shape.main(nh, shape2, color2), DOCK_TIME / 2.0)
+        print "Completed Dock 2"
+    except Exception:
+        print "Could not dock second shape, moving on"
+    finally:
+        boat.default_state()
+
+@util.cancellableInlineCallbacks
+def interoperability(nh, boat, s):
+    global docking_info
+    global images_info
+    global sent_image
+    print "Moving to position to begin interoperability"
+    s.set_current_challenge('interop')
+
+    # Get the images
+    images_info = yield images_info
+    print 'JSON says: \n\n' + str(images_info) + '\n\n'
+    images_path = images_info.file_path
+    images_count = images_info.image_count
+    
+    #yield go_to_ecef_pos.main(nh, QUAD[course])
+
+    # Send the image but don't yield that way we can move while it sends
+    #sent_image = s.send_image_info('TODO.jpg', 'ALL_CAPS_NUMBER')
+    sent_image = yield s.send_image_info('0.png', 'ZERO')   # FOUR the sake of testing
+
+    # Wait here for show
+    print 'Chilling ad interop challange'
+    yield util.sleep(5)
+
+@util.cancellableInlineCallbacks
+def pinger(nh, boat, s):
+    print "Moving to position to begin pinger challenge"
+    s.set_current_challenge('pinger')
+
+    #yield go_to_ecef_pos.main(nh, HYDRO[course]) 
+
+    print "Beginning Pinger challenge"
+    yield acoustic_beacon.main(nh)
+    print "Completed pinger challenge"
+
+
 
 @util.cancellableInlineCallbacks
 def main(nh):
+    global course
+    global obstical_info
+    global docking_info
+    global images_info
+    global sent_image
+
     # Grab interfaces for boat and JSON server
     boat = yield boat_scripting.get_boat(nh)
     s =  yield json_server_proxy.get_server(nh)
@@ -137,127 +262,49 @@ def main(nh):
 
 ##-------------------------------- GATES ---------------------------------------------------------------
 
-        print "Moving to position to begin startgates"
-
-        # Set the gate challange as the first challange
-        s.set_current_challenge('gates')
-
-        
-        # TOO CLOSE TO DOCK
-        yield go_to_ecef_pos.main(nh, STARTGATE[course])
-
-        yield boat.move.heading(-2.5).go()
-        
         try:
-            print "Beginning startgates"
-            yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
-            yield boat.move.forward(2).go()
-
-            for i in xrange(6):
-                print 'Crawl:', i
-                yield boat.move.forward(5).go()
-            print "Startgates completed succesfully!"
-        except Exception:
-            print "Could not complete stargates in" + str(START_GATE_TIME) + " seconds"
+            yield util.wrap_timeout(start_gates(nh, boat, s), START_GATE_TIME)
+        except:
+            'Could not complete start gates'
         finally:
             boat.default_state()
+
 
 ##-------------------------------- OBS COURSE ------------------------------------------------------------
 
-        
-        print "Moving to position to begin obstacle course"
-
-        s.set_current_challenge('obstacles')
-        yield go_to_ecef_pos.main(nh, OBSTACLE[course])
-
-        # Get start gate info
-        obstical_info = yield obstical_info
-        print 'JSON says: \n\n' + str(obstical_info) + '\n\n'
-
         try:
-            print "Beginning obstacle course"
-            yield util.wrap_timeout(boat.move.forward(30).go(), OBS_COURSE_TIME)
-            print "Obstacle course completed succesfully!"
-        except Exception:
-            print "Could not complete obstacle course in" + str(OBS_COURSE_TIME) + " seconds"
+            yield util.wrap_timeout(obstical_course(nh, boat, s), OBS_COURSE_TIME)
+        except:
+            'Could not complete obstacle course'
         finally:
             boat.default_state()
+        
 
 ##-------------------------------- DOCKING ---------------------------------------------------------------
 
-        print "Moving to position to begin docking"
-        s.set_current_challenge('docking')        
-        
-        yield go_to_ecef_pos.main(nh, DOCK[course])
-        
-        print "Turning to face dock"
-
-        
-        yield boat.move.heading(DOCK_HEADING[course]).go()
-        
-        # Get dock info
-        docking_info = yield docking_info
-        print 'JSON says: \n\n' + str(docking_info) + '\n\n'
-
-        shape1 = docking_info.first_dock_symbol
-        color1 = docking_info.first_dock_color
         try:
-            print "Beginning Dock 1"
-            yield util.wrap_timeout(find_shape.main(nh, shape1, color1), DOCK_TIME)
-            print "Completed Dock 1"
-        except Exception:
-            print "Could not dock first shape, moving to next shape"
-        finally:
-            boat.default_state()
-
-        shape2 = docking_info.second_dock_symbol
-        color2 = docking_info.second_dock_color
-        try:
-            print "Beginning Dock 2"
-            yield util.wrap_timeout(find_shape.main(nh, shape2, color2), DOCK_TIME)
-            print "Completed Dock 2"
-        except Exception:
-            print "Could not dock second shape, moving on"
+            yield util.wrap_timeout(docking(nh, boat, s), DOCK_TIME)
+        except:
+            'Could not complete docking'
         finally:
             boat.default_state()
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
         
-        print "Moving to position to begin interoperability"
-        s.set_current_challenge('interop')
-
-        # Get the images
-        images_info = yield images_info
-        print 'JSON says: \n\n' + str(images_info) + '\n\n'
-        images_path = images_info.file_path
-        images_count = images_info.image_count
-        
-        yield go_to_ecef_pos.main(nh, QUAD[course])
-
-        # Send the image but don't yield that way we can move while it sends
-        #sent_image = s.send_image_info('TODO.jpg', 'ALL_CAPS_NUMBER')
-        sent_image = yield s.send_image_info('0.png', 'ZERO')   # FOUR the sake of testing
-
-        # Wait here for show
-        print 'Chilling ad interop challange'
-        yield util.sleep(5)
+        try:
+            yield util.wrap_timeout(interoperability(nh, boat, s), NTROP_TIME)
+        except:
+            'Could not complete interoperability'
+        finally:
+            boat.default_state()
 
         
 ##-------------------------------- PINGER ---------------------------------------------------------------
 
-        print "Moving to position to begin pinger challenge"
-        s.set_current_challenge('pinger')
-
-        
-        yield go_to_ecef_pos.main(nh, HYDRO[course]) 
-        
-
         try:
-            print "Beginning Pinger challenge"
-            yield util.wrap_timeout(acoustic_beacon.main(nh), HYDRO_TIME)
-            print "Completed pinger challenge"
-        except Exception:
-            print "Could not finish pinger challenge"
+            yield util.wrap_timeout(pinger(nh, boat, s), HYDRO_TIME)
+        except:
+            'Could not complete pinger'
         finally:
             boat.default_state()
 
@@ -268,16 +315,16 @@ def main(nh):
 
         if course is 'courseA':
             print "Moving to safe point to avoid fountain"
-            yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
+            #yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
 
         print "Moving to first point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_1[course]) 
+        #yield go_to_ecef_pos.main(nh, HOME_1[course]) 
 
         print "Moving to second point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_2[course])  
+        #yield go_to_ecef_pos.main(nh, HOME_2[course])  
 
         print "Moving to third point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_3[course])  
+        #yield go_to_ecef_pos.main(nh, HOME_3[course])  
 
 ##------------------------------ CLEAN UP -----------------------------------------------------
         
