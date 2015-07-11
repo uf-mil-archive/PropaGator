@@ -11,6 +11,8 @@ import boat_scripting
 import traceback
 from rawgps_common import gps
 from server_interaction import json_server_proxy
+from os import listdir
+
 
 # Sub mission imports
 from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon
@@ -30,45 +32,78 @@ def ll(lat, lon):
     return gps.ecef_from_latlongheight(math.radians(lat), math.radians(lon), 0)
 
 # WAYPOINT DEFINES
-STARTGATES_A = ll( 36.801843,-76.190816)
-STARTGATES_B = ll(36.801786, -76.190831)
+STARTGATE = {
+    'courseA'   :   ll(36.801843,-76.190816),
+    'courseB'   :   ll(36.801786, -76.190831)
+}
 
-DOCK_A = ll(36.802122, -76.191344)
-DOCK_B = ll(36.801710, -76.191940)
+DOCK = {
+    'courseA'   :   ll(36.802122, -76.191344),
+    'courseB'   :   ll(36.801710, -76.191940)
+}
 
-OBSTACLE_A = ll(36.801845, -76.191164)
-OBSTACLE_B = ll(36.80189, -76.19139)
+OBSTACLE = {
+    'courseA'   :   ll(36.801845, -76.191164),
+    'courseB'   :   ll(36.80189, -76.19139)
+ }
 
-HYDRO_A = ll(36.802553, -76.191496)
-HYDRO_B = ll(36.801983, -76.192111)
+HYDRO = {
+    'courseA'   :   ll(36.802553, -76.191496),
+    'courseB'   :   ll(36.801983, -76.192111)
+ }
 
-QUAD_A = ll(36.801925, -76.192314)
-QUAD_B = ll(36.802398, -76.191437)
+QUAD = {
+    'courseA'   :   ll(36.802398, -76.191437),
+    'courseB'   :   ll(36.801925, -76.192314)
+ }
 
-SAFE_ZONE_A1 = ll(36.802300, -76.191499)
-SAFE_ZONE_B1 = ll(36.801977, -76.191909)
+SAFE_POINT_1 = {
+    'courseA'   :   ll(36.802300, -76.191499),
+    'courseB'   :   ll(36.801977, -76.191909)
+ }
 
-HOME_1 = ll(36.802105, -76.191676)
-HOME_2 = ll(36.801947, -76.191334)
-HOME_3 = ll(36.801805, -76.190871)
+HOME_1 = {
+    'courseA'   :   ll(36.802105, -76.191676),
+    'courseB'   :   ll(36.802105, -76.191676)
+}
+
+HOME_2 = {
+    'courseA'   :   ll(36.801947, -76.191334),
+    'courseB'   :   ll(36.801947, -76.191334)
+}
+
+HOME_3 = {
+    'courseA'   :   ll(36.801805, -76.190871),
+    'courseB'   :   ll(36.801805, -76.190871)
+}
+
+# OTHER DEFINES
+DOCK_HEADING = {
+    'courseA'   :   1.4,
+    'courseB'   :   -0.2
+}
 
 
 @util.cancellableInlineCallbacks
 def main(nh):
     # Grab interfaces for boat and JSON server
     boat = yield boat_scripting.get_boat(nh)
-    #s =  yield json_server_proxy.get_server(nh)
+    s =  yield json_server_proxy.get_server(nh)
 
     # Grab mission input such as JSON server ip, and course
-    #ip_port = raw_input('Enter ip:port (ex. 10.0.2.1:8080): ')
+    ip_port = raw_input('Enter ip:port (ex. 10.0.2.1:8080): ')
     course = raw_input('Enter course with corect spelling! (courseA, courseB, ...): ')
+
+    # Check that the course is in the dictionaries
+    assert course in DOCK.keys(), '%s is not in %s' % (course, DOCK.keys())
+
 
     shape1 = None
     shape2 = None
     color1 = None
     color2 = None
 
-    boat.float_off()
+    boat.default_state()
 
     # Giant try finally to make sure boat ends run and returns to its default state
     try:
@@ -77,49 +112,49 @@ def main(nh):
         # JSON initilization
         # TODO: if any failures start over
         # IP - http://10.0.2.1:8080
-        #url_was_set = (yield s.interact('http://'+ip_port, course)).was_set
-        #assert not url_was_set, 'Failed to set URL to ' + 'http://'+ip_port + ' on course ' + course
 
+        url_was_set = (yield s.interact('http://'+ip_port, course)).was_set
+        assert url_was_set, 'Failed to set URL to ' + 'http://'+ip_port + ' on course ' + course
+
+        # Set the current challange
+        set_challenge = (yield s.set_current_challenge('gates')).was_set
         print "Url and course were set succesfully"
 
-        # end run just in case
-        #end_run = yield s.end_run()
-        #run_started = (yield s.start_run()).success
+        # end run before start just in case
+        end_run = yield s.end_run()
+        run_started = (yield s.start_run()).success
+        assert run_started, 'Run failed to start'
+        print "Run started succesfully"
 
-        #assert not run_started, 'Run failed to start'
-        #print "Run started succesfully"
 
+##------------------------------- Grab all JSON data --------------------------------------------------
+
+        print 'Starting mass JSON download'
+        obstical_info = s.get_gate_info()
+        docking_info = s.get_dock_info()
+        images_info = s.get_server_images()
         
 
 ##-------------------------------- GATES ---------------------------------------------------------------
 
-        # Set the gate challange as the first challange
-        #challenge_was_set = (yield s.set_current_challenge('gates')).was_set
-        #assert not challenge_was_set, 'Failed to set current challange to gates'
-        #print "Challenge was set succesfully"
-
         print "Moving to position to begin startgates"
+
+        # Set the gate challange as the first challange
+        s.set_current_challenge('gates')
+
+        
         # TOO CLOSE TO DOCK
+        yield go_to_ecef_pos.main(nh, STARTGATE[course])
 
-        '''
-
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=STARTGATES_A,
-            courseB=STARTGATES_B,
-        )[course])
-
-        '''
-
-        #yield boat.move.heading(-2.5).go()
-
-        '''
+        yield boat.move.heading(-2.5).go()
+        
         try:
             print "Beginning startgates"
-            #yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
+            yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)
             yield boat.move.forward(2).go()
 
             for i in xrange(6):
-                print 'Side', i
+                print 'Crawl:', i
                 yield boat.move.forward(5).go()
             print "Startgates completed succesfully!"
         except Exception:
@@ -127,21 +162,17 @@ def main(nh):
         finally:
             boat.default_state()
 
-        '''
-
 ##-------------------------------- OBS COURSE ------------------------------------------------------------
 
         
         print "Moving to position to begin obstacle course"
 
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=OBSTACLE_A,
-            courseB=OBSTACLE_B,
-        )[course])
-        
-        #challenge_was_set = (yield s.set_current_challenge('obstacle course')).was_set
-        #assert not challenge_was_set, 'Failed to set current challange to obstacle course'
-        #print "Challenge was set succesfully"
+        s.set_current_challenge('obstacles')
+        yield go_to_ecef_pos.main(nh, OBSTACLE[course])
+
+        # Get start gate info
+        obstical_info = yield obstical_info
+        print 'JSON says: \n\n' + str(obstical_info) + '\n\n'
 
         try:
             print "Beginning obstacle course"
@@ -154,28 +185,22 @@ def main(nh):
 
 ##-------------------------------- DOCKING ---------------------------------------------------------------
 
-
-        #challenge_was_set = (yield s.set_current_challenge('docking')).was_set
-        #assert not challenge_was_set, 'Failed to set current challange to docking'
-        #print "Challenge was set succesfully"
-
         print "Moving to position to begin docking"
+        s.set_current_challenge('docking')        
         
-        
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=DOCK_A,
-            courseB=DOCK_B,
-        )[course])
-        
+        yield go_to_ecef_pos.main(nh, DOCK[course])
         
         print "Turning to face dock"
 
         
-        yield boat.move.heading(dict(
-            courseA=1.4,
-            courseB=-.2,)[course]).go()
+        yield boat.move.heading(DOCK_HEADING[course]).go()
         
+        # Get dock info
+        docking_info = yield docking_info
+        print 'JSON says: \n\n' + str(docking_info) + '\n\n'
 
+        shape1 = docking_info.first_dock_symbol
+        color1 = docking_info.first_dock_color
         try:
             print "Beginning Dock 1"
             yield util.wrap_timeout(find_shape.main(nh, shape1, color1), DOCK_TIME)
@@ -185,6 +210,8 @@ def main(nh):
         finally:
             boat.default_state()
 
+        shape2 = docking_info.second_dock_symbol
+        color2 = docking_info.second_dock_color
         try:
             print "Beginning Dock 2"
             yield util.wrap_timeout(find_shape.main(nh, shape2, color2), DOCK_TIME)
@@ -195,38 +222,39 @@ def main(nh):
             boat.default_state()
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
-
-        #challenge_was_set = (yield s.set_current_challenge('interoperability')).was_set
-        #assert not challenge_was_set, 'Failed to set current challange to interoperability'
-        #print "Challenge was set succesfully"
-
-        print "Moving to position to begin interoperability"
-
         
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=QUAD_A,
-            courseB=QUAD_B,
-        )[course])
+        print "Moving to position to begin interoperability"
+        s.set_current_challenge('interop')
+
+        # Get the images
+        images_info = yield images_info
+        print 'JSON says: \n\n' + str(images_info) + '\n\n'
+        images_path = images_info.file_path
+        images_count = images_info.image_count
+        
+        yield go_to_ecef_pos.main(nh, QUAD[course])
+
+        # Send the image but don't yield that way we can move while it sends
+        #sent_image = s.send_image_info('TODO.jpg', 'ALL_CAPS_NUMBER')
+        sent_image = yield s.send_image_info('0.png', 'ZERO')   # FOUR the sake of testing
+
+        # Wait here for show
+        print 'Chilling ad interop challange'
+        yield util.sleep(5)
 
         
 ##-------------------------------- PINGER ---------------------------------------------------------------
 
-        #challenge_was_set = (yield s.set_current_challenge('pinger')).was_set
-        #assert not challenge_was_set, 'Failed to set current challange to pinger'
-        #print "Challenge was set succesfully"
-
         print "Moving to position to begin pinger challenge"
+        s.set_current_challenge('pinger')
 
         
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=HYDRO_A,
-            courseB=HYDRO_B,
-        )[course]) 
+        yield go_to_ecef_pos.main(nh, HYDRO[course]) 
         
 
         try:
             print "Beginning Pinger challenge"
-            #yield util.wrap_timeout(acoustic_beacon.main(nh), HYDRO_TIME)
+            yield util.wrap_timeout(acoustic_beacon.main(nh), HYDRO_TIME)
             print "Completed pinger challenge"
         except Exception:
             print "Could not finish pinger challenge"
@@ -236,30 +264,32 @@ def main(nh):
 ##-------------------------------- RETURN ---------------------------------------------------------------
 
         print "Run complete, coming back to the dock"
-        if course in ['courseA']:
+        s.set_current_challenge('return')
+
+        if course is 'courseA':
             print "Moving to safe point to avoid fountain"
-            yield go_to_ecef_pos.main(nh, SAFE_ZONE_A1)
+            yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
 
         print "Moving to first point to get home"
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=HOME_1,
-            courseB=HOME_1,
-        )[course]) 
+        yield go_to_ecef_pos.main(nh, HOME_1[course]) 
 
         print "Moving to second point to get home"
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=HOME_2,
-            courseB=HOME_2,
-        )[course])  
+        yield go_to_ecef_pos.main(nh, HOME_2[course])  
 
         print "Moving to third point to get home"
-        yield go_to_ecef_pos.main(nh, dict(
-            courseA=HOME_3,
-            courseB=HOME_3,
-        )[course])  
+        yield go_to_ecef_pos.main(nh, HOME_3[course])  
+
+##------------------------------ CLEAN UP -----------------------------------------------------
+        
+        print 'Returned to dock'
+        # Make sure quad copter image sent before we end the mission
+        yield sent_image
+
+        print 'Eneded run succesfully! Go Gators!'
+        s.end_run()
  
     finally:
         # We do not yield here because if something hangs we still want everything else to complete
-        print 'Ending run and returning to default state'
+        print 'Finally: Ending run and returning to default state'
         boat.default_state()
-        #s.end_run()
+        s.end_run()

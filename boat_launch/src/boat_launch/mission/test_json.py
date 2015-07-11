@@ -18,8 +18,9 @@ def main(nh):
     s =  yield json_server_proxy.get_server(nh)
     try:
         #url_was_set = s.interact('http://ec2-52-7-253-202.compute-1.amazonaws.com:80','openTest')
+        url = raw_input('url: ')
         course = raw_input('Course:')
-        url_was_set = yield s.interact('http://10.0.2.1:8080', course) 
+        url_was_set = yield s.interact('http://' + url, course) 
 
         if url_was_set.was_set:
 
@@ -41,6 +42,9 @@ def main(nh):
 
                     images = yield s.get_server_images()
                     print images
+
+                    sent_image = yield s.send_image_info('0.png', 'ZERO')
+                    print sent_image
 
                     dock = yield s.get_dock_info()
 
