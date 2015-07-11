@@ -18,7 +18,7 @@ from os import listdir
 from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon
 
 # Timeout limits 
-ONE_MINUTE = 1
+ONE_MINUTE = 60
 
 TOTAL_TIME = 20 * ONE_MINUTE
 DOCK_TIME = 5 * ONE_MINUTE
@@ -106,9 +106,9 @@ def start_gates(nh, boat, s):
     #yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)  if uncommented add a try except block
     yield boat.move.forward(2).go()
 
-    for i in xrange(6):
+    for i in xrange(3):
         print 'Crawl:', i
-        yield boat.move.forward(5).go()
+        yield boat.move.forward(10).go()
     print "Startgates completed succesfully!"
 
 
@@ -143,7 +143,7 @@ def docking(nh, boat, s):
     print "Turning to face dock"
 
     
-    yield boat.move.heading(DOCK_HEADING[math.pi/4]).go()
+    yield boat.move.heading(DOCK_HEADING[math.pi/4.0]).go()
     
     # Get dock info
     docking_info = yield docking_info
@@ -250,6 +250,7 @@ def main(nh):
 
     # Giant try finally to make sure boat ends run and returns to its default state
     try:
+        
         # Main mission code
 
         # JSON initilization
@@ -282,18 +283,22 @@ def main(nh):
 
         try:
             yield util.wrap_timeout(start_gates(nh, boat, s), START_GATE_TIME)
-        except:
-            'Could not complete start gates'
+            print 'succesfully'
+        except Exception as e:
+            print 'Could not complete start gates: ' + str(e)
         finally:
+            print 'Finally start gate'
             boat.default_state()
 
 
 ##-------------------------------- OBS COURSE ------------------------------------------------------------
-
+        
+        print 'obstical'
         try:
             yield util.wrap_timeout(obstical_course(nh, boat, s), OBS_COURSE_TIME)
+            print 'util'
         except:
-            'Could not complete obstacle course'
+            print 'Could not complete obstacle course'
         finally:
             boat.default_state()
         
@@ -303,7 +308,7 @@ def main(nh):
         try:
             yield util.wrap_timeout(docking(nh, boat, s), DOCK_TIME)
         except:
-            'Could not complete docking'
+            print 'Could not complete docking'
         finally:
             boat.default_state()
 
@@ -314,7 +319,7 @@ def main(nh):
         try:
             yield util.wrap_timeout(interoperability(nh, boat, s), NTROP_TIME)
         except:
-            'Could not complete interoperability'
+            print 'Could not complete interoperability'
         finally:
             boat.default_state()
 
@@ -324,7 +329,7 @@ def main(nh):
         try:
             yield util.wrap_timeout(pinger(nh, boat, s), HYDRO_TIME)
         except:
-            'Could not complete pinger'
+            print 'Could not complete pinger'
         finally:
             boat.default_state()
 
@@ -354,6 +359,7 @@ def main(nh):
 
         print 'Eneded run succesfully! Go Gators!'
         s.end_run()
+
  
     finally:
         # We do not yield here because if something hangs we still want everything else to complete
