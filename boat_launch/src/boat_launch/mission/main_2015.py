@@ -33,32 +33,37 @@ def ll(lat, lon):
 
 # WAYPOINT DEFINES
 STARTGATE = {
-    'courseA'   :   ll(36.801843,-76.190816),
+    'courseA'   :   ll(36.801987,-76.191173),
     'courseB'   :   ll(36.801786, -76.190831)
 }
 
 DOCK = {
-    'courseA'   :   ll(36.802122, -76.191344),
+    'courseA'   :   ll(36.802211, -76.191353),
     'courseB'   :   ll(36.801710, -76.191940)
 }
 
 OBSTACLE = {
-    'courseA'   :   ll(36.801845, -76.191164),
+    'courseA'   :   ll(36.802202, -76.191630),
     'courseB'   :   ll(36.80189, -76.19139)
  }
 
 HYDRO = {
-    'courseA'   :   ll(36.802553, -76.191496),
+    'courseA'   :   ll(36.802737, -76.191463),
     'courseB'   :   ll(36.801983, -76.192111)
  }
 
 QUAD = {
-    'courseA'   :   ll(36.802398, -76.191437),
+    'courseA'   :   ll(36.802686, -76.191256),
     'courseB'   :   ll(36.801925, -76.192314)
  }
 
 SAFE_POINT_1 = {
-    'courseA'   :   ll(36.802300, -76.191499),
+    'courseA'   :   ll(36.802409, -76.191586),
+    'courseB'   :   ll(36.801977, -76.191909)
+ }
+
+SAFE_POINT_2 = {
+    'courseA'   :   ll(36.802409, -76.191586),
     'courseB'   :   ll(36.801977, -76.191909)
  }
 
@@ -92,10 +97,10 @@ def start_gates(nh, boat, s):
 
     
     # TOO CLOSE TO DOCK
-    yield go_to_ecef_pos.main(nh, STARTGATE[course])
+    #yield go_to_ecef_pos.main(nh, STARTGATE[course])
+    yield boat.hold_at_current_pos()
 
-    yield boat.move.heading(-2.5).go()
-    
+    #yield boat.move.heading(-2.5).go()
 
     print "Beginning startgates"
     #yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)  if uncommented add a try except block
@@ -113,7 +118,7 @@ def obstical_course(nh, boat, s):
     print "Moving to position to begin obstacle course"
 
     s.set_current_challenge('obstacles')
-    yield go_to_ecef_pos.main(nh, OBSTACLE[course])
+    #yield go_to_ecef_pos.main(nh, OBSTACLE[course])
 
     # Get start gate info
     obstical_info = yield obstical_info
@@ -138,7 +143,7 @@ def docking(nh, boat, s):
     print "Turning to face dock"
 
     
-    yield boat.move.heading(DOCK_HEADING[course]).go()
+    yield boat.move.heading(DOCK_HEADING[math.pi/4]).go()
     
     # Get dock info
     docking_info = yield docking_info
@@ -179,7 +184,10 @@ def interoperability(nh, boat, s):
     print 'JSON says: \n\n' + str(images_info) + '\n\n'
     images_path = images_info.file_path
     images_count = images_info.image_count
-    
+
+
+    # GOES TO POINT 1
+    yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
     yield go_to_ecef_pos.main(nh, QUAD[course])
 
     # Send the image but don't yield that way we can move while it sends
@@ -211,7 +219,6 @@ def pinger(nh, boat, s):
     
     #yield acoustic_beacon.main(nh)
     print "Completed pinger challenge"
-
 
 
 @util.cancellableInlineCallbacks
@@ -299,6 +306,8 @@ def main(nh):
             'Could not complete docking'
         finally:
             boat.default_state()
+
+
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
         
