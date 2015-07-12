@@ -16,26 +16,31 @@ def main(nh):
     boat_x = boat.odom.position[0]
     boat_y = boat.odom.position[1]
 
-    closest = 0
+    closest = None
     summation = 100
 
     closest_buoy = 0
     buoys = yield boat.get_bouys()
 
-    while len(buoys.buoys) <= 0:
-        buoys = yield boat.get_bouys()
+    while closest is None:
+        while len(buoys.buoys) <= 0:
+            buoys = yield boat.get_bouys()
 
-    for i in buoys.buoys:
+        for i in buoys.buoys:
 
-        x_dif = boat_x - i.position.x
-        y_dif = boat_y - i.position.y
+            x_dif = boat_x - i.position.x
+            y_dif = boat_y - i.position.y
 
-        temp_sum = abs(x_dif) + abs(y_dif)
-        #print temp_sum
+            temp_sum = math.sqrt(x_dif ** 2 + y_dif ** 2)
+            if temp_sum > 10:
+                # Don't go more than 10 meters
+                continue
+            #print temp_sum
 
-        if temp_sum < summation:
-            summation = temp_sum
-            closest = i
+            if temp_sum < summation:
+                summation = temp_sum
+                closest = i
+
 
     x_move = boat_x - closest.position.x
     y_move = boat_y - closest.position.y
