@@ -255,6 +255,7 @@ def main(nh, shape=None, color=None):
             yield util.sleep(5)
             yield boat.move.forward(-5).go()
             print 'Find shape success'
+            break
 
         # delete variables to avoid any threading problems
         del avg_distance, temp_distance, farthest_distance, shortest_distance

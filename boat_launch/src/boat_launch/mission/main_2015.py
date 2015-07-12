@@ -23,9 +23,9 @@ ONE_MINUTE = 60
 
 TOTAL_TIME = 20 * ONE_MINUTE
 DOCK_TIME = 5 * ONE_MINUTE
-NTROP_TIME = ONE_MINUTE
+NTROP_TIME = 2 * ONE_MINUTE
 OBS_COURSE_TIME = 2 * ONE_MINUTE
-START_GATE_TIME = ONE_MINUTE
+START_GATE_TIME = 3 * ONE_MINUTE
 HYDRO_TIME = ONE_MINUTE * 3
 
 # TODO: Move this to some common place to be used across files
@@ -40,24 +40,49 @@ STARTGATE = {
 
 DOCK = {
     'courseA'   :   ll(36.802211, -76.191353),
-    'courseB'   :   ll(36.801710, -76.191940)
+    #'courseB'   :   ll(36.801710, -76.191940)
+    'courseB'   :   ll(36.801726, -76.191935)
 }
 
-OBSTACLE = {
-    'courseA'   :   ll(36.802202, -76.191630),
-    'courseB'   :   ll(36.80189, -76.19139)
+DOCK_HEADING = {
+    'courseA'   :   1.4,
+    #'courseB'   :   -0.2
+    'courseB'   :   -0.78539
+}
+
+OBSTACLE_ENTRANCE = {
+    #courseA'   :   ll(36.802202, -76.191630),
+    'courseB'   :   ll(36.801805, -76.191234)
  }
+
+OBSTACLE_ENTRANCE_HEADING = {
+    'courseB'   :   2.61799
+}
+
+OBSTACLE_EXIT = {
+    'courseA'   :   ll(36.802202, -76.191630),
+    #'courseB'   :   ll(36.80189, -76.19139)
+    'courseB'   :   ll(36.801987, -76.191651)
+ }
+
 
 HYDRO = {
     'courseA'   :   ll(36.802737, -76.191463),
-    'courseB'   :   ll(36.801983, -76.192111)
+    #'courseB'   :   ll(36.801983, -76.192111)
+    'courseB'   :   ll(36.801925, -76.192289)
+ }
+
+HYDRO_HEADING = {
+    'courseB'   :   -1.7455
  }
 
 QUAD = {
     'courseA'   :   ll(36.802686, -76.191256),
-    'courseB'   :   ll(36.801925, -76.192314)
+    #'courseB'   :   ll(36.801925, -76.192314)
+    'courseB'   :   ll(36.801801, -76.191922)
  }
 
+"""
 SAFE_POINT_1 = {
     'courseA'   :   ll(36.802409, -76.191586),
     'courseB'   :   ll(36.801977, -76.191909)
@@ -67,27 +92,38 @@ SAFE_POINT_2 = {
     'courseA'   :   ll(36.802409, -76.191586),
     'courseB'   :   ll(36.801977, -76.191909)
  }
+"""
+
+
+
+HOME_0 = {
+    'courseB'   :   ll(36.801883, -76.192039)
+}
 
 HOME_1 = {
     'courseA'   :   ll(36.802105, -76.191676),
-    'courseB'   :   ll(36.802105, -76.191676)
+    #'courseB'   :   ll(36.802105, -76.191676)
+    'courseB'   :   ll(36.801869, -76.191538)
 }
 
 HOME_2 = {
     'courseA'   :   ll(36.801947, -76.191334),
-    'courseB'   :   ll(36.801947, -76.191334)
+    #'courseB'   :   ll(36.801947, -76.191334)
+    'courseB'   :   ll(36.801698, -76.191054)
 }
 
 HOME_3 = {
     'courseA'   :   ll(36.801805, -76.190871),
-    'courseB'   :   ll(36.801805, -76.190871)
+    #'courseB'   :   ll(36.801805, -76.190871)
+    'courseB'   :   ll(36.801760, -76.190883)
+}
+
+HOME_3_HEADING = {
+    'courseB'   :   0
 }
 
 # OTHER DEFINES
-DOCK_HEADING = {
-    'courseA'   :   1.4,
-    'courseB'   :   -0.2
-}
+
 
 @util.cancellableInlineCallbacks
 def start_gates(nh, boat, s):
@@ -135,6 +171,7 @@ def obstical_course(nh, boat, s):
 @util.cancellableInlineCallbacks
 def docking(nh, boat, s):
     global docking_info
+    global course
 
     print "Moving to position to begin docking"
     s.set_current_challenge('docking')        
@@ -144,7 +181,7 @@ def docking(nh, boat, s):
     print "Turning to face dock"
 
     
-    yield boat.move.heading(DOCK_HEADING[math.pi/4.0]).go()
+    yield boat.move.heading(DOCK_HEADING[course]).go()
     
     # Get dock info
     docking_info = yield docking_info
@@ -208,6 +245,7 @@ def pinger(nh, boat, s):
     s.set_current_challenge('pinger')
 
     yield go_to_ecef_pos.main(nh, HYDRO[course])
+    yield boat.move.heading(HYDRO_HEADING[course]).go()
     print "Beginning Pinger challenge"
 
     try:
@@ -234,7 +272,12 @@ def pinger(nh, boat, s):
 
     '''
 
-
+sent_image = None
+course = None
+obstical_info = None
+docking_info = None
+images_info = None
+sent_image = None
 
 @util.cancellableInlineCallbacks
 def main(nh):
@@ -299,7 +342,7 @@ def main(nh):
             print 'succesfully'
         except Exception as e:
             print 'Could not complete start gates: ' + str(e)
-        finally: pass
+        finally:
             print 'Finally start gate'
             #boat.default_state()
 
@@ -353,6 +396,9 @@ def main(nh):
             print "Moving to safe point to avoid fountain"
             yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
 
+        print "Moving to zero point to get home"
+        yield go_to_ecef_pos.main(nh, HOME_0[course])
+
         print "Moving to first point to get home"
         yield go_to_ecef_pos.main(nh, HOME_1[course]) 
 
@@ -361,6 +407,9 @@ def main(nh):
 
         print "Moving to third point to get home"
         yield go_to_ecef_pos.main(nh, HOME_3[course])  
+
+        print "Adjusting heading"
+        yield boat.move.heading(HOME_3_HEADING[course]).go()
 
 ##------------------------------ CLEAN UP -----------------------------------------------------
         
