@@ -20,7 +20,7 @@ RIGHT_TURN = -.0425
 PIXEL_TOLERANCE = 40
 ANGLE_OFFSET = 5
 DISPLAY_HEIGHT = 640
-DEFAULT_SHAPE = 'cross'
+DEFAULT_SHAPE = 'circle'
 DEFAULT_COLOR = 'black'
 BOAT_LENGTH_OFFSET = 2
 MOVE_OFFSET = 5
@@ -150,6 +150,8 @@ def orient(boat):
 
 @util.cancellableInlineCallbacks
 def center_sign(boat, shape, color):
+
+    print "Attempting to find", shape
     # While the boat is not locked on to the yield boat.move.left(-distance_to_move)target's orientation
     while True:
         # Get new target location - 
@@ -215,7 +217,12 @@ def main(nh, shape=None, color=None):
         numerator = 0
         denom = 0
 
-        #sign_centered = yield center_sign(boat, shape, color)
+        try:
+            yield util.wrap_timeout(center_sign(boat, shape, color), 20)
+            print "Locked onto shape"
+        except Exception:
+            print "Could not dock find shape, moving on to dock"
+        finally: pass
 
         # Only reorients one time
         '''
