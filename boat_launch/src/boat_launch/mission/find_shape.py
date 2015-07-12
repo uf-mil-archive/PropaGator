@@ -204,6 +204,7 @@ def main(nh, shape=None, color=None):
     boat = yield boat_scripting.get_boat(nh, False, False)
 
     reorient = True
+    try_find = False
 
     # While the boat is still distant from the target
     while True and not rospy.is_shutdown():
@@ -217,12 +218,13 @@ def main(nh, shape=None, color=None):
         numerator = 0
         denom = 0
 
-        try:
-            yield util.wrap_timeout(center_sign(boat, shape, color), 20)
-            print "Locked onto shape"
-        except Exception:
-            print "Could not dock find shape, moving on to dock"
-        finally: pass
+        if try_find != True:
+                try:
+                    yield util.wrap_timeout(center_sign(boat, shape, color), 20)
+                    print "Locked onto shape"
+                except Exception:
+                    print "Could not dock find shape, moving on to dock"
+                finally: pass
 
         # Only reorients one time
         '''
@@ -235,6 +237,8 @@ def main(nh, shape=None, color=None):
 
         print "holding at current position"
         print "Scanning lidar"
+
+        try_find = True
 
         distances = yield boat.get_distance_from_object(.05)
 
