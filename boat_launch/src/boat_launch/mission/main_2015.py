@@ -158,8 +158,8 @@ def docking(nh, boat, s):
         print "Completed Dock 1"
     except Exception:
         print "Could not dock first shape, moving to next shape"
-    finally:
-        boat.default_state()
+    finally: pass
+        #boat.default_state()
 
     shape2 = docking_info.second_dock_symbol
     color2 = docking_info.second_dock_color
@@ -169,8 +169,8 @@ def docking(nh, boat, s):
         print "Completed Dock 2"
     except Exception:
         print "Could not dock second shape, moving on"
-    finally:
-        boat.default_state()
+    finally: pass
+        #boat.default_state()
 
 @util.cancellableInlineCallbacks
 def interoperability(nh, boat, s):
@@ -216,10 +216,11 @@ def pinger(nh, boat, s):
         print "Completed Pinger"
     except Exception:
         print "Could not dock second shape, moving on"
-    finally:
-        boat.default_state()
+    finally: pass
+        #boat.default_state()
 
     '''
+
 
     color = 'blue'
     for c in ['blue', 'green', 'red', 'yellow', 'black']:
@@ -232,6 +233,7 @@ def pinger(nh, boat, s):
             print 'Got the wrong buoy: ' + c
 
     '''
+
 
 
 @util.cancellableInlineCallbacks
@@ -252,7 +254,6 @@ def main(nh):
 
     # Check that the course is in the dictionaries
     assert course in DOCK.keys(), '%s is not in %s' % (course, DOCK.keys())
-
 
     shape1 = None
     shape2 = None
@@ -290,8 +291,6 @@ def main(nh):
         obstical_info = s.get_gate_info()
         docking_info = s.get_dock_info()
         images_info = s.get_server_images()
-        
-        '''
 
 ##-------------------------------- GATES ---------------------------------------------------------------
 
@@ -300,9 +299,9 @@ def main(nh):
             print 'succesfully'
         except Exception as e:
             print 'Could not complete start gates: ' + str(e)
-        finally:
+        finally: pass
             print 'Finally start gate'
-            boat.default_state()
+            #boat.default_state()
 
 
 ##-------------------------------- OBS COURSE ------------------------------------------------------------
@@ -313,8 +312,8 @@ def main(nh):
             print 'util'
         except:
             print 'Could not complete obstacle course'
-        finally:
-            boat.default_state()
+        finally: pass
+            #boat.default_state()
         
 
 ##-------------------------------- DOCKING ---------------------------------------------------------------
@@ -323,29 +322,27 @@ def main(nh):
             yield util.wrap_timeout(docking(nh, boat, s), DOCK_TIME)
         except:
             print 'Could not complete docking'
-        finally:
-            boat.default_state()
-
+        finally: pass
+            #boat.default_state()
 
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
-        '''
+    
         try:
             yield util.wrap_timeout(interoperability(nh, boat, s), NTROP_TIME)
         except:
             print 'Could not complete interoperability'
-        finally:
-            boat.default_state()
+        finally: pass
+            #boat.default_state()
 
-        
 ##-------------------------------- PINGER ---------------------------------------------------------------
 
         try:
             yield util.wrap_timeout(pinger(nh, boat, s), HYDRO_TIME)
         except:
             print 'Could not complete pinger'
-        finally:
-            boat.default_state()
+        finally: pass
+            #boat.default_state()
 
 ##-------------------------------- RETURN ---------------------------------------------------------------
 
@@ -378,5 +375,6 @@ def main(nh):
     finally:
         # We do not yield here because if something hangs we still want everything else to complete
         print 'Finally: Ending run and returning to default state'
-        boat.default_state()
         s.end_run()
+        boat.default_state()
+        
