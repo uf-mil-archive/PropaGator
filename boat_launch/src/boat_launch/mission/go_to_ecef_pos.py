@@ -57,5 +57,5 @@ def main(nh, pos, speed=0, turn=True):
     finally:
         if not success:
             print 'go_to_ecef_pos failed to attain desired position, holding current position'
-            yield boat.move.set_position(boat.odom.position).go() # stop moving
+            yield boat.hold_at_current_pos()
             #yield boat.move.backward(3).go() # I have no idea why this needs to happen
