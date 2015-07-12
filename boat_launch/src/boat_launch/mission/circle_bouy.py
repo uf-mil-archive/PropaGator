@@ -62,10 +62,11 @@ def main(nh):
     boat.move.yaw_left(-angle_to_move).go()
     
     yield boat.move.set_position(point).go()
+    yield boat.move.turn_left_deg(-20).go()
 
 
     for i in xrange(4):
-        yield boat.move.forward(2).go()
+        yield boat.move.forward(3).go()
         yield boat.move.turn_left_deg(90).go()
         
 
