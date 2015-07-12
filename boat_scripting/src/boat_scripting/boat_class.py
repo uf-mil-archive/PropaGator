@@ -148,6 +148,11 @@ class _Boat(object):
         msg = yield self._buoy_sub.get_next_message()
         defer.returnValue(msg)
 
+    @util.cancellableInlineCallbacks
+    def get_bouy_color(self):
+        msg = yield self._buoy_sub.get_next_message()
+        defer.returnValue(msg[0].buoys.color)
+
 
     def pan_lidar(self, freq = 0.5, min_angle = 2.7, max_angle = 3.4):
         self._set_lidar_mode(lidar_servo_modeRequest(
