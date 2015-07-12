@@ -12,10 +12,11 @@ import traceback
 from rawgps_common import gps
 from server_interaction import json_server_proxy
 from os import listdir
+import shutil
 
 
 # Sub mission imports
-from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon
+from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon, ssocr_simple
 
 # Timeout limits 
 ONE_MINUTE = 60
@@ -185,19 +186,22 @@ def interoperability(nh, boat, s):
     images_path = images_info.file_path
     images_count = images_info.image_count
 
+    #yield go_to_ecef_pos.main(nh, QUAD[course])
 
-    # GOES TO POINT 1
-    yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
-    yield go_to_ecef_pos.main(nh, QUAD[course])
+    to_get_send = ['a','a']
+    to_get_send = ssocr_simple.main(images_path)
 
     # Send the image but don't yield that way we can move while it sends
-    #sent_image = s.send_image_info('TODO.jpg', 'ALL_CAPS_NUMBER')
-    sent_image = yield s.send_image_info('0.png', 'ZERO')   # FOUR the sake of testing
+    print "Sending image", to_get_send
+    sent_image = yield s.send_image_info(to_get_send[1], to_get_send[0])   # FOUR the sake of testing
+    print "Removing temporary work path"
+    shutil.rmtree(images_path)
 
     # Wait here for show
-    print 'Chilling ad interop challange'
+    print 'Chilling at interoperability challange'
     yield util.sleep(5)
 
+    
 @util.cancellableInlineCallbacks
 def pinger(nh, boat, s):
     print "Moving to position to begin pinger challenge"

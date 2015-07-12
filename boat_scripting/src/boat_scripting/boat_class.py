@@ -44,7 +44,7 @@ from azi_drive.srv import trajectory_mode, trajectory_modeRequest
 from camera_docking.msg import Circle, Triangle, Cross
 from azi_drive.srv import AziFloat, AziFloatRequest
 import object_handling.msg
-#import vision_sandbox.msg
+import vision_sandbox.msg
                                       
             
 class _PoseProxy(object):
@@ -110,7 +110,7 @@ class _Boat(object):
     
         self.float_srv = self._node_handle.get_service_client('/float_mode', AziFloat)
 
-        #self_bouy_subsriber = self._node_handle.subscribe('topic', vision_sandbox.msg.Buoys)
+        self_bouy_subsriber = self._node_handle.subscribe('vision_sandbox/buoy_info', vision_sandbox.msg.Buoys)
 
         
         # Make sure trajectory topic is publishing 
@@ -142,7 +142,8 @@ class _Boat(object):
     @property
     def move(self):
         return _PoseProxy(self, self.pose)
-
+        
+    @util.cancellableInlineCallbacks
     def get_bouys(self):
         msg = yield self._buoy_sub.get_next_message()
         defer.returnValue(msg)
