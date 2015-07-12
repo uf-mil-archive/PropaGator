@@ -1,4 +1,4 @@
-__author__ = 'Ralph F. Leyva'
+#!/usr/bin/env python
 
 import sys
 import argparse
@@ -15,9 +15,9 @@ roslib.load_manifest('vision_sandbox')
 
 '''
     PROPAGATOR BUOY DETECTOR
-        This script implements a 20-stage cascade classifier used to
+        This script implements a 22-stage cascade classifier used to
         detect buoys. The training data is available, and consists of
-        approx. 1.2k positive images, and +2k negative images. HOG features
+        approx. 1.2k positive images, and +2k negative images. LBP features
         were detected, and ADA-boost weak learners were used for the cascade.
 
         This code will serve as a skeleton that surrounds the classifier. Color
@@ -38,12 +38,13 @@ roslib.load_manifest('vision_sandbox')
 
 # User-parsing for classifier xml file (This will be handled by ROSlaunch)
 parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--classifier', help='Input XML classifier file location', required=True)
+parser.add_argument('-c', '--classifier', help='Input XML classifier file location', required=False)
 args = parser.parse_args()
 
 # Imports the pre-trained cascade classifier from path & creates classifer
 # cascade_path = os.path.join(os.path.expanduser('~'), 'Documents', 'Development', 'Classifiers', 'cascade.xml')
-cascade_path = args.classifier
+#cascade_path = args.classifier
+cascade_path = 'Documents/Development/Classifiers/cascade.xml'
 buoy_cascade = cv2.CascadeClassifier(cascade_path)
 
 buoys_in_fov = Buoys()
@@ -58,7 +59,7 @@ class image_converter:
     # Object that is used to convert images from the ROS format to the OpenCV format
     def __init__(self):
         self.bridge = CvBridge()
-        self.image_pub = rospy.Publisher("/camera/cv2_cascade_out", Image)
+        #self.image_pub = rospy.Publisher("/camera/cv2_cascade_out", Image)
         self.image_sub = rospy.Subscriber("/camera/image_raw", Image, self.callback)
         self.buoy_pub = rospy.Publisher("/buoy_info", Buoys)
 
@@ -71,7 +72,7 @@ class image_converter:
         final_img = image_process(cv_image)
 
         try:
-            self.image_pub.publish(self.bridge.cv2_to_imgmsg(final_img, "bgr8"))
+            #self.image_pub.publish(self.bridge.cv2_to_imgmsg(final_img, "bgr8"))
             self.buoy_pub.publish(buoys_in_fov)
         except CvBridgeError, e:
             print e
@@ -86,15 +87,17 @@ class color_tools():
         self.orange_max = np.array([19], np.uint8)
 
         self.yellow_min = np.array([20], np.uint8)
-        self.yellow_max = np.array([37], np.uint8)
+        self.yellow_max = np.array([39], np.uint8)
 
-        self.green_min = np.array([38], np.uint8)
-        self.green_max = np.array([75], np.uint8)
+        self.green_min = np.array([40], np.uint8)
+        #self.green_max = np.array([70], np.uint8)
+        self.green_max = np.array([64], np.uint8)
 
-        self.cyan_min = np.array([76], np.uint8)
-        self.cyan_max = np.array([97], np.uint8)
+        #self.cyan_min = np.array([71], np.uint8)
+        self.cyan_min = np.array([65], np.uint8)
+        self.cyan_max = np.array([94], np.uint8)
 
-        self.blue_min = np.array([98], np.uint8)
+        self.blue_min = np.array([95], np.uint8)
         self.blue_max = np.array([127], np.uint8)
 
         self.violet_min = np.array([128], np.uint8)
@@ -123,21 +126,24 @@ class color_tools():
         if self.in_range([hue_val],self.red_min, self.red_max):
             return 'Red'
         elif self.in_range([hue_val],self.orange_min,self.orange_max):
-            return 'Orange'
+            # This is actually orange, but we will simply output red
+            return 'Red'
         elif self.in_range([hue_val],self.yellow_min,self.yellow_max):
             return 'Yellow'
         elif self.in_range([hue_val],self.green_min,self.green_max):
             return 'Green'
         elif self.in_range([hue_val],self.cyan_min,self.cyan_max):
-            return 'Cyan'
+            # This is actually cyan, but we will assume this is white
+            return 'White'
         elif self.in_range([hue_val],self.blue_min,self.blue_max):
             return 'Blue'
         elif self.in_range([hue_val],self.violet_min,self.violet_max):
-            return 'Violet'
+            # This might very well end up corresponding to a black buoy
+            return 'Black'
         elif self.in_range([hue_val],self.magenta_min,self.magenta_max):
             return 'Magenta'
         else:
-            return 'unknown'
+            return 'Blue'
 
 def gen_circle_mask(roi,x,y):
     # Generates a circular mask centered in the already pre-selected ROI chosen by
@@ -215,7 +221,6 @@ def image_process(cv_image):
     cv_grey = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
     buoys = buoy_cascade.detectMultiScale(cv_grey, 1.3, 20)
     buoy_count = 0
-    buoy_color_list = []
     buoy_list = []
 
     for (x,y,w,h) in buoys:
@@ -241,8 +246,8 @@ def image_process(cv_image):
     buoy_list = sorted(buoy_list, key = lambda buoy:buoy.area, reverse=True)
     buoys_in_fov.buoys = [buoy for buoy in buoy_list]
 
-    cv2.putText(cv_image, "Number of Buoys: " + str(buoy_count), (10, 410), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.CV_AA)  # Places Object type on image
-    cv2.putText(cv_image, "Colors Visible: "+ " ".join(buoy_color_list), (10,440), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.CV_AA)
+    #cv2.putText(cv_image, "Number of Buoys: " + str(buoy_count), (10, 410), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.CV_AA)  # Places Object type on image
+    #cv2.putText(cv_image, "Colors Visible: "+ " ".join(buoy_color_list), (10,440), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.CV_AA)
     return cv_image
 
 # Main Function
