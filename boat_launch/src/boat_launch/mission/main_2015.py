@@ -16,7 +16,7 @@ import shutil
 
 
 # Sub mission imports
-from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon, ssocr_simple
+from boat_launch.mission import start_gate_laser, find_shape, go_to_ecef_pos, acoustic_beacon, ssocr_simple, circle_buoy
 
 # Timeout limits 
 ONE_MINUTE = 60
@@ -210,6 +210,17 @@ def pinger(nh, boat, s):
     yield go_to_ecef_pos.main(nh, HYDRO[course])
     print "Beginning Pinger challenge"
 
+    try:
+        print "Beginning Pinger"
+        yield util.wrap_timeout(circle_buoy.main(nh), HYDRO_TIME)
+        print "Completed Pinger"
+    except Exception:
+        print "Could not dock second shape, moving on"
+    finally:
+        boat.default_state()
+
+    '''
+
     color = 'blue'
     for c in ['blue', 'green', 'red', 'yellow', 'black']:
         check = yield s.send_buoy_info(c)
@@ -220,9 +231,7 @@ def pinger(nh, boat, s):
         else:
             print 'Got the wrong buoy: ' + c
 
-    
-    #yield acoustic_beacon.main(nh)
-    print "Completed pinger challenge"
+    '''
 
 
 @util.cancellableInlineCallbacks
@@ -282,6 +291,7 @@ def main(nh):
         docking_info = s.get_dock_info()
         images_info = s.get_server_images()
         
+        '''
 
 ##-------------------------------- GATES ---------------------------------------------------------------
 
@@ -319,7 +329,7 @@ def main(nh):
 
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
-        
+        '''
         try:
             yield util.wrap_timeout(interoperability(nh, boat, s), NTROP_TIME)
         except:
