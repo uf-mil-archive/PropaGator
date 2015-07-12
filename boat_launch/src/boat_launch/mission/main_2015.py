@@ -40,28 +40,28 @@ STARTGATE = {
 }
 
 DOCK = {
-    'courseA'   :   ll(36.802211, -76.191353),
+    'courseA'   :   ll(36.801818, -76.191383),
     #'courseB'   :   ll(36.801710, -76.191940)
     'courseB'   :   ll(36.801726, -76.191935)
 }
 
 DOCK_HEADING = {
-    'courseA'   :   1.4,
+    'courseA'   :   -1.91,
     #'courseB'   :   -0.2
     'courseB'   :   -0.78539
 }
 
 OBSTACLE_ENTRANCE = {
-    #courseA'   :   ll(36.802202, -76.191630),
+    'courseA'   :   ll(36.801889, -76.191560),
     'courseB'   :   ll(36.801805, -76.191234)
  }
 
 OBSTACLE_ENTRANCE_HEADING = {
-    'courseB'   :   2.61799
+    'courseA'   :   1.48
 }
 
 OBSTACLE_EXIT = {
-    'courseA'   :   ll(36.802202, -76.191630),
+    'courseA'   :   ll(36.802276, -76.191532),
     #'courseB'   :   ll(36.80189, -76.19139)
     'courseB'   :   ll(36.801987, -76.191651)
  }
@@ -74,7 +74,11 @@ HYDRO = {
  }
 
 HYDRO_HEADING = {
-    'courseB'   :   -1.7455
+    'courseA'   :   2.6179
+ }
+
+INTROP_HEADING = {
+    'courseA'   :   -0.52
  }
 
 QUAD = {
@@ -83,44 +87,35 @@ QUAD = {
     'courseB'   :   ll(36.801801, -76.191922)
  }
 
-"""
+# COVE ENTRANCE
 SAFE_POINT_1 = {
-    'courseA'   :   ll(36.802409, -76.191586),
+    'courseA'   :   ll(36.802483, -76.191549),
     'courseB'   :   ll(36.801977, -76.191909)
  }
 
+# COVE INSIDE
 SAFE_POINT_2 = {
-    'courseA'   :   ll(36.802409, -76.191586),
+    'courseA'   :   ll(36.802729, -76.191375),
     'courseB'   :   ll(36.801977, -76.191909)
  }
-"""
 
 
-
-HOME_0 = {
-    'courseB'   :   ll(36.801883, -76.192039)
-}
 
 HOME_1 = {
-    'courseA'   :   ll(36.802105, -76.191676),
+    'courseA'   :   ll(36.802103, -76.191502),
     #'courseB'   :   ll(36.802105, -76.191676)
     'courseB'   :   ll(36.801869, -76.191538)
 }
 
 HOME_2 = {
-    'courseA'   :   ll(36.801947, -76.191334),
+    'courseA'   :   ll(36.801880, -76.190897),
     #'courseB'   :   ll(36.801947, -76.191334)
     'courseB'   :   ll(36.801698, -76.191054)
 }
 
-HOME_3 = {
-    'courseA'   :   ll(36.801805, -76.190871),
-    #'courseB'   :   ll(36.801805, -76.190871)
-    'courseB'   :   ll(36.801760, -76.190883)
-}
 
 HOME_3_HEADING = {
-    'courseB'   :   0
+    'courseA'   :   -0.5235
 }
 
 # OTHER DEFINES
@@ -133,20 +128,12 @@ def start_gates(nh, boat, s):
     # Set the gate challange as the first challange
     s.set_current_challenge('gates')
 
-    
-    # TOO CLOSE TO DOCK
-    yield boat.hold_at_current_pos()
 
     #yield boat.move.heading(-2.5).go()
 
     print "Beginning startgates"
     #yield util.wrap_timeout(start_gate_laser.main(nh), ONE_MINUTE)  if uncommented add a try except block
-    yield boat.move.forward(2).go()
-
-    for i in xrange(3):
-        print 'Crawl:', i
-        yield boat.move.forward(10).go()
-    print "Startgates completed succesfully!"
+    yield boat.move.forward(30).go()
 
 
 @util.cancellableInlineCallbacks
@@ -155,12 +142,19 @@ def obstical_course(nh, boat, s):
     print "Moving to position to begin obstacle course"
 
     s.set_current_challenge('obstacles')
-    """
+    
     try:
         yield util.wrap_timeout(go_to_ecef_pos.main(nh, OBSTACLE[course]), ECEF_TIME)
     except:
         print 'ECEF timeout'
-    """
+    
+    # ADD HEADING!!!!!!!!!!!!!!!!!!!!!!
+
+    yield boat.move.heading(OBSTACLE_ENTRANCE_HEADING[course]).go()
+
+    # ADD HEADING!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
     # Get start gate info
     obstical_info = yield obstical_info
     print 'JSON says: \n\n' + str(obstical_info) + '\n\n'
@@ -171,6 +165,14 @@ def obstical_course(nh, boat, s):
     print "Beginning obstacle course"
     yield boat.move.forward(30).go()
     print "Obstacle course completed succesfully!"
+
+    try:
+        yield util.wrap_timeout(go_to_ecef_pos.main(nh, OBSTACLE_EXIT[course]), ECEF_TIME)
+    except:
+        print 'ECEF timeout'
+
+
+
 
 @util.cancellableInlineCallbacks
 def docking(nh, boat, s):
@@ -229,10 +231,12 @@ def interoperability(nh, boat, s):
     images_path = images_info.file_path
     images_count = images_info.image_count
 
+    
     try:
-        yield util.wrap_timeout(go_to_ecef_pos.main(nh, QUAD[course]), ECEF_TIME)
+        yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_2[course]), ECEF_TIME)
     except:
         print 'ECEF timeout'
+
     to_get_send = ['a','a']
     to_get_send = ssocr_simple.main(images_path)
 
@@ -251,11 +255,9 @@ def interoperability(nh, boat, s):
 def pinger(nh, boat, s):
     print "Moving to position to begin pinger challenge"
     s.set_current_challenge('pinger')
-    try:
-        yield util.wrap_timeout(go_to_ecef_pos.main(nh, HYDRO[course]), ECEF_TIME) 
-    except:
-        print 'ECEF timeout'
+
     yield boat.move.heading(HYDRO_HEADING[course]).go()
+
     print "Beginning Pinger challenge"
 
     try:
@@ -356,6 +358,15 @@ def main(nh):
             print 'Finally start gate'
             #boat.default_state()
 
+##-------------------------------- DOCKING ---------------------------------------------------------------
+
+        try:
+            yield util.wrap_timeout(docking(nh, boat, s), DOCK_TIME)
+        except:
+            print 'Could not complete docking'
+        finally: pass
+            #boat.default_state()
+
 
 ##-------------------------------- OBS COURSE ------------------------------------------------------------
         
@@ -369,14 +380,18 @@ def main(nh):
             #boat.default_state()
         
 
-##-------------------------------- DOCKING ---------------------------------------------------------------
+##-------------------------------- SAFE ZONE 1 ---------------------------------------------------------
+
 
         try:
-            yield util.wrap_timeout(docking(nh, boat, s), DOCK_TIME)
+            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_1[course]), ECEF_TIME)
         except:
-            print 'Could not complete docking'
-        finally: pass
-            #boat.default_state()
+            print 'ECEF timeout'
+
+        try:
+            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_2[course]), ECEF_TIME)
+        except:
+            print 'ECEF timeout'
 
 
 ##-------------------------------- QUAD ---------------------------------------------------------------
@@ -388,6 +403,20 @@ def main(nh):
         finally: pass
             #boat.default_state()
 
+
+## --------------- BACK TO SAFE POINT -------------------------------------------------------------
+
+        try:
+            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_2[course]), ECEF_TIME)
+        except:
+            print 'ECEF timeout'
+
+    ## NEED HEADING!!!!!!!!!!!!!
+
+
+
+    ## NEED HEADING!!!!!!!!!!!!!!!
+
 ##-------------------------------- PINGER ---------------------------------------------------------------
 
         try:
@@ -397,22 +426,21 @@ def main(nh):
         finally: pass
             #boat.default_state()
 
+        try:
+            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_2[course]), ECEF_TIME)
+        except:
+            print 'ECEF timeout'
+
+        try:
+            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_1[course]), ECEF_TIME)
+        except:
+            print 'ECEF timeout'
+
 ##-------------------------------- RETURN ---------------------------------------------------------------
 
         print "Run complete, coming back to the dock"
         s.set_current_challenge('return')
 
-        """
-        if course is 'courseA':
-            print "Moving to safe point to avoid fountain"
-            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_1[course]), ECEF_TIME)
-        """
-
-        print "Moving to zero point to get home"
-        try:
-            yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_0[course]), ECEF_TIME)
-        except:
-            print 'ECEF timeout'
         print "Moving to first point to get home"
         try:
             yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_1[course]), ECEF_TIME)
@@ -423,14 +451,17 @@ def main(nh):
             yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_2[course]), ECEF_TIME)
         except:
             print 'ECEF timeout'
-        print "Moving to third point to get home"
-        try:
-            yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_3[course]), ECEF_TIME)
-        except:
-            print 'ECEF timeout'
+
+
         print "Adjusting heading"
         yield boat.move.heading(HOME_3_HEADING[course]).go()
 
+        dist = 100
+        distances = yield boat.get_distance_from_object(.1)
+        while dist > 2:
+            yield boat.move.forward(1).go()
+            distances = yield boat.get_distance_from_object(.1)
+            dist = distances[0] - 1
 
 ##------------------------------ CLEAN UP -----------------------------------------------------
         
