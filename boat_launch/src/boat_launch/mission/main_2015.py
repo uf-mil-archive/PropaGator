@@ -27,6 +27,7 @@ NTROP_TIME = 2 * ONE_MINUTE
 OBS_COURSE_TIME = 2 * ONE_MINUTE
 START_GATE_TIME = 3 * ONE_MINUTE
 HYDRO_TIME = ONE_MINUTE * 3
+ECEF_TIME = ONE_MINUTE * 1.5
 
 # TODO: Move this to some common place to be used across files
 def ll(lat, lon):
@@ -134,7 +135,7 @@ def start_gates(nh, boat, s):
 
     
     # TOO CLOSE TO DOCK
-    #yield go_to_ecef_pos.main(nh, STARTGATE[course])
+    #yield util.wrap_timeout(go_to_ecef_pos.main(nh, STARTGATE[course]), ECEF_TIME)
     yield boat.hold_at_current_pos()
 
     #yield boat.move.heading(-2.5).go()
@@ -155,8 +156,7 @@ def obstical_course(nh, boat, s):
     print "Moving to position to begin obstacle course"
 
     s.set_current_challenge('obstacles')
-    #yield go_to_ecef_pos.main(nh, OBSTACLE[course])
-
+    #yield util.wrap_timeout(go_to_ecef_pos.main(nh, OBSTACLE[course]), ECEF_TIME)
     # Get start gate info
     obstical_info = yield obstical_info
     print 'JSON says: \n\n' + str(obstical_info) + '\n\n'
@@ -176,8 +176,7 @@ def docking(nh, boat, s):
     print "Moving to position to begin docking"
     s.set_current_challenge('docking')        
     
-    yield go_to_ecef_pos.main(nh, DOCK[course])
-    
+    yield util.wrap_timeout(go_to_ecef_pos.main(nh, DOCK[course]), ECEF_TIME)
     print "Turning to face dock"
 
     
@@ -223,8 +222,7 @@ def interoperability(nh, boat, s):
     images_path = images_info.file_path
     images_count = images_info.image_count
 
-    #yield go_to_ecef_pos.main(nh, QUAD[course])
-
+    yield util.wrap_timeout(go_to_ecef_pos.main(nh, QUAD[course]), ECEF_TIME) 
     to_get_send = ['a','a']
     to_get_send = ssocr_simple.main(images_path)
 
@@ -244,7 +242,7 @@ def pinger(nh, boat, s):
     print "Moving to position to begin pinger challenge"
     s.set_current_challenge('pinger')
 
-    yield go_to_ecef_pos.main(nh, HYDRO[course])
+    yield util.wrap_timeout(go_to_ecef_pos.main(nh, HYDRO[course]), ECEF_TIME) 
     yield boat.move.heading(HYDRO_HEADING[course]).go()
     print "Beginning Pinger challenge"
 
@@ -394,20 +392,16 @@ def main(nh):
 
         if course is 'courseA':
             print "Moving to safe point to avoid fountain"
-            yield go_to_ecef_pos.main(nh, SAFE_POINT_1[course])
+            yield util.wrap_timeout(go_to_ecef_pos.main(nh, SAFE_POINT_1[course]), ECEF_TIME)
 
         print "Moving to zero point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_0[course])
-
+        yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_0[course]), ECEF_TIME)
         print "Moving to first point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_1[course]) 
-
+        yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_1[course]), ECEF_TIME)        
         print "Moving to second point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_2[course])  
-
+        yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_2[course]), ECEF_TIME)
         print "Moving to third point to get home"
-        yield go_to_ecef_pos.main(nh, HOME_3[course])  
-
+        yield util.wrap_timeout(go_to_ecef_pos.main(nh, HOME_3[course]), ECEF_TIME)
         print "Adjusting heading"
         yield boat.move.heading(HOME_3_HEADING[course]).go()
 
