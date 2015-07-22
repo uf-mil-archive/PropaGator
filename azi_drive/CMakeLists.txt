@@ -21,10 +21,11 @@ generate_messages(
 )
 
 catkin_package(
-  LIBRARIES azi_drive
-  CATKIN_DEPENDS message_runtime std_msgs rospy
+  LIBRARIES azi_drive azi_cvxbind
+  CATKIN_DEPENDS message_runtime std_msgs rospy python_module
 )
 
+add_subdirectory (src/azi_cvx)
 include_directories(
   ${catkin_INCLUDE_DIRS}
 )

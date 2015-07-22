@@ -1,0 +1,37 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+IF(NOT CMAKE_BUILD_TYPE)
+  SET(CMAKE_BUILD_TYPE "DEBUG")
+  #SET(CMAKE_BUILD_TYPE "RELEASE")
+  #SET(CMAKE_BUILD_TYPE "RELWITHDEBINFO")
+  #SET(CMAKE_BUILD_TYPE "MINSIZEREL")
+ENDIF()
+
+
+FIND_PACKAGE(Boost 1.45.0)
+IF(Boost_FOUND)
+
+  find_package( PythonLibs 2.7 REQUIRED )
+  include_directories( ${PYTHON_INCLUDE_DIRS} ) 
+  find_package( Boost COMPONENTS python REQUIRED )
+  include_directories( ${Boost_INCLUDE_DIR} ${catkin_INCLUDE_DIRS} include)
+
+  SET(Boost_USE_STATIC_LIBS OFF)
+  SET(Boost_USE_MULTITHREADED ON)
+  SET(Boost_USE_STATIC_RUNTIME OFF)
+
+  ADD_LIBRARY(azi_cvxbind SHARED cvx.cpp azi_cvxbind.cpp)
+  TARGET_LINK_LIBRARIES(azi_cvxbind ${Boost_LIBRARIES} ${PYTHON_LIBRARIES} ${catkin_LIBRARIES})
+  SET_TARGET_PROPERTIES(azi_cvxbind 
+    PROPERTIES PREFIX "" 
+    LIBRARY_OUTPUT_DIRECTORY ${CATKIN_DEVEL_PREFIX}/${CATKIN_PACKAGE_PYTHON_DESTINATION}
+  )
+
+ELSEIF(NOT Boost_FOUND)
+  MESSAGE(FATAL_ERROR "Unable to find correct Boost version. Did you set BOOST_ROOT?")
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_DEFINITIONS("-Wall")
+ELSE()
+  MESSAGE(FATAL_ERROR "CMakeLists.txt has not been tested/written for your compiler.")
+ENDIF()
