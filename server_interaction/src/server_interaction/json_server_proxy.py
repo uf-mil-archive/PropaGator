@@ -44,6 +44,9 @@ class json_server(object):
 		self.run_service = self._node_handle.get_service_client('start_end_run', start_end_run)
 		self.challenge_service = self._node_handle.get_service_client('current_challenge', challenge)
 		self.url_and_course_service = self._node_handle.get_service_client('url_and_course', url_and_course)
+		path = os.path.join(os.path.expanduser('~'), 'output', 'ServerImages/')
+		if os.path.isdir(path):
+			shutil.rmtree(path)
 		return self
 
 	@util.cancellableInlineCallbacks
