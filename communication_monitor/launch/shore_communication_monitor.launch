@@ -1,16 +1,23 @@
-<!-- This file launches one communication monitor -->
-<!-- It should be launched on a computer that will remain in communicaiton with the propagator for the duration of the usage period -->
+<!-- 	This file launches one communication monitor 
+		It should be launched on a computer that will remain in communicaiton with the propagator for the duration of the usage period
+		The boat will be killed after update_freq^-1 * (max_num_of_drops + 1) seconds (i.e. for update_freq = 10 and max_num_of_drops = 9
+			the boat will be killed after 1 second of loss of communication)
+-->
+
 
 <launch>
 	<!-- Args -->
 	<!-- This is the frequency in Hz to check for communications -->
-	<arg name="update_freq" default="1"/>
+	<arg name="update_freq" default="10"/>
 	<!-- This is the maximum number of cycles before we throw an error -->
-	<arg name="max_num_of_drops" default="10"/>
+	<arg name="max_num_of_drops" default="9"/>
 
 	<group ns="comms">
 		<!-- Shore computer -->
-		<node pkg="communication_monitor" type="communication_monitor_node" name="shore_communication_monitor" respawn="true" output="screen"/>
+		<node pkg="communication_monitor" type="communication_monitor_node" name="shore_communication_monitor" respawn="true" output="screen">
+			<param name="update_freq" value="$(arg update_freq)"/>
+			<param name="max_num_of_drops" value="$(arg max_num_of_drops)"/>
+		</node>
 	</group>
 
 </launch>

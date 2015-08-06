@@ -32,7 +32,7 @@ private:		//Typedefs
 private:		//Vars
 	//If you haven't heard from <id_> in over <update_freq_>^-1 * <max_num_of_drops_> throw an error
 	std::string id_;
-	int update_freq_;
+	double update_freq_;
 	int max_num_of_drops_;
 	ros::Rate update_rate_;
 	std::map<std::string, int> registered_communicators;
@@ -90,7 +90,6 @@ public:			//Functions
 	{
 		ros::NodeHandle private_nh("~");
 		ros::NodeHandle nh;
-		std::string topic;
 
 		//Get some private parameters
 		id_ = name;
@@ -98,12 +97,10 @@ public:			//Functions
 		name_msg_.data = id_.c_str();
 
 		//Get some non-private parameters
-		topic = nh.resolveName("update_freq");
-		nh.param<int>(topic.c_str(), update_freq_, 1);				//Default to 1 Hz
-		update_rate_ = ros::Rate(static_cast<double>(update_freq_));						//Set the update rate
+		private_nh.param<double>("update_freq", update_freq_, 10.0);			//Default to 10 Hz
+		update_rate_ = ros::Rate(update_freq_);									//Set the update rate
 
-		topic = nh.resolveName("max_num_of_drops");
-		nh.param<int>(topic.c_str(), max_num_of_drops_, 10);		//Default to 10 times
+		private_nh.param<int>("max_num_of_drops", max_num_of_drops_, 9);		//Default to 9 times
 
 		//Initialize publisher and subscribers
 		pub_ = nh.advertise<std_msgs::String>("comm_check", 1);
@@ -127,7 +124,7 @@ public:			//Functions
 				ROS_ERROR("Lost communications with %s, from %s for %f seconds",
 						it->first.c_str(),
 						id_.c_str(),
-						it->second * pow(static_cast<float>(update_freq_), -1.0));
+						it->second * pow(update_freq_, -1.0));
 			}
 		}
 
