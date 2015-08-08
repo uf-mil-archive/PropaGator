@@ -59,6 +59,7 @@ class Controller(object):
         #  thrust messages as quickly as they are sent
         self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size=4)
         self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size=4)
+        self.next_wrench = WrenchStamped()
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
         # Thrust topic id's for each thruster
@@ -185,6 +186,7 @@ class Controller(object):
 
                 if iteration_num > 10:
                     iteration_num = 0
+                    self._reset_desired_state()
                     self.set_servo_angles(self.cur_angles)
                     if success:
                         self.set_forces(self.cur_forces)
@@ -217,14 +219,17 @@ class Controller(object):
     def _wrench_cb(self, msg):
         '''Recieve a force, torque command for the mapper to achieve
         '''
-        force = msg.wrench.force
-        torque = msg.wrench.torque
+        self.next_wrench = msg.wrench
+
+        self.last_msg_time = time()
+
+    def _reset_desired_state(self):
+        force = self.next_wrench.force
+        torque = self.next_wrench.torque
 
         self.des_fx = force.x
         self.des_fy = force.y
         self.des_torque = torque.z
-
-        self.last_msg_time = time()
 
     def set_forces(self, (force_left, force_right)):
         '''Issue commands to the thrusters'''
