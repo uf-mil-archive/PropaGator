@@ -59,7 +59,7 @@ class Controller(object):
         #  thrust messages as quickly as they are sent
         self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size=4)
         self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size=4)
-        self.next_wrench = WrenchStamped()
+        self.next_wrench = WrenchStamped().wrench
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
         # Thrust topic id's for each thruster
