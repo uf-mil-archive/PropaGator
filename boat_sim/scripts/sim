@@ -64,13 +64,7 @@ def zdriveSimCallback(msg):
 rospy.Subscriber('z_drive_sim_force', BoatSimZDriveOutsideForce, zdriveSimCallback)
 def motorConfigCallback(msg):
     thrusts[msg.id] = msg.thrust
-    #so the thrusters dont have to run, just echo the message back
-    echo_pub = rospy.Publisher('/thruster_status', thrusterNewtons)
-    status_echo_msg=thrusterNewtons()
-    status_echo_msg.id=msg.id
-    status_echo_msg.thrust=msg.thrust
-    echo_pub.publish(status_echo_msg)
-rospy.Subscriber('thruster_config', thrusterNewtons, motorConfigCallback)
+rospy.Subscriber('thruster_status', thrusterNewtons, motorConfigCallback)
 def dynamixelConfigPositionCallback(msg):
     positions[msg.id] = msg.goal_position
     #so the dynamixel_server doesn't have to run, just echo the message back
