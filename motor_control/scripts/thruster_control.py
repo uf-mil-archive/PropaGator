@@ -73,6 +73,7 @@ killed = False
 floating = False
 
 #Pub
+float_status_pub = rospy.Publisher('float_status', Bool, queue_size=1)
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
 #pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
 pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
@@ -199,6 +200,8 @@ def pubStatus(event):
     newton_pub.publish(thruster)
     thruster = thrusterNewtons(PORT_THRUSTER, port_current)
     newton_pub.publish(thruster)
+
+    float_status_pub.publish(floating)
 
 # Used to place boat in floating mode (Thrusters are turned off)
 def set_float_mode(mode):
