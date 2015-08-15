@@ -23,6 +23,7 @@ import rospy
 import serial
 from motor_control.msg import thrusterPWM
 from motor_control.msg import thrusterNewtons
+from motor_control.srv import FloatMode
 import time
 from std_msgs.msg import Float64, Int64, Bool
 from kill_handling.broadcaster import KillBroadcaster
@@ -65,10 +66,11 @@ starboard_current = 0.0
 #Timing Variables
 PUB_RATE = rospy.Duration(0.01)
 UPDATE_RATE = 100                      #Update at 100 Hz
-RAMP_RATE = 5#Newtons/second #100.0 * UPDATE_RATE / 1000    #1 Degree * update_rate * (1s / 1000 ms) = [1 DEG/MS]
+RAMP_RATE = (MAX_NEWTONS / 2.0) / UPDATE_RATE    # (Newtons/second) / Hz ==> N, i.e. 10 / UPDATE_RATE amounts to the boat changing 10 newtons per second
 
-# Kill vars
+# state vars
 killed = False
+floating = False
 
 #Pub
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
@@ -123,7 +125,7 @@ def motorConfigCallback(config):
         return
 
     # Check if the boat is killed
-    if killed:
+    if killed or floating:
         return
     
     thrust = config.thrust
@@ -198,6 +200,24 @@ def pubStatus(event):
     thruster = thrusterNewtons(PORT_THRUSTER, port_current)
     newton_pub.publish(thruster)
 
+# Used to place boat in floating mode (Thrusters are turned off)
+def set_float_mode(mode):
+    global floating
+    global starboard_setpoint
+    global port_setpoint
+    global starboard_current
+    global port_current
+
+    floating = mode.float
+    rospy.loginfo('PropaGator float-mode is ' + str(mode.float))
+
+    starboard_setpoint = 0.0;
+    port_setpoint = 0.0;
+    starboard_current = 0.0
+    port_current = 0.0
+
+    return mode.float
+
 #   Set Kill
 # On a kill we should stop all thrusters imideatly
 def set_kill():
@@ -259,6 +279,9 @@ def thrusterCtrl():
     rospy.Subscriber("thruster_config", thrusterNewtons, motorConfigCallback)
     r = rospy.Rate(UPDATE_RATE)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)
+
+    # Initilize float service
+    float_srv = rospy.Service('float_mode', FloatMode, set_float_mode)
 
     # Initilize kill
     kill_listener = KillListener(set_kill, clear_kill)
@@ -337,6 +360,7 @@ def thrusterCtrl():
 
     # Kill the system
     kill_broadcaster.send(True)
+
 
 if __name__ == '__main__':
     try:
