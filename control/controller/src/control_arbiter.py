@@ -24,10 +24,14 @@ class control_arbiter:
         rospy.init_node('control_arbiter')
 
         # Vars
-        self.controller = 'azi_drive'
+        self.controller = 'xbox_rc'
+        self.controllers = [self.controller]
 
         # Services
-
+        self.request_controller_srv = rospy.Service('request_controller', request_controller,
+                self.request_controller_cb)
+        self.register_controller_srv = rospy.Service('register_controller', register_controller,
+                self.register_controller_cb)
 
         # Publishers
         self.continuous_angle_pub = rospy.Publisher('/dynamixel/dynamixel_continuous_angle_config', 
@@ -57,16 +61,28 @@ class control_arbiter:
 
     # Servo callbacks
     def continuous_angle_cb(self, msg):
-        pass
+        if self.controller != msg.controller:
+            return
+
+        self.continuous_angle_pub.publish(msg.config)
 
     def full_cb(self, msg):
-        pass
+        if self.controller != msg.controller:
+            return
+
+        self.full_pub.publish(msg.config)
 
     def joint_cb(self, msg):
-        pass
+        if self.controller != msg.controller:
+            return
+
+        self.joint_pub.publish(msg.config)
 
     def wheel_cb(self, msg):
-        pass
+        if self.controller != msg.controller:
+            return
+
+        self.wheel_pub.publish(msg.config)
 
     # Thrust callback
     def thruster_cb(self, msg):
@@ -80,6 +96,30 @@ class control_arbiter:
         else:
             rospy.logerr(str(msg.id) + ' is not a vaild thruster id, valid ids are 2 (starboard) or 3 (port)')
 
+    # Service callbacks
+    def register_controller_cb(self, request):
+        response = register_controllerResponse()
+        if request.controller not in self.controllers:
+            response.success = True
+            self.controllers.append(request.controller)
+        else:
+            response.success = False
+            response.failure_description = '%s is already a registered controller' % request.controller
+
+        return response
+
+    def request_controller_cb(self, request):
+        response = request_controllerResponse()
+        if request.controller in  self.controllers:
+            response.success = True
+            response.current_controller = request.controller
+            self.controller = request.controller
+        else:
+            response.success = False
+            response.current_controller = self.controller
+            response.failure_description = request.controller + ' is not a registered controller. Registered controllers are ' + str(self.controllers)
+
+        return response
 
 
 if __name__ == '__main__':
