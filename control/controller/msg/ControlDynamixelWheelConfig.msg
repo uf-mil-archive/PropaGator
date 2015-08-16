@@ -1,0 +1,2 @@
+string controller
+dynamixel_servo/DynamixelWheelConfig config

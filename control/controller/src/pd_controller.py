@@ -19,7 +19,6 @@ import numpy,math,tf,threading
 from tf import transformations
 from uf_common.orientation_helpers import xyz_array, xyzw_array, quat_to_rotvec
 from uf_common.msg import PoseTwistStamped
-from controller.srv import Enable, EnableResponse
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 from collections import deque

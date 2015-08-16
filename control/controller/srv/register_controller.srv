@@ -1,0 +1,10 @@
+string controller
+---
+bool success
+# In the case of failure (success = False) the failure_description
+#	contains a string describing why
+#	Reasons include but are not limited to:
+#		* Controller is already registered
+#		* This controller has been blacklisted
+#		* A pterodactyl ate the controller
+string failure_description

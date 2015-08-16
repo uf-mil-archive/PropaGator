@@ -1,0 +1,15 @@
+# Controller is the controller who is requesting control
+string controller
+---
+# Success is true if the controller was switched or if the 
+#	Controller is already active
+bool success
+# Current controller is the active controller
+#	In the case of success this is the requested controller
+string current_controller
+# In the case of failure (success = False) the failure_description
+#	contains a string describing why
+#	Reasons include but are not limited to:
+#		* Controller is not registered
+#		* Not safe to switch to requested mode
+string failure_description
