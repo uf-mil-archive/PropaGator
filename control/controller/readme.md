@@ -8,6 +8,7 @@ Controller contains software to arbitrate control of the robot and provide contr
 * We should add an integral term to the PD controller
 * Architecture redesign must accomidate a smarter control arbiter
 	* Control arbiter should be able to check the state of all nodes required by a controller
+* starboard (right) is 2, port (left) is 3
 
 
 ### Frames
