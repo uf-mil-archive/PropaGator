@@ -164,6 +164,7 @@ class control_arbiter:
             response.success = True
             response.current_controller = request.controller
             self.controller = request.controller
+            self._zero_thrusters()
         else:
             response.success = False
             response.current_controller = self.controller
