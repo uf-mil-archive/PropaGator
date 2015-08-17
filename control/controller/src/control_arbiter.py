@@ -24,7 +24,6 @@ ZERO_PWM = 1.5e-3
 
 # TODO
 # Add an always on controller for lidar and hydrophone
-# Add kill and float functionality
 
 class control_arbiter:
     def __init__(self):
@@ -92,35 +91,44 @@ class control_arbiter:
         self.port_pub.publish(Float64(ZERO_PWM))
         self.starboard_pub.publish(Float64(ZERO_PWM))
 
+    def isValidController(self, controller):
+        if controller == 'always_on':
+            return True
+
+        if controller == self.controller:
+            return True
+
+        return False
+
 
     # Servo callbacks
     def continuous_angle_cb(self, msg):
-        if self.controller != msg.controller:
+        if not self.isValidController(msg.controller):
             return
 
         self.continuous_angle_pub.publish(msg.config)
 
     def full_cb(self, msg):
-        if self.controller != msg.controller:
+        if not self.isValidController(msg.controller):
             return
 
         self.full_pub.publish(msg.config)
 
     def joint_cb(self, msg):
-        if self.controller != msg.controller:
+        if not self.isValidController(msg.controller):
             return
 
         self.joint_pub.publish(msg.config)
 
     def wheel_cb(self, msg):
-        if self.controller != msg.controller:
+        if not self.isValidController(msg.controller):
             return
 
         self.wheel_pub.publish(msg.config)
 
     # Thrust callback
     def thruster_cb(self, msg):
-        if self.controller != msg.controller:
+        if not self.isValidController(msg.controller):
             return
 
         if self.floating or self.killed:
