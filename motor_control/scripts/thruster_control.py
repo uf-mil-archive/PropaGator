@@ -21,11 +21,9 @@
 
 import rospy
 import serial
-from motor_control.msg import thrusterPWM
+from controller.msg import ControlThrustConfig
 from motor_control.msg import thrusterNewtons
-from motor_control.srv import FloatMode
 import time
-from std_msgs.msg import Float64, Int64, Bool
 from kill_handling.broadcaster import KillBroadcaster
 from kill_handling.listener import KillListener
 
@@ -70,19 +68,10 @@ RAMP_RATE = (MAX_NEWTONS / 2.0) / UPDATE_RATE    # (Newtons/second) / Hz ==> N, 
 
 # state vars
 killed = False
-floating = False
 
 #Pub
-float_status_pub = rospy.Publisher('float_status', Bool, queue_size=1)
 newton_pub = rospy.Publisher('thruster_status', thrusterNewtons, queue_size=10)
-#pwm_pub = rospy.Publisher('thruster_pwm_config', thrusterPWM, queue_size=10)
-pwm_port_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm1', Float64, queue_size = 10)
-pwm_starboard_pub = rospy.Publisher('stm32f3discovery_imu_driver/pwm2', Float64, queue_size = 10)
-#pwm_port_pub = rospy.Publisher(rospy.resolve_name('pwm1'), Float64, queue_size = 10)
-#pwm_starboard_pub = rospy.Publisher(rospy.resolve_name('pwm2'), Float64, queue_size = 10)
-#Define serial vars
-#WARNING: you'll need permissions to access this file, or chmod it
-#ser = serial.Serial('/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_55332333130351803192-if00', 115200) 
+pwm_pub = rospy.Publisher('/controller/thruster_config', ControlThrustConfig, queue_size=10)
 
 #       stopThrusters
 # Input: none
@@ -93,14 +82,14 @@ def stopThrusters():
     global port_setpoint
     global starboard_current
     global port_current
-
-    #msg = thrusterPWM(PORT_THRUSTER, ZERO_PW)
-    #pwm_pub.publish(msg)
-    #msg = thrusterPWM(STARBOARD_THRUSTER, ZERO_PW)
-    #pwm_pub.publish(msg)       
-    msg = Float64(ZERO_PW / 1000000.0)
-    pwm_port_pub.publish(msg)
-    pwm_starboard_pub.publish(msg)
+    
+    msg = ControlThrustConfig()
+    msg.controller = 'azi_drive'
+    msg.id = ControlThrustConfig.STARBOARD
+    msg.pulse_width = ZERO_PW / 1000000.0
+    pwm_pub.publish(msg)
+    msg.id = ControlThrustConfig.PORT
+    pwm_pub.publish(msg)
 
     #Zero internal varibles
     starboard_setpoint = 0.0;
@@ -126,7 +115,7 @@ def motorConfigCallback(config):
         return
 
     # Check if the boat is killed
-    if killed or floating:
+    if killed:
         return
     
     thrust = config.thrust
@@ -201,26 +190,6 @@ def pubStatus(event):
     thruster = thrusterNewtons(PORT_THRUSTER, port_current)
     newton_pub.publish(thruster)
 
-    float_status_pub.publish(floating)
-
-# Used to place boat in floating mode (Thrusters are turned off)
-def set_float_mode(mode):
-    global floating
-    global starboard_setpoint
-    global port_setpoint
-    global starboard_current
-    global port_current
-
-    floating = mode.float
-    rospy.loginfo('PropaGator float-mode is ' + str(mode.float))
-
-    starboard_setpoint = 0.0;
-    port_setpoint = 0.0;
-    starboard_current = 0.0
-    port_current = 0.0
-
-    return mode.float
-
 #   Set Kill
 # On a kill we should stop all thrusters imideatly
 def set_kill():
@@ -283,9 +252,6 @@ def thrusterCtrl():
     r = rospy.Rate(UPDATE_RATE)          #1000 hz(1ms Period)... I think
     pub_timer = rospy.Timer(PUB_RATE, pubStatus)
 
-    # Initilize float service
-    float_srv = rospy.Service('float_mode', FloatMode, set_float_mode)
-
     # Initilize kill
     kill_listener = KillListener(set_kill, clear_kill)
     kill_broadcaster = KillBroadcaster(id=rospy.get_name(), description='Newtons to PWM shutdown')
@@ -297,9 +263,6 @@ def thrusterCtrl():
     
     #Initilize the motors to 0
     stopThrusters()
-
-    starboard_last_value = ZERO_PW;
-    port_last_value = ZERO_PW;
     
     #Main loop
     while not rospy.is_shutdown():
@@ -326,35 +289,16 @@ def thrusterCtrl():
             if starboard_current > starboard_setpoint:
                 starboard_current = starboard_setpoint
 
-        #print "Port setpoint %i : actual value %i" % (port_setpoint, port_current)
-        
-        #Write to the serial bus
-        #Generate messages in the form of #,#:
-        #Added : to prevent writing to messages in a row i.e. 1,234:2,65:
-        #if port_last_value != port_current:
-            #ser.write(str(PORT_THRUSTER)+","+str(int(convertNewtonsToPW(port_current)))+":")
-        #msg = thrusterPWM(PORT_THRUSTER, int(convertNewtonsToPW(port_current)))
-        #print(str(PORT_THRUSTER), int(convertNewtonsToPW(port_current)))
-        #pwm_pub.publish(msg);
-        #if control_kill == False:
-        msg = Float64(convertNewtonsToPW(port_current) / 1000000.0)
-        pwm_port_pub.publish(msg)   
+        msg = ControlThrustConfig()
+        msg.controller = 'azi_drive'
+        msg.id = ControlThrustConfig.PORT
+        msg.pulse_width = convertNewtonsToPW(port_current) / 1000000.0
+        pwm_pub.publish(msg)   
 
-        time.sleep(0.001)
-        #if starboard_last_value != starboard_current:
-            #ser.write(str(STARBOARD_THRUSTER)+","+str(int(convertNewtonsToPW(starboard_current)))+":")
-        #msg = thrusterPWM(STARBOARD_THRUSTER, int(convertNewtonsToPW(starboard_current)))
-        #print(str(STARBOARD_THRUSTER), int(convertNewtonsToPW(starboard_current)))
-        #pwm_pub.publish(msg)
-        msg = Float64(convertNewtonsToPW(starboard_current) / 1000000.0)
-        pwm_starboard_pub.publish(msg)        
+        msg.id = ControlThrustConfig.STARBOARD
+        msg.pulse_width = convertNewtonsToPW(starboard_current) / 1000000.0
+        pwm_pub.publish(msg)        
 
-        starboard_last_value = starboard_current;
-        port_last_value = port_current;
-        #else:
-         #   None
-
-        
         #Wait till next cycle
         r.sleep()
     

@@ -11,12 +11,18 @@ from dynamixel_servo.msg import DynamixelJointConfig
 from controller.msg import ControlDynamixelWheelConfig
 from dynamixel_servo.msg import DynamixelWheelConfig
 from controller.msg import ControlThrustConfig
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Bool
 from controller.srv import register_controller, register_controllerResponse
 from controller.srv import request_controller, request_controllerResponse
+from controller.srv import FloatMode
 
 PORT = ControlThrustConfig.PORT
 STARBOARD = ControlThrustConfig.STARBOARD
+ZERO_PWM = 1.5e-3
+
+# TODO
+# Add an always on controller for lidar and hydrophone
+# Add kill and float functionality
 
 class control_arbiter:
     def __init__(self):
@@ -26,12 +32,16 @@ class control_arbiter:
         # Vars
         self.controller = 'xbox_rc'
         self.controllers = [self.controller]
+        self.floating = False
 
         # Services
         self.request_controller_srv = rospy.Service('request_controller', request_controller,
                 self.request_controller_cb)
         self.register_controller_srv = rospy.Service('register_controller', register_controller,
                 self.register_controller_cb)
+        self.float_srv = rospy.Service('float_mode', 
+                FloatMode, self.set_float_mode)
+
 
         # Publishers
         self.continuous_angle_pub = rospy.Publisher('/dynamixel/dynamixel_continuous_angle_config', 
@@ -46,6 +56,7 @@ class control_arbiter:
             Float64, queue_size = 10)
         self.starboard_pub = rospy.Publisher('/stm32f3discovery_imu_driver/pwm2', 
             Float64, queue_size = 10)
+        self.float_status_pub = rospy.Publisher('float_status', Bool, queue_size=1)
 
         # Subscribers
         self.continuous_angle_sub = rospy.Subscriber('dynamixel_continuous_angle_config', 
@@ -58,6 +69,18 @@ class control_arbiter:
             ControlDynamixelWheelConfig, self.wheel_cb, queue_size = 10)
         self.thruster_sub = rospy.Subscriber('thruster_config', 
             ControlThrustConfig, self.thruster_cb, queue_size = 10)
+
+        # Timers
+        self.float_update_timer = rospy.Timer(rospy.Duration(0.1), self.float_status_update)
+
+        # Kill
+
+    # Utility functions
+    # Zero thrusters
+    def _zero_thrusters(self):
+        self.port_pub.publish(Float64(ZERO_PWM))
+        self.starboard_pub.publish(Float64(ZERO_PWM))
+
 
     # Servo callbacks
     def continuous_angle_cb(self, msg):
@@ -87,6 +110,10 @@ class control_arbiter:
     # Thrust callback
     def thruster_cb(self, msg):
         if self.controller != msg.controller:
+            return
+
+        if self.floating:
+            self._zero_thrusters()
             return
 
         if msg.id == PORT:
@@ -120,6 +147,19 @@ class control_arbiter:
             response.failure_description = request.controller + ' is not a registered controller. Registered controllers are ' + str(self.controllers)
 
         return response
+
+    # Used to place boat in floating mode (Thrusters are turned off)
+    def set_float_mode(self, mode):
+        self.floating = mode.float
+        if self.floating:
+            self._zero_thrusters()
+
+        rospy.loginfo('PropaGator float-mode is ' + str(mode.float))
+
+        return self.floating
+
+    def float_status_update(self, event):
+        self.float_status_pub.publish(self.floating)
 
 
 if __name__ == '__main__':

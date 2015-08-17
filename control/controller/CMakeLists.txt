@@ -50,6 +50,7 @@ add_service_files(
   FILES
   register_controller.srv
   request_controller.srv
+  FloatMode.srv
 )
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
