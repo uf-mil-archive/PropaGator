@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   message_runtime
   std_msgs
+  controller
 )
 
 add_service_files(
@@ -21,7 +22,7 @@ generate_messages(
 
 catkin_package(
   LIBRARIES azi_drive azi_cvxbind
-  CATKIN_DEPENDS message_runtime std_msgs rospy python_module
+  CATKIN_DEPENDS message_runtime std_msgs rospy python_module controller
 )
 
 add_subdirectory (src/azi_cvx)

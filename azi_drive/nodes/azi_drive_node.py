@@ -7,6 +7,7 @@ import numpy as np
 import rospy
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
+from controller.srv import register_controller
 
 from geometry_msgs.msg import WrenchStamped
 from motor_control.msg import thrusterNewtons
@@ -24,16 +25,14 @@ min angle: -pi/2
 class Controller(object):
     def __init__(self, rate=100):
         '''I can't swim on account of my ass-mar'''
+
+        # Register azi_drive as a controller
+        rospy.wait_for_service('/controller/register_controller', 30.0)
+        rospy.ServiceProxy('/controller/register_controller', register_controller)('azi_drive')
+
         self.rate = rate
         self.servo_max_rotation = 0.1
         self.controller_max_rotation = self.servo_max_rotation / self.rate
-        print rospy.get_param('~simulate')
-        if rospy.get_param('~simulate', False) is False:
-            print 'simulate is false'
-            rospy.Subscriber("control_arbiter", Bool, self.control_callback)
-        else: print "simulate is true"
-        rospy.Subscriber("pwm1_alias", Float64, self.pwm1_cb)
-        rospy.Subscriber("pwm2_alias", Float64, self.pwm2_cb)
         
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
 
@@ -45,7 +44,6 @@ class Controller(object):
         except rospy.service.ServiceException, e:
             rospy.logwarn(str(e))
         self.killed = False
-        self.rc_takeover = False
 
         rospy.logwarn("Setting maximum rotation speed to {} rad/s".format(self.controller_max_rotation))
         Azi_Drive.set_delta_alpha_max(self.controller_max_rotation)
@@ -102,35 +100,6 @@ class Controller(object):
         self.killed = False
         rospy.loginfo('Azi drive unkilled')
 
-    def convertNewtonsToPW(self, newtons):
-        out = newtons
-
-        if out < .0015:
-            #out = 0.0055*out**3 + 0.224*out**2 + 3.9836 * out + 86.679
-            out = ((self.REV_CONV * out + self.ZERO_NEWTONS)+150)*-1.4
-            #print("Reverse: %i" % out)
-        elif out > .0015:
-            #out = 0.0016*out**3 - 0.1027*out**2 + 2.812*out + 96.116
-            out = ((self.FWD_CONV * out + self.ZERO_NEWTONS)-75)*((1/out)/150)
-            #print("Forward: %i" % out)
-        else:
-            #out = ZERO_DEG;
-            out = self.ZERO_NEWTONS
-            #print("Zero: %i" % ZERO_PW)
-
-        #Bounds should be taken care of in the motor callback
-        #Just in case we double check the bounds after conversion
-        #print "Bounded out: %i" % out
-        return out
-
-    def pwm1_cb(self, msg):
-        temp = self.convertNewtonsToPW(msg.data)
-        self.pwm_forces[0] = temp
-
-    def pwm2_cb(self, msg):
-        temp = self.convertNewtonsToPW(msg.data)
-        self.pwm_forces[1] = temp
-
 
     def main_loop(self):
         rate = rospy.Rate(self.rate)
@@ -141,11 +110,6 @@ class Controller(object):
                 angles = np.array([0, 0])
                 self.set_servo_angles(angles)
                 self.set_forces((0.0, 0.0))
-            # If rc takeover set thruster angles to 0 and give thrust control to RC
-            elif self.rc_takeover == True:
-                angles = np.array([0, 0])
-                self.set_servo_angles(angles)
-                self.set_forces(self.pwm_forces)
             # Otherwise normal operation
             else:
                 iteration_num += 1
@@ -187,13 +151,6 @@ class Controller(object):
                     rospy.logdebug("Achieving net: {}".format(np.round(Azi_Drive.net_force(self.cur_angles, self.cur_forces)), 2))
 
                 rate.sleep()
-
-    def control_callback(self, msg):
-        
-        if msg.data == True:
-            self.rc_takeover = True
-        if msg.data == False:
-            self.rc_takeover = False
 
     def shutdown(self):
         rospy.logwarn("AZI_DRIVE: Shutting down Azi Drive")
