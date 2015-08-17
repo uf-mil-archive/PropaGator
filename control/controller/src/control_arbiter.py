@@ -2,6 +2,7 @@
 
 import rospy
 import roslib
+import threading
 from controller.msg import ControlDynamixelContinuousAngleConfig
 from dynamixel_servo.msg import DynamixelContinuousAngleConfig
 from controller.msg import ControlDynamixelFullConfig
@@ -25,6 +26,13 @@ ZERO_PWM = 1.5e-3
 
 # TODO
 # Add service to get all avalable controllers
+# Find way that servos and thruster call backs can all fire simltaniously but still
+#   are thread locked with request_controller
+
+#Notes
+# Switching controllers happens in a different thread than the thrusters getting published
+#   It is possible that after a switch occurs and the zero thrusters method has been called
+#   the other thread will still call its last cb so thread lock
 
 class control_arbiter:
     def __init__(self):
@@ -32,10 +40,15 @@ class control_arbiter:
         rospy.init_node('control_arbiter')
 
         # Vars
-        self.controller = 'xbox_rc'
-        self.controllers = [self.controller]
+        self.controller = 'none'
+        self.controllers = []
         self.floating = False
         self.killed = False
+        self.continuous_angle_lock = threading.Lock()
+        self.joint_lock = threading.Lock()
+        self.full_lock = threading.Lock()
+        self.wheel_lock = threading.Lock()
+        self.thrust_lock = threading.Lock()
 
         # Services
         self.request_controller_srv = rospy.Service('request_controller', request_controller,
@@ -107,44 +120,50 @@ class control_arbiter:
 
     # Servo callbacks
     def continuous_angle_cb(self, msg):
-        if not self.isValidController(msg.controller):
-            return
+        with self.continuous_angle_lock:
+            if not self.isValidController(msg.controller):
+                return
 
-        self.continuous_angle_pub.publish(msg.config)
+            self.continuous_angle_pub.publish(msg.config)
+
 
     def full_cb(self, msg):
-        if not self.isValidController(msg.controller):
-            return
+        with self.full_lock:
+            if not self.isValidController(msg.controller):
+                return
 
-        self.full_pub.publish(msg.config)
+            self.full_pub.publish(msg.config)
 
     def joint_cb(self, msg):
-        if not self.isValidController(msg.controller):
-            return
+        with self.joint_lock:
+            if not self.isValidController(msg.controller):
+                return
 
-        self.joint_pub.publish(msg.config)
+            self.joint_pub.publish(msg.config)
 
     def wheel_cb(self, msg):
-        if not self.isValidController(msg.controller):
-            return
+        with self.wheel_lock:
+            if not self.isValidController(msg.controller):
+                return
 
-        self.wheel_pub.publish(msg.config)
+            self.wheel_pub.publish(msg.config)
 
     # Thrust callback
     def thruster_cb(self, msg):
-        if not self.isValidController(msg.controller):
-            return
+        with self.thrust_lock:
+            if not self.isValidController(msg.controller):
+                return
 
-        if self.floating or self.killed:
-            self._zero_thrusters()
-            return
+            if self.floating or self.killed:
+                self._zero_thrusters()
+                return
 
-        if msg.id == PORT:
-            self.port_pub.publish(Float64(msg.pulse_width))
-        elif msg.id == STARBOARD:
-            self.starboard_pub.publish(Float64(msg.pulse_width))
-        else:
-            rospy.logerr(str(msg.id) + ' is not a vaild thruster id, valid ids are 2 (starboard) or 3 (port)')
+            if msg.id == PORT:
+                self.port_pub.publish(Float64(msg.pulse_width))
+            elif msg.id == STARBOARD:
+                self.starboard_pub.publish(Float64(msg.pulse_width))
+            else:
+                rospy.logerr(str(msg.id) + ' is not a vaild thruster id, valid ids are 2 (starboard) or 3 (port)')
 
     # Service callbacks
     def register_controller_cb(self, request):
@@ -163,8 +182,21 @@ class control_arbiter:
         if request.controller in  self.controllers:
             response.success = True
             response.current_controller = request.controller
+            
+            self.continuous_angle_lock.acquire()
+            self.joint_lock.acquire()
+            self.full_lock.acquire()
+            self.wheel_lock.acquire()
+            self.thrust_lock.acquire()
+
             self.controller = request.controller
             self._zero_thrusters()
+            
+            self.continuous_angle_lock.release()
+            self.joint_lock.release()
+            self.full_lock.release()
+            self.wheel_lock.release()
+            self.thrust_lock.release()
         else:
             response.success = False
             response.current_controller = self.controller
