@@ -22,6 +22,7 @@
   <build_depend>uf_common</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>dynamixel_servo</build_depend>
+  <build_depend>kill_handling</build_depend>
 
   <!-- Dependencies needed after this package is compiled. -->
   <run_depend>message_runtime</run_depend>
@@ -31,6 +32,7 @@
   <run_depend>uf_common</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>dynamixel_servo</run_depend>
+  <run_depend>kill_handling</run_depend>
 
   <!-- Dependencies needed only for running tests. -->
   <!-- <test_depend>tf</test_depend> -->

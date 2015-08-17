@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(controller)
 # Load catkin and all dependencies required for this package
 # TODO: remove all from COMPONENTS that are not catkin packages.
-find_package(catkin REQUIRED COMPONENTS message_runtime std_msgs message_generation rospy uf_common tf dynamixel_servo)
+find_package(catkin REQUIRED COMPONENTS message_runtime std_msgs message_generation rospy uf_common tf dynamixel_servo kill_handling)
 # CATKIN_MIGRATION: removed during catkin migration
 # cmake_minimum_required(VERSION 2.4.6)
 
@@ -63,7 +63,7 @@ generate_messages(
 # TODO: fill in what other packages will need to use this package
 catkin_package(
     DEPENDS  # TODO
-    CATKIN_DEPENDS message_runtime std_msgs message_generation rospy uf_common tf dynamixel_servo
+    CATKIN_DEPENDS message_runtime std_msgs message_generation rospy uf_common tf dynamixel_servo kill_handling
     INCLUDE_DIRS # TODO include
     LIBRARIES # TODO
 )

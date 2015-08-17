@@ -15,6 +15,8 @@ from std_msgs.msg import Float64, Bool
 from controller.srv import register_controller, register_controllerResponse
 from controller.srv import request_controller, request_controllerResponse
 from controller.srv import FloatMode
+from kill_handling.listener import KillListener
+from kill_handling.broadcaster import KillBroadcaster
 
 PORT = ControlThrustConfig.PORT
 STARBOARD = ControlThrustConfig.STARBOARD
@@ -33,6 +35,7 @@ class control_arbiter:
         self.controller = 'xbox_rc'
         self.controllers = [self.controller]
         self.floating = False
+        self.killed = False
 
         # Services
         self.request_controller_srv = rospy.Service('request_controller', request_controller,
@@ -74,6 +77,14 @@ class control_arbiter:
         self.float_update_timer = rospy.Timer(rospy.Duration(0.1), self.float_status_update)
 
         # Kill
+        self.kill_listener = KillListener(self.set_kill_cb, self.clear_kill_cb)
+        self.kill_broadcaster = KillBroadcaster(id = 'control_arbiter', description = 'control_arbiter has shutdown')
+        try:
+            self.kill_broadcaster.clear()
+        except rospy.service.ServiceException, e:
+            rospy.logwarn(str(e))
+
+        rospy.on_shutdown(self.shutdown)
 
     # Utility functions
     # Zero thrusters
@@ -112,7 +123,7 @@ class control_arbiter:
         if self.controller != msg.controller:
             return
 
-        if self.floating:
+        if self.floating or self.killed:
             self._zero_thrusters()
             return
 
@@ -148,6 +159,7 @@ class control_arbiter:
 
         return response
 
+    # Float functions
     # Used to place boat in floating mode (Thrusters are turned off)
     def set_float_mode(self, mode):
         self.floating = mode.float
@@ -160,6 +172,19 @@ class control_arbiter:
 
     def float_status_update(self, event):
         self.float_status_pub.publish(self.floating)
+
+    # kill funcitons
+    def shutdown(self):
+        self.kill_broadcaster.send(True)
+
+    def set_kill_cb(self):
+        self.killed = True
+        self._zero_thrusters()
+        rospy.logwarn('control_arbiter killed because: %s' % self.kill_listener.get_kills())
+
+    def clear_kill_cb(self):
+        self.killed = False
+        rospy.loginfo('control_arbiter unkilled')
 
 
 if __name__ == '__main__':
