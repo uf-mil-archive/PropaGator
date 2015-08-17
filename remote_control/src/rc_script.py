@@ -24,8 +24,9 @@
 import rospy
 import math
 
-from dynamixel_servo.msg import DynamixelFullConfig
 from controller.msg import ControlThrustConfig
+from controller.msg import ControlDynamixelFullConfig
+from dynamixel_servo.msg import DynamixelFullConfig
 from controller.srv import register_controller, request_controller
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Header
@@ -34,8 +35,6 @@ from std_msgs.msg import String
 
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
-
-from dynamixel_servo.msg import DynamixelFullConfig
 
 killed = False
 ZERO_PWM = 1.5e-3
@@ -63,7 +62,7 @@ BTNS = {
 }
 
 pwm_pub = rospy.Publisher('/controller/thruster_config', ControlThrustConfig, queue_size = 10)
-servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size = 10)
+servo_pub = rospy.Publisher('/controller/dynamixel_full_config', ControlDynamixelFullConfig, queue_size = 10)
 request_controller_proxy = rospy.ServiceProxy('/controller/request_controller', request_controller)
 register_controller_proxy = rospy.ServiceProxy('/controller/register_controller', register_controller)
 
@@ -193,15 +192,17 @@ def xbox_cb(joy_msg):
 
 			# Zero servos
 		for x in range(2,4):
-			servo_pub.publish(DynamixelFullConfig(
-				id=						x,
-				goal_position= 			math.pi,
-				moving_speed=			12, # near maximum, not actually achievable ...
-				torque_limit=			1023,
-				goal_acceleration=		38,
-				control_mode=			DynamixelFullConfig.JOINT,
-				goal_velocity=			10,
-			))
+			servo_pub.publish(ControlDynamixelFullConfig(
+				controller = 'xbox_rc',
+				config = DynamixelFullConfig(
+					id=						x,
+					goal_position= 			math.pi,
+					moving_speed=			12, # near maximum, not actually achievable ...
+					torque_limit=			1023,
+					goal_acceleration=		38,
+					control_mode=			DynamixelFullConfig.JOINT,
+					goal_velocity=			10
+			)))
 
 if __name__ == '__main__':
 	try:
