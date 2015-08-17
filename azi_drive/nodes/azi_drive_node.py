@@ -11,6 +11,7 @@ from controller.srv import register_controller
 
 from geometry_msgs.msg import WrenchStamped
 from motor_control.msg import thrusterNewtons
+from controller.msg import ControlDynamixelFullConfig
 from dynamixel_servo.msg import DynamixelFullConfig
 from time import time
 from std_msgs.msg import Bool, Float64
@@ -53,7 +54,7 @@ class Controller(object):
         # Unfortunately, we have to queue these, because the subscriber cannot process two sequential
         #  thrust messages as quickly as they are sent
         self.thrust_pub = rospy.Publisher('thruster_config', thrusterNewtons, queue_size=4)
-        self.servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size=4)
+        self.servo_pub = rospy.Publisher('controller/dynamixel_full_config', ControlDynamixelFullConfig, queue_size=4)
         self.next_wrench = WrenchStamped().wrench
         rospy.Subscriber('wrench', WrenchStamped, self._wrench_cb, queue_size=1)
 
@@ -227,14 +228,17 @@ class Controller(object):
 
     def send_angle(self, angle, servo):
         self.servo_pub.publish(
-            DynamixelFullConfig(
-                id=servo,
-                goal_position=clamp_angles(angle),
-                moving_speed=self.servo_max_rotation * 16,
-                torque_limit=1023,
-                goal_acceleration=38,
-                control_mode=DynamixelFullConfig.JOINT,
-                goal_velocity=0.0  # This is for wheel mode, we don't use it
+            ControlDynamixelFullConfig(
+                controller = 'azi_drive',
+                config = DynamixelFullConfig(
+                    id=servo,
+                    goal_position=clamp_angles(angle),
+                    moving_speed=self.servo_max_rotation * 16,
+                    torque_limit=1023,
+                    goal_acceleration=38,
+                    control_mode=DynamixelFullConfig.JOINT,
+                    goal_velocity=0.0  # This is for wheel mode, we don't use it
+                )
             )
         )
 
