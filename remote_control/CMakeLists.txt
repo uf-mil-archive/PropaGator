@@ -9,6 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   kill_handling
+  controller
 )
 
 ## System dependencies are found with CMake's conventions
@@ -83,7 +84,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES remote_control
- CATKIN_DEPENDS joy rospy std_msgs kill_handling
+ CATKIN_DEPENDS joy rospy std_msgs kill_handling controller
 #  DEPENDS system_lib
 )
 

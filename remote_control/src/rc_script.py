@@ -25,11 +25,12 @@ import rospy
 import math
 
 from dynamixel_servo.msg import DynamixelFullConfig
-from std_msgs.msg import Float64
+from controller.msg import ControlThrustConfig
+from controller.srv import register_controller, request_controller
 from sensor_msgs.msg import Joy
 from std_msgs.msg import Header
-from std_msgs.msg import Float64
 from std_msgs.msg import Bool
+from std_msgs.msg import String
 
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
@@ -37,8 +38,8 @@ from kill_handling.broadcaster import KillBroadcaster
 from dynamixel_servo.msg import DynamixelFullConfig
 
 killed = False
-zero_pwm = 1.5e-3
-rc_active = False
+ZERO_PWM = 1.5e-3
+current_controller = None
 back_btn_pressed = False
 
 AXIS = {
@@ -61,11 +62,10 @@ BTNS = {
 	'KILL':8, #Kill Switch #Center Big Switch
 }
 
-pwm_port_pub = rospy.Publisher('pwm1_alias', Float64, queue_size = 10)
-pwm_starboard_pub = rospy.Publisher('pwm2_alias', Float64, queue_size = 10)
+pwm_pub = rospy.Publisher('/controller/thruster_config', ControlThrustConfig, queue_size = 10)
 servo_pub = rospy.Publisher('dynamixel/dynamixel_full_config', DynamixelFullConfig, queue_size = 10)
-
-rc_state_pub = rospy.Publisher('rc/status', Bool, queue_size = 10)
+request_controller_proxy = rospy.ServiceProxy('/controller/request_controller', request_controller)
+register_controller_proxy = rospy.ServiceProxy('/controller/register_controller', register_controller)
 
 def logit(p):
 	l = math.log(p + 0.00001) - math.log(1.00001 - p)
@@ -97,13 +97,16 @@ def on_shutdown():
 	kill_broadcaster.send(True)
 
 def zero_pwms():
-	pwm1 = Float64(zero_pwm)
-	pwm_port_pub.publish(pwm1)
-	pwm2 = Float64(zero_pwm)
-	pwm_starboard_pub.publish(pwm2)
+	cmd = ControlThrustConfig()
+	cmd.controller = 'xbox_rc'
+	cmd.pulse_width = ZERO_PWM
 
-def pub_rc_state(event):
-	rc_state_pub.publish(rc_active)
+	cmd.id = ControlThrustConfig.PORT
+	pwm_pub.publish(cmd)
+
+	cmd.id = ControlThrustConfig.STARBOARD
+	pwm_pub.publish(cmd)
+
 
 def start():
 	global kill_listener
@@ -111,6 +114,13 @@ def start():
 
 	#Init node
 	rospy.init_node('remote_control')
+
+	# Register xbox_rc as a controller
+	rospy.wait_for_service('/controller/register_controller', 30.0)
+	register_controller_proxy('xbox_rc')
+
+	# Request to switch to xbox_rc
+	request_controller_proxy('xbox_rc')
 
 	kill_broadcaster = KillBroadcaster(id=rospy.get_name(), description='Remote control kill')
 	kill_listener = KillListener(killed_cb, unkilled_cb)
@@ -120,10 +130,8 @@ def start():
 		rospy.logwarn(str(e))
 	
 	#Init subscribers and publishers
-	rospy.Subscriber('joy', Joy, xbox_cb, queue_size = 10)
-
-	#Timer to output if the RC node is active
-	rospy.Timer(rospy.Duration(0.5), pub_rc_state)
+	rospy.Subscriber('joy', Joy, xbox_cb, queue_size = 1)
+	rospy.Subscriber('/controller/current_controller', String, current_controller_cb, queue_size = 1)
 
 	# Add a shutdown hook
 	rospy.on_shutdown(on_shutdown)
@@ -131,16 +139,24 @@ def start():
 	#Spin
 	rospy.spin()
 
+def current_controller_cb(msg):
+	global current_controller
+	current_controller = msg.data
+
+
 def xbox_cb(joy_msg):
 	global killed
 	global back_btn_pressed
-	global rc_active
+	global current_controller
 
 	# Toggle RC state
 	if joy_msg.buttons[BTNS['BACK']]:
 		if not back_btn_pressed:
 			back_btn_pressed = True
-			rc_active = not rc_active
+			if current_controller != 'xbox_rc':
+				request_controller_proxy('xbox_rc')
+			else:
+				request_controller_proxy('azi_drive')
 	else:
 		back_btn_pressed = False
 
@@ -161,16 +177,19 @@ def xbox_cb(joy_msg):
 		
 	if killed:
 		zero_pwms()
-	elif rc_active == False:
-		pwm1 = 0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + zero_pwm  #LEFT_STICK
-		#pwm1 = (0.0001*logit((joy_msg.axes[AXIS['LEFT_STICK_Y']])/2+0.5))+0.0015
-		pwm1 = Float64(clip(pwm1))
-		pwm_port_pub.publish(pwm1)
-		pwm2 = 0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + zero_pwm  #RIGHT_STICK
-		#pwm2 = (0.0001*logit((joy_msg.axes[AXIS['RIGHT_STICK_Y']])/2+0.5))+0.0015
-		pwm2 = Float64(clip(pwm2))
-		pwm_starboard_pub.publish(pwm2) 
+	else:
+		cmd = ControlThrustConfig()
+		cmd.controller = 'xbox_rc'
 
+		cmd.id = ControlThrustConfig.PORT
+		cmd.pulse_width = 0.0005*(joy_msg.axes[AXIS['LEFT_STICK_Y']]) + ZERO_PWM  #LEFT_STICK
+		#				 (0.0001*logit((joy_msg.axes[AXIS['LEFT_STICK_Y']])/2+0.5))+0.0015
+		pwm_pub.publish(cmd)
+
+		cmd.id = ControlThrustConfig.STARBOARD
+		cmd.pulse_width = 0.0005*(joy_msg.axes[AXIS['RIGHT_STICK_Y']]) + ZERO_PWM  #RIGHT_STICK
+		#				 (0.0001*logit((joy_msg.axes[AXIS['RIGHT_STICK_Y']])/2+0.5))+0.0015
+		pwm_pub.publish(cmd)
 
 			# Zero servos
 		for x in range(2,4):
