@@ -140,7 +140,7 @@ class Controller(object):
                 self.cur_angles += d_theta
                 self.cur_forces += d_force
 
-                if iteration_num > 10:
+                if iteration_num > 1:
                     iteration_num = 0
                     self._reset_desired_state()
                     self.set_servo_angles(self.cur_angles)
