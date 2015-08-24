@@ -28,13 +28,13 @@ rosrun kill_handling kill_master &
 roscore 
 }
 
-function mission(){
+function boat_mission(){
 echo "rosrun mission_core run_missions boat_launch.mission.$1"
 rosrun mission_core run_missions boat_launch.mission.$1
 
 }
 
 function h(){
-  mission station_hold
+  boat_mission station_hold
 }
 
