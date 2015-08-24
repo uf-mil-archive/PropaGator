@@ -4,6 +4,7 @@
 string POINT_SHOOT_PP=point_shoot_pp
 string POINT_SHOOT_2_PP=point_shoot_2_pp
 string A_STAR_RPP=a_star_rpp
+string GOAL_PP=goal_pp
 
 # Mode holds the desired mode of opperation
 string mode
