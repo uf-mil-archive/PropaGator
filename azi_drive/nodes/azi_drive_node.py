@@ -32,7 +32,7 @@ class Controller(object):
         rospy.ServiceProxy('/controller/register_controller', register_controller)('azi_drive')
 
         self.rate = rate
-        self.servo_max_rotation = 0.1
+        self.servo_max_rotation = 6.0
         self.controller_max_rotation = self.servo_max_rotation / self.rate
         
         # rospy.init_node('azi_drive', log_level=rospy.WARN)
