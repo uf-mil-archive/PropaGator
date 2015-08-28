@@ -15,18 +15,16 @@ from uf_common.msg import PoseTwistStamped
 from controller.srv import Enable, EnableResponse
 from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
-
+from collections import deque
 
 
 class PID_controller:
 
     def __init__(self, Derivator=0, Integrator=0, Integrator_max=500, Integrator_min=-500):
 
-        
-
         '''
 
-        Structure gain matrix for flexible use
+        Structure gain i_history for flexible use
         This allows the gain function to access all gains by simple indexing scheme
         Place x and y gains in the first row of the 6x3
         Place x gains in the bottom row 
@@ -44,12 +42,12 @@ class PID_controller:
 
         self.K = numpy.zeros((6,3))
         self.K[0:6, 0:6] = [
-            [50,0,10], # pid_x
-            [100,0,10], # pid_y
-            [0,0,0],
-            [0,0,0],
-            [0,0,0],
-            [100,0,10], # pid_z
+            [50,  1, 10], # pid_x
+            [50, 1, 10], # pid_y
+            [0,   0,  0],
+            [0,   0,  0],
+            [0,   0,  0],
+            [50, 1, 10], # pid_z
         ]
 
         # Set PID soptions
@@ -69,6 +67,11 @@ class PID_controller:
         self.current_velocity = numpy.zeros(6)
         self.current_error = numpy.ones(6)
 
+        self.i_history = [[0 for x in range(1)] for x in range(6)] 
+        self.i_history[0] = deque()
+        self.i_history[1] = deque()
+        self.i_history[5] = deque()
+        self.integrator = numpy.zeros(6)
 
         self.lock = threading.Lock()
 
@@ -126,9 +129,9 @@ class PID_controller:
         # Get desired linear and angular velocities
         desired_lin_vel = xyz_array(desired_trajectory.posetwist.twist.linear)
         desired_ang_vel = xyz_array(desired_trajectory.posetwist.twist.angular)
-        # Add desired position to desired state matrixs
+        # Add desired position to desired state i_historys
         self.desired_state = numpy.concatenate([desired_pose, desired_orientation])
-        # Add desired velocities to velocity matrix
+        # Add desired velocities to velocity i_history
         self.desired_velocity = numpy.concatenate([desired_lin_vel, desired_ang_vel])
         self.lock.release()
 
@@ -142,12 +145,12 @@ class PID_controller:
         # Zero unneccesary elements
         current_position[2] = 0
         current_orientation[0:2] = 0
-        # Add current position to state matrix
+        # Add current position to state i_history
         self.current_state = numpy.concatenate([current_position, current_orientation])
         # Get current velocities
         current_lin_vel = xyz_array(current_pos.twist.twist.linear)
         current_ang_vel = xyz_array(current_pos.twist.twist.angular)
-        # Add current velocities to velocity matrix
+        # Add current velocities to velocity i_history
         self.current_velocity = numpy.concatenate([current_lin_vel, current_ang_vel])
         # If the desired state has not yet been set, set desired and current as the same
         # Resets the controller to current position on bootup
@@ -158,6 +161,7 @@ class PID_controller:
         self.lock.release()
 
     def PID(self, variable):
+
         # Index in state number we want to access
         state_number = 0
         if variable == 'x': state_number = 0
@@ -167,16 +171,35 @@ class PID_controller:
         #self.current_error = self.desired_state[state_number] - self.current_state[state_number]
         #rospy.logwarn(variable + ": " + str(self.current_error[state_number]))
         p = self.K[state_number, 0] * self.current_error[state_number]
-        i = (self.Integrator + self.current_error[state_number]) * self.K[state_number, 1]
+        i = (self.integrator[state_number] + self.current_error[state_number]) * self.K[state_number, 1]
         d = self.K[state_number, 2] * (self.current_error[state_number] - self.Derivator)
+
+        # This section will be the FOPID implimentation, but I am still working on it
+        if abs(self.current_error[state_number]) > 0: pass
+            #i = math.pow(abs(i), (1 + abs(self.current_error[state_number])))
+            #d = math.pow(abs(d), (abs(self.current_error[state_number])))
+
+        rospy.logwarn(self.current_error[state_number])
+        rospy.logwarn('P' + variable + ": " + str(p))
+        rospy.logwarn('I' + variable + ": " + str(i))
+        rospy.logwarn('D' + variable + ": " + str(d))
+
+        # Set temporary variable for use in integrator sliding window
+        sliding_window = self.i_history[state_number]
+
+        # append to integrator array
+        sliding_window.append(i)
+
+        # If array is larger than 5 items, remove item
+        if len(sliding_window) > 5:
+            sliding_window.pop()
+
+        # Set up variables for next iteration
+        # Sum only last 5 numbers of intergration
         self.Derivator = self.current_error[state_number]
+        self.integrator[state_number] = sum(sliding_window)
 
-        if self.Integrator > self.Integrator_max:
-            self.Integrator = self.Integrator_max
-        elif self.Integrator < self.Integrator_min:
-            self.Integrator = self.Integrator_min
-
-        PID = p + i + d 
+        PID = p + i + d
         return PID
 
     def timeout_callback(self, event):
@@ -212,7 +235,7 @@ class PID_controller:
 
         # Combine errors into one array
         error_enu = numpy.concatenate([linear_error, angular_error])
-        rospy.logwarn(error_enu)
+        #rospy.logwarn(error_enu)
         # Translate /enu errors into /base_link errors
         error_base = self.jacobian_inv(self.current_state).dot(error_enu)
         # Take away velocity from error to avoid overshoot
@@ -268,7 +291,7 @@ if __name__ == "__main__":
 
     controller = PID_controller(0, 500, -500)
     #rospy.on_shutdown(controller.shutdown)
-    rospy.Timer(rospy.Duration(1.0/20.0), controller.main_loop)
+    rospy.Timer(rospy.Duration(1.0/50.0), controller.main_loop)
     rospy.Timer(rospy.Duration(1), controller.timeout_callback)
     rospy.spin()
 
