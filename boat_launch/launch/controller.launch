@@ -1,6 +1,9 @@
 <launch>
   <node name="motor_newtons" pkg="motor_control" type="thruster_control.py"/>
-  <node name="pd_controller" pkg="controller" type="pd_controller.py"/>
+  <node name="pd_controller" pkg="controller" type="PID_controller.py">
+      <rosparam>{p_x: 75, i_x: .5, d_x: 10, p_y: 75, i_y: .5, d_y: 10, p_z: 75, i_z: .5, d_z: 10}</rosparam>
+  </node>
+
   <group ns="controller">
   	<node name="control_arbiter" pkg="controller" type="control_arbiter.py"/>
   </group>

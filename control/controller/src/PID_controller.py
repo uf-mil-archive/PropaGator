@@ -1,4 +1,39 @@
 #!/usr/bin/env python
+'''
+
+This source is written for use in the Machine Intelligence Lab in the MAE
+Department at the University of Florida. 
+It is writen for use on the UF PropaGator robot
+It is released under the BSD license and is intended for university use
+This code is provided "as is" and relies on specific hardware, use at your own risk
+
+Title: PID position controller
+Start Date: 08-22-2015
+
+Author: Zach Goins
+Author email: zach.a.goins@gmail.com
+
+Co-author:
+Co-author email:
+
+CODE DETAILS --------------------------------------------------------------------
+
+Please include inputs, outputs, and fill with a pseudo-code or description of the source to follow
+
+inputs: /trajectory, /odom, /pid_d_gain, /pid_p_gain, /pid_i_gain
+output: /wrench, 
+
+This file is used to take the trajectory given by the path planner
+and command the wrenches to be given the the thruster mapper
+
+1. Get desired position -> ROS message callback
+2. Get current position -> ROS message callback
+3. Computer linear and angular error in /enu
+4. Convert the errors to /baselink using defined transformation matrix
+5. Use PID controller to computer desired wrench and send 
+
+'''
+
 import rospy
 import roslib
 roslib
@@ -17,17 +52,29 @@ from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 from collections import deque
 
+rospy.init_node('pd_controller', anonymous=True)#, log_level=rospy.DEBUG)
+
+p_x = rospy.get_param('~p_x')
+p_y = rospy.get_param('~p_y')
+p_z = rospy.get_param('~p_z')
+i_x = rospy.get_param('~i_x')
+i_y = rospy.get_param('~i_y')
+i_z = rospy.get_param('~i_z')
+d_x = rospy.get_param('~d_x')
+d_y = rospy.get_param('~d_y')
+d_z = rospy.get_param('~d_z')
 
 class PID_controller:
 
-    def __init__(self, Derivator=0, Integrator=0, Integrator_max=500, Integrator_min=-500):
+    def __init__(self):
 
         '''
 
-        Structure gain i_history for flexible use
+        Structure gain array for flexible use
         This allows the gain function to access all gains by simple indexing scheme
         Place x and y gains in the first row of the 6x3
-        Place x gains in the bottom row 
+        Place x gains in the bottom row
+        the i_history array uses this scheme as well
 
         Gain array layout:
 
@@ -42,19 +89,13 @@ class PID_controller:
 
         self.K = numpy.zeros((6,3))
         self.K[0:6, 0:6] = [
-            [50,  1, 10], # pid_x
-            [50, 1, 10], # pid_y
+            [p_x,  i_x, d_x], # pid_x
+            [p_y, i_y, d_y], # pid_y
             [0,   0,  0],
             [0,   0,  0],
             [0,   0,  0],
-            [50, 1, 10], # pid_z
+            [p_z, i_z, d_z], # pid_z
         ]
-
-        # Set PID soptions
-        self.Derivator= Derivator
-        self.Integrator= Integrator
-        self.Integrator_max= Integrator_max
-        self.Integrator_min= Integrator_min
 
         # Kill functions
         self.odom_active = False
@@ -72,6 +113,7 @@ class PID_controller:
         self.i_history[1] = deque()
         self.i_history[5] = deque()
         self.integrator = numpy.zeros(6)
+        self.Derivator= 0
 
         self.lock = threading.Lock()
 
@@ -80,7 +122,6 @@ class PID_controller:
 
         # ROS components
         self.controller_wrench = rospy.Publisher('wrench', WrenchStamped, queue_size = 1)
-        self.waypoint_progress = rospy.Publisher('waypoint_progress', Bool, queue_size = 1)
         self.kill_listener = KillListener(self.set_kill, self.clear_kill)
         rospy.Subscriber('/trajectory', PoseTwistStamped, self.trajectory_callback)
         rospy.Subscriber('/odom', Odometry, self.odom_callback)
@@ -114,16 +155,16 @@ class PID_controller:
 
     def set_kill(self):
         self.killed = True
-        rospy.logwarn('PD_Controller KILLED: %s' % self.kill_listener.get_kills())
+        rospy.logdebug('PD_Controller KILLED: %s' % self.kill_listener.get_kills())
 
     def clear_kill(self):
         self.killed = False
-        rospy.logwarn('PD_Controller ACTIVE: %s' % self.kill_listener.get_kills())
+        rospy.logdebug('PD_Controller ACTIVE: %s' % self.kill_listener.get_kills())
 
     def trajectory_callback(self, desired_trajectory):
         self.lock.acquire()
         self.desired_state_set = True
-        # Get dessired pose and orientation 
+        # Get desired pose and orientation 
         desired_pose = xyz_array(desired_trajectory.posetwist.pose.position)
         desired_orientation = transformations.euler_from_quaternion(xyzw_array(desired_trajectory.posetwist.pose.orientation))
         # Get desired linear and angular velocities
@@ -169,20 +210,20 @@ class PID_controller:
         if variable == 'z': state_number = 5
 
         #self.current_error = self.desired_state[state_number] - self.current_state[state_number]
-        #rospy.logwarn(variable + ": " + str(self.current_error[state_number]))
+        #rospy.logdebug(variable + ": " + str(self.current_error[state_number]))
         p = self.K[state_number, 0] * self.current_error[state_number]
         i = (self.integrator[state_number] + self.current_error[state_number]) * self.K[state_number, 1]
         d = self.K[state_number, 2] * (self.current_error[state_number] - self.Derivator)
 
         # This section will be the FOPID implimentation, but I am still working on it
-        if abs(self.current_error[state_number]) > 0: pass
-            #i = math.pow(abs(i), (1 + abs(self.current_error[state_number])))
-            #d = math.pow(abs(d), (abs(self.current_error[state_number])))
+        if abs(self.current_error[state_number]) > 0:
+            i = math.pow(abs(i), (1 + abs(self.current_error[state_number])))
+            d = math.pow(abs(d), (abs(self.current_error[state_number])))
 
-        rospy.logwarn(self.current_error[state_number])
-        rospy.logwarn('P' + variable + ": " + str(p))
-        rospy.logwarn('I' + variable + ": " + str(i))
-        rospy.logwarn('D' + variable + ": " + str(d))
+        rospy.logdebug(self.current_error[state_number])
+        rospy.logdebug('P' + variable + ": " + str(p))
+        rospy.logdebug('I' + variable + ": " + str(i))
+        rospy.logdebug('D' + variable + ": " + str(d))
 
         # Set temporary variable for use in integrator sliding window
         sliding_window = self.i_history[state_number]
@@ -205,7 +246,7 @@ class PID_controller:
     def timeout_callback(self, event):
         self.odom_active = False
 
-    def jacobian_inv(self, x):
+    def jacobian(self, x):
         # maps global linear velocity/euler rates -> body linear+angular velocities
         sphi, cphi = math.sin(x[3]), math.cos(x[3])
         stheta, ctheta = math.sin(x[4]), math.cos(x[4])
@@ -235,9 +276,9 @@ class PID_controller:
 
         # Combine errors into one array
         error_enu = numpy.concatenate([linear_error, angular_error])
-        #rospy.logwarn(error_enu)
+        #rospy.logdebug(error_enu)
         # Translate /enu errors into /base_link errors
-        error_base = self.jacobian_inv(self.current_state).dot(error_enu)
+        error_base = self.jacobian(self.current_state).dot(error_enu)
         # Take away velocity from error to avoid overshoot
         final_error = error_base - self.current_velocity
         # Place errors to be sent into main error array
@@ -273,7 +314,7 @@ class PID_controller:
 
         # If not ready to go...
         if (self.killed == True):
-            rospy.logwarn('PD_Controller KILLED: %s' % self.kill_listener.get_kills())
+            rospy.logdebug('PD_Controller KILLED: %s' % self.kill_listener.get_kills())
             self.controller_wrench.publish(WrenchStamped(
                     header = Header(
                         stamp=rospy.Time.now(),
@@ -287,9 +328,8 @@ class PID_controller:
                         )
 
 if __name__ == "__main__":
-    rospy.init_node('controller')
 
-    controller = PID_controller(0, 500, -500)
+    controller = PID_controller()
     #rospy.on_shutdown(controller.shutdown)
     rospy.Timer(rospy.Duration(1.0/50.0), controller.main_loop)
     rospy.Timer(rospy.Duration(1), controller.timeout_callback)
