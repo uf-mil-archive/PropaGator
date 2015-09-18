@@ -52,7 +52,7 @@ from kill_handling.listener import KillListener
 from kill_handling.broadcaster import KillBroadcaster
 from collections import deque
 
-rospy.init_node('pd_controller', anonymous=True)#, log_level=rospy.DEBUG)
+rospy.init_node('pd_controller', anonymous=True, log_level=rospy.DEBUG)
 
 p_x = rospy.get_param('~p_x')
 p_y = rospy.get_param('~p_y')
@@ -217,13 +217,12 @@ class PID_controller:
 
         # This section will be the FOPID implimentation, but I am still working on it
         if abs(self.current_error[state_number]) > 0:
-            i = math.pow(abs(i), (1 + abs(self.current_error[state_number])))
-            d = math.pow(abs(d), (abs(self.current_error[state_number])))
+            i = i * (1 + abs(d))
 
         rospy.logdebug(self.current_error[state_number])
-        rospy.logdebug('P' + variable + ": " + str(p))
-        rospy.logdebug('I' + variable + ": " + str(i))
-        rospy.logdebug('D' + variable + ": " + str(d))
+        rospy.logwarn('P' + variable + ": " + str(p))
+        rospy.logwarn('I' + variable + ": " + str(i))
+        rospy.logwarn('D' + variable + ": " + str(d))
 
         # Set temporary variable for use in integrator sliding window
         sliding_window = self.i_history[state_number]
