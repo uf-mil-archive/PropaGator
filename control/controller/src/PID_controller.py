@@ -216,8 +216,8 @@ class PID_controller:
         d = self.K[state_number, 2] * (self.current_error[state_number] - self.Derivator)
 
         # This section will be the FOPID implimentation, but I am still working on it
-        if abs(self.current_error[state_number]) > 0:
-            i = i * (1 + abs(d))
+        if abs(self.current_error[state_number]) > 0: pass
+            #i = i * (1 + abs(d))
 
         rospy.logdebug(self.current_error[state_number])
         rospy.logwarn('P' + variable + ": " + str(p))
