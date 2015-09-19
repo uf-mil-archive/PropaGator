@@ -30,6 +30,8 @@ class Azi_Drive(object):
         # Taken from simulation
         (-0.7239, -0.3048),
         (-0.7239, 0.3048),
+	#(-0.5215, -0.304),
+	#(-0.5215, 0.304),
     ]
 
     # Max/min force from each thruster
